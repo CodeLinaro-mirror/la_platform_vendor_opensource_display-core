@@ -943,6 +943,8 @@ DisplayError HWDeviceDRM::PopulateDisplayAttributes(uint32_t index) {
   display_attributes_[index].fps = mode.vrefresh;
   display_attributes_[index].vsync_period_ns =
     UINT32(1000000000L / display_attributes_[index].fps);
+  display_attributes_[index].fsc_panel = connector_info_.fsc_panel;
+  display_attributes_[index].num_fsc_fields = connector_info_.num_fsc_fields;
 
   /*
               Active                 Front           Sync           Back
@@ -1117,6 +1119,8 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
     hw_panel_info_.qsync_fps = hw_panel_info_.min_fps;
   }
 
+  hw_panel_info_.fsc_panel = connector_info_.fsc_panel;
+  hw_panel_info_.num_fsc_fields = connector_info_.num_fsc_fields;
   hw_panel_info_.is_primary_panel = connector_info_.is_primary;
   hw_panel_info_.is_pluggable = 0;
   hw_panel_info_.hdr_enabled = connector_info_.panel_hdr_prop.hdr_enabled;
