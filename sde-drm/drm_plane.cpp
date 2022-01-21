@@ -1171,6 +1171,32 @@ bool DRMPlane::SetFp16UnmultConfig(drmModeAtomicReq *req, uint32_t unmult_en) {
   return true;
 }
 
+bool DRMPlane::SetPrefillSize(drmModeAtomicReq *req, uint32_t prefill_size) {
+  auto prop_id = prop_mgr_.GetPropertyId(DRMProperty::PREFILL_SIZE);
+  if (!prop_id) {
+    return false;
+  }
+
+  AddProperty(req, drm_plane_->plane_id, prop_id, prefill_size, true /* cache */,
+              tmp_prop_val_map_);
+  DRM_LOGV("Plane %d: Setting prefill size %d", drm_plane_->plane_id, prefill_size);
+
+  return true;
+}
+
+bool DRMPlane::SetPrefillTime(drmModeAtomicReq *req, uint32_t prefill_time) {
+  auto prop_id = prop_mgr_.GetPropertyId(DRMProperty::PREFILL_TIME);
+  if (!prop_id) {
+    return false;
+  }
+
+  AddProperty(req, drm_plane_->plane_id, prop_id, prefill_time, true /* cache */,
+              tmp_prop_val_map_);
+  DRM_LOGV("Plane %d: Setting prefill time %d", drm_plane_->plane_id, prefill_time);
+
+  return true;
+}
+
 bool DRMPlane::SetFp16GcConfig(drmModeAtomicReq *req, drm_msm_fp16_gc *gc_config) {
   auto prop_id = prop_mgr_.GetPropertyId(DRMProperty::SDE_SSPP_FP16_GC_V1);
   if (!prop_id) {
@@ -1605,6 +1631,15 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       }
       DRMCacMode cac_mode = (DRMCacMode)va_arg(args, uint32_t);
       SetCacType(req, cac_mode);
+    } break;
+    case DRMOps::PLANES_SET_PREFILL_SIZE: {
+      uint32_t config = va_arg(args, uint32_t);
+      SetPrefillSize(req, config);
+    } break;
+
+    case DRMOps::PLANES_SET_PREFILL_TIME: {
+      uint32_t config = va_arg(args, uint32_t);
+      SetPrefillTime(req, config);
     } break;
 
 #ifdef UCSC_SUPPORTED

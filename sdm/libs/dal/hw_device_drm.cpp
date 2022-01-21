@@ -1933,7 +1933,7 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
 
           uint32_t config = 0;
           SetSrcConfig(layer.input_buffer, hw_rotator_session->mode, &config);
-          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_SRC_CONFIG, pipe_id, config);;
+          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_SRC_CONFIG, pipe_id, config);
 
           if (hw_scale_) {
             SDEScaler scaler_output = {};
@@ -1954,6 +1954,26 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
           drm_atomic_intf_->Perform(DRMOps::PLANE_SET_MULTIRECT_MODE, pipe_id, multirect_mode);
 
           SetSsppTonemapFeatures(pipe_info);
+
+          if (hw_panel_info_.fsc_panel) {
+            // prefill size will be ZERO for all the fields
+            drm_atomic_intf_->Perform(DRMOps::PLANES_SET_PREFILL_SIZE, pipe_id, 0);
+
+            /*INFO:
+            R = 0
+            G = ((8.333 * 1000) / 5) * 1
+            B = ((8.333 * 1000) / 5) * 2
+            R = ((8.333 * 1000) / 5) * 3
+            G = ((8.333 * 1000) / 5) * 4
+            don't program prefill_time exactly so reduce some prefill i.e 12 lines
+            final prefill for G = [((8.333 * 1000) / 5) * 1] - [(12 * 8.333 * 1000)/ vtotal] */
+
+            float fps_ms = (1000 / hw_panel_info_.min_fps) * 1000;
+            uint64_t early_prefil = (kEarlyPrefil * fps_ms) / display_attributes_[index].v_total;
+            uint64_t prefill_time = (fps_ms / hw_layer_count) * i;
+            prefill_time = prefill_time ? (prefill_time - early_prefil) : 0;
+            drm_atomic_intf_->Perform(DRMOps::PLANES_SET_PREFILL_TIME, pipe_id, prefill_time);
+          }
         } else if (update_luts) {
           if (force_tonemapping_) {
             sde_drm::DRMFp16Config fp16_config = {};

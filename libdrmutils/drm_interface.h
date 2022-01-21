@@ -279,6 +279,18 @@ enum struct DRMOps {
    */
   PLANE_SET_IMG_SIZE_RECT,
   /*
+   * Op: Sets plane prefill size
+   * Arg: uint32_t - Plane ID
+   *      uint32_t - size value
+   */
+  PLANES_SET_PREFILL_SIZE,
+  /*
+   * Op: Sets plane prefill time
+   * Arg: uint32_t - Plane ID
+   *      uint32_t - time value
+   */
+  PLANES_SET_PREFILL_TIME,
+  /*
    * Op: Activate or deactivate a CRTC
    * Arg: uint32_t - CRTC ID
    *      uint32_t - 1 to enable, 0 to disable
