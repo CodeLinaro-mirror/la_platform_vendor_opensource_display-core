@@ -90,6 +90,9 @@
 #ifndef DRM_FORMAT_MOD_QCOM_LOSSY_2_1
 #define DRM_FORMAT_MOD_QCOM_LOSSY_2_1 fourcc_mod_code(QCOM, 0x200)
 #endif
+#ifndef DRM_FORMAT_MOD_QCOM_FSC_TILE
+#define DRM_FORMAT_MOD_QCOM_FSC_TILE fourcc_mod_code(QCOM, 0x20)
+#endif
 
 #define DEST_SCALAR_OVERFETCH_SIZE 5
 #define OFFSET_ALIGN(x, align) ((x) - ((x) % (align)))
@@ -260,6 +263,10 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
     case kFormatXBGR2101010:
       *drm_format = DRM_FORMAT_RGBX1010102;
       *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      break;
+    case kFormatC8Ubwc:
+      *drm_format = DRM_FORMAT_C8;
+      *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_FSC_TILE;
       break;
     case kFormatYCbCr420SemiPlanar:
       *drm_format = DRM_FORMAT_NV12;
