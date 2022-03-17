@@ -198,10 +198,13 @@ struct LayerTransform {
   float rotation = 0.0f;  //!< Left most pixel coordinate.
   bool flip_horizontal = false;  //!< Mirror reversal of the layer across a horizontal axis.
   bool flip_vertical = false;  //!< Mirror reversal of the layer across a vertical axis.
+  float horz_comp_ratio = 0.0f;  //!< Compress pixels horizontally.
+                                 //!< This will be used for FSC formats.
 
   bool operator==(const LayerTransform& transform) const {
     return (rotation == transform.rotation && flip_horizontal == transform.flip_horizontal &&
-            flip_vertical == transform.flip_vertical);
+            flip_vertical == transform.flip_vertical &&
+            horz_comp_ratio == transform.horz_comp_ratio);
   }
 
   bool operator!=(const LayerTransform& transform) const {

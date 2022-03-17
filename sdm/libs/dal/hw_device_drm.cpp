@@ -3082,11 +3082,21 @@ void HWDeviceDRM::GetDRMDisplayToken(sde_drm::DRMDisplayToken *token) const {
 void HWDeviceDRM::UpdateMixerAttributes() {
   uint32_t index = current_mode_index_;
 
-  mixer_attributes_.width = display_attributes_[index].x_pixels;
-  mixer_attributes_.height = display_attributes_[index].y_pixels;
-  mixer_attributes_.split_left = display_attributes_[index].is_device_split
-                                     ? hw_panel_info_.split_info.left_split
-                                     : mixer_attributes_.width;
+  // Configure mixer at  (W / Fields) X (H * Fields).
+  if (display_attributes_[index].fsc_panel) {
+    mixer_attributes_.width = display_attributes_[index].x_pixels / kPixelThroughput;
+    mixer_attributes_.height =
+        display_attributes_[index].y_pixels * display_attributes_[index].num_fsc_fields;
+    mixer_attributes_.split_left = display_attributes_[index].is_device_split
+                                       ? hw_panel_info_.split_info.left_split / kPixelThroughput
+                                       : mixer_attributes_.width / kPixelThroughput;
+  } else {
+    mixer_attributes_.width = display_attributes_[index].x_pixels;
+    mixer_attributes_.height = display_attributes_[index].y_pixels;
+    mixer_attributes_.split_left = display_attributes_[index].is_device_split
+                                       ? hw_panel_info_.split_info.left_split
+                                       : mixer_attributes_.width;
+  }
   mixer_attributes_.split_type = kNoSplit;
   if (display_attributes_[index].is_device_split) {
     mixer_attributes_.split_type = kDualSplit;
