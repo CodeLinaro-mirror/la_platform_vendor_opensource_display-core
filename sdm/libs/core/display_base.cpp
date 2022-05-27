@@ -1953,8 +1953,11 @@ DisplayError DisplayBase::PostCommit() {
   CacheFrameBuffer();
 
   for (auto& info : disp_layer_stack_->info) {
-    for (auto &hw_layer : info.second.hw_layers) {
-      CloseFd(&hw_layer.input_buffer.planes[0].fd);
+    // TODO: Need to clean up and add generic logic
+    if (!client_ctx_.display_attributes.fsc_panel) {
+      for (auto &hw_layer : info.second.hw_layers) {
+        CloseFd(&hw_layer.input_buffer.planes[0].fd);
+      }
     }
   }
 
