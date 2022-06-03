@@ -1009,6 +1009,8 @@ DisplayError HWDeviceDRM::PopulateDisplayAttributes(uint32_t index) {
   display_attributes_[index].avr_step = connector_info_.modes[index].avr_step_fps;
   display_attributes_[index].early_ept_timeout = connector_info_.modes[index].early_ept_timeout;
 
+  UpdateDisplayAttributesForFSC(&display_attributes_[index]);
+
   DLOGI(
       "Display %d-%d attributes[%d]: WxH: %dx%d, DPI: %fx%f, FPS: %d, LM_SPLIT: %d, V_BACK_PORCH:"
       " %d, V_FRONT_PORCH: %d [RFI Adjusted : %s], V_PULSE_WIDTH: %d, V_TOTAL: %d, H_TOTAL: %d,"
@@ -1024,6 +1026,23 @@ DisplayError HWDeviceDRM::PopulateDisplayAttributes(uint32_t index) {
       mixer_attributes_.split_type, display_attributes_[index].avr_step);
 
   return kErrorNone;
+}
+
+void HWDeviceDRM::UpdateDisplayAttributesForFSC(HWDisplayAttributes *display_attributes) {
+  if (!display_attributes->fsc_panel) {
+    return;
+  }
+
+  // Populate display attributes at  W / 3 x 3 * Fields.
+  // Mixer attributes will also be configured
+  display_attributes->x_pixels /= display_attributes->num_fsc_fields;
+  display_attributes->y_pixels *= display_attributes->num_fsc_fields;
+  uint32_t v_active = display_attributes->v_total - display_attributes->v_front_porch -
+                      display_attributes->v_back_porch - display_attributes->v_pulse_width;
+  display_attributes->v_total =
+      display_attributes->v_front_porch + (v_active * display_attributes->num_fsc_fields) +
+      display_attributes->v_back_porch + display_attributes->v_pulse_width;
+  display_attributes->h_total /= display_attributes->num_fsc_fields;
 }
 
 void HWDeviceDRM::PopulateHWPanelInfo() {
@@ -1753,7 +1772,7 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
     ResetROI();
   }
 
-  if (hw_panel_info_.fsc_panel) {
+  if (hw_layers_info->common_info->flags.system_cache) {
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_CACHE_STATE, token_.crtc_id, DRMCacheState::ENABLED);
   }
 
@@ -3142,22 +3161,13 @@ void HWDeviceDRM::GetDRMDisplayToken(sde_drm::DRMDisplayToken *token) const {
 void HWDeviceDRM::UpdateMixerAttributes() {
   uint32_t index = current_mode_index_;
 
-  // Configure mixer at  (W / Fields) X (H * Fields).
-  if (display_attributes_[index].fsc_panel) {
-    mixer_attributes_.width = display_attributes_[index].x_pixels / kPixelThroughput;
-    mixer_attributes_.height =
-        display_attributes_[index].y_pixels * display_attributes_[index].num_fsc_fields;
-    mixer_attributes_.split_left = display_attributes_[index].is_device_split
-                                       ? hw_panel_info_.split_info.left_split / kPixelThroughput
-                                       : mixer_attributes_.width / kPixelThroughput;
-  } else {
-    mixer_attributes_.width = display_attributes_[index].x_pixels;
-    mixer_attributes_.height = display_attributes_[index].y_pixels;
-    mixer_attributes_.split_left = display_attributes_[index].is_device_split
-                                       ? hw_panel_info_.split_info.left_split
-                                       : mixer_attributes_.width;
-  }
+  mixer_attributes_.width = display_attributes_[index].x_pixels;
+  mixer_attributes_.height = display_attributes_[index].y_pixels;
+  mixer_attributes_.split_left = display_attributes_[index].is_device_split
+                                     ? hw_panel_info_.split_info.left_split
+                                     : mixer_attributes_.width;
   mixer_attributes_.split_type = kNoSplit;
+
   if (display_attributes_[index].is_device_split) {
     mixer_attributes_.split_type = kDualSplit;
     if (display_attributes_[index].topology == kQuadLMMerge ||
