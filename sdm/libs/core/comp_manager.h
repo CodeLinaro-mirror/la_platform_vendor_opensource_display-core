@@ -161,6 +161,9 @@ class CompManager : public CwbCallback {
                                       const SDMDisplayDeviceConfig &display_device_config);
   DisplayError SetPoseConfig(Handle display_ctx, const LayerBuffer &buffer);
   DisplayError CanTakeDPUScreenshot(Handle display_ctx);
+  DisplayError GetIllumination(uint32_t eye, const IlluminationConfig &in_config,
+                               IlluminationConfig *out_config);
+  DisplayError GetPixelShiftData(std::vector<PixelShiftConfig> *pixel_shift_config);
 
  private:
   static const int kMaxThermalLevel = 3;

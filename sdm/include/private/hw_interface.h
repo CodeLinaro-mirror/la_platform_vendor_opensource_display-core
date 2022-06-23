@@ -230,6 +230,9 @@ class HWInterface {
       const struct ReprojectionConfig &reprojection_config) = 0;
   virtual void SetSSRState(bool active) = 0;
   virtual bool IsEPTSupported() = 0;
+  virtual DisplayError SetIllumination(uint32_t eye, const IlluminationConfig &config) = 0;
+  virtual DisplayError SetPixelShift(uint32_t eye, const PixelShiftConfig &config) = 0;
+  virtual DisplayError IsLedDriverUp(bool *is_led_driver_up) = 0;
 
  protected:
   virtual ~HWInterface() { }

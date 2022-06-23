@@ -59,6 +59,8 @@ class ResourceInterface {
     kCmdSetCacMode,
     kCmdGetMirrorSource,
     kCmdGetCwbHwDnscConfig,
+    kCmdGetPixelShiftData,
+    kCmdGetEyeIlluminance,
     kCmdMax,
   };
 

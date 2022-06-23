@@ -52,6 +52,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <string>
+#include <future>
 #include <vector>
 
 #include "display_base.h"
@@ -280,6 +281,7 @@ class DisplayBuiltIn : public DisplayBase,
 #endif
   DisplayError GetScalerCount(uint32_t *scaler_count) override;
   DisplayError DumpDemuraSurface(const char *dir_path, uint32_t frame_index) override;
+  DisplayError SetIllumination(uint32_t eye, const IlluminationConfig &config) override;
 
   // Implement the HWEventHandlers
   DisplayError VSync(int64_t timestamp) override;
@@ -386,9 +388,17 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError ValidateDemuraLicense();
   DisplayError SetAvrStepFpsState(uint32_t index, bool enable);
   void SetPrivacyRegions();
+  DisplayError SetPixelShiftData();
+  void ProgramCalibrationNodes();
+  void PollLedDriver();
+  void UpdateCalibration(DisplayState state);
+  DisplayError SetIlluminationInternal(uint32_t eye, const IlluminationConfig &config);
 
   const uint32_t kPuTimeOutMs = 1000;
   std::map<uint32_t, std::vector<HWEvent>> event_list_;
+  static const uint32_t kMaxIllumination = 255;
+  static const uint32_t kEyeLeft = 0;
+  static const uint32_t kEyeRight = 1;
   bool avr_prop_disabled_ = false;
   bool switch_to_cmd_ = false;
   bool commit_event_enabled_ = false;
@@ -487,6 +497,9 @@ class DisplayBuiltIn : public DisplayBase,
   std::string kPuPanelClient = "panel_client";
   std::string kPuSamplingClient = "sampling_client";
   std::string kPuDppsClient = "dpps_client";
+  IlluminationConfig left_illum_data_;
+  IlluminationConfig right_illum_data_;
+  std::future<void> calibration_future_;
 };
 
 }  // namespace sdm

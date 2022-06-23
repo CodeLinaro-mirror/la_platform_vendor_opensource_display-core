@@ -83,8 +83,63 @@ DisplayError HWPeripheralDRM::Init() {
 
   PopulateBitClkRates();
   CreatePanelFeaturePropertyMap();
+  InitCalibrationNodes();
 
   return kErrorNone;
+}
+
+DisplayError HWPeripheralDRM::Deinit() {
+  if (left_field_fds_.r_fd >= 0) {
+    Sys::close_(left_field_fds_.r_fd);
+  }
+  if (left_field_fds_.g_fd >= 0) {
+    Sys::close_(left_field_fds_.g_fd);
+  }
+  if (left_field_fds_.b_fd >= 0) {
+    Sys::close_(left_field_fds_.b_fd);
+  }
+  if (left_field_fds_.led_staus_fd >= 0) {
+    Sys::close_(left_field_fds_.led_staus_fd);
+  }
+  if (right_field_fds_.r_fd >= 0) {
+    Sys::close_(right_field_fds_.r_fd);
+  }
+  if (right_field_fds_.g_fd >= 0) {
+    Sys::close_(right_field_fds_.g_fd);
+  }
+  if (right_field_fds_.b_fd >= 0) {
+    Sys::close_(right_field_fds_.b_fd);
+  }
+  if (right_field_fds_.led_staus_fd >= 0) {
+    Sys::close_(right_field_fds_.led_staus_fd);
+  }
+
+  if (left_panel_shifts_.l_fd >= 0) {
+    Sys::close_(left_panel_shifts_.l_fd);
+  }
+  if (left_panel_shifts_.t_fd >= 0) {
+    Sys::close_(left_panel_shifts_.t_fd);
+  }
+  if (left_panel_shifts_.r_fd >= 0) {
+    Sys::close_(left_panel_shifts_.r_fd);
+  }
+  if (left_panel_shifts_.b_fd >= 0) {
+    Sys::close_(left_panel_shifts_.b_fd);
+  }
+  if (right_panel_shifts_.l_fd >= 0) {
+    Sys::close_(right_panel_shifts_.l_fd);
+  }
+  if (right_panel_shifts_.t_fd >= 0) {
+    Sys::close_(right_panel_shifts_.t_fd);
+  }
+  if (right_panel_shifts_.r_fd >= 0) {
+    Sys::close_(right_panel_shifts_.r_fd);
+  }
+  if (right_panel_shifts_.b_fd >= 0) {
+    Sys::close_(right_panel_shifts_.b_fd);
+  }
+
+  return HWDeviceDRM::Deinit();
 }
 
 void HWPeripheralDRM::InitDestScaler() {
@@ -1556,6 +1611,220 @@ uint32_t HWPeripheralDRM::GetMaxPrivacyRegionsSupported() {
 
   DLOGI("is_privacy_layer_supported %d", connector_info_.is_privacy_layers_supported);
   return 0;
+}
+
+DisplayError HWPeripheralDRM::SetIllumination(uint32_t eye, const IlluminationConfig &config) {
+  DTRACE_SCOPED();
+
+  if (pending_power_state_ != kPowerStateNone) {
+    DLOGI("Power state %d pending!! Skip for now", pending_power_state_);
+    return kErrorDeferred;
+  }
+
+  std::string led_path = (eye == 0) ? kPathLeftEyeIllumination : kPathRightEyeIllumination;
+  std::string red_led_node = led_path + "red_led";
+  std::string green_led_node = led_path + "green_led";
+  std::string blue_led_node = led_path + "blue_led";
+  int32_t &r_fd = (eye == 0) ? left_field_fds_.r_fd : right_field_fds_.r_fd;
+  int32_t &g_fd = (eye == 0) ? left_field_fds_.g_fd : right_field_fds_.g_fd;
+  int32_t &b_fd = (eye == 0) ? left_field_fds_.b_fd : right_field_fds_.b_fd;
+
+  DisplayError error = WriteToNode(red_led_node, &r_fd, config.r_value);
+  if (error != kErrorNone) {
+    return error;
+  }
+
+  error = WriteToNode(green_led_node, &g_fd, config.g_value);
+  if (error != kErrorNone) {
+    return error;
+  }
+
+  error = WriteToNode(blue_led_node, &b_fd, config.b_value);
+  if (error != kErrorNone) {
+    return error;
+  }
+
+  return kErrorNone;
+}
+
+DisplayError HWPeripheralDRM::SetPixelShift(uint32_t eye, const PixelShiftConfig &config) {
+  DisplayError error = kErrorNone;
+
+  std::string panel_shift = (eye == 0) ? kPathLeftEyePanelShift : kPathRightEyePanelShift;
+  std::string left_shift_node = panel_shift + "left";
+  std::string top_shift_node = panel_shift + "top";
+  std::string right_shift_node = panel_shift + "right";
+  std::string bottom_shift_node = panel_shift + "bottom";
+
+  int32_t &left_shift_fd = (eye == 0) ? left_panel_shifts_.l_fd : right_panel_shifts_.l_fd;
+  int32_t &top_shift_fd = (eye == 0) ? left_panel_shifts_.t_fd : right_panel_shifts_.t_fd;
+  int32_t &right_shift_fd = (eye == 0) ? left_panel_shifts_.r_fd : right_panel_shifts_.r_fd;
+  int32_t &bottom_shift_fd = (eye == 0) ? left_panel_shifts_.b_fd : right_panel_shifts_.b_fd;
+
+  if (config.shift_left) {
+    error = WriteToNode(left_shift_node, &left_shift_fd, config.shift_left);
+    if (error != kErrorNone) {
+      return error;
+    }
+  }
+
+  if (config.shift_top) {
+    error = WriteToNode(top_shift_node, &top_shift_fd, config.shift_top);
+    if (error != kErrorNone) {
+      return error;
+    }
+  }
+
+  if (config.shift_right) {
+    error = WriteToNode(right_shift_node, &right_shift_fd, config.shift_right);
+    if (error != kErrorNone) {
+      return error;
+    }
+  }
+
+  if (config.shift_bottom) {
+    error = WriteToNode(bottom_shift_node, &bottom_shift_fd, config.shift_bottom);
+    if (error != kErrorNone) {
+      return error;
+    }
+  }
+
+  return kErrorNone;
+}
+
+DisplayError HWPeripheralDRM::WriteToNode(const std::string node_name, int32_t *fd, uint32_t data) {
+  if (*fd < 0) {
+    *fd = Sys::open_(node_name.c_str(), O_RDWR);
+    if (*fd < 0) {
+      DLOGW("Failed to open node %s, error = %s", node_name.c_str(), strerror(errno));
+      return kErrorFileDescriptor;
+    }
+  }
+
+  char buffer[kMaxSysfsCommandLength] = {0};
+  int32_t bytes = snprintf(buffer, kMaxSysfsCommandLength, "%d\n", data);
+  ssize_t ret = Sys::pwrite_(*fd, buffer, static_cast<size_t>(bytes), 0);
+  if (ret <= 0) {
+    DLOGW("Failed to write to node = %s, error = %s ", node_name.c_str(), strerror(errno));
+    return kErrorHardware;
+  }
+
+  DLOGI_IF(kTagDriverConfig, "Write success node_name = %s fd:%d data:%d", node_name.c_str(), *fd,
+           data);
+  return kErrorNone;
+}
+
+DisplayError HWPeripheralDRM::ReadFromNode(const std::string node_name, int32_t *fd,
+                                           uint32_t *data) {
+  char value[kMaxStringLength] = {0};
+  if (*fd < 0) {
+    *fd = Sys::open_(node_name.c_str(), O_RDONLY);
+    if (*fd < 0) {
+      DLOGW("Failed to open node %s, error = %s", node_name.c_str(), strerror(errno));
+      return kErrorFileDescriptor;
+    }
+  }
+
+  if (Sys::pread_(*fd, value, sizeof(value), 0) > 0) {
+    *data = atoi(value);
+  } else {
+    DLOGE("Failed to read node %s", node_name.c_str());
+    return kErrorHardware;
+  }
+
+  return kErrorNone;
+}
+
+DisplayError HWPeripheralDRM::OpenNode(std::string node_name, int32_t *fd) {
+  *fd = Sys::open_(node_name.c_str(), O_RDWR);
+  if (*fd < 0) {
+    DLOGW("Failed to open the node %s", node_name.c_str());
+    if (errno == ENOENT) {
+      return kErrorFileDescriptor;
+    }
+    return kErrorUndefined;
+  }
+  DLOGI_IF(kTagDriverConfig, "Open success node_name = %s fd:%d", node_name.c_str(), *fd);
+  return kErrorNone;
+}
+
+void HWPeripheralDRM::InitCalibrationNodes() {
+  if (!hw_panel_info_.is_lsr_display) {
+    return;
+  }
+
+  auto error = kErrorNone;
+  bool illumination_enabled = true;
+  bool panel_shift_enabled = true;
+  for (int eye = 0; eye < 2; eye++) {
+    std::string led_path = (eye == 0) ? kPathLeftEyeIllumination : kPathRightEyeIllumination;
+    std::string red_led_node = led_path + "red_led";
+    std::string green_led_node = led_path + "green_led";
+    std::string blue_led_node = led_path + "blue_led";
+    std::string led_status_node = led_path + "led_status";
+
+    std::string panel_shift = (eye == 0) ? kPathLeftEyePanelShift : kPathRightEyePanelShift;
+    std::string left_shift_node = panel_shift + "left";
+    std::string top_shift_node = panel_shift + "top";
+    std::string right_shift_node = panel_shift + "right";
+    std::string bottom_shift_node = panel_shift + "bottom";
+
+    int32_t &r_fd = (eye == 0) ? left_field_fds_.r_fd : right_field_fds_.r_fd;
+    int32_t &g_fd = (eye == 0) ? left_field_fds_.g_fd : right_field_fds_.g_fd;
+    int32_t &b_fd = (eye == 0) ? left_field_fds_.b_fd : right_field_fds_.b_fd;
+    int32_t &led_status_fd =
+        (eye == 0) ? left_field_fds_.led_staus_fd : right_field_fds_.led_staus_fd;
+    int32_t &left_shift_fd = (eye == 0) ? left_panel_shifts_.l_fd : right_panel_shifts_.l_fd;
+    int32_t &top_shift_fd = (eye == 0) ? left_panel_shifts_.t_fd : right_panel_shifts_.t_fd;
+    int32_t &right_shift_fd = (eye == 0) ? left_panel_shifts_.r_fd : right_panel_shifts_.r_fd;
+    int32_t &bottom_shift_fd = (eye == 0) ? left_panel_shifts_.b_fd : right_panel_shifts_.b_fd;
+
+    // if nodes are preset on the device, usermode will assume device calibration is enabled.
+    error = OpenNode(red_led_node, &r_fd);
+    illumination_enabled &= (error != kErrorFileDescriptor);
+    error = OpenNode(green_led_node, &g_fd);
+    illumination_enabled &= (error != kErrorFileDescriptor);
+    error = OpenNode(blue_led_node, &b_fd);
+    illumination_enabled &= (error != kErrorFileDescriptor);
+    error = OpenNode(led_status_node, &led_status_fd);
+    illumination_enabled &= (error != kErrorFileDescriptor);
+
+    error = OpenNode(left_shift_node, &left_shift_fd);
+    panel_shift_enabled &= (error != kErrorFileDescriptor);
+    error = OpenNode(top_shift_node, &top_shift_fd);
+    panel_shift_enabled &= (error != kErrorFileDescriptor);
+    error = OpenNode(right_shift_node, &right_shift_fd);
+    panel_shift_enabled &= (error != kErrorFileDescriptor);
+    error = OpenNode(bottom_shift_node, &bottom_shift_fd);
+    panel_shift_enabled &= (error != kErrorFileDescriptor);
+  }
+  hw_panel_info_.illumination_enabled = illumination_enabled;
+  hw_panel_info_.panel_shift_enabled = panel_shift_enabled;
+  DLOGI_IF(kTagDriverConfig, "panel_shift_enabled : %d illumination_enabled : %d",
+           panel_shift_enabled, illumination_enabled);
+}
+
+DisplayError HWPeripheralDRM::IsLedDriverUp(bool *is_led_driver_up) {
+  uint32_t data = 0;
+  DisplayError error = kErrorNone;
+  for (int eye = 0; eye < 2; eye++) {
+    std::string led_path = (eye == 0) ? kPathLeftEyeIllumination : kPathRightEyeIllumination;
+    std::string led_status_node = led_path + "led_status";
+    int32_t &led_status_fd =
+        (eye == 0) ? left_field_fds_.led_staus_fd : right_field_fds_.led_staus_fd;
+    error = ReadFromNode(led_status_node, &led_status_fd, &data);
+    if (error != kErrorNone) {
+      return error;
+    }
+    if (!data) {
+      // return status true only when both eye led nodes are up
+      *is_led_driver_up = false;
+      return error;
+    }
+  }
+  *is_led_driver_up = true;
+
+  return error;
 }
 
 }  // namespace sdm
