@@ -291,6 +291,12 @@ enum struct DRMOps {
    */
   PLANES_SET_PREFILL_TIME,
   /*
+   * Op: Sets plane EVA cache
+   * Arg: uint32_t - Plane ID
+   *      uint32_t - cache type
+   */
+  PLANES_SET_SYS_CACHE_TYPE,
+  /*
    * Op: Activate or deactivate a CRTC
    * Arg: uint32_t - CRTC ID
    *      uint32_t - 1 to enable, 0 to disable

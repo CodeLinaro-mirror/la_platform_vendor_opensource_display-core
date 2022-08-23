@@ -278,6 +278,7 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "hw_op_mode") { return DRMProperty::COMMIT_PATH; }
   if (name == "prefill_size") { return DRMProperty::PREFILL_SIZE; }
   if (name == "prefill_time") { return DRMProperty::PREFILL_TIME; }
+  if (name == "syscache_type") { return DRMProperty::SYS_CACHE_TYPE; }
 
   return DRMProperty::INVALID;
 }

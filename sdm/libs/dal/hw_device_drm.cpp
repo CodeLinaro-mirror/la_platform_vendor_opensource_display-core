@@ -101,6 +101,7 @@ using drm_utils::DRMLibLoader;
 using drm_utils::DRMMaster;
 using drm_utils::DRMResMgr;
 using sde_drm::DRMBlendType;
+using sde_drm::DRMCacheState;
 using sde_drm::DRMCacMode;
 using sde_drm::DRMConnectorInfo;
 using sde_drm::DRMCrtcInfo;
@@ -1739,6 +1740,10 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
       DLOGW("Expected full frame ROI");
     }
     ResetROI();
+  }
+
+  if (hw_panel_info_.fsc_panel) {
+    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_CACHE_STATE, token_.crtc_id, DRMCacheState::ENABLED);
   }
 
 #ifdef TRUSTED_VM
