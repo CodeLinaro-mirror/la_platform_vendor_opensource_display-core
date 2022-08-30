@@ -108,6 +108,7 @@ using drm_utils::DRMLibLoader;
 using drm_utils::DRMMaster;
 using drm_utils::DRMResMgr;
 using sde_drm::DRMBlendType;
+using sde_drm::DRMBufferMode;
 using sde_drm::DRMCacheState;
 using sde_drm::DRMCacMode;
 using sde_drm::DRMConnectorInfo;
@@ -2024,6 +2025,7 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
                      v_back_porch, kEarlyPrefil, i);
             DLOGI_IF(kTagDriverConfig, "field:%d and prefill %" PRIu64 "\n", i, prefill_time);
             drm_atomic_intf_->Perform(DRMOps::PLANES_SET_PREFILL_TIME, pipe_id, prefill_time);
+            drm_atomic_intf_->Perform(DRMOps::PLANES_BUFFER_MODE, pipe_id, DRMBufferMode::SINGLE);
             // Set the cache type.
             if (i < num_fsc_fields) {
               drm_atomic_intf_->Perform(DRMOps::PLANES_SET_SYS_CACHE_TYPE, pipe_id,

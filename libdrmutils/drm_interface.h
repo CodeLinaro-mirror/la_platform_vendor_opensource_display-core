@@ -297,6 +297,12 @@ enum struct DRMOps {
    */
   PLANES_SET_SYS_CACHE_TYPE,
   /*
+   * Op: Sets plane buffer mode
+   * Arg: uint32_t - Plane ID
+   *      uint32_t - independent or single
+   */
+  PLANES_BUFFER_MODE,
+  /*
    * Op: Activate or deactivate a CRTC
    * Arg: uint32_t - CRTC ID
    *      uint32_t - 1 to enable, 0 to disable
@@ -1433,6 +1439,11 @@ enum struct DRMAvrStepState {
   NONE = 0,
   ENABLE,
   DISABLE,
+};
+
+enum struct DRMBufferMode {
+  INDEPENDENT = 0,
+  SINGLE,
 };
 
 /* DRM Atomic Request Property Set.
