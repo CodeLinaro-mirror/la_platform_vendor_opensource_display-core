@@ -94,6 +94,13 @@
 #define DRM_FORMAT_MOD_QCOM_FSC_TILE fourcc_mod_code(QCOM, 0x20)
 #endif
 
+#ifndef SDE_SYSCACHE_LLCC_DISP_LEFT
+#define SDE_SYSCACHE_LLCC_DISP_LEFT 1
+#endif
+#ifndef SDE_SYSCACHE_LLCC_DISP_RIGHT
+#define SDE_SYSCACHE_LLCC_DISP_RIGHT 2
+#endif
+
 #define DEST_SCALAR_OVERFETCH_SIZE 5
 #define OFFSET_ALIGN(x, align) ((x) - ((x) % (align)))
 
@@ -1965,19 +1972,43 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
             drm_atomic_intf_->Perform(DRMOps::PLANES_SET_PREFILL_SIZE, pipe_id, 0);
 
             /*INFO:
-            R = 0
-            G = ((8.333 * 1000) / 5) * 1
-            B = ((8.333 * 1000) / 5) * 2
-            R = ((8.333 * 1000) / 5) * 3
-            G = ((8.333 * 1000) / 5) * 4
-            don't program prefill_time exactly so reduce some prefill i.e 12 lines
-            final prefill for G = [((8.333 * 1000) / 5) * 1] - [(12 * 8.333 * 1000)/ vtotal] */
+            field_prefill = v_active * (i % num_fsc_fields); // R field v_active is ZERO
+            don't program field_prefill exactly so reduce some prefill i.e 40 lines
 
-            float fps_ms = (1000 / hw_panel_info_.min_fps) * 1000;
-            uint64_t early_prefil = (kEarlyPrefil * fps_ms) / display_attributes_[index].v_total;
-            uint64_t prefill_time = (fps_ms / hw_layer_count) * i;
-            prefill_time = prefill_time ? (prefill_time - early_prefil) : 0;
+            prefill = (fps_ms / v_total) * (v_fp + v_pw + field_prefill - kEarlyPrefil);
+            */
+
+            float fps_ms = (1000 / FLOAT(display_attributes_[index].fps)) * 1000;
+            int num_fsc_fields = hw_panel_info_.num_fsc_fields;
+            int v_front_porch = display_attributes_[index].v_front_porch / num_fsc_fields;
+            int v_pulse_width = display_attributes_[index].v_pulse_width / num_fsc_fields;
+            int v_active = display_attributes_[index].y_pixels / num_fsc_fields;
+            int v_back_porch = display_attributes_[index].v_back_porch / num_fsc_fields;
+
+            int v_total =
+                display_attributes_[index].y_pixels + v_front_porch + v_back_porch + v_pulse_width;
+            int field_prefill = v_active * (i % num_fsc_fields);
+            uint64_t prefill_time =
+                (fps_ms / v_total) * (v_front_porch + v_pulse_width + field_prefill - kEarlyPrefil);
+
+            // For R field, prefill will be ZERO
+            prefill_time = (i % num_fsc_fields) ? prefill_time : 0;
+
+            DLOGI_IF(kTagDriverConfig,
+                     "fps_ms:%f, v_total:%d, v_front_porch:%d, v_pulse_width:%d"
+                     "v_active:%d, num_fsc_fields:%d, v_back_porch:%d, kEarlyPrefil:%d, i:%d",
+                     fps_ms, v_total, v_front_porch, v_pulse_width, v_active, num_fsc_fields,
+                     v_back_porch, kEarlyPrefil, i);
+            DLOGI_IF(kTagDriverConfig, "field:%d and prefill %" PRIu64 "\n", i, prefill_time);
             drm_atomic_intf_->Perform(DRMOps::PLANES_SET_PREFILL_TIME, pipe_id, prefill_time);
+            // Set the cache type.
+            if (i < num_fsc_fields) {
+              drm_atomic_intf_->Perform(DRMOps::PLANES_SET_SYS_CACHE_TYPE, pipe_id,
+                                        SDE_SYSCACHE_LLCC_DISP_LEFT);
+            } else {
+              drm_atomic_intf_->Perform(DRMOps::PLANES_SET_SYS_CACHE_TYPE, pipe_id,
+                                        SDE_SYSCACHE_LLCC_DISP_RIGHT);
+            }
           }
         } else if (update_luts) {
           if (force_tonemapping_) {

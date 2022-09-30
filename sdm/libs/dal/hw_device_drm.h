@@ -92,7 +92,7 @@ class HWDeviceDRM : public HWInterface {
   }
 
  protected:
-  const int kEarlyPrefil = 12;
+  const int kEarlyPrefil = 40;
 
   // From HWInterface
   virtual DisplayError GetDisplayId(int32_t *display_id);
