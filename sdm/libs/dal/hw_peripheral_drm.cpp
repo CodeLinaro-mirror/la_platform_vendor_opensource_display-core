@@ -474,6 +474,20 @@ void HWPeripheralDRM::SetDestScalarData(const DestScaleInfoMap dest_scale_info_m
     dest_scalar_data->lm_width = dest_scale_info->mixer_width;
     dest_scalar_data->lm_height = dest_scale_info->mixer_height;
     dest_scalar_data->scaler_cfg = reinterpret_cast<uint64_t>(&scale->scaler_v2);
+    switch (dest_scale_info->mixer_merge_mode) {
+      case kDestScalerSinglePipe:
+        dest_scalar_data->merge_mode = DEST_SCALER_SINGLE_PIPE;
+        break;
+      case kDestScalerDualPipe:
+        dest_scalar_data->merge_mode = DEST_SCALER_DUAL_PIPE;
+        break;
+      case kDestScalerQuadPipe:
+        dest_scalar_data->merge_mode = DEST_SCALER_QUAD_PIPE;
+        break;
+      default:
+        DLOGI("Invalid destination scaler merge mode");
+        break;
+    }
 
     if (std::memcmp(&dest_scalar_cache_[i].scalar_data, scale, sizeof(SDEScaler)) ||
         dest_scalar_cache_[i].flags != dest_scalar_data->flags) {
