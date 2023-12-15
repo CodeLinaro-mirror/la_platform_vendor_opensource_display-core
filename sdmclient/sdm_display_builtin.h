@@ -176,8 +176,8 @@ private:
  void ValidateUiScaling();
  void EnablePartialUpdate();
  uint32_t GetUpdatingAppLayersCount();
- void LoadMixedModePerfHintThreshold();
  void HandleLargeCompositionHint(bool release);
+ void LoadMixedModePerfHintThreshold();
  void ReqPerfHintRelease();
  void InitializePerfHints();
  void HandlePowerModeHint(SDMPowerMode mode);
@@ -224,6 +224,7 @@ private:
  // Long term large composition hint
  int sdm_tid_ = 0;
  uint32_t large_comp_hint_threshold_ = 0;
+ uint32_t minimum_large_comp_fps_ = 90;
  nsecs_t hint_start_time_ = 0;
  nsecs_t elapse_time_threshold_ = 100;  // Time is in milliseconds
  nsecs_t boot_completed_time_ = 0;
