@@ -17,6 +17,7 @@ std::mutex UBWCPolicy::ubwc_policy_mutex_;
 UBWCPolicy::UBWCPolicy() {
   constraint_parser_ = SnapConstraintParser::GetInstance();
   graphics_provider_ = GraphicsConstraintProvider::GetInstance();
+  debug_ = Debug::GetInstance();
 }
 
 UBWCPolicy *UBWCPolicy::GetInstance(
@@ -44,6 +45,10 @@ void UBWCPolicy::Init(
 }
 
 bool UBWCPolicy::IsUBWCAlloc(BufferDescriptor desc) {
+  if (debug_->IsUBWCDisabled()) {
+    return false;
+  }
+
   // Explicit UBWC formats passed by the clients.Ignore the usage bits and allow UBWC.
   if (GetPixelFormatModifier(desc) ==
       static_cast<uint64_t>(vendor_qti_hardware_display_common_PixelFormatModifier::

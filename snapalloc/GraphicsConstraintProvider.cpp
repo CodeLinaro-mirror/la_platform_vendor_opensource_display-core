@@ -61,6 +61,8 @@ void GraphicsConstraintProvider::Init(
   } else {
     parser->ParseFormats(&format_data_map_);
   }
+
+  gfx_ubwc_disable_ = Debug::GetInstance()->IsUBWCDisabled();
 }
 
 static bool AdrenoAlignmentRequired(vendor_qti_hardware_display_common_BufferUsage usage,
