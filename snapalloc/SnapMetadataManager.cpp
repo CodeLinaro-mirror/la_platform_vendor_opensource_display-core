@@ -356,16 +356,12 @@ Error SnapMetadataManager::PlaneLayoutsHelper(SnapMetadata *metadata, SnapHandle
       desc.additionalOptions.emplace_back(modifier);
       BufferDescriptor out_desc;
       int out_priv_flags = 0;
-      auto err = constraint_mgr_->GetAllocationData(desc, &ad, &layout,
-                                                    &out_desc, &out_priv_flags);
-
+      auto err = constraint_mgr_->GetAllocationData(desc, &ad, &layout, &out_desc, &out_priv_flags);
       if (err != Error::NONE) {
         ALOGE("Invalid allocation - unable to create plane layout");
         return err;
       }
-
-      *static_cast<vendor_qti_hardware_display_common_BufferLayout *>(out_get) =
-          layout;
+      *static_cast<vendor_qti_hardware_display_common_BufferLayout *>(out_get) = layout;
     } else {
       *static_cast<vendor_qti_hardware_display_common_BufferLayout *>(out_get) =
           metadata->buffer_layout;
@@ -1235,6 +1231,9 @@ Error SnapMetadataManager::GetCustomDimensions(SnapHandleInternal *hnd, SnapMeta
                                .height = hnd->aligned_height,
                                .layerCount = static_cast<int32_t>(hnd->layer_count),
                                .reservedSize = static_cast<long>(hnd->reserved_size)};
+      static vendor_qti_hardware_display_common_KeyValuePair modifier = {
+          .key = "interlaced", .value = static_cast<uint64_t>(1)};
+      desc.additionalOptions.emplace_back(modifier);
       auto err = Error::NONE;
       err = constraint_mgr_->GetAllocationData(desc, &ad, &layout, &out_desc, &out_priv_flags);
       if (err != Error::NONE) {
@@ -1242,7 +1241,9 @@ Error SnapMetadataManager::GetCustomDimensions(SnapHandleInternal *hnd, SnapMeta
         return err;
       }
       *stride = static_cast<int>(layout.aligned_width_in_bytes / layout.bpp);
-      *height = static_cast<int>(layout.aligned_height);
+      // Get re-aligned height for single ubwc interlaced field and
+      // multiply by 2 to get frame height.
+      *height = static_cast<int>(layout.aligned_height * 2);
     }
   }
   return Error::NONE;
