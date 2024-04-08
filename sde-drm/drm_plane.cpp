@@ -718,6 +718,7 @@ void DRMPlane::GetTypeInfo(const PropertyMap &prop_map) {
   info->max_horizontal_deci = 0;
   info->max_vertical_deci = 0;
   info->master_plane_id = 0;
+  info->hw_block_mask = std::bitset<32>(drm_plane_->possible_crtcs);
   if (info->type == DRMPlaneType::CURSOR) {
     info->max_linewidth = 128;
   }

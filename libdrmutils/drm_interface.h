@@ -69,6 +69,7 @@
 #include <map>
 #include <string>
 #include <utility>
+#include <bitset>
 #include <vector>
 #include <array>
 #include <set>
@@ -958,6 +959,8 @@ struct DRMPlaneTypeInfo {
   int32_t demura_block_capability = -1;
   std::bitset<4> cac_mode;
   int32_t cac_parent_rect = -1;
+  // Allow all planes to be usable on all displays by default
+  std::bitset<32> hw_block_mask = std::bitset<32>().set();
 };
 
 // All DRM Planes as map<Plane_id , plane_type_info> listed from highest to lowest priority

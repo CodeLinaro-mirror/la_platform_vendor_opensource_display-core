@@ -336,6 +336,8 @@ struct HWPipeCaps {
   int32_t demura_block_capability = -1;
   HWPipeCacMode cac_mode = kModeDisabled;
   int32_t cac_parent_id = -1;
+  // Allow all pipelines to be usable on all displays by default
+  std::bitset<32> hw_block_mask = std::bitset<32>().set();
 };
 
 struct HWRotatorInfo {
@@ -1197,6 +1199,7 @@ struct HWMixerAttributes {
   LayerBufferFormat output_format = kFormatRGB101010;  // Layer mixer output format
   uint32_t dest_scaler_blocks_used = 0;                // Count of dest scaler blocks used
   uint32_t ai_scaler_blocks_used = 0;                  // Count of ai scaler blocks used
+  uint32_t mixer_index = 0;
 
   bool operator !=(const HWMixerAttributes &mixer_attributes) {
     return ((width != mixer_attributes.width) || (height != mixer_attributes.height) ||

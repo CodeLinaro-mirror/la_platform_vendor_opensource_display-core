@@ -3006,6 +3006,8 @@ void HWDeviceDRM::UpdateMixerAttributes() {
     }
   }
 
+  mixer_attributes_.mixer_index = token_.crtc_index;
+
   DLOGI("Mixer WxH %dx%d-%d for %s", mixer_attributes_.width, mixer_attributes_.height,
         mixer_attributes_.split_type, device_name_);
   update_mode_ = true;
