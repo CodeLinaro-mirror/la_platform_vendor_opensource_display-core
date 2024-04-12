@@ -22,6 +22,13 @@
 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+/*
+* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+*
+* Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
+*/
+
 #ifndef __VM_INTERFACE_H__
 #define __VM_INTERFACE_H__
 
@@ -33,6 +40,8 @@
 #define VM_INTF_REVISION_MINOR (4)
 
 #define VM_INTF_VERSION ((uint16_t) ((VM_INTF_REVISION_MAJOR << 8) | VM_INTF_REVISION_MINOR))
+
+#define ABC_MODE_SIZE_MAX 64
 
 enum CommandId {
   kCmdExportDemuraBuffers = 0,
@@ -124,6 +133,7 @@ typedef struct CmdSetDisplayConfigs_t  {
       bool smart_panel;
       uint32_t mixer_width;
       uint32_t mixer_height;
+      char abc_mode[ABC_MODE_SIZE_MAX];
     };
     uint32_t reserve[128] = { 0 };
   };

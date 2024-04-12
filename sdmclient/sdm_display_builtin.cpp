@@ -1743,7 +1743,7 @@ DisplayError SDMDisplayBuiltIn::SetABCMode(string mode_name) {
   DisplayError error = display_intf_->SetABCMode(mode_name);
 
   if (error != kErrorNone) {
-    DLOGE("Failed to Reconfig ABC feature, error = %d", error);
+    DLOGE("Failed to set ABC mode %s, error = %d", mode_name.c_str(), error);
     return kErrorParameters;
   }
 

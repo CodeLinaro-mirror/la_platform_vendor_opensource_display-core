@@ -1078,6 +1078,7 @@ struct LayerStackInfo {
 
   bool stitch_present = false;  // Indicates there is stitch layer or not
   bool demura_present = false;  // Indicates there is demura layer or not
+  bool udc_present = false;  // Indicates there is udc layer or not
   bool cwb_present = false;  // Indicates there is cwb layer or not
   bool lower_fps = false;  // This field hints to lower the fps in case of idle fallback
   bool notify_idle = false;

@@ -703,13 +703,18 @@ DisplayError CoreImpl::ReserveDemuraResources(
 
 DisplayError CoreImpl::ReserveDemuraPipeResources() {
   DisplayError err = kErrorNone;
-  int enable = 0;
+  int enable = 0, value = 0;
   int enable_demura = 0, enable_abc = 0;
   if (reserve_done_)
     return kErrorNone;
 
   Debug::Get()->GetProperty(ENABLE_DEMURA, &enable_demura);
-  Debug::Get()->GetProperty(ENABLE_ABC, &enable_abc);
+  Debug::Get()->GetProperty(ENABLE_ABC, &value);
+#ifdef TRUSTED_VM
+  enable_abc = (value == 2);
+#else
+  enable_abc = (value > 0);
+#endif
   DLOGI("Feature Enable Demura = %d, ABC = %d", enable_demura, enable_abc);
   enable = (enable_demura | enable_abc) ? 1 : 0;
 
