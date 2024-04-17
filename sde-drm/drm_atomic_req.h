@@ -45,7 +45,7 @@ class DRMAtomicReq : public DRMAtomicReqInterface {
   DRMAtomicReq(int fd, DRMManager *drm_manager);
   virtual ~DRMAtomicReq();
   virtual int Perform(DRMOps op_code, uint32_t obj_id, ...);
-  virtual int Commit(bool synchronous, bool retain_planes);
+  virtual int Commit(bool synchronous, bool retain_planes, void *user_data);
   virtual int Validate();
   int Init(const DRMDisplayToken &tok);
 

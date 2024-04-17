@@ -408,6 +408,26 @@ class DisplayEventHandler {
   */
   virtual DisplayError VSync(const DisplayEventVSync &vsync) = 0;
 
+  /*! @brief Page Flip event handler.
+
+    @details This event is dispatched on every vertical synchronization.
+    The event is disabled by default.
+
+    @param[in] fd \link int \endlink
+    @param[in] sequence (frame) \link unsigned int \endlink
+    @param[in] tv_sec \link unsigned int \endlink
+    @param[in] tv_usec \link unsigned int \endlink
+    @param[in] data \link void* \endlink
+
+    @return \link DisplayError \endlink
+
+    @sa DisplayInterface::GetVSyncState
+    @sa DisplayInterface::SetVSyncState
+  */
+  virtual DisplayError PFlip(int fd, unsigned int sequence,
+                             unsigned int tv_sec, unsigned int tv_usec,
+                             void *data) = 0;
+
   /*! @brief Event handler for Refresh event.
 
     @details This event is dispatched to trigger a screen refresh. Client must call Prepare() and

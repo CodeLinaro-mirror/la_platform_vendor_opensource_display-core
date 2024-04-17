@@ -225,7 +225,7 @@ int DRMAtomicReq::Validate() {
   return ret;
 }
 
-int DRMAtomicReq::Commit(bool synchronous, bool retain_planes) {
+int DRMAtomicReq::Commit(bool synchronous, bool retain_planes, void *user_data) {
   DTRACE_SCOPED();
   if (retain_planes) {
     // It is not enough to simply avoid calling UnsetUnusedPlanes, since state transitons have to
@@ -241,7 +241,10 @@ int DRMAtomicReq::Commit(bool synchronous, bool retain_planes) {
     flags |= DRM_MODE_ATOMIC_NONBLOCK;
   }
 
-  int ret = drmModeAtomicCommit(fd_, drm_atomic_req_, flags, nullptr);
+  if (user_data)
+    flags |= DRM_MODE_PAGE_FLIP_EVENT;
+
+  int ret = drmModeAtomicCommit(fd_, drm_atomic_req_, flags, user_data);
   if (ret) {
     DRM_LOGE("drmModeAtomicCommit failed with error %d (%s). crtc=%u", errno, strerror(errno), token_.crtc_id);
   }

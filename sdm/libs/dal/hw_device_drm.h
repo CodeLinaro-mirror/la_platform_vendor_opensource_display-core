@@ -147,6 +147,7 @@ class HWDeviceDRM : public HWInterface {
   virtual DisplayError SetPPFeature(PPFeatureInfo *feature);
   // This API is no longer supported, expectation is to call the correct API on HWEvents
   virtual DisplayError SetVSyncState(bool enable);
+  virtual void SetPageFlipState(bool enable, void *user_data);
   virtual void SetIdleTimeoutMs(uint32_t timeout_ms);
   virtual DisplayError SetDisplayMode(const HWDisplayMode hw_display_mode);
   virtual DisplayError SetBppMode(uint32_t bpp);
@@ -365,6 +366,8 @@ class HWDeviceDRM : public HWInterface {
   TUIState tui_state_ = kTUIStateNone;
   uint64_t debug_dump_count_ = 0;
   bool synchronous_commit_ = false;
+  bool enable_pflip_event_ = false;
+  void *pflip_user_data_ = {};
   uint32_t topology_control_ = 0;
   uint32_t vrefresh_ = 0;
   uint32_t panel_mode_changed_ = 0;

@@ -432,6 +432,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   uint8_t disp_stack_index_ = 0;
   bool needs_validate_ = true;  // maintains validation state between Prepare/Commit Cycle
   bool vsync_enable_ = false;
+  bool pflip_enable_ = false;
   uint32_t max_mixer_stages_ = 0;
   sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> hw_info_intf_;
   std::bitset<32> core_id_;
