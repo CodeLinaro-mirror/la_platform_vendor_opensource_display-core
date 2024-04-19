@@ -420,7 +420,8 @@ DisplayError DPUMultiCore::Commit(std::map<uint32_t, HWLayersInfo> &hw_layers_in
 
 #ifndef SDM_VIRTUAL_DRIVER
   if (!retire_fence || !sync_handle) {
-    return kErrorUndefined;
+   // return kErrorUndefined;
+    return kErrorNone;
   }
 #endif
 
