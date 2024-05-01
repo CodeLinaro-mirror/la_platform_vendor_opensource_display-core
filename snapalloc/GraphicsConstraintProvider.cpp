@@ -96,6 +96,7 @@ int GraphicsConstraintProvider::GetInitialMetadata(
       static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(pixel_format_modifier));
 
   uint64_t usage = desc.usage;
+  int plane_count = 1;
 
   // TODO: Move this check to UBWCPolicy::IsUBWCAlloc
   bool ubwc_enabled_gfx = is_ubwc_enabled;
@@ -121,12 +122,17 @@ int GraphicsConstraintProvider::GetInitialMetadata(
     tile_mode = true;
   }
 
+  if (AdrenoAlignmentRequired(desc.usage, desc.format)) {
+    FormatData format_data = format_data_map_.at(desc.format);
+    plane_count = format_data.planes.size();
+  }
+
   // Call adreno api for populating metadata blob
   // Layer count is for 2D/Cubemap arrays and depth is used for 3D slice
   // Using depth to pass layer_count here
-  int ret = AdrenoInitMemoryLayout(graphics_metadata->data, desc.width, desc.height,
-                                   desc.layerCount, /* depth */
-                                   adreno_format, 1, tile_mode, static_cast<uint64_t>(usage), 1);
+  int ret = AdrenoInitMemoryLayout(
+      graphics_metadata->data, desc.width, desc.height, desc.layerCount, /* depth */
+      adreno_format, 1, tile_mode, static_cast<uint64_t>(usage), plane_count);
 
   if (ret != 0) {
     ALOGW("%s Graphics metadata init failed - ret val %d", __FUNCTION__, ret);
@@ -170,6 +176,14 @@ ADRENOPIXELFORMAT GraphicsConstraintProvider::GetGpuPixelFormat(
 
 int GraphicsConstraintProvider::GetCapabilities(BufferDescriptor desc, CapabilitySet *out) {
   out->ubwc_caps.version = 0;
+
+  // Add an early check for YUV formats where adreno alignments are required
+  // to prevent disabling graphics constraint provider for remaining YUV formats
+  if (AdrenoAlignmentRequired(desc.usage, desc.format)) {
+    out->enabled = true;
+    return 0;
+  }
+
   if (IsYuv(desc.format)) {
     out->enabled = false;
     return 0;
@@ -267,6 +281,32 @@ int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCo
       plane_layout.stride.horizontal_stride =
           static_cast<uint64_t>(aligned_w) * (format_data.bits_per_pixel / 8.0f);
       plane_layout.scanline.scanline = static_cast<uint64_t>(aligned_h);
+    } else if (AdrenoAlignmentRequired(desc.usage, desc.format)) {
+      aligned_h = 0;
+      aligned_w = 0;
+      surface_tile_mode_t tile_mode = static_cast<surface_tile_mode_t>(tile_enabled);
+      surface_rastermode_t raster_mode =
+          SURFACE_RASTER_MODE_UNKNOWN;  // Adreno unknown raster mode.
+      int padding_threshold = 512;      // Threshold for padding surfaces.
+      ADRENOPIXELFORMAT gpu_format = GetGpuPixelFormat(
+          desc.format, static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
+                           pixel_format_modifier));
+      if (LINK_adreno_compute_fmt_aligned_width_and_height &&
+          gpu_format != ADRENO_PIXELFORMAT_UNKNOWN) {
+        LINK_adreno_compute_fmt_aligned_width_and_height(
+            desc.width, desc.height, format_data.planes.size(), gpu_format, 1 /*num_samples*/,
+            tile_mode, raster_mode, padding_threshold, (int *)&aligned_w, (int *)&aligned_h);
+
+        plane_layout.stride.horizontal_stride =
+            static_cast<uint64_t>(aligned_w) * floor(format_data.bits_per_pixel / 8.0f);
+        plane_layout.scanline.scanline = static_cast<uint64_t>(aligned_h);
+      } else {
+        ALOGE(
+            "Not able to call LINK_adreno_compute_fmt_aligned_width_and_height - snap format %d "
+            "graphics format %d",
+            desc.format, gpu_format);
+        return Error::UNSUPPORTED;
+      }
     }
     for (auto const &component : plane.components) {
       vendor_qti_hardware_display_common_PlaneLayoutComponentType component_type = component.type;
