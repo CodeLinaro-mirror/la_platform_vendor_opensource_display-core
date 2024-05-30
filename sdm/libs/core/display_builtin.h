@@ -245,7 +245,7 @@ class DisplayBuiltIn : public DisplayBase,
                                uint32_t min_refresh_rate);
   DisplayError UpdateTransferTime(uint32_t transfer_time) override;
   DisplayError RetrieveDemuraTnFiles() override;
-  DisplayError SetDemuraState(int state) override;
+  DisplayError SetDemuraState(int state, int demura_idx) override;
   DisplayError SetDemuraConfig(int demura_idx) override;
   DisplayError PerformCacConfig(CacConfig config, bool enable) override;
   bool IsCacV2Supported() override;
@@ -319,14 +319,14 @@ class DisplayBuiltIn : public DisplayBase,
   void GetFpsConfig(HWDisplayAttributes *display_attributes, HWPanelInfo *panel_info);
   PrimariesTransfer GetBlendSpaceFromStcColorMode(const snapdragoncolor::ColorMode &color_mode);
   DisplayError SetupSPR();
-  DisplayError SetupDemura();
+  DisplayError SetupDemura(int current_idx = kDemuraDefaultIdx);
   DisplayError SetupCorrectionLayer();
   DisplayError SetupDemuraLayer();
   DisplayError SetupABCLayer();
   DisplayError SetupDemuraTn();
   DisplayError EnableDemuraTn(bool enable);
   DisplayError SetupDemuraT0AndTn();
-  DisplayError SetupDemuraT0();
+  DisplayError SetupDemuraT0(int current_idx = kDemuraDefaultIdx);
   DisplayError SetupABCFeature();
   DisplayError SetupABC();
   DisplayError SetDisplayStateForDemuraTn(DisplayState state);

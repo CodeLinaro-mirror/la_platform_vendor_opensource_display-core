@@ -272,7 +272,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError OnCwbValidation(const LayerBuffer &output_buffer, CwbConfig &cwb_config);
   virtual bool HandleCwbTeardown();
   virtual uint32_t GetAvailableMixerCount();
-  virtual DisplayError SetDemuraState(int state) { return kErrorNotSupported; }
+  virtual DisplayError SetDemuraState(int state, int demura_idx) { return kErrorNotSupported; }
   virtual DisplayError SetDemuraConfig(int demura_idx) { return kErrorNotSupported; }
   virtual DisplayError SetABCState(bool state) { return kErrorNotSupported; }
   virtual DisplayError SetABCReconfig() { return kErrorNotSupported; }

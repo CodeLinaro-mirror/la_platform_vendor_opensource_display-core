@@ -1197,8 +1197,8 @@ DisplayError ConcurrencyMgr::SetDimmingMinBl(Display display, int32_t min_bl) {
   return CallDisplayFunction(display, &SDMDisplay::SetDimmingMinBl, min_bl);
 }
 
-DisplayError ConcurrencyMgr::SetDemuraState(Display display, int32_t state) {
-  return CallDisplayFunction(display, &SDMDisplay::SetDemuraState, state);
+DisplayError ConcurrencyMgr::SetDemuraState(Display display, int32_t state, int demura_idx) {
+  return CallDisplayFunction(display, &SDMDisplay::SetDemuraState, state, demura_idx);
 }
 
 DisplayError ConcurrencyMgr::SetDemuraConfig(Display display,

@@ -995,7 +995,13 @@ DisplayError SDMServices::SetDemuraState(SDMParcel *input_parcel,
                                          SDMParcel *output_parcel) {
   int disp_id = input_parcel->readInt32();
   int state = input_parcel->readInt32();
-  auto ret = cb_->SetDemuraState(disp_id, state);
+
+  int demura_idx = 0;
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    demura_idx = input_parcel->readInt32();
+  }
+
+  auto ret = cb_->SetDemuraState(disp_id, state, demura_idx);
   if (ret != kErrorNone) {
     return ret;
   }
