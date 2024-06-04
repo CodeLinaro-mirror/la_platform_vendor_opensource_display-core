@@ -1,17 +1,14 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "CPUConstraintProvider.h"
 
 #include <dlfcn.h>
-#include <log/log.h>
 #include <fstream>
 #include <iostream>
 
 #include "SnapConstraintParser.h"
 #include "SnapUtils.h"
-
-#define DEBUG 0
 
 namespace snapalloc {
 
@@ -37,7 +34,7 @@ void CPUConstraintProvider::Init(
 
 int CPUConstraintProvider::GetCapabilities(BufferDescriptor desc, CapabilitySet *out) {
   if (CpuCanAccess(desc.usage)) {
-    ALOGD_IF(DEBUG, "CPUConstraintProvider is enabled");
+    DLOGD_IF(enable_logs, "CPUConstraintProvider is enabled");
     out->enabled = true;
   }
 
@@ -51,13 +48,14 @@ int CPUConstraintProvider::GetCapabilities(BufferDescriptor desc, CapabilitySet 
 
 int CPUConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConstraints *out) {
   if (constraint_set_map_.empty()) {
-    ALOGD_IF(DEBUG, "CPU constraint set map is empty");
+    DLOGD_IF(enable_logs, "CPU constraint set map is empty");
     return -1;
   }
   if (constraint_set_map_.find(desc.format) != constraint_set_map_.end()) {
     *out = constraint_set_map_.at(desc.format);
   } else {
-    ALOGD_IF(DEBUG, "CPU could not find entry for format %lu", static_cast<uint64_t>(desc.format));
+    DLOGD_IF(enable_logs, "CPU could not find entry for format %lu",
+             static_cast<uint64_t>(desc.format));
   }
   return 0;
 }

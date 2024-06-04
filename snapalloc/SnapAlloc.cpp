@@ -5,7 +5,7 @@
 #include "SnapHandleInternal.h"
 #include "SnapTypes.h"
 #include "SnapUtils.h"
-#include "log/log.h"
+using ::snapalloc::Debug;
 
 namespace vendor::qti::hardware::display::snapalloc {
 
@@ -40,7 +40,7 @@ Error SnapAlloc::Allocate(const BufferDescriptor &in_descriptor, int in_count,
 Error SnapAlloc::IsSupported(const BufferDescriptor &in_descriptor, bool *is_supported) {
   auto err = snap_alloc_core_->IsSupported(in_descriptor, is_supported);
   if (err != Error::NONE) {
-    ALOGW("Descriptor not supported - err %d", err);
+    DLOGW("Descriptor not supported - err %d", err);
   }
   return err;
 };

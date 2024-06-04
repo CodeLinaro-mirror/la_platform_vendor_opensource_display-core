@@ -1,10 +1,9 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapConstraintParser.h"
 
 #include <json/json.h>
-#include <log/log.h>
 #include <fstream>
 #include <iostream>
 
@@ -134,7 +133,7 @@ bool SnapConstraintParser::StringToEnumType(
     return true;
   }
 
-  ALOGE("Unable to find enum value for format string %s", input.c_str());
+  DLOGE("Unable to find enum value for format string %s", input.c_str());
   return false;
 }
 
@@ -148,7 +147,7 @@ bool SnapConstraintParser::StringToEnumType(
 
   // Empty string valid for formats where plane layout is not queried (e.g., depth stencil formats)
   if (input != "") {
-    ALOGE("Unable to find enum value for plane layout component string %s", input.c_str());
+    DLOGE("Unable to find enum value for plane layout component string %s", input.c_str());
   }
 
   return false;
@@ -160,7 +159,7 @@ int SnapConstraintParser::ParseFormats(
 
   std::ifstream ifs(json_path.c_str());
   if (!ifs.is_open()) {
-    ALOGE("Error opening file");
+    DLOGE("Error opening file");
     return -1;
   }
 
@@ -173,7 +172,7 @@ int SnapConstraintParser::ParseFormats(
 
     vendor_qti_hardware_display_common_PixelFormat format;
     if (!StringToEnumType(format_data_set["format"].asString(), &format)) {
-      ALOGE("%s: Could not find format %s in format list", __FUNCTION__,
+      DLOGE("%s: Could not find format %s in format list", __FUNCTION__,
             format_data_set["format"].asString().c_str());
       continue;
     }
@@ -209,7 +208,7 @@ int SnapConstraintParser::ParseFormats(
         } else {
           // Empty string valid for formats where plane layout is not queried (e.g., depth stencil formats)
           if ((plane_component["component_type"].asString() != "")) {
-            ALOGE("Invalid component type %s in %s",
+            DLOGE("Invalid component type %s in %s",
                 plane_component["component_type"].asString().c_str(), json_path.c_str());
             continue;
           }
@@ -222,7 +221,7 @@ int SnapConstraintParser::ParseFormats(
   }
 
   if (format_data_map->empty()) {
-    ALOGE("Format map empty");
+    DLOGE("Format map empty");
     return -1;
   }
 
@@ -235,7 +234,7 @@ int SnapConstraintParser::ParseAlignments(const std::string &json_path,
   std::ifstream ifs(json_path.c_str());
 
   if (!ifs.is_open()) {
-    ALOGE("Error opening file");
+    DLOGE("Error opening file");
     return -1;
   }
 
@@ -252,7 +251,7 @@ int SnapConstraintParser::ParseAlignments(const std::string &json_path,
     vendor_qti_hardware_display_common_PixelFormat format =
         vendor_qti_hardware_display_common_PixelFormat::PIXEL_FORMAT_UNSPECIFIED;
     if (!StringToEnumType(constraint_set["format"].asString(), &format)) {
-      ALOGE("%s: Could not find format %s in format list", __FUNCTION__,
+      DLOGE("%s: Could not find format %s in format list", __FUNCTION__,
             constraint_set["format"].asString().c_str());
       continue;
     }
@@ -298,7 +297,7 @@ int SnapConstraintParser::ParseAlignments(const std::string &json_path,
         if (StringToEnumType(plane_component["component_type"].asString(), &component_type)) {
           plane_constraints.components.push_back(component_type);
         } else {
-          ALOGE("Invalid component type %s in %s",
+          DLOGE("Invalid component type %s in %s",
                 plane_component["component_type"].asString().c_str(), json_path.c_str());
           continue;
         }
@@ -310,7 +309,7 @@ int SnapConstraintParser::ParseAlignments(const std::string &json_path,
   }
 
   if (constraint_set_map->empty()) {
-    ALOGE("Format map empty");
+    DLOGE("Format map empty");
   }
   return 0;
 }
