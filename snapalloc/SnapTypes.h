@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #ifndef __SNAP_TYPES_H__
@@ -44,7 +44,7 @@
 #include <VideoHistogramMetadata.h>
 #include <VideoTimestampInfo.h>
 #include <VideoTranscodeStatsMetadata.h>
-
+#include <QtiViews.h>
 #include <unordered_map>
 
 using vendor::qti::hardware::display::snapalloc::AllocationResult;

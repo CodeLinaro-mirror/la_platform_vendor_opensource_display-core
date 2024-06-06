@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapAlloc.h"
@@ -24,7 +24,7 @@ Error SnapAlloc::Allocate(const BufferDescriptor &in_descriptor, int in_count,
   }
 
   if (!handles.empty()) {
-    allocation_result->stride = handles[0]->aligned_width_in_pixels;
+    allocation_result->stride = handles[0]->aligned_width_in_pixels();
   }
 
   allocation_result->handles.reserve(in_count);
