@@ -920,6 +920,13 @@ enum struct DRMCacMode {
   CAC_MODE_LOOPBACK_FETCH = 0x8,
 };
 
+enum DRMCacModeBits {
+  CAC_MODE_UNPACK_BIT,
+  CAC_MODE_FETCH_BIT,
+  CAC_MODE_LOOPBACK_UNPACK_BIT,
+  CAC_MODE_LOOPBACK_FETCH_BIT,
+};
+
 struct DRMPlaneTypeInfo {
   DRMPlaneType type;
   uint32_t master_plane_id;
@@ -949,7 +956,7 @@ struct DRMPlaneTypeInfo {
   bool block_sec_ui = false;
   int32_t pipe_idx = -1;
   int32_t demura_block_capability = -1;
-  DRMCacMode cac_mode = DRMCacMode::CAC_MODE_DISABLED;
+  std::bitset<4> cac_mode;
   int32_t cac_parent_rect = -1;
 };
 
