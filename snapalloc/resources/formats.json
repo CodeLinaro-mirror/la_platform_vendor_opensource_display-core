@@ -979,7 +979,7 @@
                                 "size_bits" : 8
                             }
                         ],
-                        "sample_increment_bits" : 8,
+                        "sample_increment_bits" : 16,
                         "h_subsampling_factor" : 1,
                         "v_subsampling_factor" : 1
                     },
@@ -987,18 +987,25 @@
                         "components": [
                             {
                                 "component_type" : "CB",
-                                "offset_bits" : 0,
-                                "size_bits" : 8
-                            },
-                            {
-                                "component_type" : "CR",
                                 "offset_bits" : 8,
                                 "size_bits" : 8
                             }
                         ],
-                        "sample_increment_bits" : 16,
+                        "sample_increment_bits" : 32,
                         "h_subsampling_factor" : 2,
-                        "v_subsampling_factor" : 1 
+                        "v_subsampling_factor" : 1
+                    },
+                    {
+                        "components": [
+                            {
+                                "component_type" : "CR",
+                                "offset_bits" : 24,
+                                "size_bits" : 8
+                            }
+                        ],
+                        "sample_increment_bits" : 32,
+                        "h_subsampling_factor" : 2,
+                        "v_subsampling_factor" : 1
                     }
                 ]
             }
@@ -2328,7 +2335,7 @@
                                 "size_bits" : 8
                             }
                         ],
-                        "sample_increment_bits" : 8,
+                        "sample_increment_bits" : 16,
                         "h_subsampling_factor" : 1,
                         "v_subsampling_factor" : 1
                     },
@@ -2336,16 +2343,23 @@
                         "components": [
                             {
                                 "component_type" : "CR",
-                                "offset_bits" : 0,
-                                "size_bits" : 8
-                            },
-                            {
-                                "component_type" : "CB",
                                 "offset_bits" : 8,
                                 "size_bits" : 8
                             }
                         ],
-                        "sample_increment_bits" : 16,
+                        "sample_increment_bits" : 32,
+                        "h_subsampling_factor" : 2,
+                        "v_subsampling_factor" : 1
+                    },
+                    {
+                        "components": [
+                            {
+                                "component_type" : "CB",
+                                "offset_bits" : 24,
+                                "size_bits" : 8
+                            }
+                        ],
+                        "sample_increment_bits" : 32,
                         "h_subsampling_factor" : 2,
                         "v_subsampling_factor" : 1
                     }
