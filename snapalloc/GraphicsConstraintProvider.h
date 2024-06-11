@@ -375,7 +375,11 @@ class GraphicsConstraintProvider : public SnapConstraintProvider {
           {{.format = vendor_qti_hardware_display_common_PixelFormat::YV12,
             .modifier = PIXEL_FORMAT_MODIFIER_NONE},
            ADRENO_PIXELFORMAT_YV12},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_422_I,
+            .modifier = PIXEL_FORMAT_MODIFIER_NONE},
+           ADRENO_PIXELFORMAT_YUY2},
       };
+
 };
 }  // namespace snapalloc
 
