@@ -75,7 +75,7 @@ static bool AdrenoAlignmentRequired(vendor_qti_hardware_display_common_BufferUsa
       (usage & vendor_qti_hardware_display_common_BufferUsage::GPU_RENDER_TARGET)) {
     // It is mandatory to use adreno alignment requirements for these formats
     // when GPU_TEXTURE or GPU_RENDER_TARGET bits are set
-    if (format == YV12) {
+    if (format == YV12 || format == YCBCR_422_I) {
       return true;
     }
   }
@@ -296,7 +296,7 @@ int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCo
             static_cast<uint64_t>(aligned_w) * floor(format_data.bits_per_pixel / 8.0f);
         plane_layout.scanline.scanline = static_cast<uint64_t>(aligned_h);
       } else {
-        DLOGE(
+        DLOGW(
             "Not able to call LINK_adreno_compute_fmt_aligned_width_and_height - snap format %d "
             "graphics format %d",
             desc.format, gpu_format);
