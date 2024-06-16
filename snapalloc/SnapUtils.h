@@ -44,14 +44,15 @@ inline int roundUpToPageSize(int x) {
 #define PROPERTY_VALUE_MAX 255
 extern bool enable_logs;
 
-template <class Type1, class Type2>
-inline Type1 ALIGN(Type1 x, Type2 align) {
-  Type1 max_val = std::numeric_limits<Type1>::max();
-  if (x > (max_val - (Type1)align)) {
-    return x;
+inline int ALIGN(int operand, int alignment) {
+  int max_val = std::numeric_limits<int>::max();
+  if (operand > (max_val - (int)alignment)) {
+    return operand;
   }
 
-  return (Type1)((x + (Type1)align - 1) & ~((Type1)align - 1));
+  int remainder = (operand % alignment);
+
+  return (0 == remainder) ? operand : operand - remainder + alignment;
 }
 
 uint64_t GetPixelFormatModifier(BufferDescriptor desc);
