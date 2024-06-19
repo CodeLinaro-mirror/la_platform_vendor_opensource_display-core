@@ -306,6 +306,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   DisplayError SetupDemuraTn();
   DisplayError EnableDemuraTn(bool enable);
   DisplayError SetupDemuraT0AndTn();
+  DisplayError SetupDemuraT0();
   DisplayError SetupABCFeature();
   DisplayError SetupABC();
   DisplayError SetDisplayStateForDemuraTn(DisplayState state);
@@ -338,6 +339,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   DisplayError TriggerDemuraOemPlugIn(void *data);
   CacVersion GetCacVerion();
   bool IsAnamorphicFoveationEnabled(LayerStack *layer_stack);
+  DisplayError SendPanelIdToParserManager();
 
   const uint32_t kPuTimeOutMs = 1000;
   std::vector<HWEvent> event_list_;
@@ -415,6 +417,10 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   bool avr_step_enabled_ = false;
   bool vrr_enabled_ = false;
   std::shared_ptr<TvmDispServiceManagerIntf> service_manager_intf_ = nullptr;
+  std::shared_ptr<DemuraParserManagerIntf> pm_intf_ = nullptr;
+  bool demura_allowed_ = false;
+  bool demuratn_allowed_ = false;
+  int demura_prop_ = 0;
 };
 
 }  // namespace sdm

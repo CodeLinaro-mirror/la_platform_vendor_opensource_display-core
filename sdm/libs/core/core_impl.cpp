@@ -781,29 +781,6 @@ DisplayError CoreImpl::ReserveDemuraPipeResources() {
     }
   }
 
-  std::vector<uint64_t> *panel_ids;
-  GenericPayload in;
-  int ret = in.CreatePayload<std::vector<uint64_t>>(panel_ids);
-  if (ret) {
-    DLOGE("Failed to create payload for panel ids, error = %d", ret);
-    return kErrorResources;
-  }
-
-  if ((err = hw_info_intf_[0]->GetDemuraPanelIds(panel_ids)) != kErrorNone) {
-    DLOGE("Unable to get demura panel ids");
-    return err;
-  }
-
-  for (auto &id : *panel_ids) {
-    DLOGI("Detected panel_id = %" PRIu64 " (0x%" PRIx64 ")", id, id);
-  }
-  OverRideDemuraPanelIds(panel_ids);
-
-  if (enable_demura && (ret = pm_intf_->SetParameter(kDemuraParserManagerParamPanelIds, in))) {
-    DLOGE("Failed to set the panel ids to the parser manager");
-    return kErrorResources;
-  }
-
   reserve_done_ = true;
   return err;
 }
