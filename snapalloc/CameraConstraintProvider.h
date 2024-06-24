@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #ifndef __CAMERA_CONSTRAINT_PROVIDER_H__
@@ -9,6 +9,7 @@
 
 #include "Debug.h"
 #include "SnapConstraintProvider.h"
+#include "SnapConstraintParser.h"
 #include "SnapUtils.h"
 #include "SnapMemAllocDefs.h"
 
@@ -125,8 +126,10 @@ class CameraConstraintProvider : public SnapConstraintProvider {
   static CameraConstraintProvider *instance_;
 
   void *lib_ = nullptr;
-  std::map<vendor_qti_hardware_display_common_PixelFormat, BufferConstraints> constraint_set_map_;
+  std::unordered_map<SnapFormatDescriptor, BufferConstraints, SnapFormatDescriptorHash>
+      constraint_set_map_;
   std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map_;
+  SnapConstraintParser *parser_ = nullptr;
   CamxPixelFormat GetCameraPixelFormat(int snap_format, int modifier);
   int GetUBWCInfo(int format, int modifier, bool *is_Supported, bool *is_PI, int *version);
   int GetPlaneAlignment(int format, int plane_type, int modifier, unsigned int *alignment);

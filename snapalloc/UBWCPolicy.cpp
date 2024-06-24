@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "UBWCPolicy.h"
@@ -178,11 +178,9 @@ int UBWCPolicy::OffTargetAlloc(BufferDescriptor desc, AllocData *out_ad,
     DLOGE("Constraint set map is empty");
     return Error::NO_RESOURCES;
   }
-  if (constraint_set_map_.find(desc.format) != constraint_set_map_.end()) {
-    ubwc_constraints = constraint_set_map_.at(desc.format);
-  } else {
-    DLOGE("%s: could not find entry for format %lu", __FUNCTION__,
-          static_cast<uint64_t>(desc.format));
+  if (!(constraint_parser_->GetBufferConstraints(constraint_set_map_, desc, &ubwc_constraints))) {
+    DLOGE("%s: could not find entry for format %lu & modifier %d", __FUNCTION__,
+          static_cast<uint64_t>(desc.format), GetPixelFormatModifier(desc));
     return Error::UNSUPPORTED;
   }
   if (ubwc_constraints.planes.empty()) {

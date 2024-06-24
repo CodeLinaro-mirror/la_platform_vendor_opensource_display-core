@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapConstraintParser.h"
@@ -233,9 +233,10 @@ int SnapConstraintParser::ParseFormats(
   return 0;
 }
 
-int SnapConstraintParser::ParseAlignments(const std::string &json_path,
-                                          std::map<vendor_qti_hardware_display_common_PixelFormat,
-                                                   BufferConstraints> *constraint_set_map) {
+int SnapConstraintParser::ParseAlignments(
+    const std::string &json_path,
+    std::unordered_map<SnapFormatDescriptor, BufferConstraints, SnapFormatDescriptorHash>
+        *constraint_set_map) {
   std::ifstream ifs(json_path.c_str());
 
   if (!ifs.is_open()) {
@@ -251,72 +252,101 @@ int SnapConstraintParser::ParseAlignments(const std::string &json_path,
   for (Json::Value::const_iterator it_sets = constraint_sets.begin();
        it_sets != constraint_sets.end(); ++it_sets) {
     auto constraint_set = constraint_sets[it_sets.index()];
-    auto constraint_set_data = constraint_set["constraints"];
+    auto variants = constraint_set["variants"];
 
-    vendor_qti_hardware_display_common_PixelFormat format =
-        vendor_qti_hardware_display_common_PixelFormat::PIXEL_FORMAT_UNSPECIFIED;
-    if (!StringToEnumType(constraint_set["format"].asString(), &format)) {
+    SnapFormatDescriptor format_modifier_entry = {
+        .format = vendor_qti_hardware_display_common_PixelFormat::PIXEL_FORMAT_UNSPECIFIED,
+        .modifier =
+            vendor_qti_hardware_display_common_PixelFormatModifier::PIXEL_FORMAT_MODIFIER_NONE};
+
+    if (!StringToEnumType(constraint_set["format"].asString(), &format_modifier_entry.format)) {
       DLOGW("%s: Could not find format %s in format list", __FUNCTION__,
             constraint_set["format"].asString().c_str());
       continue;
     }
-
-    BufferConstraints data;
-    data.size_align_bytes = constraint_set_data["size_align_bytes"].asUInt();
-    data.modifier = 0;
-    if (constraint_set.isMember("modifier")) {
-      data.modifier = constraint_set_data["modifier"].asUInt();
-    }
-
-    for (Json::Value::const_iterator it_planes = constraint_set_data["planes"].begin();
-         it_planes != constraint_set_data["planes"].end(); ++it_planes) {
-      auto file_plane_constraints = constraint_set_data["planes"][it_planes.index()];
-      PlaneConstraints plane_constraints;
-      plane_constraints.alignment_type = ALIGNMENT;
-
-      plane_constraints.stride.horizontal_stride_align =
-          file_plane_constraints["horiz_stride_align_bytes"].asUInt();
-      plane_constraints.scanline.scanline_align = file_plane_constraints["scanline_align"].asUInt();
-      plane_constraints.size_align = file_plane_constraints["size_align_bytes"].asUInt();
-      if (file_plane_constraints.isMember("block_width_bytes")) {
-        plane_constraints.block_width = file_plane_constraints["block_width_bytes"].asUInt();
+    for (Json::Value::const_iterator variant_it_sets = variants.begin();
+         variant_it_sets != variants.end(); ++variant_it_sets) {
+      auto variant_set_data = variants[variant_it_sets.index()];
+      auto constraint_set_data = variant_set_data["constraints"];
+      BufferConstraints data;
+      data.size_align_bytes = constraint_set_data["size_align_bytes"].asUInt();
+      data.modifier = 0;
+      if (variant_set_data.isMember("modifier")) {
+        data.modifier = variant_set_data["modifier"].asUInt();
+        format_modifier_entry.modifier =
+            static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(data.modifier);
       }
+      for (Json::Value::const_iterator it_planes = constraint_set_data["planes"].begin();
+           it_planes != constraint_set_data["planes"].end(); ++it_planes) {
+        auto file_plane_constraints = constraint_set_data["planes"][it_planes.index()];
+        PlaneConstraints plane_constraints;
+        plane_constraints.alignment_type = ALIGNMENT;
 
-      if (file_plane_constraints.isMember("block_height_bytes")) {
-        plane_constraints.block_height = file_plane_constraints["block_height_bytes"].asUInt();
-      }
-
-      if (file_plane_constraints.isMember("meta_planes")) {
         plane_constraints.stride.horizontal_stride_align =
-            file_plane_constraints["meta_planes"]["horiz_stride_align_bytes"].asUInt();
+            file_plane_constraints["horiz_stride_align_bytes"].asUInt();
         plane_constraints.scanline.scanline_align =
-            file_plane_constraints["meta_planes"]["scanline_align"].asUInt();
-      }
-
-      for (Json::Value::const_iterator it_plane_components =
-               file_plane_constraints["components"].begin();
-           it_plane_components != file_plane_constraints["components"].end();
-           ++it_plane_components) {
-        auto plane_component = file_plane_constraints["components"][it_plane_components.index()];
-        vendor_qti_hardware_display_common_PlaneLayoutComponentType component_type;
-        if (StringToEnumType(plane_component["component_type"].asString(), &component_type)) {
-          plane_constraints.components.push_back(component_type);
-        } else {
-          DLOGW("Invalid component type %s in %s",
-                plane_component["component_type"].asString().c_str(), json_path.c_str());
-          continue;
+            file_plane_constraints["scanline_align"].asUInt();
+        plane_constraints.size_align = file_plane_constraints["size_align_bytes"].asUInt();
+        if (file_plane_constraints.isMember("block_width_bytes")) {
+          plane_constraints.block_width = file_plane_constraints["block_width_bytes"].asUInt();
         }
-      }
-      data.planes.push_back(plane_constraints);
-    }
 
-    constraint_set_map->insert(std::make_pair(format, data));
+        if (file_plane_constraints.isMember("block_height_bytes")) {
+          plane_constraints.block_height = file_plane_constraints["block_height_bytes"].asUInt();
+        }
+
+        if (file_plane_constraints.isMember("meta_planes")) {
+          plane_constraints.stride.horizontal_stride_align =
+              file_plane_constraints["meta_planes"]["horiz_stride_align_bytes"].asUInt();
+          plane_constraints.scanline.scanline_align =
+              file_plane_constraints["meta_planes"]["scanline_align"].asUInt();
+        }
+
+        for (Json::Value::const_iterator it_plane_components =
+                 file_plane_constraints["components"].begin();
+             it_plane_components != file_plane_constraints["components"].end();
+             ++it_plane_components) {
+          auto plane_component = file_plane_constraints["components"][it_plane_components.index()];
+          vendor_qti_hardware_display_common_PlaneLayoutComponentType component_type;
+          if (StringToEnumType(plane_component["component_type"].asString(), &component_type)) {
+            plane_constraints.components.push_back(component_type);
+          } else {
+            DLOGW("Invalid component type %s in %s",
+                  plane_component["component_type"].asString().c_str(), json_path.c_str());
+            continue;
+          }
+        }
+        data.planes.push_back(plane_constraints);
+      }
+      constraint_set_map->insert(std::make_pair(format_modifier_entry, data));
+    }
   }
 
   if (constraint_set_map->empty()) {
     DLOGE("Format map empty");
   }
   return 0;
+}
+
+int SnapConstraintParser::GetBufferConstraints(
+    std::unordered_map<SnapFormatDescriptor, BufferConstraints, SnapFormatDescriptorHash>
+        &constraint_set_map_,
+    BufferDescriptor desc, BufferConstraints *out) {
+  bool entry_present = false;
+  SnapFormatDescriptor format_desc = {
+      .format = desc.format,
+      .modifier = static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
+          GetPixelFormatModifier(desc))};
+  for (auto constraint : constraint_set_map_) {
+    if (constraint.first.format == format_desc.format) {
+      if (constraint.first.modifier == format_desc.modifier) {
+        *out = constraint.second;
+        entry_present = true;
+        break;
+      }
+    }
+  }
+  return entry_present;
 }
 
 }  // namespace snapalloc

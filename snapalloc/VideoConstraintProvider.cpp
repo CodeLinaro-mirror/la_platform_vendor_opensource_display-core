@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "VideoConstraintProvider.h"
@@ -7,7 +7,6 @@
 #include <fstream>
 #include <iostream>
 
-#include "SnapConstraintParser.h"
 #include "SnapUtils.h"
 
 namespace snapalloc {
@@ -27,13 +26,13 @@ VideoConstraintProvider *VideoConstraintProvider::GetInstance(
 
 void VideoConstraintProvider::Init(
     std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map) {
-  SnapConstraintParser *parser = SnapConstraintParser::GetInstance();
+  parser_ = SnapConstraintParser::GetInstance();
   // change to shared pointer
-  parser->ParseAlignments("/vendor/etc/display/video_alignments.json", &constraint_set_map_);
+  parser_->ParseAlignments("/vendor/etc/display/video_alignments.json", &constraint_set_map_);
   if (!format_data_map.empty()) {
     format_data_map_ = format_data_map;
   } else {
-    parser->ParseFormats(&format_data_map_);
+    parser_->ParseFormats(&format_data_map_);
   }
 }
 
@@ -146,11 +145,9 @@ int VideoConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConstra
     DLOGW("VideoConstraintProvider constraint set map is empty");
     return -1;
   }
-  if (constraint_set_map_.find(desc.format) != constraint_set_map_.end()) {
-    *out = constraint_set_map_.at(desc.format);
-  } else {
-    DLOGW("VideoConstraintProvider could not find entry for format %lu",
-          static_cast<uint64_t>(desc.format));
+  if (!(parser_->GetBufferConstraints(constraint_set_map_, desc, out))) {
+    DLOGW("VideoConstraintProvider could not find entry for format %lu & modifier %d",
+          static_cast<uint64_t>(desc.format), GetPixelFormatModifier(desc));
   }
   return 0;
 }
