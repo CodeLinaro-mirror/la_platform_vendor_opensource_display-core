@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "Debug.h"
@@ -62,7 +62,6 @@ bool Debug::UseDMABufHeaps() {
 }
 bool Debug::HwSupportsUBWCP() {
   int value = 0;
-  GetProperty(HW_SUPPORTS_UBWCP, &value);
   return (value == 1);
 }
 

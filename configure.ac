@@ -55,12 +55,6 @@ AC_PROG_MAKE_SET
 AC_SUBST([CFLAGS])
 AC_SUBST([CC])
 AC_CONFIG_FILES([ \
-        Makefile \
-        libdebug/Makefile \
-        libdrmutils/Makefile \
-        sde-drm/Makefile \
-        sdm/libs/utils/Makefile \
-        sdm/libs/dal/Makefile \
-        sdm/libs/core/Makefile
+        Makefile
         ])
 AC_OUTPUT

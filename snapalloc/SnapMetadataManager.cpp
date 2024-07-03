@@ -274,7 +274,7 @@ Error SnapMetadataManager::CompressionHelper(SnapMetadata *metadata, SnapHandleI
                              .width = handle->aligned_width_in_pixels,
                              .height = handle->aligned_height,
                              .layerCount = static_cast<int32_t>(handle->layer_count),
-                             .reservedSize = handle->reserved_size};
+                             .reservedSize = static_cast<long>(handle->reserved_size)};
     UBWCPolicy *ubwc_policy = UBWCPolicy::GetInstance();
     bool ubwc_enable = ubwc_policy->IsUBWCAlloc(desc);
     int64_t qti_compression = vendor_qti_hardware_display_common_Compression::COMPRESSION_NONE;
@@ -350,7 +350,7 @@ Error SnapMetadataManager::PlaneLayoutsHelper(SnapMetadata *metadata, SnapHandle
                                .height = handle->unaligned_height,
                                .layerCount =
                                    static_cast<int32_t>(handle->layer_count),
-                               .reservedSize = handle->reserved_size};
+                               .reservedSize = static_cast<long>(handle->reserved_size)};
       static vendor_qti_hardware_display_common_KeyValuePair modifier = {
           .key = "interlaced", .value = static_cast<uint64_t>(1)};
       desc.additionalOptions.emplace_back(modifier);
@@ -1246,7 +1246,7 @@ Error SnapMetadataManager::GetCustomDimensions(SnapHandleInternal *hnd, SnapMeta
                                .width = hnd->aligned_width_in_pixels,
                                .height = hnd->aligned_height,
                                .layerCount = static_cast<int32_t>(hnd->layer_count),
-                               .reservedSize = hnd->reserved_size};
+                               .reservedSize = static_cast<long>(hnd->reserved_size)};
       auto err = Error::NONE;
       err = constraint_mgr_->GetAllocationData(desc, &ad, &layout, &out_desc, &out_priv_flags);
       if (err != Error::NONE) {

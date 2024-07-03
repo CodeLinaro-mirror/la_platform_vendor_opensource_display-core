@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "VideoConstraintProvider.h"
@@ -119,6 +119,7 @@ int VideoConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferConst
                    "plane_layout.scanline.scanline %d",
                    plane_layout.stride.horizontal_stride, plane_layout.scanline.scanline);
           plane_layout.size_align = 1;
+          [[fallthrough]];
         default:
           break;
       }

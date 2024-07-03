@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "DisplayConstraintProvider.h"
@@ -107,6 +107,7 @@ int DisplayConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCon
           plane_layout.stride.horizontal_stride = mapper.GetUVStride(mmm_color_format, desc.width);
           plane_layout.scanline.scanline = mapper.GetUVScanlines(mmm_color_format, desc.height);
           plane_layout.size_align = 1;
+          [[fallthrough]];
         default:
           break;
       }
