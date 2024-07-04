@@ -779,7 +779,7 @@ DisplayError SDMLayer::SetMetaData(const SnapHandle *handle, Layer *layer) {
   if (anamorphic_compression_md_set) {
     err = snapmapper_->GetMetadata(*handle, MetadataType::ANAMORPHIC_COMPRESSION_METADATA,
                                    &layer_buffer->anamorphicMetadata);
-    if (!err) {
+    if (err) {
       DLOGW("Failed to get anamorphic compression metadata");
     }
   }
