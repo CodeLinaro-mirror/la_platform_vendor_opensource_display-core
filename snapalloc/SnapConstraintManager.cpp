@@ -163,6 +163,16 @@ Error SnapConstraintManager::GetAllocationData(
       return Error::BAD_VALUE;
     }
   }
+
+  if ((
+      in_desc.format == vendor_qti_hardware_display_common_PixelFormat::RAW10 ||
+      in_desc.format == vendor_qti_hardware_display_common_PixelFormat::RAW12 ||
+      in_desc.format == vendor_qti_hardware_display_common_PixelFormat::YCBCR_422_SP)
+      && (in_desc.usage & GPU_RENDER_TARGET || in_desc.usage & GPU_TEXTURE)) {
+        DLOGE("Failing allocation for unsupported formats for GPU render/texture");
+        return Error::BAD_VALUE;
+  }
+
   if (in_desc.format == vendor_qti_hardware_display_common_PixelFormat::IMPLEMENTATION_DEFINED ||
       in_desc.format == vendor_qti_hardware_display_common_PixelFormat::YCBCR_420_888) {
     vendor_qti_hardware_display_common_PixelFormatModifier modifier = PIXEL_FORMAT_MODIFIER_NONE;
