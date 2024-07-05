@@ -969,6 +969,7 @@ enum UpdateType {
   kUpdateLuts,       // Indicates TM only Strategy execution, which can update SSPP color features.
   kUpdateFBObject,   // Indicates that the FrameBuffer Object has been updated.
   kChangeCwbConfig,  // Indicates either CWB buffer attached/detached to stack or size changed.
+  kHalSelfRefresh,   // Indicates that it is HAL Self-Refresh Commit.
   kUpdateMax,
 };
 

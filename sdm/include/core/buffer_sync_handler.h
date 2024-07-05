@@ -27,6 +27,12 @@
 * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+/*
+* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+* Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
+*/
+
 /*! @file buffer_sync_handler.h
   @brief Interface file for platform specific buffer allocator.
 
@@ -87,6 +93,15 @@ class BufferSyncHandler {
     @param[in] os output stream
  */
   virtual void GetSyncInfo(int fd, std::ostringstream *os) = 0;
+
+  /*! @brief Method to get fence signal timestamp of a signaled fence
+
+    @details This method returns the fence signal timestamp of the given signaled fence.
+
+    @param[in] fd sync fence file descriptor
+    @param[out] fence signal timestamp
+ */
+  virtual uint64_t GetSignalTime(int fd) = 0;
 
  protected:
   virtual ~BufferSyncHandler() { }

@@ -1368,9 +1368,8 @@ DisplayError HWPeripheralDRM::GetQsyncFps(uint32_t *qsync_fps) {
   return kErrorNotSupported;
 }
 
-bool HWPeripheralDRM::IsAVRStepSupported(uint32_t config_index) {
-  uint32_t avr_step = connector_info_.modes[config_index].avr_step_fps;
-  return (avr_step > 0);
+uint32_t HWPeripheralDRM::GetAVRStep(uint32_t config_index) {
+  return connector_info_.modes[config_index].avr_step_fps;
 }
 
 bool HWPeripheralDRM::IsVRRSupported() {

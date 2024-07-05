@@ -1997,7 +1997,7 @@ DisplayError DisplayBuiltIn::DppsProcessOps(enum DppsOps op, void *payload, size
       error = dpu_core_mux_->GetDppsFeatureInfo(payload, size);
       break;
     case kDppsScreenRefresh:
-      event_handler_->Refresh();
+      HandleSelfRefresh();
       break;
     case kDppsPartialUpdate: {
       int ret;
@@ -2895,9 +2895,9 @@ DisplayError DisplayBuiltIn::SetActiveConfig(uint32_t index) {
 
   if (vrr_enabled_) {
     // Set VRR State
-    bool enable = hw_intf_->IsAVRStepSupported(index);
-    SetQSyncMode(enable ? kQSyncModeContinuous : kQSyncModeNone);
-    SetAVRStepState(enable);
+    avr_step_ = hw_intf_->GetAVRStep(index);
+    SetQSyncMode(avr_step_ ? kQSyncModeContinuous : kQSyncModeNone);
+    SetAVRStepState(avr_step_ != 0);
   }
 
   auto error = DisplayBase::SetActiveConfig(index);
@@ -3804,7 +3804,7 @@ DisplayError DisplayBuiltIn::SetDemuraConfig(int demura_idx) {
 
   demura_current_idx_ = demura_idx;
   DLOGV("Demura config updated to config index %d", demura_idx);
-  event_handler_->Refresh();
+  HandleSelfRefresh();
 
   // disable partial update for one frame
   DisablePartialUpdateOneFrame();
@@ -4189,7 +4189,8 @@ DisplayError DisplayBuiltIn::SetVRRState(bool state) {
 
   uint32_t active_index = 0;
   dpu_core_mux_->GetActiveConfig(&active_index);
-  if (hw_intf_->IsAVRStepSupported(active_index)) {
+  avr_step_ = hw_intf_->GetAVRStep(active_index);
+  if (avr_step_ != 0) {
     DLOGI("Set VRR state %d in config %d", state, active_index);
     SetQSyncMode(state ? kQSyncModeContinuous : kQSyncModeNone);
     DisplayError error = SetAVRStepState(state);
