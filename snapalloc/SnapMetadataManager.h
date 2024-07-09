@@ -55,6 +55,7 @@ class SnapMetadataManager {
   static SnapMetadataManager *instance_;
   SnapConstraintManager *constraint_mgr_ = nullptr;
   SnapMemAllocator *mem_allocator_ = nullptr;
+  UBWCPolicy *ubwc_policy_ = nullptr;
 
   Error IsMetadataTypeSettable(vendor_qti_hardware_display_common_MetadataType type, bool *out);
   void SetMetadataState(SnapMetadata *metadata,
