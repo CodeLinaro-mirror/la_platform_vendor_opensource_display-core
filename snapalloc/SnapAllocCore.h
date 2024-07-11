@@ -43,6 +43,7 @@ class SnapAllocCore {
   Error DumpBuffers();
   Error GetMetadataState(SnapHandle *hnd, vendor_qti_hardware_display_common_MetadataType type,
                           bool *out);
+  Error RetainViewBuffer(SnapHandle *meta_hnd, uint32_t view, SnapHandle **out_view_handle);
   void RegisterHandleLocked(SnapHandle *public_hnd, SnapHandleInternal *snap_hnd);
 
  private:

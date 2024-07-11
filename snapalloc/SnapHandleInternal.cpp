@@ -3,6 +3,7 @@
 
 #include "SnapHandleInternal.h"
 #include <array>
+#include <fcntl.h>
 
 namespace snapalloc {
 
@@ -170,6 +171,58 @@ std::vector<SnapHandleInternal::FdPair> SnapHandleInternal::getFds() {
       break;
   }
   return fd_pairs;
+}
+
+SnapHandleInternal *SnapHandleInternal::CreateViewHandle(uint32_t view) {
+  int N = getN();
+
+  if (N > 2) {
+    ALOGE("Unsupported meta handle of N %d", N);
+    return nullptr;
+  }
+
+  int view_index = -1;
+  switch (view) {
+    case PRIV_VIEW_MASK_PRIMARY:
+      view_index = 0;
+      break;
+    case PRIV_VIEW_MASK_SECONDARY:
+      view_index = 1;
+      break;
+    default:
+      ALOGE("Unsupported view mask %d", view);
+      return nullptr;
+  }
+
+  if (view_index >= N) {
+    ALOGE("Meta Handle doesn't contain the requested view %d", view);
+    return nullptr;
+  }
+
+  size_t handle_size = sizeof(SnapHandleProperties) + sizeof(FdPair) + sizeof(SnapHandle);
+  SnapHandleData<1> *view_handle = static_cast<SnapHandleData<1> *>(malloc(handle_size));
+
+  view_handle->num_ints = SnapHandleData<1>::getExpectedNumInts();
+  view_handle->num_fds = SnapHandleData<1>::getExpectedNumFds();
+  view_handle->version = static_cast<int>(sizeof(SnapHandle));
+
+  switch (N) {
+    case 2:
+      view_handle->getFdPair(0).fd = fcntl(
+          static_cast<SnapHandleData<2> *>(this)->getFdPair(view_index).fd, F_DUPFD_CLOEXEC, 0);
+      view_handle->getFdPair(0).fd_metadata =
+          fcntl(static_cast<SnapHandleData<2> *>(this)->getFdPair(view_index).fd_metadata,
+                F_DUPFD_CLOEXEC, 0);
+      view_handle->getProperties(0) =
+          static_cast<SnapHandleData<2> *>(this)->getProperties(view_index);
+      break;
+    default:
+      ALOGE("Unsupported Meta Handle");
+      free(view_handle);
+      return nullptr;
+  }
+
+  return view_handle;
 }
 
 int SnapHandleInternal::getN() {
