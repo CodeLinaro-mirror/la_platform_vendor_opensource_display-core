@@ -1125,6 +1125,7 @@ struct HWLayersInfo {
   bool iwe_enabled = false;
   HWDNSCInfo dnsc_cfg = {};
   SelfRefreshState self_refresh_state = kSelfRefreshNone;
+  BufferInfo dummy_loopback_cac_info = {};
 };
 
 struct DispLayerStack {
