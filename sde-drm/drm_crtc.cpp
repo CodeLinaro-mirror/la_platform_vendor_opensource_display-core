@@ -932,6 +932,17 @@ void DRMCrtc::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
                   ubwc_clk, true /* cache */, tmp_prop_val_map_);
     }; break;
 
+    case DRMOps::CRTC_SET_FLUSH_SYNC_EN: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::FLUSH_SYNC_EN)) {
+        return;
+      }
+
+      uint32_t flush_sync_en = va_arg(args, uint32_t);
+      AddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::FLUSH_SYNC_EN), flush_sync_en,
+                  true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("CRTC %d: Set flush_sync_en %d", obj_id, flush_sync_en);
+    }; break;
+
     default:
       DRM_LOGE("Invalid opcode %d to set the property on crtc %d", code, obj_id);
       break;
