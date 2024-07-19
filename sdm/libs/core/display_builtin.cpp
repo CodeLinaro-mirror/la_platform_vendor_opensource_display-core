@@ -4451,6 +4451,9 @@ DisplayError DisplayBuiltIn::SetPanelFeatureConfig(int32_t type, void *data) {
     case kTypeDemuraDisplayEventsCtrl:
       ret = SetDemuraDisplayEventsCtrl(data);
       break;
+    case kTypeQueryDemuraTnInfo:
+      ret = QueryDemuraTnInfo(data);
+      break;
     default:
       DLOGE("Invalid type %d", type);
       ret = kErrorParameters;
@@ -4853,6 +4856,26 @@ DisplayError DisplayBuiltIn::SetDemuraDisplayEventsCtrl(void *data) {
   }
 
   DLOGI("Set demura disply event state success");
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::QueryDemuraTnInfo(void *data) {
+  (void)data;
+  int ret = 0;
+
+  if (!demuratn_) {
+    DLOGE("Not supported, demuratn intf is null");
+    return kErrorNotSupported;
+  }
+
+  GenericPayload payload = {};
+  ret = demuratn_->GetParameter(kDemuraTnCoreUvmParamQueryInfo, &payload);
+  if (ret) {
+    DLOGE("Failed to query information from Tn %d", ret);
+    return kErrorUndefined;
+  }
+
+  DLOGI("Query demuraTn infomation done");
   return kErrorNone;
 }
 
