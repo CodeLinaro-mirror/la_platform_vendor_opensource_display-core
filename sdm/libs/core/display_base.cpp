@@ -4812,10 +4812,12 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
 }
 
 bool DisplayBase::HandleCwbTeardown() {
-  ClientLock lock(disp_mutex_);
+  {
+    ClientLock lock(disp_mutex_);
 
-  if (!HasConcurrentWriteback()) {
-    return false;
+    if (!HasConcurrentWriteback()) {
+      return false;
+    }
   }
 
   return comp_manager_->HandleCwbTeardown(display_comp_ctx_);
