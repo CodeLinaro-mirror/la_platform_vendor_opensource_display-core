@@ -1017,8 +1017,8 @@ bool DPUMultiCore::AreAllEntriesSame(std::vector<T> &entries) {
   return true;
 }
 
-void DPUMultiCore::GetDRMDisplayToken(sde_drm::DRMDisplayToken *token) const {
-  hw_intf_.at(core_ids_[0])->GetDRMDisplayToken(token);
+void DPUMultiCore::GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) const {
+  hw_intf_.at(core_id)->GetDRMDisplayToken(token);
 }
 
 DisplayError DPUMultiCore::GetFbConfig(uint32_t width, uint32_t height,

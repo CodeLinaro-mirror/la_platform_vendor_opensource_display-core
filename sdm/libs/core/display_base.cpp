@@ -481,7 +481,8 @@ DisplayError DisplayBase::Deinit() {
       dpu_core_mux_->UnsetScaleLutConfig();
     }
   }
-  HWEventsInterface::Destroy(hw_events_intf_);
+  HWEventsInterface::Destroy(&hw_events_intf_);
+  master_hw_events_intf_ = nullptr;
   dpu_core_mux_->Destroy();
 
   {  // Scope for lock
@@ -1660,8 +1661,10 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
   }
   // Regiser for power events on first cycle in unified draw.
   if (first_cycle_ && display_type_ == kBuiltIn) {
-    // Register for panel dead since notification is sent at any time
-    hw_events_intf_->SetEventState(HWEvent::PANEL_DEAD, true);
+    // Register for panel dead for all the cores since notification is sent at any time
+    for (int i = 0; i < hw_events_intf_.size(); i++) {
+      hw_events_intf_[i]->SetEventState(HWEvent::PANEL_DEAD, true);
+    }
   }
 
   // Drop commits for external, if CWB is enabled and primary display is already down.
@@ -1692,11 +1695,11 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
   // Register other hw events after the first successful commit to avoid missing the power event
   // notification on framework reboot edge cases
   if (!first_cycle_ && !registered_hw_events_ && display_type_ != kVirtual) {
-    hw_events_intf_->SetEventState(HWEvent::IDLE_POWER_COLLAPSE, true);
-    hw_events_intf_->SetEventState(HWEvent::HW_RECOVERY, true);
-    hw_events_intf_->SetEventState(HWEvent::HISTOGRAM, true);
-    hw_events_intf_->SetEventState(HWEvent::MMRM, true);
-    hw_events_intf_->SetEventState(HWEvent::VM_RELEASE_EVENT, true);
+    master_hw_events_intf_->SetEventState(HWEvent::IDLE_POWER_COLLAPSE, true);
+    master_hw_events_intf_->SetEventState(HWEvent::HW_RECOVERY, true);
+    master_hw_events_intf_->SetEventState(HWEvent::HISTOGRAM, true);
+    master_hw_events_intf_->SetEventState(HWEvent::MMRM, true);
+    master_hw_events_intf_->SetEventState(HWEvent::VM_RELEASE_EVENT, true);
     registered_hw_events_ = true;
   }
 
@@ -3049,7 +3052,7 @@ DisplayError DisplayBase::SetVSyncStateLocked(bool enable) {
           (current_refresh_rate_ < client_ctx_.hw_panel_info.max_fps)) {
         drop_hw_vsync_ = true;
       }
-      error = hw_events_intf_->SetEventState(HWEvent::VSYNC, enable);
+      error = master_hw_events_intf_->SetEventState(HWEvent::VSYNC, enable);
     }
     if (error == kErrorNone) {
       vsync_enable_ = enable;
@@ -4227,7 +4230,7 @@ DisplayError DisplayBase::HandleSecureEvent(SecureEvent secure_event, bool *need
     }
     *needs_refresh = (client_ctx_.hw_panel_info.mode == kModeCommand);
     DisablePartialUpdateOneFrameInternal();
-    err = hw_events_intf_->SetEventState(HWEvent::BACKLIGHT_EVENT, true);
+    err = master_hw_events_intf_->SetEventState(HWEvent::BACKLIGHT_EVENT, true);
     if (err != kErrorNone) {
       return err;
     }
@@ -4282,7 +4285,7 @@ DisplayError DisplayBase::HandleSecureEvent(SecureEvent secure_event, bool *need
       }
     }
     DisablePartialUpdateOneFrameInternal();
-    err = hw_events_intf_->SetEventState(HWEvent::BACKLIGHT_EVENT, false);
+    err = master_hw_events_intf_->SetEventState(HWEvent::BACKLIGHT_EVENT, false);
     if (err != kErrorNone) {
       return err;
     }

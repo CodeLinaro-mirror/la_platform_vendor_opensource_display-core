@@ -433,7 +433,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   int core_count_ = 0;
   ColorManagerIntf *color_mgr_ = NULL;
   bool partial_update_control_ = true;
-  HWEventsInterface *hw_events_intf_ = NULL;
+  std::vector<HWEventsInterface *> hw_events_intf_ = {};
+  HWEventsInterface *master_hw_events_intf_ = nullptr;
   bool disable_pu_one_frame_ = false;
   bool pu_pending_ = false;
   uint32_t num_color_modes_ = 0;

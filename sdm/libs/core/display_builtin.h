@@ -276,7 +276,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   void HandleBacklightEvent(float brightness_level) override;
   void HandlePowerEvent() override;
   void HandleVmReleaseEvent() override;
-  void GetDRMDisplayToken(sde_drm::DRMDisplayToken *token) override;
+  void GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) override;
   bool IsPrimaryDisplay() override;
   DisplayError GetPanelBrightnessBasePath(std::string *base_path) override;
 
@@ -340,7 +340,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   bool IsAnamorphicFoveationEnabled(LayerStack *layer_stack);
 
   const uint32_t kPuTimeOutMs = 1000;
-  std::vector<HWEvent> event_list_;
+  std::map<uint32_t, std::vector<HWEvent>> event_list_;
   bool avr_prop_disabled_ = false;
   bool switch_to_cmd_ = false;
   bool commit_event_enabled_ = false;

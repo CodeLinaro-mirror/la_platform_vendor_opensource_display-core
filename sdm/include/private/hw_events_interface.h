@@ -24,7 +24,7 @@
 
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
-* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
   SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -61,16 +61,17 @@ enum HWEvent {
 
 class HWEventsInterface {
  public:
-  virtual DisplayError Init(DisplayId display_id, SDMDisplayType display_type,
+  virtual DisplayError Init(DisplayId display_id, uint32_t core_id, SDMDisplayType display_type,
                             HWEventHandler *event_handler,
                             const std::vector<HWEvent> &event_list) = 0;
   virtual DisplayError Deinit() = 0;
   virtual DisplayError SetEventState(HWEvent event, bool enable, void *aux = nullptr) = 0;
 
   static DisplayError Create(DisplayId display_id, SDMDisplayType display_type,
-                             HWEventHandler *event_handler, const std::vector<HWEvent> &event_list,
-                             HWEventsInterface **intf);
-  static DisplayError Destroy(HWEventsInterface *intf);
+                             HWEventHandler *event_handler,
+                             const std::map<uint32_t, std::vector<HWEvent>> &event_list,
+                             std::vector<HWEventsInterface *> *intf);
+  static DisplayError Destroy(std::vector<HWEventsInterface *> *intf);
 
  protected:
   virtual ~HWEventsInterface() { }

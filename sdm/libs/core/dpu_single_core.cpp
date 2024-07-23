@@ -353,7 +353,7 @@ void DPUSingleCore::GetHWInterface(HWInterface **intf) {
   *intf = hw_intf_;
 }
 
-void DPUSingleCore::GetDRMDisplayToken(sde_drm::DRMDisplayToken *token) const {
+void DPUSingleCore::GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) const {
   hw_intf_->GetDRMDisplayToken(token);
 }
 

@@ -25,7 +25,7 @@
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -83,7 +83,7 @@ class DisplayPluggable : public DisplayBase, HWEventHandler {
   void MMRMEvent(uint32_t clk) override;
   void HandlePowerEvent() override;
   void HandleVmReleaseEvent() override;
-  void GetDRMDisplayToken(sde_drm::DRMDisplayToken *token) override;
+  void GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) override;
   bool IsPrimaryDisplay() override;
   DisplayError GetPanelBrightnessBasePath(std::string *base_path) override;
 
@@ -98,7 +98,7 @@ class DisplayPluggable : public DisplayBase, HWEventHandler {
 
   bool underscan_supported_ = false;
   HWScanSupport scan_support_;
-  std::vector<HWEvent> event_list_;
+  std::map<uint32_t, std::vector<HWEvent>> event_list_;
   uint32_t current_refresh_rate_ = 0;
 };
 
