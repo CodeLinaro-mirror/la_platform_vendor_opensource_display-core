@@ -537,6 +537,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   DisplayError GetNoisePluginParams(LayerStack *layer_stack);
   DisplayError InsertNoiseLayer(LayerStack *layer_stack);
   void WaitForCompletion(SyncPoints *sync_points);
+  void WaitForCompletionAsync(shared_ptr<Fence> retire_fence, SyncPoints sync_points);
+  DisplayError PostSetDisplayState(DisplayState state, bool active, SyncPoints sync_points);
   DisplayError PerformHwCommit(std::map<uint32_t, HWLayersInfo> &hw_layers_info);
   void CacheRetireFence();
   void CacheFrameBuffer();
@@ -575,6 +577,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool enable_cwb_cpu_boosting_ = false;
   bool force_refresh_to_process_cwb_ = false;
   bool enable_client_control_cwb_refresh_ = false;
+  bool enable_async_power_off_wait_ = false;
   std::vector<Layer> border_layers_;
   bool windowed_display_ = false;
   LayerRect window_rect_ = {};

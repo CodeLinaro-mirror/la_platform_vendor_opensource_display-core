@@ -254,6 +254,7 @@
 #define DISABLE_CWB_OPTIMIZATION             DISPLAY_PROP("disable_cwb_optimization")
 #define FORCE_REFRESH_TO_PROCESS_CWB         DISPLAY_PROP("force_refresh_to_process_cwb")
 #define ENABLE_CLIENT_CONTROL_CWB_REFRESH    DISPLAY_PROP("enable_client_control_cwb_refresh")
+#define ENABLE_ASYNC_POWER_OFF_WAIT          DISPLAY_PROP("enable_async_power_off_wait")
 #define TRANSIENT_FPS_CYCLE_COUNT            DISPLAY_PROP("transient_fps_cycle_count")
 #define CORE_ID_MASK                         DISPLAY_PROP("core_id_mask")
 #define XR_VARIANT                           DISPLAY_PROP("xr_variant")

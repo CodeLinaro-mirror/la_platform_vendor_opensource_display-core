@@ -399,9 +399,12 @@ DisplayError SDMDisplayBuiltIn::SetPowerMode(SDMPowerMode mode, bool teardown) {
     }
   }
 
-  DisplayConfigFixedInfo fixed_info = {};
-  display_intf_->GetConfig(&fixed_info);
-  is_cmd_mode_ = fixed_info.is_cmdmode;
+  if (mode != SDMPowerMode::POWER_MODE_OFF) {
+    // by-passing this for power-off as is_cmd_mode_ would be re-set when powering-ON.
+    DisplayConfigFixedInfo fixed_info = {};
+    display_intf_->GetConfig(&fixed_info);
+    is_cmd_mode_ = fixed_info.is_cmdmode;
+  }
 
   return kErrorNone;
 }

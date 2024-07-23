@@ -347,6 +347,10 @@ DisplayError DisplayBase::Init() {
       }
     }
   }
+  prop = 0;
+  if (Debug::Get()->GetProperty(ENABLE_ASYNC_POWER_OFF_WAIT, &prop) == kErrorNone) {
+    enable_async_power_off_wait_ = (prop == 1);
+  }
 
   Debug::GetIdleTimeoutMs(&idle_active_ms_, &inactive_ms);
 
@@ -2313,21 +2317,39 @@ DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
       return kErrorParameters;
   }
 
+  bool performing_async_poweroff_wait = false;
   if ((pending_power_state_ == kPowerStateNone) && !first_cycle_) {
     CacheRetireFence();
-    SyncPoints sync = {};
-    sync.retire_fence = retire_fence_;
-    WaitForCompletion(&sync);
+    if (enable_async_power_off_wait_ && state == kStateOff) {
+      performing_async_poweroff_wait = true;
+      std::thread(&DisplayBase::WaitForCompletionAsync, this, retire_fence_, sync_points).detach();
+    } else {
+      SyncPoints sync = {};
+      sync.retire_fence = retire_fence_;
+      WaitForCompletion(&sync);
+    }
   }
 
-  error = ReconfigureDisplay();
-  if (error != kErrorNone) {
-    return error;
+  if (!performing_async_poweroff_wait) {
+    error = PostSetDisplayState(state, active, sync_points);
+    if (error != kErrorNone) {
+      return error;
+    }
   }
 
-  DisablePartialUpdateOneFrameInternal();
+  if (release_fence) {
+    *release_fence = sync_points.release_fence;
+  }
 
+  return error;
+}
+
+DisplayError DisplayBase::PostSetDisplayState(DisplayState state, bool active,
+                                              SyncPoints sync_points) {
+  DTRACE_SCOPED();
+  auto error = ReconfigureDisplay();
   if (error == kErrorNone) {
+    DisablePartialUpdateOneFrameInternal();
     if (pending_power_state_ == kPowerStateNone) {
       active_ = active;
       state_ = state;
@@ -2341,14 +2363,9 @@ DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
       }
     }
     comp_manager_->SetDisplayState(display_comp_ctx_, state, sync_points);
+    DLOGI("active %d-%d state %d-%d pending_power_state_ %d", active, active_, state, state_,
+          pending_power_state_);
   }
-  DLOGI("active %d-%d state %d-%d pending_power_state_ %d", active, active_, state, state_,
-        pending_power_state_);
-
-  if (release_fence) {
-    *release_fence = sync_points.release_fence;
-  }
-
   return error;
 }
 
@@ -4443,6 +4460,15 @@ void DisplayBase::MMRMEvent(uint32_t clk) {
   // Invalidate to retrigger clk calculation
   validated_ = false;
   event_handler_->Refresh();
+}
+
+void DisplayBase::WaitForCompletionAsync(shared_ptr<Fence> retire_fence, SyncPoints sync_points) {
+  ClientLock lock(disp_mutex_);
+  DTRACE_SCOPED();
+  SyncPoints sync = {};
+  sync.retire_fence = retire_fence;
+  WaitForCompletion(&sync);
+  PostSetDisplayState(DisplayState::kStateOff, false, sync_points);
 }
 
 void DisplayBase::WaitForCompletion(SyncPoints *sync_points) {
