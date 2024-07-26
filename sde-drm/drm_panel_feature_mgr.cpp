@@ -236,6 +236,10 @@ void DRMPanelFeatureMgr::Init(int fd, drmModeRes* res) {
   int value = 0;
   sdm::Debug::Get()->GetProperty(ENABLE_AI_SCALER_PROP, &value);
   enable_ai_scaler_ = (value > 0);
+
+  value = 0;
+  sdm::Debug::Get()->GetProperty(ENABLE_ABC, &value);
+  enable_abc_ = (value > 0);
 }
 
 void DRMPanelFeatureMgr::Deinit() {
@@ -622,10 +626,10 @@ void DRMPanelFeatureMgr::ResetPanelFeatures(drmModeAtomicReq *req,
   info.prop_id = kDRMPanelFeatureDemuraInit;
   ApplyDirtyFeature(req, token, info);
 
-#ifndef TRUSTED_VM
-  info.prop_id = kDRMPanelFeatureABC;
-  ApplyDirtyFeature(req, token, info);
-#endif
+  if (enable_abc_) {
+    info.prop_id = kDRMPanelFeatureABC;
+    ApplyDirtyFeature(req, token, info);
+  }
 
   if (enable_ai_scaler_) {
     info.prop_id = kDRMPanelFeatureAIScalerCfg;
