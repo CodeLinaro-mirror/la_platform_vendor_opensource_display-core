@@ -67,6 +67,26 @@ void GraphicsConstraintProvider::Init(
   }
 }
 
+static bool AdrenoAlignmentRequired(vendor_qti_hardware_display_common_BufferUsage usage,
+                                    vendor_qti_hardware_display_common_PixelFormat format) {
+  if ((usage & vendor_qti_hardware_display_common_BufferUsage::GPU_TEXTURE) ||
+      (usage & vendor_qti_hardware_display_common_BufferUsage::GPU_RENDER_TARGET)) {
+    if (format == YV12) {
+      if ((usage & vendor_qti_hardware_display_common_BufferUsage::QTI_PRIVATE_VIDEO_HW) &&
+          ((usage & vendor_qti_hardware_display_common_BufferUsage::VIDEO_ENCODER) ||
+           (usage & vendor_qti_hardware_display_common_BufferUsage::VIDEO_DECODER) ||
+           !CpuCanAccess(usage))) {
+        return true;
+      }
+    }
+
+    if (format == YCBCR_422_I) {
+      return true;
+    }
+  }
+  return false;
+}
+
 int GraphicsConstraintProvider::GetInitialMetadata(
     BufferDescriptor desc, vendor_qti_hardware_display_common_GraphicsMetadata *graphics_metadata,
     bool is_ubwc_enabled) {
