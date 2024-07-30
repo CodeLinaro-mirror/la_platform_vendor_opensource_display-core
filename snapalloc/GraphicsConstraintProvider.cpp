@@ -73,9 +73,16 @@ static bool AdrenoAlignmentRequired(vendor_qti_hardware_display_common_BufferUsa
                                     vendor_qti_hardware_display_common_PixelFormat format) {
   if ((usage & vendor_qti_hardware_display_common_BufferUsage::GPU_TEXTURE) ||
       (usage & vendor_qti_hardware_display_common_BufferUsage::GPU_RENDER_TARGET)) {
-    // It is mandatory to use adreno alignment requirements for these formats
-    // when GPU_TEXTURE or GPU_RENDER_TARGET bits are set
-    if (format == YV12 || format == YCBCR_422_I) {
+    if (format == YV12) {
+      if ((usage & vendor_qti_hardware_display_common_BufferUsage::QTI_PRIVATE_VIDEO_HW) &&
+          ((usage & vendor_qti_hardware_display_common_BufferUsage::VIDEO_ENCODER) ||
+           (usage & vendor_qti_hardware_display_common_BufferUsage::VIDEO_DECODER) ||
+           !CpuCanAccess(usage))) {
+        return true;
+      }
+    }
+
+    if (format == YCBCR_422_I) {
       return true;
     }
   }
