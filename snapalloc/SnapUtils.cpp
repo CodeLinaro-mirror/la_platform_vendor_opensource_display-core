@@ -27,7 +27,8 @@ bool CpuCanAccess(vendor_qti_hardware_display_common_BufferUsage usage) {
 
 // TODO: read this from formats.json
 
-static std::unordered_map<vendor_qti_hardware_display_common_PixelFormat, FormatTraits>
+[[clang::no_destroy]] static std::unordered_map<vendor_qti_hardware_display_common_PixelFormat,
+                                                FormatTraits>
     format_traits_map{
         // {{Format},{rgb,yuv,tile rendered, gpu depth stencil, astc,
         // ubwc_supported, width_even, height_even}}
