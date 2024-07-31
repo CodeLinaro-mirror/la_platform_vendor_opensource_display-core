@@ -771,6 +771,12 @@ DisplayError HWPeripheralDRM::PowerOn(const HWQosData &qos_data, SyncPoints *syn
   }
 
   if (sde_dest_scalar_data_.num_dest_scaler) {
+    for (uint32_t i = 0; i < dest_scaler_blocks_used_; i++) {
+      sde_drm_dest_scaler_cfg *dest_scalar_data = &sde_dest_scalar_data_.ds_cfg[i];
+      if (dest_scalar_data->flags & SDE_DRM_DESTSCALER_ENABLE) {
+        dest_scalar_data->flags |= SDE_DRM_DESTSCALER_SCALE_UPDATE;
+      }
+    }
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_DEST_SCALER_CONFIG, token_.crtc_id,
                               reinterpret_cast<uint64_t>(&sde_dest_scalar_data_));
     needs_ds_update_ = true;
