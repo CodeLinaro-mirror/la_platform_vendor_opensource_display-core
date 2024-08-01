@@ -39,6 +39,14 @@ void UBWCPolicy::Init(
 }
 
 bool UBWCPolicy::IsUBWCAlloc(BufferDescriptor desc) {
+  // Explicit UBWC formats passed by the clients.Ignore the usage bits and allow UBWC.
+  if (GetPixelFormatModifier(desc) ==
+      static_cast<uint64_t>(vendor_qti_hardware_display_common_PixelFormatModifier::
+                                PIXEL_FORMAT_MODIFIER_EXPLICIT_UBWC)) {
+    DLOGI("%s - Explicit ubwc format %d passed by the clients", __FUNCTION__, desc.format);
+    return true;
+  }
+
   // TODO: remove explicit R8 handling
   if (desc.format == vendor_qti_hardware_display_common_PixelFormat::R_8) {
     return false;
