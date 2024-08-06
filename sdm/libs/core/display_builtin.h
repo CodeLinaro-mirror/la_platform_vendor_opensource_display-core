@@ -260,6 +260,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   DisplayError ExportDemuraFiles();
   DisplayError EnableCopr(bool en) override;
   DisplayError GetCoprStats(std::vector<int> *stats) override;
+  DisplayError GetScalerCount(uint32_t *scaler_count) override;
 
   // Implement the HWEventHandlers
   DisplayError VSync(int64_t timestamp) override;

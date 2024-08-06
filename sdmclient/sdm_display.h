@@ -716,6 +716,7 @@ public:
   DisplayError FinalizeDisplayConfig(bool check_pending_config, Config new_config);
   DisplayError GetParentConfig(Config *config);
   bool NotifyIdleNow();
+  bool NeedsSDMExtendedResolution();
 
   DisplayClass display_class_;
   uint32_t geometry_changes_on_doze_suspend_ = GeometryChanges::kNone;

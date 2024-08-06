@@ -186,6 +186,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(SetPanelFeatureConfig(int32_t, void *));
   MAKE_NO_OP(EnableCopr(bool en))
   MAKE_NO_OP(GetCoprStats(std::vector<int> *stats))
+  MAKE_NO_OP(GetScalerCount(uint32_t *scaler_count));
 
  protected:
   DisplayConfigVariableInfo default_variable_config_ = {};

@@ -1490,6 +1490,14 @@ class DisplayInterface {
   */
   virtual DisplayError GetCoprStats(std::vector<int> *stats) = 0;
 
+  /*! @brief Method to get count of AI/Dest Scaler HW blocks.
+
+    @param[out] scaler_count count of AI/Dest Scaler HW blocks.
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError GetScalerCount(uint32_t *scaler_count) = 0;
+
  protected:
   virtual ~DisplayInterface() { }
 };
