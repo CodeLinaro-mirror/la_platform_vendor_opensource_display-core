@@ -760,10 +760,11 @@ class DisplayInterface {
   /*! @brief Method to set brightness of the builtin display.
 
     @param[in] brightness the new backlight level 0.0f(min) to 1.0f(max) where -1.0f represents off.
+    @param[in] return_error false by default, true to distinguish deferred error case.
 
     @return \link DisplayError \endlink
   */
-  virtual DisplayError SetPanelBrightness(float brightness) = 0;
+  virtual DisplayError SetPanelBrightness(float brightness, bool return_error = false) = 0;
 
   /*! @brief Method to notify display about change in min HDCP encryption level.
 

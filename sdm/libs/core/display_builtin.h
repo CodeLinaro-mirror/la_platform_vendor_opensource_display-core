@@ -194,7 +194,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   DisplayError GetRefreshRateRange(uint32_t *min_refresh_rate,
                                    uint32_t *max_refresh_rate) override;
   DisplayError SetRefreshRate(uint32_t refresh_rate, bool final_rate, bool idle_screen) override;
-  DisplayError SetPanelBrightness(float brightness) override;
+  DisplayError SetPanelBrightness(float brightness, bool return_error = false) override;
   DisplayError GetPanelBrightness(float *brightness) override;
   DisplayError GetPanelBrightnessFromLevel(float level, float *brightness);
   DisplayError GetPanelBrightnessLevel(int *level) override;
@@ -336,6 +336,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   bool GetDemuraTnUserCtrl();
   int UpdateDemuraTnUserCtrl(bool user_ctrl);
   DisplayError TriggerDemuraOemPlugIn(void *data);
+  DisplayError HandleDemuraScreenRefresh();
   CacVersion GetCacVerion();
   bool IsAnamorphicFoveationEnabled(LayerStack *layer_stack);
 
