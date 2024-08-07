@@ -372,6 +372,8 @@ enum PanelFeatureVendorServiceType {
   kTypeTriggerDemuraOemPlugIn = 5,
   /* Setter: None */
   kTypeReloadDemuraCalibFiles = 6,
+  /* Setter: None */
+  kTypeDemuraDisplayEventsCtrl = 7,
   PanelFeatureVendorServiceTypeMax,
 };
 

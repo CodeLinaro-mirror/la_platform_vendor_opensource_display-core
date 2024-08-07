@@ -4448,6 +4448,9 @@ DisplayError DisplayBuiltIn::SetPanelFeatureConfig(int32_t type, void *data) {
     case kTypeReloadDemuraCalibFiles:
       ret = ReloadDemuraCalibFiles(data);
       break;
+    case kTypeDemuraDisplayEventsCtrl:
+      ret = SetDemuraDisplayEventsCtrl(data);
+      break;
     default:
       DLOGE("Invalid type %d", type);
       ret = kErrorParameters;
@@ -4831,6 +4834,25 @@ DisplayError DisplayBuiltIn::ReloadDemuraCalibFiles(void *data) {
 
   demura_calib_files_reloaded_ = true;
   DLOGI("Reload demura calib files success");
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetDemuraDisplayEventsCtrl(void *data) {
+  (void)data;
+  int ret = 0;
+
+  if (!demura_intended_ || !demura_dynamic_enabled_) {
+    DLOGW("Demura is not enabled");
+    return kErrorNone;
+  }
+
+  GenericPayload pl = {};
+  if ((ret = demura_->SetParameter(kDemuraFeatureParamDispEventState, pl))) {
+    DLOGE("Failed to set DispEventState for demura %d", ret);
+    return kErrorUndefined;
+  }
+
+  DLOGI("Set demura disply event state success");
   return kErrorNone;
 }
 
