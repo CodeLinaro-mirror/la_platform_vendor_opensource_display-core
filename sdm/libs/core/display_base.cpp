@@ -4838,10 +4838,17 @@ uint32_t DisplayBase::GetAvailableMixerCount() {
 }
 
 void DisplayBase::RefreshOnIdleTimeoutForCwb(bool is_cwb_requested) {
+  int idle_time_ms = disp_layer_stack_->stack_info.common_info.set_idle_time_ms;
+  if (client_ctx_.hw_panel_info.mode == kModeCommand || idle_active_ms_ <= 0) {
+    // Idle Timer is configured to notify display idle to AIDL clients
+    idle_time_ms = IDLE_TIMEOUT_DEFAULT_MS;
+  }
+
   // TODO(user): Expecting mirroring hint for secondary display from composer client and need to
   // remove the primary display power state dependency.
   if (!enable_client_control_cwb_refresh_ && !force_refresh_to_process_cwb_ &&
-      comp_manager_->IsPrimaryDisplayActive() && (handle_idle_timeout_ || idle_hint_set_) &&
+      comp_manager_->IsPrimaryDisplayActive() &&
+      (handle_idle_timeout_ || idle_hint_set_ || idle_time_ms <= 0) &&
       (is_cwb_requested || comp_manager_->HasPendingCwbRequest(display_comp_ctx_))) {
     event_handler_->Refresh();
   }
