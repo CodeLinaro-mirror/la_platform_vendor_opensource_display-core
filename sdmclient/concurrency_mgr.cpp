@@ -1268,7 +1268,9 @@ void ConcurrencyMgr::PerformDisplayPowerReset() {
     locker_[display].Unlock();
   }
 
-  Refresh(vsync_source);
+  if (vsync_source != kNumDisplays && sdm_display_[vsync_source]) {
+    Refresh(vsync_source);
+  }
 }
 
 void ConcurrencyMgr::DisplayPowerReset() {
