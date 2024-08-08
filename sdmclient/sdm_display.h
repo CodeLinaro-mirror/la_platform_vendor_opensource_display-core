@@ -526,6 +526,7 @@ public:
   virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data) {
     return kErrorNotSupported;
   }
+  DisplayError GetCachedActiveConfig(bool get_real_config, Config *config);
 
  protected:
   static uint32_t throttling_refresh_rate_;
@@ -583,7 +584,6 @@ public:
     vsyncs_to_apply_rate_change_ = vsyncs;
   }
   DisplayError SubmitDisplayConfig(Config config);
-  DisplayError GetCachedActiveConfig(bool get_real_config, Config *config);
   void SetActiveConfigIndex(int active_config_index);
   DisplayError PostPrepareLayerStack(uint32_t *out_num_types,
                                      uint32_t *out_num_requests);
