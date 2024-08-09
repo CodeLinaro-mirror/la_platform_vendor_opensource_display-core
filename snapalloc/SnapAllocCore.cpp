@@ -153,6 +153,7 @@ SnapHandleInternal *SnapAllocCore::GetBufferFromHandleLocked(SnapHandle *hnd) {
   if (hnd == nullptr) {
     return nullptr;
   }
+  std::lock_guard<std::mutex> lock(handles_map_lock_);
   auto it = handles_map_.find(hnd);
   if (it != handles_map_.end()) {
     return it->second;
@@ -265,13 +266,14 @@ Error SnapAllocCore::Release(SnapHandle *hnd) {
       allocated_ -= hnd->size();
     }*/
     if (FreeBuffer(buf) == Error::NONE) {
+      std::lock_guard<std::mutex> lock(handles_map_lock_);
       handles_map_.erase(hnd);
-      DLOGD_IF(enable_logs, "%s: line %d: handles_map_ size after freeing  %d", __FUNCTION__,
-               __LINE__, handles_map_.size());
     } else {
       DLOGE("Failed to free buffer %p", buf);
       return Error::BAD_BUFFER;
     }
+    DLOGD_IF(enable_logs, "%s: line %d: handles_map_ size after freeing  %d", __FUNCTION__,
+             __LINE__, handles_map_.size());
   } else {
     DLOGD_IF(enable_logs, "Not freeing - ref count > 0; fd %d metadata_fd %d", buf->fd(),
              buf->fd_metadata());
@@ -527,6 +529,7 @@ void SnapAllocCore::RegisterHandleLocked(SnapHandle *public_hnd, SnapHandleInter
       snap_hnd->custom_content_md_region_base() = 0;
     }
   }
+  std::lock_guard<std::mutex> lock(handles_map_lock_);
   handles_map_.emplace(std::make_pair(public_hnd, snap_hnd));
 }
 
