@@ -27,9 +27,7 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
@@ -135,7 +133,10 @@ public:
  virtual DisplayError SetDemuraState(int state);
  virtual DisplayError SetDemuraConfig(int demura_idx);
  virtual DisplayError PerformCacConfig(CacConfig config, bool enable);
+ virtual DisplayError IsCacV2Supported(bool *supported);
  virtual DisplayError SetSsrcMode(const std::string &mode);
+ virtual DisplayError EnableCopr(bool en);
+ virtual DisplayError GetCoprStats(std::vector<int> *stats);
  virtual DisplayError SetupVRRConfig();
  virtual int GetNotifyEptConfig();
  virtual DisplayError SetABCState(bool state);

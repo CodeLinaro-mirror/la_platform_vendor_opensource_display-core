@@ -51,6 +51,8 @@ public:
   virtual DisplayError NotifyTUIDone(int ret, int disp_id,
                                      SDMTUIEventType event_type) = 0;
   virtual DisplayError TeardownConcurrentWriteback(Display display) = 0;
+
+  std::mutex tui_mutex_;
 };
 
 } // namespace sdm

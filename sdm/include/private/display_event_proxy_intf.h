@@ -11,6 +11,7 @@
 #include <private/cb_intf.h>
 #include <private/generic_intf.h>
 #include <private/generic_payload.h>
+#include <private/panel_feature_property_intf.h>
 #include <string>
 
 namespace sdm {
@@ -20,6 +21,7 @@ class DisplayInterface;
 enum SdmDisplayEvents {
   kSdmOprEvent,  // OPR register value
   kSdmPaHistEvent,
+  kSdmCoprEvent,  // COPR statistics
   kSdmDisplayEventsMax = 0xff
 };
 
@@ -28,6 +30,7 @@ enum DispEventProxyParams {
   kSetPanelOprInfoEnable,
   kSetPaHistCollection,
   kSetPanelBLInfoEnable,
+  kSetCoprEnable,
 
   // Getter
   kGetPaHistBins,
@@ -79,15 +82,27 @@ struct PanelBacklightInfoParam {
   SdmDisplayCbInterface<PanelBacklightPayload> *cb_intf = nullptr;
 };
 
+struct CoprEventPayload {
+  uint32_t version = sizeof(CoprEventPayload);
+  uint32_t payload_size;
+  void *payload;
+};
+
+struct CoprParam {
+  std::string name;
+  bool enable;
+  SdmDisplayCbInterface<CoprEventPayload> *cb_intf = nullptr;
+};
+
 using DisplayEventProxyIntf =
     GenericIntf<DispEventProxyParams, DispEventProxyOps, GenericPayload>;
 
 class DispEventProxyFactIntf {
 public:
   virtual ~DispEventProxyFactIntf() {}
-  virtual std::shared_ptr<DisplayEventProxyIntf>
-  CreateDispEventProxyIntf(const std::string &panel_name,
-                           DisplayInterface *intf) = 0;
+  virtual std::shared_ptr<DisplayEventProxyIntf> CreateDispEventProxyIntf(
+      const std::string &panel_name, DisplayInterface *intf,
+      PanelFeaturePropertyIntf *prop_intf) = 0;
 };
 
 extern "C" DispEventProxyFactIntf *GetDispEventProxyFactIntf();

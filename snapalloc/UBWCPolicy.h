@@ -46,10 +46,12 @@ class UBWCPolicy {
 
  private:
   ~UBWCPolicy();
-  UBWCPolicy(){};
+  UBWCPolicy();
   static std::mutex ubwc_policy_mutex_;
 
   static UBWCPolicy *instance_;
+  SnapConstraintParser *constraint_parser_;
+  GraphicsConstraintProvider *graphics_provider_;
   int GetConstraints(BufferDescriptor desc, BufferConstraints *out);
   std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map_;
   std::map<vendor_qti_hardware_display_common_PixelFormat, BufferConstraints> constraint_set_map_;

@@ -24,7 +24,6 @@
 
 /*
 * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-*
 * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
@@ -274,6 +273,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError SetABCState(bool state) { return kErrorNotSupported; }
   virtual DisplayError SetABCReconfig() { return kErrorNotSupported; }
   virtual DisplayError SetABCMode(const string &mode_name) { return kErrorNotSupported; }
+  virtual void RefreshOnIdleTimeoutForCwb(bool is_cwb_requested);
   virtual void ResetDispLayerStack();
   virtual bool HasNoiseLayer();
   virtual bool HasConcurrentWriteback();
@@ -281,6 +281,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError PerformCacConfig(CacConfig config, bool enable) {
     return kErrorNotSupported;
   }
+  virtual bool IsCacV2Supported() { return false; }
   virtual DisplayError
   PanelOprInfo(const std::string &client_name, bool enable,
                SdmDisplayCbInterface<PanelOprPayload> *cb_intf) {
@@ -306,6 +307,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
                                           SdmDisplayCbInterface<PanelBacklightPayload> *cb_intf) {
     return kErrorNotSupported;
   }
+  virtual DisplayError EnableCopr(bool en) { return kErrorNotSupported; }
+  virtual DisplayError GetCoprStats(std::vector<int> *stats) { return kErrorNotSupported; }
 
  protected:
   struct DisplayMutex {
@@ -459,6 +462,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   HWPowerState pending_power_state_ = kPowerStateNone;
   QSyncMode qsync_mode_ = kQSyncModeNone;
   std::bitset<kUpdateAVRFlagMax> needs_avr_update_ = {};
+  bool force_lm_to_fb_config_ = false;
 
   static Locker display_power_reset_lock_;
   static bool display_power_reset_pending_;
@@ -551,6 +555,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   DisplayError ConfigureCwbForIdleFallback(LayerStack *layer_stack);
   bool cwb_fence_wait_ = false;
   bool enable_cwb_cpu_boosting_ = false;
+  bool force_refresh_to_process_cwb_ = false;
+  bool enable_client_control_cwb_refresh_ = false;
   std::vector<Layer> border_layers_;
   bool windowed_display_ = false;
   LayerRect window_rect_ = {};
@@ -558,6 +564,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   HWDisplayMode default_panel_mode_ = kModeDefault;
   bool idle_hint_set_ = false;
   uint32_t idle_active_ms_ = 0;
+  bool enable_ai_scaler_ = false;
 };
 
 }  // namespace sdm

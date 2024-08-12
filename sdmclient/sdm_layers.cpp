@@ -773,6 +773,17 @@ DisplayError SDMLayer::SetMetaData(const SnapHandle *handle, Layer *layer) {
     layer_->update_mask.set(kContentMetadata);
   }
 
+  bool anamorphic_compression_md_set = false;
+  auto err = snapmapper_->GetMetadataState(*handle, MetadataType::ANAMORPHIC_COMPRESSION_METADATA,
+                                           &anamorphic_compression_md_set);
+  if (anamorphic_compression_md_set) {
+    err = snapmapper_->GetMetadata(*handle, MetadataType::ANAMORPHIC_COMPRESSION_METADATA,
+                                   &layer_buffer->anamorphicMetadata);
+    if (!err) {
+      DLOGW("Failed to get anamorphic compression metadata");
+    }
+  }
+
   if (!ignore_sdr_histogram_md_ || IsHdr(layer_buffer->dataspace.colorPrimaries,
                                          layer_buffer->dataspace.transfer)) {
     VideoHistogramMetadata histogram = {};

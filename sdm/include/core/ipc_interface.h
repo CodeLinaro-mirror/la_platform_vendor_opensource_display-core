@@ -69,6 +69,8 @@ struct IPCDisplayConfigParams {
   uint32_t fps = 0;               //!< Frame rate per second.
   bool is_primary = false;        //!< Flag specifies primary/secondary
   bool smart_panel = false;       //!< If the display config has smart panel.
+  uint32_t mixer_width = 0;
+  uint32_t mixer_height = 0;
 };
 
 struct DemuraPaths {

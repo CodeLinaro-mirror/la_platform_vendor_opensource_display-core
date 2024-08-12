@@ -207,7 +207,8 @@ DisplayError SDMTrustedUI::TUITransitionStart(int disp_id) {
   }
 
   {
-    SEQUENCE_WAIT_SCOPE_LOCK(locker_[target_display]);
+    std::lock_guard<std::mutex> tui_lock(cb_->tui_mutex_);
+    SCOPE_LOCK(locker_[target_display]);
 
     // disable idle time out for video mode
     auto display = cb_->GetDisplayFromClientId(target_display);

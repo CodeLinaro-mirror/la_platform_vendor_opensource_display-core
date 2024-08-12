@@ -307,6 +307,9 @@ void DRMConnectorManager::Init(drmModeRes *resource) {
     drmModeConnector *libdrm_conn = drmModeGetConnector(fd_, resource->connectors[i]);
     if (libdrm_conn) {
       conn->InitAndParse(libdrm_conn);
+      DRMConnectorInfo info;
+      conn->GetInfo(&info);
+      conn->SetloopbackConnector(info);
       connector_pool_[resource->connectors[i]] = std::move(conn);
     } else {
       DRM_LOGE("Critical error: drmModeGetConnector() failed for connector %u.",
@@ -448,13 +451,15 @@ static bool IsTVConnector(uint32_t type) {
           type == DRM_MODE_CONNECTOR_VGA);
 }
 
-int DRMConnectorManager::Reserve(DRMDisplayType disp_type, DRMDisplayToken *token) {
+int DRMConnectorManager::Reserve(DRMDisplayType disp_type, DRMDisplayToken *token,
+                                 bool has_cac_loopback) {
   lock_guard<mutex> lock(lock_);
   int ret = -ENODEV;
   token->conn_id = 0;
 
   for (auto &conn : connector_pool_) {
-    if (conn.second->GetStatus() == DRMStatus::FREE) {
+    if (conn.second->GetStatus() == DRMStatus::FREE &&
+        has_cac_loopback == conn.second->IsLoopbackConnector()) {
       uint32_t conn_type;
       conn.second->GetType(&conn_type);
       if ((disp_type == DRMDisplayType::PERIPHERAL &&
@@ -676,6 +681,7 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
   const string has_disp_in_other_core = "has_disp_in_other_core=";
   const string dpu_ctl_op_sync = "dpu_ctl_op_sync=";
   const string dms_type = "dms_vid support=";
+  const string has_cac_loopback = "has_cac_loopback=";
 
   while (std::getline(stream, line)) {
     if (line.find(pixel_formats) != string::npos) {
@@ -723,6 +729,8 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
       info->has_disp_in_other_core = (string(line, has_disp_in_other_core.length()) == "true");
     } else if (line.find(dpu_ctl_op_sync) != string::npos) {
       info->dpu_ctl_op_sync = (string(line, dpu_ctl_op_sync.length()) == "true");
+    } else if (line.find(has_cac_loopback) != string::npos) {
+      info->has_cac_loopback = std::stoi(string(line, has_cac_loopback.length()));
     } else if (line.find(dms_type) != string::npos) {
       info->dms_type = DMSType::DMS_VID_DISABLED;
       if (string(line, dms_type.length()) == "dms-vid-seamless") {

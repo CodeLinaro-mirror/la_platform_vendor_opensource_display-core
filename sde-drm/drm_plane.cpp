@@ -30,7 +30,7 @@
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted (subject to the limitations in the
@@ -256,9 +256,11 @@ static uint8_t UCSC_GC_PQ = 2;
 static uint8_t UCSC_GC_GAMMA2_2 = 3;
 static uint8_t UCSC_GC_HLG = 4;
 
-static uint8_t CAC_NONE = 0;
-static uint8_t CAC_UNPACK = 1;
-static uint8_t CAC_FETCH = 2;
+static uint8_t CAC_NONE = 0x0;
+static uint8_t CAC_UNPACK = 0x1;
+static uint8_t CAC_FETCH = 0x2;
+static uint8_t CAC_LOOPBACK_UNPACK = 0x4;
+static uint8_t CAC_LOOPBACK_FETCH = 0x8;
 
 static void SetRect(DRMRect &source, drm_clip_rect *target) {
   target->x1 = uint16_t(source.left);
@@ -341,6 +343,10 @@ static DRMCacMode PopulateCacMode(uint32_t mode) {
     case 0x0: return DRMCacMode::CAC_MODE_DISABLED;
     case 0x1: return DRMCacMode::CAC_MODE_UNPACK;
     case 0x2: return DRMCacMode::CAC_MODE_FETCH;
+    case 0x4:
+      return DRMCacMode::CAC_MODE_LOOPBACK_UNPACK;
+    case 0x8:
+      return DRMCacMode::CAC_MODE_LOOPBACK_FETCH;
     // default corresponds to CAC_MODE_DISABLED
     default: return DRMCacMode::CAC_MODE_DISABLED;
   }
@@ -1764,6 +1770,12 @@ void DRMPlane::SetCacType(drmModeAtomicReq *req, DRMCacMode drm_cac_mode) {
       break;
     case DRMCacMode::CAC_MODE_FETCH:
       cac_mode = CAC_FETCH;
+      break;
+    case DRMCacMode::CAC_MODE_LOOPBACK_UNPACK:
+      cac_mode = CAC_LOOPBACK_UNPACK;
+      break;
+    case DRMCacMode::CAC_MODE_LOOPBACK_FETCH:
+      cac_mode = CAC_LOOPBACK_FETCH;
       break;
     default:
       DRM_LOGE("Invalid cac mode %s to set on plane %d", drm_cac_mode, obj_id);

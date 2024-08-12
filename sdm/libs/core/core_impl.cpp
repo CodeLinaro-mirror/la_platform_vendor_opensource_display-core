@@ -315,8 +315,11 @@ DisplayError CoreImpl::CreateDisplay(int32_t display_id, DisplayEventHandler *ev
   }
 
   sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> hw_info_intf;
+  std::bitset<32> core_id_map = disp_id.GetCoreIdMap();
   for (auto info_intf = hw_info_intf_.Begin(); info_intf != hw_info_intf_.End(); info_intf++) {
-    hw_info_intf[info_intf->first] = (info_intf->second);
+    if (core_id_map[info_intf->first]) {
+      hw_info_intf[info_intf->first] = (info_intf->second);
+    }
   }
 
   switch (display_type) {

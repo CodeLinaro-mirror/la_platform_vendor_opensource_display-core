@@ -125,7 +125,7 @@ DisplayError SDMLayerBuilder::CreateLayer(uint64_t display_id,
   stack.layer_map_.emplace(std::make_pair(layer_id, layer));
 
   *out_layer_id = layer_id;
-  geometry_changes_ |= GeometryChanges::kAdded;
+  stack.geometry_changes_ |= GeometryChanges::kAdded;
 
   return kErrorNone;
 }
@@ -161,8 +161,7 @@ DisplayError SDMLayerBuilder::DestroyLayer(uint64_t display_id,
     }
   }
 
-  geometry_changes_ |= GeometryChanges::kRemoved;
-
+  layer_stack.geometry_changes_ |= GeometryChanges::kRemoved;
   return kErrorNone;
 }
 

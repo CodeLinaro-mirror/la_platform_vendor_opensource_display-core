@@ -83,16 +83,23 @@ struct DemuraInputConfig {
   DisplayInterface *display_intf = nullptr;
 };
 
+struct DemuraBacklightInfo {
+  uint32_t os_brightness_max;
+  uint32_t os_brightness;
+};
+
 // Demura specific param as strings
 const std::string kDemuraFeatureParamActive = "Active";
 const std::string kDemuraFeatureParamCorrectionBuffer = "CorrectionBuffer";
 const std::string kDemuraFeatureParamPanelId = "PanelId";
 const std::string kDemuraFeatureParamPendingReconfig = "PendingReconfig";
 const std::string kDemuraFeatureParamSprPattern = "SprPattern";
+const std::string kDemuraFeatureParamSprPatternMode = "SprPatternMode";
 const std::string kDemuraFeatureParamConfigIdx = "ConfigIdx";
 const std::string kDemuraFeatureParamNeedScreenRefresh = "NeedScreenRefresh";
 const std::string kDemuraFeatureParamBacklightEvent = "DisplayBacklightEvent";
 const std::string kDemuraFeatureParamBrightHeadroomRatio = "BrightHeadroomRatio";
+const std::string kDemuraFeatureParamRefreshRate = "RefreshRate";
 
 using DemuraIntf = GenericIntf<const std::string&, const std::string&, GenericPayload>;
 }  // namespace sdm

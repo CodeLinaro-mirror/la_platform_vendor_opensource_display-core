@@ -28,7 +28,7 @@
 */
 
 /*
-* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
   SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -55,7 +55,8 @@ class DRMCrtc;
 class DRMManager : public DRMManagerInterface {
  public:
   virtual ~DRMManager();
-  virtual int RegisterDisplay(DRMDisplayType disp_type, DRMDisplayToken *token);
+  virtual int RegisterDisplay(DRMDisplayType disp_type, DRMDisplayToken *token,
+                              bool has_cac_loopback);
   virtual int RegisterDisplay(int32_t display_id, DRMDisplayToken *token);
   virtual void UnregisterDisplay(DRMDisplayToken *token);
   virtual void GetPlanesInfo(DRMPlanesInfo *info);

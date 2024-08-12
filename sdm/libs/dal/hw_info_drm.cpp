@@ -386,6 +386,8 @@ void HWInfoDRM::GetSystemInfo(HWResourceInfo *hw_resource) {
     hw_resource->cac_version = kCacVersion1;
   } else if (info.cac_version == sde_drm::CacVersion::V2) {
     hw_resource->cac_version = kCacVersion2;
+  } else if (info.cac_version == sde_drm::CacVersion::Loopback) {
+    hw_resource->cac_version = kCacVersionLoopback;
   }
 
   if (info.ddr_version == sde_drm::DDRVersion::kDDRVersion4) {
@@ -1006,6 +1008,12 @@ DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
     hw_info.display_id =
         ((0 == iter.first) || (iter.first > INT32_MAX)) ? -1 :
                               (int32_t)DisplayId(core_id_, iter.first).GetDisplayId();
+
+    // loopback connector are internal, Used for CAC loopback
+    if (iter.second.has_cac_loopback) {
+      continue;
+    }
+
     switch (iter.second.type) {
       case DRM_MODE_CONNECTOR_DSI:
       case DRM_MODE_CONNECTOR_eDP:

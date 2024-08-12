@@ -131,6 +131,7 @@ class CompManager : public CwbCallback {
   DisplayError HandleCwbFrequencyBoost(bool isRequest);
   DisplayError PreCommit(Handle display_ctx);
   DisplayError CaptureCwb(Handle display_ctx, const LayerBuffer &buffer, const CwbConfig &config);
+  bool HasPendingCwbRequest(Handle display_ctx);
   bool HandleCwbTeardown(Handle display_ctx);
   DisplayError RequestVirtualDisplayId(int32_t *vdisp_id);
   DisplayError AllocateVirtualDisplayId(int32_t *vdisp_id);
@@ -145,6 +146,7 @@ class CompManager : public CwbCallback {
   void GetDSConfig(Handle display_ctx, HWLayersInfo *hw_layers_info);
   bool IsDisplayHWAvailable();
   DisplayError SetSprIntf(Handle display_ctx, std::shared_ptr<SPRIntf> intf);
+  bool IsPrimaryDisplayActive();
 
  private:
   static const int kMaxThermalLevel = 3;
@@ -192,6 +194,7 @@ class CompManager : public CwbCallback {
   uint32_t max_sde_builtin_fetch_layers_ = 2;
   DppsControlInterface *dpps_ctrl_intf_ = NULL;
   bool demura_enabled_ = false;
+  bool primary_display_active_ = false;
   std::map<int32_t /* display_id */, bool> display_demura_status_;
   SecureEvent secure_event_ = kSecureEventMax;
 };

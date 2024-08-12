@@ -181,6 +181,8 @@ int IPCImpl::SetParameter(IPCParams param, const GenericPayload &in) {
       cmd_disp_configs.disp_type = disp_configs->is_primary
                                        ? kDisplayTypePrimary
                                        : kDisplayTypeSecondary1;
+      cmd_disp_configs.mixer_width = disp_configs->mixer_width;
+      cmd_disp_configs.mixer_height = disp_configs->mixer_height;
       DLOGI("Send display configs: h_total %d v_total %d, fps %d, %s panel, "
             "disp_type %d to SVM",
             cmd_disp_configs.h_total, cmd_disp_configs.v_total,

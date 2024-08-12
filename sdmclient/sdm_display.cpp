@@ -694,7 +694,7 @@ void SDMDisplay::PopulateSDMExtendedDisplayResolution() {
         info.h_total -= (panel_width - info.x_pixels);
         info.v_total -= (panel_height - info.y_pixels);
         info.is_virtual_config = true;
-        info.parent_config_index = highest_res_config_index;
+        info.parent_config_index = config.first;
         variable_config_map_[config_index] = info;
         sdm_config_map_.push_back(config_index);
         config_index++;
@@ -961,7 +961,7 @@ void SDMDisplay::BuildLayerStack() {
   }
 
   // TODO(user): Set correctly when SDM supports geometry_changes as bitmask
-
+  geometry_changes_ |= sdm_layer_stack_->geometry_changes_;
   layer_stack_.flags.geometry_changed =
       UINT32((geometry_changes_ || geometry_changes_on_doze_suspend_) > 0);
   layer_stack_.flags.advance_fb_present = client_target_3_1_set_;
@@ -1260,12 +1260,16 @@ DisplayError SDMDisplay::SetDisplayAnimating(bool animating) {
 DisplayError SDMDisplay::GetActiveConfig(bool get_real_config, Config *out_config) {
   if (out_config == nullptr) {
     return kErrorNotSupported;
-  }
-
-  if (pending_config_) {
-    *out_config = pending_config_index_;
   } else {
-    GetActiveDisplayConfig(get_real_config, out_config);
+    std::lock_guard<std::mutex> lock(active_config_lock_);
+    if (pending_config_) {
+      *out_config = pending_config_index_;
+      if (get_real_config) {
+        GetParentConfig(out_config);
+      }
+    } else {
+      GetSDMActiveConfig(get_real_config, out_config);
+    }
   }
 
   if (*out_config < sdm_config_map_.size()) {
@@ -1331,14 +1335,19 @@ DisplayError SDMDisplay::SetActiveConfig(Config config) {
     return kErrorNone;
   }
 
-  Config real_config_for_fps_switch = config;
-  if (IsVirtualConfig(config) || IsVirtualConfig(active_config_index_)) {
-    DisplayError error = SetFBForExtendedResolution(config, &real_config_for_fps_switch);
-    if (!virtual_config_fps_switch_) {
-      return error;
-    } else {
-      config = real_config_for_fps_switch;
+  bool is_vconfig_fps_switched = false;
+  if (variable_config_map_.find(config) != variable_config_map_.end()) {
+    std::lock_guard<std::mutex> lock(active_config_lock_);
+    if (variable_config_map_[config].is_virtual_config || IsVirtualConfig(active_config_index_)) {
+      DisplayError error = SetFBForExtendedResolution(config, &is_vconfig_fps_switched);
+      if (error != kErrorNone || !is_vconfig_fps_switched) {
+        pending_config_ = false;
+        return error;
+      }
     }
+  } else {
+    DLOGE("Invalid config: %d for display [%" PRIu64 "]-[%" PRIu64 "]", config, id_, type_);
+    return kErrorParameters;
   }
 
   if (!IsModeSwitchAllowed(config)) {
@@ -1359,16 +1368,18 @@ DisplayError SDMDisplay::SetActiveConfig(Config config) {
     pending_first_commit_config_ = false;
   }
 
-  DLOGI("Active configuration changed to: %d", config);
+  DLOGI("Active configuration changed to: %d for display [%" PRIu64 "]-[%" PRIu64 "]", config, id_,
+        type_);
 
-  // Cache refresh rate set by client.
-  DisplayConfigVariableInfo info = {};
-  GetDisplayAttributesForConfig(INT(config), &info);
-  active_refresh_rate_ = info.fps;
+  {
+    std::lock_guard<std::mutex> lock(active_config_lock_);
+    // Cache refresh rate set by client.
+    active_refresh_rate_ = variable_config_map_[config].fps;
 
-  // Store config index to be applied upon refresh.
-  pending_config_ = true;
-  pending_config_index_ = config;
+    // Store config index to be applied upon refresh.
+    pending_config_ = true;
+    pending_config_index_ = config;
+  }
 
   // Trigger refresh. This config gets applied on next commit.
   callbacks_->OnRefresh(id_);
@@ -1941,12 +1952,9 @@ SDMDisplay::PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence) {
   client_target_->GetSDMLayer()->request.flags = {};
 
   layer_stack_.flags.geometry_changed = false;
+  sdm_layer_stack_->geometry_changes_ = GeometryChanges::kNone;
   geometry_changes_ = GeometryChanges::kNone;
-  flush_ = false;
-  skip_commit_ = false;
 
-  layer_stack_.flags.geometry_changed = false;
-  geometry_changes_ = GeometryChanges::kNone;
   flush_ = false;
   skip_commit_ = false;
   client_target_3_1_set_ = false;
@@ -2351,10 +2359,13 @@ void SDMDisplay::GetPanelResolution(uint32_t *x_pixels, uint32_t *y_pixels) {
   uint32_t active_index = 0;
 
   GetSDMActiveConfig(false, &active_index);
-  display_intf_->GetConfig(active_index, &display_config);
-
-  *x_pixels = display_config.x_pixels;
-  *y_pixels = display_config.y_pixels;
+  if (display_intf_->GetConfig(active_index, &display_config) == kErrorNone) {
+    *x_pixels = display_config.x_pixels;
+    *y_pixels = display_config.y_pixels;
+  } else {
+    *x_pixels = variable_config_map_[active_index].x_pixels;
+    *y_pixels = variable_config_map_[active_index].y_pixels;
+  }
 }
 
 void SDMDisplay::GetRealPanelResolution(uint32_t *x_pixels,
@@ -2362,7 +2373,7 @@ void SDMDisplay::GetRealPanelResolution(uint32_t *x_pixels,
   DisplayConfigVariableInfo display_config;
   uint32_t active_index = 0;
 
-  GetSDMActiveConfig(false, &active_index);
+  GetSDMActiveConfig(true, &active_index);
   display_intf_->GetRealConfig(active_index, &display_config);
 
   *x_pixels = display_config.x_pixels;
@@ -2609,20 +2620,7 @@ SDMDisplay::HandleSecureSession(const std::bitset<kSecureMax> &secure_sessions,
 }
 
 DisplayError SDMDisplay::SetActiveDisplayConfig(uint32_t config) {
-  uint32_t current_config = 0;
-  GetSDMActiveConfig(false, &current_config);
-  if (config == current_config) {
-    return kErrorNone;
-  }
-
-  DisplayError error = display_intf_->SetActiveConfig(config);
-  if (error != kErrorNone) {
-    DLOGE("Failed to set %d config! Error: %d", config, error);
-    return kErrorNotSupported;
-  }
-
-  SetActiveConfigIndex(config);
-  return kErrorNone;
+  return SubmitDisplayConfig(config);
 }
 
 DisplayError SDMDisplay::SetNoisePlugInOverride(bool override_en, int32_t attn,
@@ -2639,6 +2637,7 @@ DisplayError SDMDisplay::SetNoisePlugInOverride(bool override_en, int32_t attn,
 }
 
 DisplayError SDMDisplay::GetActiveDisplayConfig(bool get_real_config, uint32_t *config) {
+  std::lock_guard<std::mutex> lock(active_config_lock_);
   return GetSDMActiveConfig(get_real_config, config);
 }
 
@@ -2918,20 +2917,8 @@ bool SDMDisplay::CheckResourceState(bool *res_exhausted) {
 }
 
 void SDMDisplay::UpdateActiveConfig() {
-  if (!pending_config_) {
-    return;
-  }
-
-  DisplayError error = display_intf_->SetActiveConfig(pending_config_index_);
-  if (error != kErrorNone) {
-    DLOGI("Failed to set %d config", INT(pending_config_index_));
-  } else {
-    SetActiveConfigIndex(pending_config_index_);
-  }
-
-  // Reset pending config.
-  pending_config_ = false;
-  virtual_config_fps_switch_ = false;
+  std::lock_guard<std::mutex> lock(active_config_lock_);
+  FinalizeDisplayConfig(true /* Submit pending config */, UINT_MAX /* Invalid config to skip */);
 }
 
 int32_t
@@ -2997,27 +2984,38 @@ DisplayError SDMDisplay::SetActiveConfigWithConstraints(
   DTRACE_SCOPED();
 
   if (variable_config_map_.find(config) == variable_config_map_.end()) {
-    DLOGE("Invalid config: %d", config);
+    DLOGE("Invalid config: %d for display [%" PRIu64 "]-[%" PRIu64 "]", config, id_, type_);
     return kErrorNotSupported;
   }
 
-  DisplayConfigVariableInfo info_client_requested = {};
-  GetDisplayAttributesForConfig(INT(config), &info_client_requested);
-  Config real_config_for_fps_switch = config;
-  if (IsVirtualConfig(config) || IsVirtualConfig(active_config_index_)) {
-    DisplayError error = SetFBForExtendedResolution(config, &real_config_for_fps_switch);
-    if (!virtual_config_fps_switch_) {
-      if ((error == kErrorNone) && (info_client_requested.x_pixels != fb_width_ ||
-                                    info_client_requested.y_pixels != fb_height_)) {
-        fb_width_ = info_client_requested.x_pixels;
-        fb_height_ = info_client_requested.y_pixels;
-      }
-      return error;
-    } else {
-      config = real_config_for_fps_switch;
-    }
+  if (vsync_period_change_constraints->seamlessRequired && !AllowSeamless(config)) {
+    DLOGE(
+        "Seamless switch to the config: %d, is not allowed! for display "
+        "[%" PRIu64 "]-[%" PRIu64 "]",
+        config, id_, type_);
+    return kSeamlessNotAllowed;
   }
 
+  auto &info_client_requested = variable_config_map_[config];
+  bool is_vconfig_fps_switched = false;
+  VsyncPeriodNanos vsync_period;
+  if (GetDisplayVsyncPeriod(true, &vsync_period) != kErrorNone) {
+    return kErrorNotSupported;
+  } else {
+    std::lock_guard<std::mutex> lock(active_config_lock_);
+    if (variable_config_map_[config].is_virtual_config || IsVirtualConfig(active_config_index_)) {
+      DisplayError error = SetFBForExtendedResolution(config, &is_vconfig_fps_switched);
+      if (!is_vconfig_fps_switched || (error != kErrorNone)) {
+        if ((error == kErrorNone) && (info_client_requested.x_pixels != fb_width_ ||
+                                      info_client_requested.y_pixels != fb_height_)) {
+          fb_width_ = info_client_requested.x_pixels;
+          fb_height_ = info_client_requested.y_pixels;
+        }
+        pending_config_ = false;
+        return error;
+      }
+    }
+  }
   if (!IsModeSwitchAllowed(config)) {
     return kErrorNotSupported;
   }
@@ -3036,45 +3034,25 @@ DisplayError SDMDisplay::SetActiveConfigWithConstraints(
     pending_first_commit_config_ = false;
   }
 
-  // Cache refresh rate set by client.
-  DisplayConfigVariableInfo info = {};
-  GetDisplayAttributesForConfig(INT(config), &info);
-  active_refresh_rate_ = info.fps;
-
-  if (vsync_period_change_constraints->seamlessRequired &&
-      !AllowSeamless(config)) {
-    DLOGE("Seamless switch to the config: %d, is not allowed!", config);
-    return kSeamlessNotAllowed;
+  {
+    std::lock_guard<std::mutex> lock(active_config_lock_);
+    // Cache refresh rate set by client.
+    active_refresh_rate_ = variable_config_map_[config].fps;
+    std::tie(out_timeline->refreshTimeNanos, out_timeline->newVsyncAppliedTimeNanos) =
+        RequestActiveConfigChange(config, vsync_period,
+                                  vsync_period_change_constraints->desiredTimeNanos);
   }
-
-  VsyncPeriodNanos vsync_period;
-  if (GetDisplayVsyncPeriod(true, &vsync_period) != kErrorNone) {
-    return kErrorNotSupported;
-  }
-
-  std::tie(out_timeline->refreshTimeNanos,
-           out_timeline->newVsyncAppliedTimeNanos) =
-      RequestActiveConfigChange(
-          config, vsync_period,
-          vsync_period_change_constraints->desiredTimeNanos);
 
   out_timeline->refreshRequired = true;
   if (is_client_up_) {
-    if (virtual_config_fps_switch_) {
-      if (info_client_requested.x_pixels != fb_width_ ||
-          info_client_requested.y_pixels != fb_height_) {
-        out_timeline->refreshRequired = false;
-        fb_width_ = info_client_requested.x_pixels;
-        fb_height_ = info_client_requested.y_pixels;
-      }
-    } else {
-      if (info.x_pixels != fb_width_ || info.y_pixels != fb_height_) {
-        out_timeline->refreshRequired = false;
-        fb_width_ = info.x_pixels;
-        fb_height_ = info.y_pixels;
-      }
+    if (info_client_requested.x_pixels != fb_width_ ||
+        info_client_requested.y_pixels != fb_height_) {
+      out_timeline->refreshRequired = false;
+      fb_width_ = info_client_requested.x_pixels;
+      fb_height_ = info_client_requested.y_pixels;
     }
   }
+
   return kErrorNone;
 }
 
@@ -3168,31 +3146,36 @@ std::tuple<int64_t, int64_t> SDMDisplay::EstimateVsyncPeriodChangeTimeline(
 
 void SDMDisplay::SubmitActiveConfigChange(
     VsyncPeriodNanos current_vsync_period) {
-  DisplayError error = SubmitDisplayConfig(pending_refresh_rate_config_);
-  if (error != kErrorNone) {
-    return;
+  int64_t rr_refresh_time = INT64_MAX, rr_applied_time = INT64_MAX;
+  {
+    std::lock_guard<std::mutex> lock(active_config_lock_);
+    DisplayError error = FinalizeDisplayConfig(false, pending_refresh_rate_config_);
+    if (error != kErrorNone) {
+      return;
+    }
+
+    rr_refresh_time = pending_refresh_rate_config_;
+    rr_applied_time = pending_refresh_rate_applied_time_;
+    pending_refresh_rate_config_ = UINT_MAX;
+    pending_refresh_rate_refresh_time_ = INT64_MAX;
+    pending_refresh_rate_applied_time_ = INT64_MAX;
   }
 
   std::lock_guard<std::mutex> lock(transient_refresh_rate_lock_);
   SDMVsyncPeriodChangeTimeline timeline = {};
   std::tie(timeline.refreshTimeNanos, timeline.newVsyncAppliedTimeNanos) =
-      EstimateVsyncPeriodChangeTimeline(current_vsync_period,
-                                        pending_refresh_rate_refresh_time_);
+      EstimateVsyncPeriodChangeTimeline(current_vsync_period, rr_refresh_time);
 
   transient_refresh_rate_info_.push_back(
       {current_vsync_period, timeline.newVsyncAppliedTimeNanos});
-  if (timeline.newVsyncAppliedTimeNanos != pending_refresh_rate_applied_time_) {
+  if (timeline.newVsyncAppliedTimeNanos != rr_applied_time) {
     timeline.refreshRequired = false;
     callbacks_->OnVsyncPeriodTimingChanged(id_, timeline);
   }
-
-  pending_refresh_rate_config_ = UINT_MAX;
-  pending_refresh_rate_refresh_time_ = INT64_MAX;
-  pending_refresh_rate_applied_time_ = INT64_MAX;
-  virtual_config_fps_switch_ = false;
 }
 
 bool SDMDisplay::IsActiveConfigReadyToSubmit(int64_t time) {
+  std::lock_guard<std::mutex> lock(active_config_lock_);
   return (
       (pending_refresh_rate_config_ != UINT_MAX) &&
       IsTimeAfterOrEqualVsyncTime(time, pending_refresh_rate_refresh_time_));
@@ -3217,13 +3200,12 @@ bool SDMDisplay::IsSameGroup(Config config_id1, Config config_id2) {
   DisplayConfigVariableInfo config_info2 = variable_config2->second;
 
   if (config_info1.is_virtual_config) {
-    GetParentConfigInfo(&config_info1);
+    GetParentConfig(&config_id1);
   }
 
   if (config_info2.is_virtual_config) {
-    GetParentConfigInfo(&config_info2);
+    GetParentConfig(&config_id2);
   }
-
   const DisplayConfigGroupInfo &config_group1 = config_info1;
   const DisplayConfigGroupInfo &config_group2 = config_info2;
 
@@ -3234,7 +3216,7 @@ bool SDMDisplay::IsSameGroup(Config config_id1, Config config_id2) {
 
 bool SDMDisplay::AllowSeamless(Config config) {
   Config active_config;
-  auto error = GetCachedActiveConfig(true, &active_config);
+  auto error = GetCachedActiveConfig(false, &active_config);
   if (error != kErrorNone) {
     DLOGE("Failed to get active config!");
     return false;
@@ -3246,40 +3228,8 @@ bool SDMDisplay::AllowSeamless(Config config) {
 DisplayError SDMDisplay::SubmitDisplayConfig(Config config) {
   DTRACE_SCOPED();
 
-  Config current_config = 0;
-  GetActiveConfig(true, &current_config);
-
-  DisplayError error = display_intf_->SetActiveConfig(config);
-  if (error == kErrorDeferred) {
-    DLOGW("Failed to set new config:%d from current config:%d! Error: %d",
-          config, current_config, error);
-    return kErrorNotSupported;
-  } else if (error != kErrorNone) {
-    DLOGE("Failed to set new config:%d from current config:%d! Error: %d",
-          config, current_config, error);
-    return kErrorNotSupported;
-  }
-
-  SetActiveConfigIndex(config);
-  DLOGI("Active configuration changed from config %d to %d", current_config,
-        config);
-
-  // Cache refresh rate set by client.
-  DisplayConfigVariableInfo info = {};
-  GetDisplayAttributesForConfig(INT(config), &info);
-  active_refresh_rate_ = info.fps;
-
-  DisplayConfigVariableInfo current_config_info = {};
-  GetDisplayAttributesForConfig(INT(current_config), &current_config_info);
-  // Set fb config if new resolution differs
-  if (info.x_pixels != current_config_info.x_pixels ||
-      info.y_pixels != current_config_info.y_pixels) {
-    if (SetFrameBufferResolution(info.x_pixels, info.y_pixels)) {
-      return kErrorNotSupported;
-    }
-  }
-
-  return kErrorNone;
+  std::lock_guard<std::mutex> lock(active_config_lock_);
+  return FinalizeDisplayConfig(false, config);
 }
 
 DisplayError SDMDisplay::GetCachedActiveConfig(bool get_real_config, Config *active_config) {
@@ -3294,14 +3244,7 @@ DisplayError SDMDisplay::GetCachedActiveConfig(bool get_real_config, Config *act
 
 void SDMDisplay::SetActiveConfigIndex(int index) {
   std::lock_guard<std::mutex> lock(active_config_lock_);
-  // In cases where client requests virtual config with fps change from previous mode,
-  // enable destination scaler based on requested resolution and also change active mode on panel
-  // to reflect fps switch.
-  // So avoid overriding of active_config_index_ from SubmitDisplayConfig in above scenario
-
-  if (!virtual_config_fps_switch_) {
-    active_config_index_ = index;
-  }
+  active_config_index_ = index;
 }
 
 int SDMDisplay::GetActiveConfigIndex() {
@@ -4060,28 +4003,25 @@ DisplayError SDMDisplay::GetSDMActiveConfig(bool get_real_config, Config *config
     return kErrorNone;
   }
 
-  bool is_current_config_virtual = variable_config_map_[active_config_index_].is_virtual_config;
-  if (is_current_config_virtual) {
-    *config_index = active_config_index_;
+  if (variable_config_map_.find(active_config_index_) != variable_config_map_.end()) {
+    auto &info = variable_config_map_[active_config_index_];
+    if (info.is_virtual_config) {
+      *config_index = active_config_index_;
+      if (variable_config_map_[real_config].fps == info.fps) {
+        return kErrorNone;
+      }
 
-    uint32_t real_config_fps = variable_config_map_[real_config].fps;
-
-    uint32_t virtual_config_width = variable_config_map_[active_config_index_].x_pixels;
-    uint32_t virtual_config_height = variable_config_map_[active_config_index_].y_pixels;
-    uint32_t virtual_config_fps = variable_config_map_[active_config_index_].fps;
-
-    if (real_config_fps == virtual_config_fps) {
-      return kErrorNone;
-    }
-
-    for (auto &config : variable_config_map_) {
-      if ((config.second.x_pixels == virtual_config_width) &&
-          (config.second.y_pixels == virtual_config_height) &&
-          (config.second.fps == real_config_fps)) {
-        *config_index = config.first;
-        break;
+      for (auto &config : variable_config_map_) {
+        if ((config.second.x_pixels == info.x_pixels) &&
+            (config.second.y_pixels == info.y_pixels) &&
+            (config.second.fps == variable_config_map_[real_config].fps)) {
+          *config_index = config.first;
+          break;
+        }
       }
     }
+  } else {
+    active_config_index_ = real_config;
   }
 
   return kErrorNone;
@@ -4097,7 +4037,7 @@ bool SDMDisplay::IsVirtualConfig(Config config) {
 }
 
 DisplayError SDMDisplay::SetFBForExtendedResolution(Config config,
-                                                   Config *real_config_for_fps_switch) {
+                                                    bool *is_virtual_config_fps_switched) {
   uint32_t new_config_width = variable_config_map_[config].x_pixels;
   uint32_t new_config_height = variable_config_map_[config].y_pixels;
   uint32_t new_config_fps = variable_config_map_[config].fps;
@@ -4115,37 +4055,86 @@ DisplayError SDMDisplay::SetFBForExtendedResolution(Config config,
     }
   }
 
-  SetActiveConfigIndex(config);
-
   if (new_config_fps == hwc_active_config_fps) {
+    // No change in fps, so no need to change the mode on panel as real configs match here and
+    // keep this config directly as final config without further processing.
+    active_config_index_ = config;
     return kErrorNone;
   }
 
-  // Change in fps, so change the mode on panel also.
-  Config real_active_config = 0;
-  display_intf_->GetActiveConfig(&real_active_config);
-  uint32_t real_active_config_width = variable_config_map_[real_active_config].x_pixels;
-  uint32_t real_active_config_height = variable_config_map_[real_active_config].y_pixels;
+  // Change in fps, so change of mode on panel also needed further.
+  if (is_virtual_config_fps_switched) {
+    *is_virtual_config_fps_switched = true;
+  }
 
-  // Find the mode with new fps which has same resolution as current mode set on panel.
-  for (auto &config : variable_config_map_) {
-    if ((config.second.x_pixels == real_active_config_width) &&
-        (config.second.y_pixels == real_active_config_height) &&
-        (config.second.fps == new_config_fps)) {
-      *real_config_for_fps_switch = config.first;
-      virtual_config_fps_switch_ = true;
-      break;
+  return kErrorNone;
+}
+
+// This function takes care about new and pending real or virtual config to submit further for
+// final mode.
+DisplayError SDMDisplay::FinalizeDisplayConfig(bool check_pending_config, Config new_config) {
+  if (check_pending_config && pending_config_) {
+    new_config = pending_config_index_;
+  }
+  pending_config_ = false;
+
+  if (variable_config_map_.find(new_config) == variable_config_map_.end()) {
+    if (!check_pending_config) {
+      DLOGE("Invalid config index : %u for display [%" PRIu64 "]-[%" PRIu64 "]", new_config, id_,
+            type_);
+      return kErrorParameters;
+    }
+
+    return kErrorNone;
+  }
+
+  auto &info = variable_config_map_[new_config];
+  Config new_real_config = (info.is_virtual_config) ? info.parent_config_index : new_config;
+  Config current_real_config = 0;
+  display_intf_->GetActiveConfig(&current_real_config);
+  if (current_real_config != new_real_config) {
+    auto error = display_intf_->SetActiveConfig(new_real_config);
+    if (error != kErrorNone) {
+      DLOGW(
+          "Failed to set new real config:%d from current real config:%d! Error: %d"
+          " for display [%" PRIu64 "]-[%" PRIu64 "]",
+          new_real_config, current_real_config, error, id_, type_);
+      return kErrorNotSupported;
+    }
+  }
+
+  auto current_config = active_config_index_;
+  DLOGV_IF(kTagClient,
+           "Active configuration changed from config %d to %d"
+           " for display [%" PRIu64 "]-[%" PRIu64 "]",
+           current_config, new_config, id_, type_);
+  // Update client visible configuration
+  active_config_index_ = new_config;
+  // Cache refresh rate set by client.
+  active_refresh_rate_ = info.fps;
+
+  auto &current_config_info = variable_config_map_[current_config];
+  // Set fb config if new resolution differs
+  if (info.x_pixels != current_config_info.x_pixels ||
+      info.y_pixels != current_config_info.y_pixels) {
+    if (SetFrameBufferResolution(info.x_pixels, info.y_pixels)) {
+      return kErrorNotSupported;
     }
   }
 
   return kErrorNone;
 }
 
-void SDMDisplay::GetParentConfigInfo(DisplayConfigVariableInfo *config_info) {
-  uint32_t config_id = config_info->parent_config_index;
-  const auto &info = variable_config_map_.find(config_id);
+// This function gives real config corresponding to virtual config, else no change in input.
+DisplayError SDMDisplay::GetParentConfig(Config *config) {
+  const auto &info = variable_config_map_.find(*config);
   if (info != variable_config_map_.end()) {
-    *config_info = info->second;
+    if (info->second.is_virtual_config) {
+      *config = info->second.parent_config_index;
+    }
+    return kErrorNone;
   }
+
+  return kErrorNotSupported;
 }
 }  // namespace sdm

@@ -395,6 +395,8 @@ ColorMetaData convertToLegacyColorMetadata(const LayerBuffer *buffer) {
   data.contentLightLevel.lightLevelSEIEnabled = buffer->contentLightLevel.lightLevelSEIEnabled;
   data.contentLightLevel.maxContentLightLevel = buffer->contentLightLevel.maxContentLightLevel;
   data.contentLightLevel.maxPicAverageLightLevel = buffer->contentLightLevel.maxFrameAverageLightLevel;
+  // minPicAverageLightLevel is discarded in vendor_qti_hardware_display_common_QtiContentLightLevel
+  data.contentLightLevel.minPicAverageLightLevel = 0;
 
   // color remapping info
   data.cRI.criEnabled = buffer->cRI.criEnabled;

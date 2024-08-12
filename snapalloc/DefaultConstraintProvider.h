@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #ifndef __DEFAULT_CONSTRAINT_PROVIDER_H__
@@ -7,6 +7,7 @@
 #include <map>
 #include <mutex>
 #include "SnapConstraintProvider.h"
+#include "SnapUtils.h"
 
 namespace snapalloc {
 class DefaultConstraintProvider : public SnapConstraintProvider {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -13,6 +13,7 @@
 #include <memory>
 
 #include "demura_intf.h"
+#include "demuratn_cleanup_intf.h"
 
 namespace sdm {
 
@@ -21,6 +22,7 @@ class DemuraTnCoreUvmFactoryIntf {
   virtual ~DemuraTnCoreUvmFactoryIntf() {}
   virtual std::shared_ptr<DemuraTnCoreUvmIntf> CreateDemuraTnCoreUvmIntf(
       std::shared_ptr<DemuraIntf>, BufferAllocator *, DisplayInterface *) = 0;
+  virtual std::shared_ptr<DemuraTnCleanupIntf> CreateDemuraTnCleanupIntf(BufferAllocator *) = 0;
 };
 
 extern "C" DemuraTnCoreUvmFactoryIntf *GetDemuraTnCoreUvmFactoryIntf();

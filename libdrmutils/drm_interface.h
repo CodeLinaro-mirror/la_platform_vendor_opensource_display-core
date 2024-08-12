@@ -72,6 +72,7 @@
 #include <vector>
 #include <array>
 #include <set>
+#include <bitset>
 
 #include "xf86drm.h"
 #include "xf86drmMode.h"
@@ -789,6 +790,7 @@ enum struct CacVersion {
   NONE,
   V1,
   V2,
+  Loopback,
 };
 
 /* DDR Version */
@@ -905,9 +907,11 @@ enum struct DRMUcscIgcMode {
 };
 
 enum struct DRMCacMode {
-  CAC_MODE_DISABLED,
-  CAC_MODE_UNPACK,
-  CAC_MODE_FETCH,
+  CAC_MODE_DISABLED = 0x0,
+  CAC_MODE_UNPACK = 0x1,
+  CAC_MODE_FETCH = 0x2,
+  CAC_MODE_LOOPBACK_UNPACK = 0x4,
+  CAC_MODE_LOOPBACK_FETCH = 0x8,
 };
 
 struct DRMPlaneTypeInfo {
@@ -1056,6 +1060,7 @@ struct DRMConnectorInfo {
   std::string backlight_type;
   bool has_disp_in_other_core = false;
   bool dpu_ctl_op_sync = false;
+  bool has_cac_loopback = false;
   DMSType dms_type = DMSType::DMS_VID_DISABLED;
 };
 
@@ -1199,6 +1204,7 @@ enum DRMPanelFeatureID {
   kDRMPanelFeatureDsppRCInfo,
   kDRMPanelFeatureSPRInit,
   kDRMPanelFeatureSPRPackType,
+  kDRMPanelFeatureSPRPackTypeMode,
   kDRMPanelFeatureDemuraInit,
   kDRMPanelFeatureRCInit,
   kDRMPanelFeatureDemuraResources,
@@ -1211,6 +1217,7 @@ enum DRMPanelFeatureID {
   kDRMPanelFeatureAiqeMdnieArt,
   kDRMPanelFeatureAiqeCopr,
   kDRMPanelFeatureABC,
+  kDRMPanelFeatureDemuraBacklight,
   kDRMPanelFeatureMax,
 };
 
@@ -1496,10 +1503,12 @@ class DRMManagerInterface {
    * needed.
    *
    * [input]: disp_type - Peripheral / TV / Virtual
+   * [input]: has_cac_loopback - set if loopback connector needed
    * [output]: DRMDisplayToken - CRTC and Connector IDs for the display.
    * [return]: 0 on success, a negative error value otherwise.
    */
-  virtual int RegisterDisplay(DRMDisplayType disp_type, DRMDisplayToken *tok) = 0;
+  virtual int RegisterDisplay(DRMDisplayType disp_type, DRMDisplayToken *tok,
+                              bool has_cac_loopback = false) = 0;
 
   /*
    * Register a logical display to receive a token.

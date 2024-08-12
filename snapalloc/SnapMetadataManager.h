@@ -38,8 +38,10 @@ class SnapMetadataManager {
   Error GetCustomDimensions(SnapHandleInternal *hnd, SnapMetadata *metadata, int32_t *stride,
                             int32_t *height);
   Error InitializeMetadata(
-      SnapHandleInternal *hnd, BufferDescriptor in_desc, BufferDescriptor out_desc,
-      const AllocData ad, vendor_qti_hardware_display_common_BufferLayout *layout);  // TODO: make this API extensible
+      SnapHandleInternal *hnd,
+      vendor_qti_hardware_display_common_PixelFormat pixel_format_requested,
+      BufferDescriptor out_desc, const AllocData ad,
+      vendor_qti_hardware_display_common_BufferLayout *layout);  // TODO: make this API extensible
   uint32_t GetCustomContentMetadataSize(vendor_qti_hardware_display_common_PixelFormat format,
                                         vendor_qti_hardware_display_common_BufferUsage usage);
   Error GetMetadataState(SnapHandleInternal *hnd, vendor_qti_hardware_display_common_MetadataType type, bool *out);
@@ -55,6 +57,7 @@ class SnapMetadataManager {
   static SnapMetadataManager *instance_;
   SnapConstraintManager *constraint_mgr_ = nullptr;
   SnapMemAllocator *mem_allocator_ = nullptr;
+  UBWCPolicy *ubwc_policy_ = nullptr;
 
   Error IsMetadataTypeSettable(vendor_qti_hardware_display_common_MetadataType type, bool *out);
   void SetMetadataState(SnapMetadata *metadata,
@@ -228,6 +231,13 @@ class SnapMetadataManager {
   Error BufferDequeueDurationHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
                                     void *in_set = nullptr, void *out_get = nullptr,
                                     BufferDescriptor *buf_des = nullptr);
+  Error AnamorphicCompressionHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                                    void *in_set = nullptr, void *out_get = nullptr,
+                                    BufferDescriptor *buf_des = nullptr);
+  Error BaseViewHelper(SnapMetadata *metadata, SnapHandleInternal *handle, void *in_set = nullptr,
+                       void *out_get = nullptr, BufferDescriptor *buf_des = nullptr);
+  Error MultiViewHelper(SnapMetadata *metadata, SnapHandleInternal *handle, void *in_set = nullptr,
+                        void *out_get = nullptr, BufferDescriptor *buf_des = nullptr);
 
   struct DRMFormatDescriptor {
     uint32_t drm_format;
@@ -451,12 +461,14 @@ class SnapMetadataManager {
           {HEAP_NAME, &SnapMetadataManager::HeapNameHelper},
           {PIXEL_FORMAT_ALLOCATED, &SnapMetadataManager::PixelFormatAllocatedHelper},
           {BUFFER_DEQUEUE_DURATION, &SnapMetadataManager::BufferDequeueDurationHelper},
+          {ANAMORPHIC_COMPRESSION_METADATA, &SnapMetadataManager::AnamorphicCompressionHelper},
+          {BASE_VIEW, &SnapMetadataManager::BaseViewHelper},
+          {MULTI_VIEW_INFO, &SnapMetadataManager::MultiViewHelper},
   };
   struct metadata_traits {
     bool is_settable;
   };
-  std::unordered_map<vendor_qti_hardware_display_common_MetadataType,
-                     metadata_traits>
+  std::unordered_map<vendor_qti_hardware_display_common_MetadataType, metadata_traits>
       metadatatype_traits_map{
           {BUFFER_ID, {false}},
           {NAME, {false}},
@@ -518,6 +530,9 @@ class SnapMetadataManager {
           {HEAP_NAME, {false}},
           {PIXEL_FORMAT_ALLOCATED, {false}},
           {BUFFER_DEQUEUE_DURATION, {true}},
+          {ANAMORPHIC_COMPRESSION_METADATA, {true}},
+          {BASE_VIEW, {false}},
+          {MULTI_VIEW_INFO, {false}},
       };
 };
 }  // namespace snapalloc

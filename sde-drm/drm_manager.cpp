@@ -242,8 +242,9 @@ DRMDppsManagerIntf *DRMManager::GetDppsMgrIntf() {
   return dpps_mgr_intf_;
 }
 
-int DRMManager::RegisterDisplay(DRMDisplayType disp_type, DRMDisplayToken *token) {
-  int ret = conn_mgr_->Reserve(disp_type, token);
+int DRMManager::RegisterDisplay(DRMDisplayType disp_type, DRMDisplayToken *token,
+                                bool has_cac_loopback) {
+  int ret = conn_mgr_->Reserve(disp_type, token, has_cac_loopback);
   if (ret) {
     if (ret == -ENODEV) {
       DRM_LOGI("display type %d is not present", disp_type);

@@ -1,11 +1,11 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapAlloc.h"
 #include "SnapHandleInternal.h"
 #include "SnapTypes.h"
 #include "SnapUtils.h"
-#include "log/log.h"
+using ::snapalloc::Debug;
 
 namespace vendor::qti::hardware::display::snapalloc {
 
@@ -24,7 +24,7 @@ Error SnapAlloc::Allocate(const BufferDescriptor &in_descriptor, int in_count,
   }
 
   if (!handles.empty()) {
-    allocation_result->stride = handles[0]->aligned_width_in_pixels;
+    allocation_result->stride = handles[0]->aligned_width_in_pixels();
   }
 
   allocation_result->handles.reserve(in_count);
@@ -40,7 +40,7 @@ Error SnapAlloc::Allocate(const BufferDescriptor &in_descriptor, int in_count,
 Error SnapAlloc::IsSupported(const BufferDescriptor &in_descriptor, bool *is_supported) {
   auto err = snap_alloc_core_->IsSupported(in_descriptor, is_supported);
   if (err != Error::NONE) {
-    ALOGW("Descriptor not supported - err %d", err);
+    DLOGW("Descriptor not supported - err %d", err);
   }
   return err;
 };

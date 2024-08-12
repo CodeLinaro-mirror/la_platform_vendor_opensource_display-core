@@ -46,8 +46,7 @@ namespace sdm {
 
 class SDMHotPlug {
 public:
- explicit SDMHotPlug(SDMHotPlugCbIntf *cb, SDMCompositorCallbacks *callbacks)
-     : cb_(cb), callbacks_(callbacks) {}
+ explicit SDMHotPlug(SDMHotPlugCbIntf *cb, SDMCompositorCallbacks *callbacks) : cb_(cb) {}
  ~SDMHotPlug() {}
 
  void Init();
@@ -71,7 +70,6 @@ private:
   bool hpd_thread_should_terminate_ = false;
 
   SDMHotPlugCbIntf *cb_ = nullptr;
-  SDMCompositorCallbacks *callbacks_ = nullptr;
 };
 
 } // namespace sdm

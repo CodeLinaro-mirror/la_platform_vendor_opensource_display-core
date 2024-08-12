@@ -28,8 +28,7 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
+* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
@@ -153,6 +152,8 @@
 #define ENABLE_SPR                           DISPLAY_PROP("enable_spr")
 #define ENABLE_SPR_BYPASS                    DISPLAY_PROP("enable_spr_bypass")
 #define ENABLE_MEMORY_MAPPING                DISPLAY_PROP("enable_memory_mapping")
+#define DISABLE_SPR_PRIMARY                  DISPLAY_PROP("disable_spr_primary")
+#define DISABLE_SPR_SECONDARY                DISPLAY_PROP("disable_spr_secondary")
 
 // Panel Feature Demura Properties
 #define ENABLE_DEMURA                        DISPLAY_PROP("enable_demura")
@@ -213,6 +214,7 @@
 //AIQE Properties
 #define AIQE_SSRC_ENABLE               DISPLAY_PROP("enable_aiqe_ssrc")
 #define AIQE_SSRC_DEFAULT_MODE         DISPLAY_PROP("default_aiqe_ssrc_mode")
+#define AIQE_COPR_ENABLE               DISPLAY_PROP("enable_aiqe_copr")
 
 // Add all vendor.display properties above
 
@@ -246,6 +248,8 @@
 #define PRIORITIZE_CLIENT_CWB                DISPLAY_PROP("prioritize_client_cwb")
 #define ENABLE_CWB_CPU_BOOSTING              DISPLAY_PROP("enable_cwb_cpu_boosting")
 #define DISABLE_CWB_OPTIMIZATION             DISPLAY_PROP("disable_cwb_optimization")
+#define FORCE_REFRESH_TO_PROCESS_CWB         DISPLAY_PROP("force_refresh_to_process_cwb")
+#define ENABLE_CLIENT_CONTROL_CWB_REFRESH    DISPLAY_PROP("enable_client_control_cwb_refresh")
 #define TRANSIENT_FPS_CYCLE_COUNT            DISPLAY_PROP("transient_fps_cycle_count")
 #define CORE_ID_MASK                         DISPLAY_PROP("core_id_mask")
 #define XR_VARIANT                           DISPLAY_PROP("xr_variant")
@@ -254,6 +258,7 @@
 #define DISABLE_ROUNDED_CORNER_TUI           DISPLAY_PROP("disable_rounded_corner_tui")
 #define DISABLE_RCMASK_SIMD_OPT              DISPLAY_PROP("disable_rcmask_simd_opt")
 #define IDLE_FALLBACK_ON_DSPP                DISPLAY_PROP("idle_fallback_on_dspp")
+#define FORCE_LM_TO_FB_CONFIG                DISPLAY_PROP("force_lm_to_fb_config")
 
 // Enable AI Scaler
 #define ENABLE_AI_SCALER_PROP                DISPLAY_PROP("enable_ai_scaler")

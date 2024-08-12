@@ -75,6 +75,7 @@ DisplayError HWPeripheralDRM::Init() {
     return ret;
   }
 
+  UpdateLoopBackConnector();
   InitDestScaler();
   InitAIScaler();
 
@@ -268,11 +269,98 @@ DisplayError HWPeripheralDRM::Validate(HWLayersInfo *hw_layers_info) {
   return HWDeviceDRM::Validate(hw_layers_info);
 }
 
+bool HWPeripheralDRM::IsCACEnabled(const HWLayersInfo *hw_layers_info) {
+  if (hw_layers_info->hw_layers.size() == 0) {
+    return false;
+  }
+
+  for (uint32_t i = 0; i < hw_layers_info->hw_layers.size(); i++) {
+    // if any layer has tunnel pipes then CAC is enabled
+    if (hw_layers_info->config[i].tunnel_pipes.size() > 0) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+DisplayError HWPeripheralDRM::UpdateLoopBackConnector() {
+  if (hw_resource_.cac_version != kCacVersionLoopback) {
+    return kErrorNone;
+  }
+
+  // Fake register to get the loopback connector
+  sde_drm::DRMDisplayToken token = {};
+  int ret = drm_mgr_intf_->RegisterDisplay(sde_drm::DRMDisplayType::VIRTUAL, &token,
+                                           true /* loopback connector */);
+  if (ret) {
+    if (ret != -ENODEV) {
+      DLOGE("Failed registering display %d. Error: %d.", sde_drm::DRMDisplayType::VIRTUAL, ret);
+    }
+    return kErrorResources;
+  }
+
+  loopback_conn_id_ = token.conn_id;
+  drm_mgr_intf_->UnregisterDisplay(&token);
+
+  return kErrorNone;
+}
+
+DisplayError HWPeripheralDRM::ConfigureLoopbackCAC(const HWLayersInfo *hw_layers_info) {
+  if (hw_resource_.cac_version != kCacVersionLoopback) {
+    return kErrorNone;
+  }
+
+  if (loopback_conn_id_ == -1) {
+    DLOGE("Invalid virtual connector Id!!");
+    return kErrorParameters;
+  }
+
+  bool cac_enabled = IsCACEnabled(hw_layers_info);
+
+  if (!cac_enabled && !loopback_cac_configured_) {
+    return kErrorNone;
+  }
+
+  bool register_loopback = cac_enabled && !loopback_cac_configured_;
+  if (register_loopback) {
+    int ret = drm_mgr_intf_->RegisterDisplay(loopback_conn_id_, &loopback_token_);
+    if (ret) {
+      if (ret != -ENODEV) {
+        DLOGE("Failed registering display %d. Error: %d.", sde_drm::DRMDisplayType::VIRTUAL, ret);
+      }
+      return kErrorResources;
+    }
+    loopback_cac_configured_ = true;
+  }
+
+  if (loopback_cac_configured_) {
+    if (cac_enabled) {
+      DLOGV_IF(kTagDriverConfig, "Configuring CAC loopback");
+      drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, loopback_token_.conn_id,
+                                token_.crtc_id);
+    } else {
+      DLOGV_IF(kTagDriverConfig, "Teardown CAC loopback");
+      drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, loopback_token_.conn_id, 0);
+      drm_mgr_intf_->UnregisterDisplay(&loopback_token_);
+      loopback_token_ = {};
+      loopback_cac_configured_ = false;
+    }
+  }
+
+  return kErrorNone;
+}
+
 DisplayError HWPeripheralDRM::Commit(HWLayersInfo *hw_layers_info) {
   SetDestScalarData(*hw_layers_info);
 
   int64_t cwb_fence_fd = -1;
   bool has_fence = SetupConcurrentWriteback(*hw_layers_info, false, &cwb_fence_fd);
+  auto error = ConfigureLoopbackCAC(hw_layers_info);
+  if (error != kErrorNone) {
+    DLOGE("Failed to configure CacLoopback!");
+    return error;
+  }
 
   SetIdlePCState();
   SetSelfRefreshState();
@@ -292,7 +380,7 @@ DisplayError HWPeripheralDRM::Commit(HWLayersInfo *hw_layers_info) {
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_USECASE_IDX, token_.conn_id,
                             hw_layers_info->flags.only_video_updating);
 
-  DisplayError error = HWDeviceDRM::Commit(hw_layers_info);
+  error = HWDeviceDRM::Commit(hw_layers_info);
   shared_ptr<Fence> cwb_fence = Fence::Create(INT(cwb_fence_fd), "cwb_fence");
   if (error != kErrorNone) {
     return error;
@@ -1047,6 +1135,8 @@ void HWPeripheralDRM::CreatePanelFeaturePropertyMap() {
   panel_feature_property_map_.clear();
   panel_feature_property_map_[kPanelFeatureSPRInitCfg] = sde_drm::kDRMPanelFeatureSPRInit;
   panel_feature_property_map_[kPanelFeatureSPRPackType] = sde_drm::kDRMPanelFeatureSPRPackType;
+  panel_feature_property_map_[kPanelFeatureSPRPackTypeMode] =
+      sde_drm::kDRMPanelFeatureSPRPackTypeMode;
   panel_feature_property_map_[kPanelFeatureDemuraInitCfg] = sde_drm::kDRMPanelFeatureDemuraInit;
   panel_feature_property_map_[kPanelFeatureDsppIndex] = sde_drm::kDRMPanelFeatureDsppIndex;
   panel_feature_property_map_[kPanelFeatureDsppSPRInfo] = sde_drm::kDRMPanelFeatureDsppSPRInfo;
@@ -1066,6 +1156,8 @@ void HWPeripheralDRM::CreatePanelFeaturePropertyMap() {
   panel_feature_property_map_[kPanelFeatureAiqeMdnieArt] = sde_drm::kDRMPanelFeatureAiqeMdnieArt;
   panel_feature_property_map_[kPanelFeatureAiqeCopr] = sde_drm::kDRMPanelFeatureAiqeCopr;
   panel_feature_property_map_[kPanelFeatureABCCfg] = sde_drm::kDRMPanelFeatureABC;
+  panel_feature_property_map_[kPanelFeatureDemuraBacklight] =
+      sde_drm::kDRMPanelFeatureDemuraBacklight;
 }
 
 int HWPeripheralDRM::GetPanelFeature(PanelFeaturePropertyInfo *feature_info) {
@@ -1103,10 +1195,12 @@ int HWPeripheralDRM::GetPanelFeature(PanelFeaturePropertyInfo *feature_info) {
     case kPanelFeatureAiqeMdnieArt:
     case kPanelFeatureAiqeCopr:
     case kPanelFeatureABCCfg:
+    case kPanelFeatureDemuraBacklight:
       drm_feature.obj_type = DRM_MODE_OBJECT_CRTC;
       drm_feature.obj_id = token_.crtc_id;
       break;
     case kPanelFeatureSPRPackType:
+    case kPanelFeatureSPRPackTypeMode:
     case kPanelFeatureDemuraPanelId:
       drm_feature.obj_type = DRM_MODE_OBJECT_CONNECTOR;
       drm_feature.obj_id =  token_.conn_id;
@@ -1145,10 +1239,12 @@ int HWPeripheralDRM::SetPanelFeature(const PanelFeaturePropertyInfo &feature_inf
     case kPanelFeatureAiqeMdnieArt:
     case kPanelFeatureAiqeCopr:
     case kPanelFeatureABCCfg:
+    case kPanelFeatureDemuraBacklight:
       drm_feature.obj_type = DRM_MODE_OBJECT_CRTC;
       drm_feature.obj_id = token_.crtc_id;
       break;
     case kPanelFeatureSPRPackType:
+    case kPanelFeatureSPRPackTypeMode:
       drm_feature.obj_type = DRM_MODE_OBJECT_CONNECTOR;
       drm_feature.obj_id =  token_.conn_id;
       break;

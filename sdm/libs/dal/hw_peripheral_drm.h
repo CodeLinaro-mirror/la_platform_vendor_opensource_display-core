@@ -132,6 +132,9 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   void SetVMReqState();
   void ResetPropertyCache();
   void InitAIScaler();
+  bool IsCACEnabled(const HWLayersInfo *hw_layers_info);
+  DisplayError UpdateLoopBackConnector();
+  DisplayError ConfigureLoopbackCAC(const HWLayersInfo *hw_layers_info);
 
   struct DestScalarCache {
     SDEScaler scalar_data = {};

@@ -13,6 +13,7 @@
 #include "QtiContentLightLevel.h"
 #include "QtiMasteringDisplay.h"
 #include "QtiMatrixCoEfficients.h"
+#include "QtiAnamorphicMetadata.h"
 #include "SnapTypes.h"
 
 namespace snapalloc {
@@ -89,6 +90,9 @@ struct SnapMetadata {
   * [1] : Bottom field, if it is interlaced.
   */
   vendor_qti_hardware_display_common_UBWCStats ubwcCRStats[UBWC_STATS_ARRAY_SIZE];
+
+  /* Set by clients to program the anamorphic compression */
+  vendor_qti_hardware_display_common_QtiAnamorphicMetadata anamorphic_compression;
 
   /* Tracks if metadata has be explicitly set or is a default value*/
   bool isStandardMetadataSet[METADATA_SET_SIZE];

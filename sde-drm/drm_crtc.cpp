@@ -609,6 +609,8 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
         crtc_info_.cac_version = CacVersion::V1;
       } else if (string(line, cac_version.length()) == "cac_v2") {
         crtc_info_.cac_version = CacVersion::V2;
+      } else if (string(line, cac_version.length()) == "cac_loopback") {
+        crtc_info_.cac_version = CacVersion::Loopback;
       }
     } else if (line.find(ddr_version) != string::npos) {
       if (string(line, ddr_version.length()) == "DDR4") {

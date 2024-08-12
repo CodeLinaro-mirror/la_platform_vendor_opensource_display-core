@@ -1193,8 +1193,10 @@ void ConcurrencyMgr::Refresh(uint64_t display) {
 void ConcurrencyMgr::CompositorSync(CompositorSyncType sync_type) {
   if (sync_type == CompositorSyncTypeAcquire) {
     command_seq_mutex_.lock();
+    tui_mutex_.lock();
   } else {
     command_seq_mutex_.unlock();
+    tui_mutex_.unlock();
   }
 }
 
@@ -1203,6 +1205,7 @@ void ConcurrencyMgr::PerformDisplayPowerReset() {
 
   // Wait until all commands are flushed.
   std::lock_guard<std::mutex> lock(command_seq_mutex_);
+  std::lock_guard<std::mutex> tui_lock(tui_mutex_);
 
   // Acquire lock on all displays.
   for (Display display = SDM_DISPLAY_PRIMARY; display < kNumDisplays;
@@ -1436,8 +1439,9 @@ void ConcurrencyMgr::HandlePendingPowerMode(
         pending_mode == SDMPowerMode::POWER_MODE_DOZE_SUSPEND) {
       disp_->GetActiveDisplays().erase(display);
     } else {
-      disp_->GetActiveDisplays().insert(
-          std::make_pair(disp_map_info->client_id, disp_map_info));
+      if (disp_map_info != nullptr) {
+        disp_->GetActiveDisplays().insert(std::make_pair(disp_map_info->client_id, disp_map_info));
+      }
     }
     DisplayError error =
         sdm_display_[display]->SetPowerMode(pending_mode, false);
@@ -2039,6 +2043,7 @@ DisplayError ConcurrencyMgr::CreateVirtualDisplay(uint32_t width,
                                                   Display *out_display_id) {
   // Wait until all commands are flushed.
   std::lock_guard<std::mutex> sdm_lock(command_seq_mutex_);
+  std::lock_guard<std::mutex> tui_lock(tui_mutex_);
 
   return disp_->CreateVirtualDisplay(width, height, format, out_display_id);
 }
@@ -2046,6 +2051,7 @@ DisplayError ConcurrencyMgr::CreateVirtualDisplay(uint32_t width,
 DisplayError ConcurrencyMgr::DestroyVirtualDisplay(Display client_id) {
   // Wait until all commands are flushed.
   std::lock_guard<std::mutex> sdm_lock(command_seq_mutex_);
+  std::lock_guard<std::mutex> tui_lock(tui_mutex_);
 
   return disp_->DestroyVirtualDisplay(client_id);
 }
@@ -2130,7 +2136,7 @@ DisplayError ConcurrencyMgr::ControlPartialUpdate(uint64_t disp_id,
 
   // Todo(user): Unlock it before sending events to client. It may cause
   // deadlocks in future. Wait until partial update control is complete
-  auto error = WaitForCommitDone(SDM_DISPLAY_PRIMARY, kClientPartialUpdate);
+  auto error = WaitForCommitDone(GetDisplayIndex(disp_id), kClientPartialUpdate);
   if (error != kErrorNone) {
     DLOGW("%s Partial update failed with error %d",
           enable ? "Enable" : "Disable", error);
@@ -2493,11 +2499,35 @@ DisplayError ConcurrencyMgr::SetSsrcMode(uint64_t display_id, const std::string 
 }
 
 DisplayError ConcurrencyMgr::EnableCopr(uint64_t display_id, bool enable) {
-  return kErrorNone;
+  int disp_idx = GetDisplayIndex(display_id);
+  if (disp_idx == -1) {
+    DLOGW("Invalid display = %d", display_id);
+    return kErrorParameters;
+  }
+
+  SCOPE_LOCK(locker_[disp_idx]);
+  if (!sdm_display_[disp_idx]) {
+    DLOGW("Display %d is not connected.", display_id);
+    return kErrorResources;
+  }
+
+  return sdm_display_[disp_idx]->EnableCopr(enable);
 }
 
-DisplayError ConcurrencyMgr::GetCoprStatus(uint64_t display_id, std::vector<int32_t> *copr_status) {
-  return kErrorNone;
+DisplayError ConcurrencyMgr::GetCoprStats(uint64_t display_id, std::vector<int32_t> *copr_stats) {
+  int disp_idx = GetDisplayIndex(display_id);
+  if (disp_idx == -1) {
+    DLOGW("Invalid display = %d", display_id);
+    return kErrorParameters;
+  }
+
+  SCOPE_LOCK(locker_[disp_idx]);
+  if (!sdm_display_[disp_idx]) {
+    DLOGW("Display %d is not connected.", display_id);
+    return kErrorResources;
+  }
+
+  return sdm_display_[disp_idx]->GetCoprStats(copr_stats);
 }
 
 DisplayError ConcurrencyMgr::SetupVRRConfig(uint64_t display) {

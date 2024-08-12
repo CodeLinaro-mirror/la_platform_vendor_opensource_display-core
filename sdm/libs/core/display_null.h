@@ -28,9 +28,7 @@
  */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following
- * license:
- *
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
@@ -186,6 +184,8 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(PanelBacklightInfo(const std::string &client_name, bool enable,
                                 SdmDisplayCbInterface<PanelBacklightPayload> *cb_intf));
   MAKE_NO_OP(SetPanelFeatureConfig(int32_t, void *));
+  MAKE_NO_OP(EnableCopr(bool en))
+  MAKE_NO_OP(GetCoprStats(std::vector<int> *stats))
 
  protected:
   DisplayConfigVariableInfo default_variable_config_ = {};

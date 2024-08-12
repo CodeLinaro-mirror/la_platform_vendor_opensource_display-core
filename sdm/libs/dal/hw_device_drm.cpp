@@ -976,6 +976,7 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
 
   if (enable_ai_scaler || enable_abc || enable_ssrc) {
     hw_panel_info_.partial_update = false;
+    hw_panel_info_.ssip_enabled = true;
   } else {
     hw_panel_info_.partial_update = connector_info_.modes[index].num_roi;
   }
@@ -1627,6 +1628,7 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
         } else {
           panel_roi = roi;
           panel_roi.top += FLOAT(hw_layers_info->common_info->spr_overfetch_lines.top);
+          panel_roi.bottom -= FLOAT(hw_layers_info->common_info->spr_overfetch_lines.bottom);
         }
 
         crtc_rects[i].left = UINT32(roi.left);
@@ -1641,7 +1643,8 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
         spr_rects[i].right = UINT32(roi.right);
         spr_rects[i].top = UINT32(roi.top +
                            FLOAT(hw_layers_info->common_info->spr_overfetch_lines.top));
-        spr_rects[i].bottom = UINT32(roi.bottom);
+        spr_rects[i].bottom =
+            UINT32(roi.bottom - FLOAT(hw_layers_info->common_info->spr_overfetch_lines.bottom));
       }
 
       uint32_t num_rects = std::max(1u, UINT32(hw_layers_info->left_frame_roi.size()));
@@ -1727,7 +1730,7 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
           uint32_t fg_alpha = layer.plane_alpha;
           uint32_t bg_alpha = 0xffff - layer.plane_alpha;
 
-          if (pipe_info->cac_mode) {
+          if (pipe_info->cac_mode && (pipe_info->cac_mode != kModeLoopbackUnpack)) {
             fg_alpha = bg_alpha = 0xffff;
           }
 
@@ -1735,7 +1738,8 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
 
           drm_atomic_intf_->Perform(DRMOps::PLANE_SET_BG_ALPHA, pipe_id, bg_alpha);
 
-          if (hw_resource_.cac_version == kCacVersion2) {
+          if ((hw_resource_.cac_version == kCacVersion2) ||
+              ((hw_resource_.cac_version == kCacVersionLoopback))) {
             DRMCacMode target_mode = DRMCacMode::CAC_MODE_DISABLED;
             SetCacType(pipe_info->cac_mode, &target_mode);
             drm_atomic_intf_->Perform(DRMOps::PLANE_SET_CAC_TYPE, pipe_id, target_mode);
@@ -2376,11 +2380,21 @@ DisplayError HWDeviceDRM::Flush(HWLayersInfo *hw_layers_info) {
   // dpps commit feature ops doesn't use the obj id, set it as -1
   drm_atomic_intf_->Perform(DRMOps::DPPS_COMMIT_FEATURE, -1);
 
+  if (cwb_config_[core_id_].enabled) {
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, cwb_config_[core_id_].token.conn_id, 0);
+    DLOGI("Tearing down the CWB topology");
+  }
+
   int ret = NullCommit(sync_commit /* synchronous */, false /* retain_planes*/);
   if (ret) {
     DLOGE("failed with error %d", ret);
     return kErrorHardware;
   }
+
+  if (cwb_config_[core_id_].enabled) {
+    FlushConcurrentWriteback();
+  }
+
   return kErrorNone;
 }
 
@@ -2413,6 +2427,12 @@ void HWDeviceDRM::SetCacType(const HWPipeCacMode &cac_mode, DRMCacMode *target) 
       break;
     case kModeFetch:
       *target = DRMCacMode::CAC_MODE_FETCH;
+      break;
+    case kModeLoopbackUnpack:
+      *target = DRMCacMode::CAC_MODE_LOOPBACK_UNPACK;
+      break;
+    case kModeLoopbackFetch:
+      *target = DRMCacMode::CAC_MODE_LOOPBACK_FETCH;
       break;
     default:
       *target = DRMCacMode::CAC_MODE_DISABLED;

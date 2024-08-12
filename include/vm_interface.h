@@ -122,6 +122,8 @@ typedef struct CmdSetDisplayConfigs_t  {
       int config_idx;
       DisplayType disp_type;
       bool smart_panel;
+      uint32_t mixer_width;
+      uint32_t mixer_height;
     };
     uint32_t reserve[128] = { 0 };
   };

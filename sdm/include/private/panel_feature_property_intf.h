@@ -48,6 +48,7 @@ enum PanelFeaturePropertyID {
   kPanelFeatureDsppRCInfo,
   kPanelFeatureSPRInitCfg,
   kPanelFeatureSPRPackType,
+  kPanelFeatureSPRPackTypeMode,
   kPanelFeatureDemuraInitCfg,
   kPanelFeatureRCInitCfg,
   kPanelFeatureDemuraPanelId,
@@ -60,6 +61,7 @@ enum PanelFeaturePropertyID {
   kPanelFeatureAiqeMdnieArt,
   kPanelFeatureAiqeCopr,
   kPanelFeatureABCCfg,
+  kPanelFeatureDemuraBacklight,
   kPanelFeaturePropertyIDMax
 };
 

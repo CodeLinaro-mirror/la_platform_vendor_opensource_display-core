@@ -185,10 +185,6 @@ SDMDisplayPluggable::PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence) {
   auto status = kErrorNone;
 
   HandleFrameOutput();
-
-  if (flush_ && layer_stack_.output_buffer == nullptr) {
-    display_intf_->FlushConcurrentWriteback();
-  }
   status = SDMDisplay::PostCommitLayerStack(out_retire_fence);
 
   return status;

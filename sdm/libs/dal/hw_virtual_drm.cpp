@@ -203,6 +203,9 @@ void HWVirtualDRM::ConfigureDNSC(HWLayersInfo *hw_layers_info) {
 
 DisplayError HWVirtualDRM::Commit(HWLayersInfo *hw_layers_info) {
   std::shared_ptr<LayerBuffer> output_buffer = hw_layers_info->output_buffer;
+  if (output_buffer == nullptr) {
+    return kErrorUndefined;
+  }
   DisplayError err = kErrorNone;
   bool fb_modified = false;
 
@@ -247,6 +250,9 @@ DisplayError HWVirtualDRM::Flush(HWLayersInfo *hw_layers_info) {
 
 DisplayError HWVirtualDRM::Validate(HWLayersInfo *hw_layers_info) {
   std::shared_ptr<LayerBuffer> output_buffer = hw_layers_info->output_buffer;
+  if (output_buffer == nullptr) {
+    return kErrorUndefined;
+  }
   bool fb_modified = false;
 
   registry_.MapOutputBufferToFbId(output_buffer, &fb_modified);

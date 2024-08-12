@@ -324,6 +324,7 @@ class HWDeviceDRM : public HWInterface {
 
  protected:
   void SetDisplaySwitchMode(uint32_t index);
+  DisplayError UpdateLoopBackConnector();
   bool IsSeamlessTransition() {
     return (hw_panel_info_.dynamic_fps && (vrefresh_ || seamless_mode_switch_)) ||
      panel_mode_changed_ || bit_clk_rate_;
@@ -338,6 +339,8 @@ class HWDeviceDRM : public HWInterface {
   int dev_fd_ = -1;
   Registry registry_;
   sde_drm::DRMDisplayToken token_ = {};
+  sde_drm::DRMDisplayToken loopback_token_ = {};
+  bool loopback_cac_configured_ = false;
   HWResourceInfo hw_resource_ = {};
   HWPanelInfo hw_panel_info_ = {};
   HWScaleDRM *hw_scale_ = {};
@@ -392,6 +395,7 @@ class HWDeviceDRM : public HWInterface {
   bool enable_brightness_drm_prop_ = false;
   int cached_brightness_level_ = -1;
   int current_brightness_ = -1;
+  int32_t loopback_conn_id_ = -1;
 
  private:
   void GetCWBCapabilities();

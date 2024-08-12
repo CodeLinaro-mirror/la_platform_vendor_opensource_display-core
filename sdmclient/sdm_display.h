@@ -27,9 +27,7 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
@@ -502,6 +500,10 @@ public:
   virtual DisplayError PerformCacConfig(CacConfig config, bool enable) {
     return kErrorNotSupported;
   }
+  virtual DisplayError IsCacV2Supported(bool *supported) {
+    *supported = false;
+    return kErrorNotSupported;
+  }
   int32_t GetDisplayConfigGroup(DisplayConfigGroupInfo variable_config);
 
   void LayerStackUpdated() {
@@ -518,6 +520,8 @@ public:
                                              uint32_t frame_interval_ns);
   virtual void SetFrameIntervalNs(uint32_t fi) { frame_interval_ns_ = fi; }
   virtual DisplayError SetSsrcMode(const std::string &mode) { return kErrorNotSupported; }
+  virtual DisplayError EnableCopr(bool en) { return kErrorNotSupported; }
+  virtual DisplayError GetCoprStats(std::vector<int> *stats) { return kErrorNotSupported; }
   virtual int GetNotifyEptConfig() { return -1; }
   virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data) {
     return kErrorNotSupported;
@@ -706,9 +710,9 @@ private:
   void PopulateSDMExtendedDisplayResolution();
   DisplayError GetSDMActiveConfig(bool get_real_config, Config *config_index);
   bool IsVirtualConfig(Config config);
-  DisplayError SetFBForExtendedResolution(Config config,
-                                         Config *real_config_for_fps_switch);
-  void GetParentConfigInfo(DisplayConfigVariableInfo *config_info);
+  DisplayError SetFBForExtendedResolution(Config config, bool *is_virtual_config_fps_switched);
+  DisplayError FinalizeDisplayConfig(bool check_pending_config, Config new_config);
+  DisplayError GetParentConfig(Config *config);
   bool NotifyIdleNow();
 
   DisplayClass display_class_;
@@ -724,9 +728,7 @@ private:
   bool draw_method_set_ = false;
   bool client_target_3_1_set_ = false;
   bool is_client_up_ = false;
-  uint64_t expected_present_time_ =
-      0; // Expected Present time for current frame
-  bool virtual_config_fps_switch_ = false;
+  uint64_t expected_present_time_ = 0;  // Expected Present time for current frame
   int idle_active_ms_ = 0;
   uint32_t frame_interval_ns_ = 0;  // FrameInterval for current frame
 };

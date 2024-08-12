@@ -3,8 +3,6 @@
 
 #include "UBWCPolicy.h"
 
-#include <log/log.h>
-
 #include <fstream>
 #include <iostream>
 
@@ -12,11 +10,14 @@
 #include "SnapTypes.h"
 #include "SnapUtils.h"
 
-#define DEBUG 0
-
 namespace snapalloc {
 UBWCPolicy *UBWCPolicy::instance_{nullptr};
 std::mutex UBWCPolicy::ubwc_policy_mutex_;
+
+UBWCPolicy::UBWCPolicy() {
+  constraint_parser_ = SnapConstraintParser::GetInstance();
+  graphics_provider_ = GraphicsConstraintProvider::GetInstance();
+}
 
 UBWCPolicy *UBWCPolicy::GetInstance(
     std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map) {
@@ -31,14 +32,14 @@ UBWCPolicy *UBWCPolicy::GetInstance(
 
 void UBWCPolicy::Init(
     std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map) {
-  SnapConstraintParser *parser = SnapConstraintParser::GetInstance();
   if (!format_data_map.empty()) {
     format_data_map_ = format_data_map;
   } else {
-    parser->ParseFormats(&format_data_map_);
+    constraint_parser_->ParseFormats(&format_data_map_);
   }
 #ifndef __ANDROID__
-  parser->ParseAlignments("/vendor/etc/display/ubwc_alignments.json", &constraint_set_map_);
+  constraint_parser_->ParseAlignments("/vendor/etc/display/ubwc_alignments.json",
+                                      &constraint_set_map_);
 #endif
 }
 
@@ -66,11 +67,10 @@ bool UBWCPolicy::IsUBWCAlloc(BufferDescriptor desc) {
 
   if (enable && (desc.usage & vendor_qti_hardware_display_common_BufferUsage::GPU_TEXTURE ||
                  desc.usage & vendor_qti_hardware_display_common_BufferUsage::GPU_RENDER_TARGET)) {
-    GraphicsConstraintProvider *graphics_provider = GraphicsConstraintProvider::GetInstance();
     vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
         static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
             GetPixelFormatModifier(desc));
-    enable = graphics_provider->IsUBWCSupportedByGPU(desc.format, pixel_format_modifier);
+    enable = graphics_provider_->IsUBWCSupportedByGPU(desc.format, pixel_format_modifier);
   }
 
   if (IsAstc(desc.format)) {
@@ -115,7 +115,7 @@ uint64_t UBWCPolicy::GetMetaPlaneSize(uint64_t width, uint64_t height, uint32_t 
   meta_height = ALIGN(((height + block_height - 1) / block_height), scanline_align);
   meta_width = ALIGN(((width + block_width - 1) / block_width), stride_align);
   if (OVERFLOW((uint64_t)meta_width, (uint64_t)meta_height)) {
-    ALOGW("%s: Size overflow! %d x %d", meta_width, meta_height);
+    DLOGW("%s: Size overflow! %d x %d", meta_width, meta_height);
     return 0;
   }
   size = static_cast<uint64_t>(ALIGN(((uint64_t)meta_width * (uint64_t)meta_height), size_align));
@@ -146,7 +146,7 @@ int UBWCPolicy::GetBatchSize(vendor_qti_hardware_display_common_PixelFormatModif
 int UBWCPolicy::OffTargetAlloc(BufferDescriptor desc, AllocData *out_ad,
                                vendor_qti_hardware_display_common_BufferLayout *out_layout) {
   if (format_data_map_.find(desc.format) == format_data_map_.end()) {
-    ALOGE("Could not find entry for format", static_cast<uint64_t>(desc.format));
+    DLOGE("Could not find entry for format", static_cast<uint64_t>(desc.format));
     return Error::UNSUPPORTED;
   }
 
@@ -154,25 +154,25 @@ int UBWCPolicy::OffTargetAlloc(BufferDescriptor desc, AllocData *out_ad,
   // TODO: Truncation possible - update for off-target tests
   uint32_t bpp = (format_data.bits_per_pixel) / 8;
   if (format_data.planes.size() > QTI_MAX_NUM_PLANES) {
-    ALOGE("Format data plane count %d exceeds max", format_data.planes.size());
+    DLOGE("Format data plane count %d exceeds max", format_data.planes.size());
     return Error::UNSUPPORTED;
   }
 
   BufferConstraints ubwc_constraints;
 
   if (constraint_set_map_.empty()) {
-    ALOGE("Constraint set map is empty");
+    DLOGE("Constraint set map is empty");
     return Error::NO_RESOURCES;
   }
   if (constraint_set_map_.find(desc.format) != constraint_set_map_.end()) {
     ubwc_constraints = constraint_set_map_.at(desc.format);
   } else {
-    ALOGE("%s: could not find entry for format %lu", __FUNCTION__,
+    DLOGE("%s: could not find entry for format %lu", __FUNCTION__,
           static_cast<uint64_t>(desc.format));
     return Error::UNSUPPORTED;
   }
   if (ubwc_constraints.planes.empty()) {
-    ALOGE("Alignment data is not present for the format %d", static_cast<uint64_t>(desc.format));
+    DLOGE("Alignment data is not present for the format %d", static_cast<uint64_t>(desc.format));
     return Error::UNSUPPORTED;
   }
 
@@ -250,20 +250,19 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
   if ((desc.usage & vendor_qti_hardware_display_common_BufferUsage::COMPOSER_CLIENT_TARGET) &&
       ((desc.usage & vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC_L_8_TO_5) ||
       (desc.usage & vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC_L_2_TO_1))) {
-    ALOGE("Lossy not supported for framebuffer target");
+    DLOGE("Lossy not supported for framebuffer target");
     return Error::UNSUPPORTED;
   }
 #endif
 
 #ifdef __ANDROID__
-  SnapConstraintParser *parser = SnapConstraintParser::GetInstance();
   if (format_data_map_.empty()) {
-    ALOGE("Error while reading the format data");
+    DLOGE("Error while reading the format data");
     return Error::UNSUPPORTED;
   }
 
   if (format_data_map_.find(desc.format) == format_data_map_.end()) {
-    ALOGE("%s: could not find entry for format %lu", __FUNCTION__,
+    DLOGE("%s: could not find entry for format %lu", __FUNCTION__,
           static_cast<uint64_t>(desc.format));
     return Error::UNSUPPORTED;
   }
@@ -272,7 +271,7 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
   // TODO: Truncation possible if not divisible by 8
   out_layout->bpp = format_data.bits_per_pixel / 8;
   if (format_data.planes.size() > QTI_MAX_NUM_PLANES) {
-    ALOGE("Format data plane count %d exceeds max", format_data.planes.size());
+    DLOGE("Format data plane count %d exceeds max", format_data.planes.size());
     return Error::BAD_VALUE;
   }
   // TODO: Remove hard-coding
@@ -384,7 +383,7 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
           ALIGN((out_layout->planes[data_plane_index].horizontal_stride_in_bytes *
                  out_layout->planes[data_plane_index].scanlines),
                 alignment);
-      ALOGD_IF(DEBUG, "Meta plane size %d, data plane size %d",
+      DLOGD_IF(enable_logs, "Meta plane size %d, data plane size %d",
                out_layout->planes[meta_plane_index].size_in_bytes,
                out_layout->planes[data_plane_index].size_in_bytes);
       out_layout->planes[meta_plane_index].offset_in_bytes = meta_offset;
@@ -405,26 +404,23 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
     }
 
     out_layout->aligned_width_in_bytes = out_layout->planes[0].horizontal_stride_in_bytes;
-    ALOGD_IF(
-        DEBUG,
-        "out_layout->aligned_width_in_bytes %d, out_layout->size_in_bytes %d",
-        out_layout->aligned_width_in_bytes, out_layout->size_in_bytes);
+    DLOGD_IF(enable_logs, "out_layout->aligned_width_in_bytes %d, out_layout->size_in_bytes %d",
+             out_layout->aligned_width_in_bytes, out_layout->size_in_bytes);
     out_layout->aligned_height = out_layout->planes[0].scanlines;
   } else {
     // TODO: meta plane handling (if needed)
-    ALOGD_IF(DEBUG, "using graphics to get UBWC allocation");
-    GraphicsConstraintProvider *graphics_provider = GraphicsConstraintProvider::GetInstance();
+    DLOGD_IF(enable_logs, "using graphics to get UBWC allocation");
     vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
         static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
             GetPixelFormatModifier(desc));
-    if (graphics_provider->IsUBWCSupportedByGPU(desc.format, pixel_format_modifier)) {
+    if (graphics_provider_->IsUBWCSupportedByGPU(desc.format, pixel_format_modifier)) {
       int size = 0;
-      if (graphics_provider != nullptr) {
+      if (graphics_provider_ != nullptr) {
         vendor_qti_hardware_display_common_GraphicsMetadata graphics_metadata;
 
-        int ret = graphics_provider->GetInitialMetadata(desc, &graphics_metadata, true);
+        int ret = graphics_provider_->GetInitialMetadata(desc, &graphics_metadata, true);
         if (!ret) {
-          size = graphics_provider->AdrenoGetAlignedGpuBufferSize(graphics_metadata.data);
+          size = graphics_provider_->AdrenoGetAlignedGpuBufferSize(graphics_metadata.data);
           if (size > 0)
             out_ad->size = size;
         }
@@ -433,9 +429,9 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
       // Plane layout
       BufferConstraints data;
       int status = 0;
-      status = graphics_provider->BuildConstraints(desc, &data);
+      status = graphics_provider_->BuildConstraints(desc, &data);
       if (status != 0) {
-        ALOGE("Error while getting constraints from graphics libs");
+        DLOGE("Error while getting constraints from graphics libs");
         return Error::NO_RESOURCES;
       }
       out_layout->plane_count = format_data.planes.size();
@@ -453,7 +449,7 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
         // TODO: need to get size directly from graphics here, or do stride * scanlines
         plane_data->size_in_bytes = size;
         plane_data->component_count = format_data.planes[plane_index].components.size();
-        ALOGD_IF(DEBUG, "size %d", plane_data->size_in_bytes);
+        DLOGD_IF(enable_logs, "size %d", plane_data->size_in_bytes);
         for (int j = 0; j < plane.components.size(); j++) {
           auto component = plane.components[j];
           plane_data->components[j].type = component.type;
@@ -464,11 +460,10 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
       out_layout->aligned_width_in_bytes = out_layout->planes[0].horizontal_stride_in_bytes;
       out_layout->aligned_height = out_layout->planes[0].scanlines;
       out_layout->size_in_bytes = size;
-      ALOGD_IF(DEBUG, "aligned_width_in_bytes %d aligned_height %d, size %d",
-               out_layout->aligned_width_in_bytes, out_layout->aligned_height,
-               size);
+      DLOGD_IF(enable_logs, "aligned_width_in_bytes %d aligned_height %d, size %d",
+               out_layout->aligned_width_in_bytes, out_layout->aligned_height, size);
     } else {
-      ALOGE("%s Format 0x%x is not supported by GPU for UBWC policy", __FUNCTION__,
+      DLOGE("%s Format 0x%x is not supported by GPU for UBWC policy", __FUNCTION__,
             static_cast<int>(desc.format));
       return Error::UNSUPPORTED;
     }
@@ -479,7 +474,7 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
   // Off-target testing
   int status = OffTargetAlloc(desc, out_ad, out_layout);
   if (status) {
-    ALOGE("Failed to allocate using off-target alignments");
+    DLOGE("Failed to allocate using off-target alignments");
     return Error::BAD_VALUE;
   }
   return Error::NONE;

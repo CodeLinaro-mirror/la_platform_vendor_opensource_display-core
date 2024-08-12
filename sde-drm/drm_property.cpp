@@ -225,6 +225,7 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "SDE_DEMURA_CFG0_PARAM2") {
     return DRMProperty::DEMURA_CFG0_PARAM2;
   }
+  if (name == "SDE_DEMURA_BACKLIGHT_V1") { return DRMProperty::DEMURA_BACKLIGHT_V1; }
   if (name == "DEMURA_PANEL_ID") { return DRMProperty::DEMURA_PANEL_ID; }
   if (name == "SDE_DEMURA_BOOT_PLANE_V1") { return DRMProperty::DEMURA_BOOT_PLANE_V1; }
   if (name == "SDE_DSPP_AIQE_ABC_V1") { return DRMProperty::AIQE_ABC_V1; }

@@ -20,6 +20,7 @@ namespace sdm {
 struct SDMLayerStack {
   std::map<LayerId, SDMLayer *> layer_map_;
   std::multiset<SDMLayer *, SortLayersByZ> layer_set_;
+  uint32_t geometry_changes_ = GeometryChanges::kNone;
 };
 
 class SDMLayerBuilder : public SDMDisplayLayerBuilderIntf {
@@ -101,7 +102,6 @@ private:
 
   int disable_sdr_histogram_ = 0; // disables handling of SDR histogram data.
   int32_t disable_mask_layer_hint_ = 0;
-  uint32_t geometry_changes_ = GeometryChanges::kNone;
 
   static SDMLayerBuilder *layer_builder_;
   static uint32_t ref_count_;

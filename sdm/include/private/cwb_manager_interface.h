@@ -32,6 +32,13 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+* Changes from Qualcomm Innovation Center are provided under the following license:
+*
+* Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
+*/
+
 #ifndef __CWB_MANAGER_INTERFACE_H__
 #define __CWB_MANAGER_INTERFACE_H__
 
@@ -62,6 +69,7 @@ class CwbManagerInterface {
                           const LayerBuffer &output_buffer, const CwbConfig &config,
                           CwbCallback *cwb_callback) = 0;
   virtual void TeardownCwb(uint32_t display_id) {}
+  virtual bool HasPendingCwbRequest(uint32_t display_id) { return false; }
   virtual ~CwbManagerInterface() {}
 };
 

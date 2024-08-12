@@ -23,9 +23,7 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following
- * license:
- *
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
@@ -332,6 +330,7 @@ enum SupportedDisplayFeature {
   kCwbDemuraTapPoint,
   kCwbCrop,
   kDedicatedCwb,
+  kCacV2,
 };
 
 /*! @brief This struct stores the state of Qsync
@@ -366,6 +365,11 @@ enum PanelFeatureVendorServiceType {
   kTypeDemuraTnCWBSamplingPeriod = 0,
   /* Setter: int */
   kTypeDemuraTnEventsCtrl = 1,
+  kTypeDemuraTnUserCtrl = 2,
+  kTypeDeleteDemuraConfig = 3,
+  kTypeDeleteDemuraTnConfig = 4,
+  /* Setter: None */
+  kTypeTriggerDemuraOemPlugIn = 5,
   PanelFeatureVendorServiceTypeMax,
 };
 
@@ -1463,6 +1467,22 @@ class DisplayInterface {
    @return \link DisplayError \endlink
   */
   virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data) = 0;
+
+  /*! @brief Method to enable/disable COPR feature.
+
+   @param[in] en: enable or disable COPR feature
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError EnableCopr(bool en) = 0;
+
+  /*! @brief Method to get COPR statistics.
+
+   @param[out] vector of COPR statistics
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError GetCoprStats(std::vector<int> *stats) = 0;
 
  protected:
   virtual ~DisplayInterface() { }

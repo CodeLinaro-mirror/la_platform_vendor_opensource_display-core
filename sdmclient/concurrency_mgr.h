@@ -531,7 +531,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
 
   DisplayError SetSsrcMode(uint64_t display_id, const std::string &mode_name);
   DisplayError EnableCopr(uint64_t display_id, bool enable);
-  DisplayError GetCoprStatus(uint64_t display_id, std::vector<int32_t> *copr_status);
+  DisplayError GetCoprStats(uint64_t display_id, std::vector<int32_t> *copr_stats);
   DisplayError SetABCState(uint64_t display_id, bool state);
   DisplayError SetABCReconfig(uint64_t display_id);
   DisplayError SetABCMode(uint64_t display_id, string mode_name);
@@ -597,7 +597,12 @@ private:
 
   // QClient methods
   DisplayError GetDisplayPortId(uint32_t disp_id, int *port_id);
-
+  DisplayError IsCacV2Supported(uint32_t disp_id, bool *supported) {
+    return CallDisplayFunction(disp_id, &SDMDisplay::IsCacV2Supported, supported);
+  }
+  DisplayError PerformCacConfig(uint64_t disp_id, CacConfig cac_config, bool enable) {
+    return CallDisplayFunction(disp_id, &SDMDisplay::PerformCacConfig, cac_config, enable);
+  }
   // Internal methods
   void HandleSecureSession();
   void HandlePendingPowerMode(Display display,

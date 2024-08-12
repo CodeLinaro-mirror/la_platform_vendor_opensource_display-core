@@ -27,9 +27,7 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
@@ -1453,10 +1451,6 @@ SDMDisplayBuiltIn::PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence) {
   HandleFrameOutput();
   PostCommitStitchLayers();
 
-  if (flush_ && layer_stack_.output_buffer == nullptr) {
-    display_intf_->FlushConcurrentWriteback();
-  }
-
   auto status = SDMDisplay::PostCommitLayerStack(out_retire_fence);
   /*  display_intf_->GetConfig(&fixed_info);
     is_cmd_mode_ = fixed_info.is_cmdmode;
@@ -1624,6 +1618,14 @@ DisplayError SDMDisplayBuiltIn::RetrieveDemuraTnFiles() {
   return kErrorNone;
 }
 
+DisplayError SDMDisplayBuiltIn::IsCacV2Supported(bool *supported) {
+  uint32_t cac_supported = 0;
+  auto error = display_intf_->IsSupportedOnDisplay(kCacV2, &cac_supported);
+  *supported = cac_supported ? true : false;
+
+  return error;
+}
+
 DisplayError SDMDisplayBuiltIn::PerformCacConfig(CacConfig config, bool enable) {
   DLOGV("Display ID: %" PRId64 " cac_enable: %d", id_, enable);
   DisplayError error = display_intf_->PerformCacConfig(config, enable);
@@ -1758,7 +1760,17 @@ void SDMDisplayBuiltIn::ReqPerfHintRelease() {
 }
 
 DisplayError SDMDisplayBuiltIn::SetSsrcMode(const std::string &mode) {
-  return display_intf_->SetSsrcMode(mode);
+  DLOGV("Display ID: %" PRId64 " mode: %s", id_, mode.c_str());
+  DisplayError error = display_intf_->SetSsrcMode(mode);
+
+  if (error != kErrorNone) {
+    DLOGE("Failed. mode = %s, error = %d", mode.c_str(), error);
+    return kErrorParameters;
+  }
+
+  callbacks_->OnRefresh(id_);
+
+  return error;
 }
 
 DisplayError SDMDisplayBuiltIn::SetupVRRConfig() {
@@ -1784,6 +1796,14 @@ int SDMDisplayBuiltIn::GetNotifyEptConfig() {
 
 DisplayError SDMDisplayBuiltIn::SetPanelFeatureConfig(int32_t type, void *data) {
   return display_intf_->SetPanelFeatureConfig(type, data);
+}
+
+DisplayError SDMDisplayBuiltIn::EnableCopr(bool en) {
+  return display_intf_->EnableCopr(en);
+}
+
+DisplayError SDMDisplayBuiltIn::GetCoprStats(std::vector<int> *stats) {
+  return display_intf_->GetCoprStats(stats);
 }
 
 } // namespace sdm

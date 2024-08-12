@@ -221,6 +221,7 @@ enum struct DRMProperty {
   DEMURA_PANEL_ID,
   DEMURA_BOOT_PLANE_V1,
   DEMURA_CFG0_PARAM2,
+  DEMURA_BACKLIGHT_V1,
   DYN_BIT_CLK,
   SDE_PP_CWB_DITHER_V2,
   NOISE_LAYER_V1,
@@ -272,15 +273,23 @@ struct DRMPropertyManager {
   DRMProperty GetPropertyEnum(const std::string &name) const;
 
   void SetPropertyId(DRMProperty prop_enum, uint32_t prop_id) {
-    properties_[(uint32_t)prop_enum] = prop_id;
+    if ((uint32_t)prop_enum < (uint32_t)DRMProperty::MAX) {
+      properties_[(uint32_t)prop_enum] = prop_id;
+    }
   }
 
   uint32_t GetPropertyId(DRMProperty prop_enum) const {
-    return properties_[(uint32_t)prop_enum];
+    if ((uint32_t)prop_enum < (uint32_t)DRMProperty::MAX) {
+      return properties_[(uint32_t)prop_enum];
+    }
+    return 0;
   }
 
   bool IsPropertyAvailable(DRMProperty prop_enum) const {
-    return !!properties_[(uint32_t)prop_enum];
+    if ((uint32_t)prop_enum < (uint32_t)DRMProperty::MAX) {
+      return !!properties_[(uint32_t)prop_enum];
+    }
+    return 0;
   }
 
  private:

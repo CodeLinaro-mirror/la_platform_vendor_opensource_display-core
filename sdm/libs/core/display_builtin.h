@@ -24,7 +24,6 @@
 
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- *
  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
@@ -117,20 +116,32 @@ class DppsInfo {
 
 class EventProxyInfo {
 public:
-  DisplayError Init(const std::string &panel_name, DisplayInterface *intf,
-                    DynLib &extension_lib);
-  DisplayError Deinit();
-  DisplayError PanelOprInfo(const std::string &client_name, bool enable,
-                            SdmDisplayCbInterface<PanelOprPayload> *cb_intf);
-  DisplayError SetPaHistCollection(const std::string &client_name, bool enable,
-                                   SdmDisplayCbInterface<PaHistCollectionPayload> *cb_intf);
-  DisplayError GetPaHistBins(std::array<uint32_t, HIST_BIN_SIZE> *buf);
-  DisplayError PanelBacklightInfo(const std::string &client_name, bool enable,
-                                  SdmDisplayCbInterface<PanelBacklightPayload> *cb_intf);
+ DisplayError Init(const std::string &panel_name, DisplayInterface *intf, DynLib &extension_lib,
+                   PanelFeaturePropertyIntf *prop_intf);
+ DisplayError Deinit();
+ DisplayError PanelOprInfo(const std::string &client_name, bool enable,
+                           SdmDisplayCbInterface<PanelOprPayload> *cb_intf);
+ DisplayError EnableCopr(const std::string &client_name, bool enable,
+                         SdmDisplayCbInterface<CoprEventPayload> *cb_intf);
+ DisplayError SetPaHistCollection(const std::string &client_name, bool enable,
+                                  SdmDisplayCbInterface<PaHistCollectionPayload> *cb_intf);
+ DisplayError GetPaHistBins(std::array<uint32_t, HIST_BIN_SIZE> *buf);
+ DisplayError PanelBacklightInfo(const std::string &client_name, bool enable,
+                                 SdmDisplayCbInterface<PanelBacklightPayload> *cb_intf);
+
+private:
+ std::mutex lock_;
+ std::shared_ptr<DisplayEventProxyIntf> event_proxy_intf_ = nullptr;
+};
+
+class CoprInfo : public SdmDisplayCbInterface<CoprEventPayload> {
+ public:
+  DisplayError GetStats(std::vector<int32_t> *stats);
+  int Notify(const CoprEventPayload &);
 
  private:
   std::mutex lock_;
-  std::shared_ptr<DisplayEventProxyIntf> event_proxy_intf_ = nullptr;
+  std::vector<int32_t> copr_stats_;
 };
 
 class DisplayIPCVmCallbackImpl : public IPCVmCallbackIntf {
@@ -227,6 +238,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   DisplayError SetDemuraState(int state) override;
   DisplayError SetDemuraConfig(int demura_idx) override;
   DisplayError PerformCacConfig(CacConfig config, bool enable) override;
+  bool IsCacV2Supported() override;
   DisplayError
   PanelOprInfo(const std::string &client_name, bool enable,
                SdmDisplayCbInterface<PanelOprPayload> *cb_intf) override;
@@ -245,6 +257,8 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   DisplayError StartTvmServices();
   DisplayError StartService(TvmDispServiceManagerParams service);
   DisplayError ExportDemuraFiles();
+  DisplayError EnableCopr(bool en) override;
+  DisplayError GetCoprStats(std::vector<int> *stats) override;
 
   // Implement the HWEventHandlers
   DisplayError VSync(int64_t timestamp) override;
@@ -316,6 +330,11 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   DisplayError SetAVRStepState(bool enable);
   DisplayError SetDemuraTnCWBSamplingPeriod(void *data);
   DisplayError SetDemuraTnEventsCtrl(void *data);
+  DisplayError SetDemuraTnUserCtrl(void *data);
+  DisplayError CleanupDemuraConfig(void *data, DemuraTnCleanupType type);
+  bool GetDemuraTnUserCtrl();
+  int UpdateDemuraTnUserCtrl(bool user_ctrl);
+  DisplayError TriggerDemuraOemPlugIn(void *data);
 
   const uint32_t kPuTimeOutMs = 1000;
   std::vector<HWEvent> event_list_;
@@ -364,6 +383,9 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   bool demura_intended_ = false;
   bool demura_dynamic_enabled_ = true;
   int demura_current_idx_ = -1;
+  const std::string kDemuraTnUserCtrlFile = "/mnt/vendor/persist/display/demuratn_user_ctrl";
+  std::shared_ptr<DemuraTnCleanupIntf> demuratn_cleanup_intf_;
+  bool demuratn_permanent_disabled_ = false;
   bool abc_enabled_ = false;
   bool abc_prop_ = false;
   bool enable_dpps_dyn_fps_ = false;
@@ -382,6 +404,8 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   BufferInfo output_buffer_info_ = {};
   EventProxyInfo event_proxy_info_ = {};
   bool enable_brightness_drm_prop_ = false;
+  CoprInfo copr_info_ = {};
+  bool copr_enabled_ = false;
 
   DynLib ssrc_lib_;
   std::shared_ptr<aiqe::SsrcFeatureInterface> ssrc_feature_interface_;

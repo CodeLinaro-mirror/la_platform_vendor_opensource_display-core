@@ -8,10 +8,7 @@
 #include "Rect.h"
 #include "SnapUtils.h"
 
-#include <log/log.h>
 #include <unordered_map>
-
-#define DEBUG 0
 
 namespace snapalloc {
 
@@ -23,6 +20,7 @@ SnapMetadataManager::~SnapMetadataManager() {}
 SnapMetadataManager::SnapMetadataManager() {
   constraint_mgr_ = SnapConstraintManager::GetInstance();
   mem_allocator_ = SnapMemAllocator::GetInstance();
+  ubwc_policy_ = UBWCPolicy::GetInstance();
 }
 
 SnapMetadataManager *SnapMetadataManager::GetInstance() {
@@ -37,7 +35,7 @@ SnapMetadataManager *SnapMetadataManager::GetInstance() {
 Error SnapMetadataManager::BufferIDHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
                                           void *in_set, void *out_get, BufferDescriptor *buf_des) {
   if (out_get != nullptr) {
-    *static_cast<uint64_t *>(out_get) = handle->id;
+    *static_cast<uint64_t *>(out_get) = handle->id();
     return Error::NONE;
   } else if (in_set != nullptr) {
     return Error::BAD_VALUE;
@@ -67,7 +65,7 @@ Error SnapMetadataManager::WidthHelper(SnapMetadata *metadata, SnapHandleInterna
     *static_cast<uint64_t *>(out_get) = static_cast<uint64_t>(buf_des->width);
     return Error::NONE;
   } else if (out_get != nullptr) {
-    *static_cast<int *>(out_get) = handle->unaligned_width;
+    *static_cast<int *>(out_get) = handle->unaligned_width();
     return Error::NONE;
   } else if (in_set != nullptr) {
     return Error::BAD_VALUE;
@@ -81,7 +79,7 @@ Error SnapMetadataManager::HeightHelper(SnapMetadata *metadata, SnapHandleIntern
     *static_cast<uint64_t *>(out_get) = static_cast<uint64_t>(buf_des->height);
     return Error::NONE;
   } else if (out_get != nullptr) {
-    *static_cast<int *>(out_get) = handle->unaligned_height;
+    *static_cast<int *>(out_get) = handle->unaligned_height();
     return Error::NONE;
   } else if (in_set != nullptr) {
     return Error::BAD_VALUE;
@@ -96,7 +94,7 @@ Error SnapMetadataManager::LayerCountHelper(SnapMetadata *metadata, SnapHandleIn
     *static_cast<uint64_t *>(out_get) = static_cast<uint64_t>(buf_des->layerCount);
     return Error::NONE;
   } else if (out_get != nullptr) {
-    *static_cast<unsigned int *>(out_get) = handle->layer_count;
+    *static_cast<unsigned int *>(out_get) = handle->layer_count();
     return Error::NONE;
   } else if (in_set != nullptr) {
     return Error::BAD_VALUE;
@@ -128,7 +126,7 @@ Error SnapMetadataManager::PixelFormatAllocatedHelper(SnapMetadata *metadata,
         static_cast<vendor_qti_hardware_display_common_PixelFormat>(buf_des->format);
     return Error::NONE;
   } else if (out_get != nullptr) {
-    *static_cast<vendor_qti_hardware_display_common_PixelFormat *>(out_get) = handle->format;
+    *static_cast<vendor_qti_hardware_display_common_PixelFormat *>(out_get) = handle->format();
     return Error::NONE;
   } else if (in_set != nullptr) {
     return Error::BAD_VALUE;
@@ -143,8 +141,7 @@ Error SnapMetadataManager::PixelFormatFourCCHelper(SnapMetadata *metadata,
   if (buf_des != nullptr) {
     uint32_t drm_format = 0;
     uint64_t drm_format_modifier = 0;
-    UBWCPolicy *ubwc_policy = UBWCPolicy::GetInstance();
-    bool ubwc_enable = ubwc_policy->IsUBWCAlloc(*buf_des);
+    bool ubwc_enable = ubwc_policy_->IsUBWCAlloc(*buf_des);
     if (ubwc_enable) {
       GetDRMFormat(buf_des->format, buf_des->usage, PRIV_FLAGS_UBWC_ALIGNED, &drm_format,
                    &drm_format_modifier);
@@ -156,8 +153,8 @@ Error SnapMetadataManager::PixelFormatFourCCHelper(SnapMetadata *metadata,
   } else if (out_get != nullptr) {
     uint32_t drm_format = 0;
     uint64_t drm_format_modifier = 0;
-    SnapMetadataManager::GetDRMFormat(handle->format, handle->usage, handle->flags, &drm_format,
-                                      &drm_format_modifier);
+    SnapMetadataManager::GetDRMFormat(handle->format(), handle->usage(), handle->flags(),
+                                      &drm_format, &drm_format_modifier);
     *static_cast<uint32_t *>(out_get) = drm_format;
     return Error::NONE;
   } else if (in_set != nullptr) {
@@ -173,8 +170,7 @@ Error SnapMetadataManager::DRMPixelFormatModifierHelper(SnapMetadata *metadata,
   if (buf_des != nullptr) {
     uint32_t drm_format = 0;
     uint64_t drm_format_modifier = 0;
-    UBWCPolicy *ubwc_policy = UBWCPolicy::GetInstance();
-    bool ubwc_enable = ubwc_policy->IsUBWCAlloc(*buf_des);
+    bool ubwc_enable = ubwc_policy_->IsUBWCAlloc(*buf_des);
     if (ubwc_enable) {
       GetDRMFormat(buf_des->format, buf_des->usage, PRIV_FLAGS_UBWC_ALIGNED, &drm_format,
                    &drm_format_modifier);
@@ -186,8 +182,8 @@ Error SnapMetadataManager::DRMPixelFormatModifierHelper(SnapMetadata *metadata,
   } else if (out_get != nullptr) {
     uint32_t drm_format = 0;
     uint64_t drm_format_modifier = 0;
-    SnapMetadataManager::GetDRMFormat(handle->format, handle->usage, handle->flags, &drm_format,
-                                      &drm_format_modifier);
+    SnapMetadataManager::GetDRMFormat(handle->format(), handle->usage(), handle->flags(),
+                                      &drm_format, &drm_format_modifier);
     *static_cast<uint64_t *>(out_get) = drm_format_modifier;
     return Error::NONE;
   } else if (in_set != nullptr) {
@@ -202,7 +198,7 @@ Error SnapMetadataManager::UsageHelper(SnapMetadata *metadata, SnapHandleInterna
     *static_cast<uint64_t *>(out_get) = static_cast<uint64_t>(buf_des->usage);
     return Error::NONE;
   } else if (out_get != nullptr) {
-    *static_cast<vendor_qti_hardware_display_common_BufferUsage *>(out_get) = handle->usage;
+    *static_cast<vendor_qti_hardware_display_common_BufferUsage *>(out_get) = handle->usage();
     return Error::NONE;
   } else if (in_set != nullptr) {
     return Error::BAD_VALUE;
@@ -221,13 +217,39 @@ Error SnapMetadataManager::AllocationSizeHelper(SnapMetadata *metadata, SnapHand
     auto err =
         constraint_mgr_->GetAllocationData(*buf_des, &ad, &layout, &out_desc, &out_priv_flags);
     if (err != Error::NONE) {
-      ALOGE("Invalid allocation - unable to get allocation size");
+      DLOGE("Invalid allocation - unable to get allocation size");
       return err;
     }
     *static_cast<uint32_t *>(out_get) = static_cast<uint32_t>(ad.size);
     return Error::NONE;
   } else if (out_get != nullptr) {
-    *static_cast<uint32_t *>(out_get) = static_cast<uint32_t>(handle->size);
+    *static_cast<uint32_t *>(out_get) = static_cast<uint32_t>(handle->size());
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    return Error::UNSUPPORTED;
+  }
+  return Error::BAD_VALUE;
+}
+
+Error SnapMetadataManager::BaseViewHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                                          void *in_set, void *out_get, BufferDescriptor *buf_des) {
+  if (buf_des != nullptr) {
+    return Error::UNSUPPORTED;
+  } else if (out_get != nullptr) {
+    *static_cast<uint32_t *>(out_get) = static_cast<uint32_t>(handle->view());
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    return Error::UNSUPPORTED;
+  }
+  return Error::BAD_VALUE;
+}
+
+Error SnapMetadataManager::MultiViewHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                                           void *in_set, void *out_get, BufferDescriptor *buf_des) {
+  if (buf_des != nullptr) {
+    return Error::UNSUPPORTED;
+  } else if (out_get != nullptr) {
+    *static_cast<uint32_t *>(out_get) = static_cast<uint32_t>(handle->getViewInfo());
     return Error::NONE;
   } else if (in_set != nullptr) {
     return Error::UNSUPPORTED;
@@ -245,7 +267,7 @@ Error SnapMetadataManager::ProtectedContentHelper(SnapMetadata *metadata,
     return Error::NONE;
   } else if (out_get != nullptr) {
     uint64_t protected_content =
-        handle->usage & vendor_qti_hardware_display_common_BufferUsage::PROTECTED ? 1 : 0;
+        handle->usage() & vendor_qti_hardware_display_common_BufferUsage::PROTECTED ? 1 : 0;
     *static_cast<uint64_t *>(out_get) = protected_content;
     return Error::NONE;
   } else if (in_set != nullptr) {
@@ -259,27 +281,26 @@ Error SnapMetadataManager::CompressionHelper(SnapMetadata *metadata, SnapHandleI
                                              BufferDescriptor *buf_des) {
   // TODO - can't be returned as pointer
   if (buf_des != nullptr) {
-    UBWCPolicy *ubwc_policy = UBWCPolicy::GetInstance();
-    bool ubwc_enable = ubwc_policy->IsUBWCAlloc(*buf_des);
+    bool ubwc_enable = ubwc_policy_->IsUBWCAlloc(*buf_des);
     int64_t qti_compression = vendor_qti_hardware_display_common_Compression::COMPRESSION_NONE;
     if (ubwc_enable) {
-      qti_compression = ubwc_policy->GetUBWCScheme(buf_des->format, buf_des->usage);
+      qti_compression = ubwc_policy_->GetUBWCScheme(buf_des->format, buf_des->usage);
     }
     *static_cast<int64_t *>(out_get) = qti_compression;
     return Error::NONE;
   } else if (out_get != nullptr) {
     BufferDescriptor out_desc;
-    BufferDescriptor desc = {.format = handle->format,
-                             .usage = handle->usage,
-                             .width = handle->aligned_width_in_pixels,
-                             .height = handle->aligned_height,
-                             .layerCount = static_cast<int32_t>(handle->layer_count),
-                             .reservedSize = handle->reserved_size};
+    BufferDescriptor desc = {.format = handle->format(),
+                             .usage = handle->usage(),
+                             .width = handle->aligned_width_in_pixels(),
+                             .height = handle->aligned_height(),
+                             .layerCount = static_cast<int32_t>(handle->layer_count()),
+                             .reservedSize = handle->reserved_size()};
     UBWCPolicy *ubwc_policy = UBWCPolicy::GetInstance();
     bool ubwc_enable = ubwc_policy->IsUBWCAlloc(desc);
     int64_t qti_compression = vendor_qti_hardware_display_common_Compression::COMPRESSION_NONE;
     if (ubwc_enable) {
-      qti_compression = ubwc_policy->GetUBWCScheme(handle->format, handle->usage);
+      qti_compression = ubwc_policy->GetUBWCScheme(handle->format(), handle->usage());
     }
     *static_cast<int64_t *>(out_get) = qti_compression;
     return Error::NONE;
@@ -330,10 +351,10 @@ Error SnapMetadataManager::PlaneLayoutsHelper(SnapMetadata *metadata, SnapHandle
     auto err =
         constraint_mgr_->GetAllocationData(*buf_des, &ad, &layout, &out_desc, &out_priv_flags);
     if (err != Error::NONE) {
-      ALOGE("Invalid allocation - unable to create plane layout");
+      DLOGE("Invalid allocation - unable to create plane layout");
       return err;
     }
-    ALOGD_IF(DEBUG,
+    DLOGD_IF(enable_logs,
              "get plane layout from buffer descriptor - out_desc.format %d - "
              "size %d",
              out_desc.format, layout.size_in_bytes);
@@ -344,13 +365,12 @@ Error SnapMetadataManager::PlaneLayoutsHelper(SnapMetadata *metadata, SnapHandle
       // Recalculate plane layouts for interlaced
       AllocData ad;
       vendor_qti_hardware_display_common_BufferLayout layout;
-      BufferDescriptor desc = {.format = handle->format,
-                               .usage = handle->usage,
-                               .width = handle->unaligned_width,
-                               .height = handle->unaligned_height,
-                               .layerCount =
-                                   static_cast<int32_t>(handle->layer_count),
-                               .reservedSize = handle->reserved_size};
+      BufferDescriptor desc = {.format = handle->format(),
+                               .usage = handle->usage(),
+                               .width = handle->unaligned_width(),
+                               .height = handle->unaligned_height(),
+                               .layerCount = static_cast<int32_t>(handle->layer_count()),
+                               .reservedSize = handle->reserved_size()};
       static vendor_qti_hardware_display_common_KeyValuePair modifier = {
           .key = "interlaced", .value = static_cast<uint64_t>(1)};
       desc.additionalOptions.emplace_back(modifier);
@@ -360,7 +380,7 @@ Error SnapMetadataManager::PlaneLayoutsHelper(SnapMetadata *metadata, SnapHandle
                                                     &out_desc, &out_priv_flags);
 
       if (err != Error::NONE) {
-        ALOGE("Invalid allocation - unable to create plane layout");
+        DLOGE("Invalid allocation - unable to create plane layout");
         return err;
       }
 
@@ -594,7 +614,7 @@ Error SnapMetadataManager::VideoHistogramStatsHelper(SnapMetadata *metadata,
 Error SnapMetadataManager::FDHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
                                     void *in_set, void *out_get, BufferDescriptor *buf_des) {
   if (out_get != nullptr) {
-    *static_cast<int32_t *>(out_get) = handle->fd;
+    *static_cast<int32_t *>(out_get) = handle->fd();
     return Error::NONE;
   } else if (in_set != nullptr) {
     return Error::UNSUPPORTED;
@@ -613,14 +633,16 @@ Error SnapMetadataManager::AlignedWidthInPixelsHelper(SnapMetadata *metadata,
     auto err =
         constraint_mgr_->GetAllocationData(*buf_des, &ad, &layout, &out_desc, &out_priv_flags);
     if (err != Error::NONE) {
-      ALOGE("Invalid allocation - unable to get allocation size");
+      DLOGE("Invalid allocation - unable to get allocation size");
       return err;
     }
-    uint64_t width = layout.aligned_width_in_bytes / layout.bpp;
+    int width = 0;
+    constraint_mgr_->ConvertAlignedWidthFromBytesToPixels(buf_des->format,
+                                                          layout.aligned_width_in_bytes, &width);
     *static_cast<uint32_t *>(out_get) = width;
     return Error::NONE;
   } else if (out_get != nullptr) {
-    *static_cast<uint32_t *>(out_get) = handle->aligned_width_in_pixels;
+    *static_cast<uint32_t *>(out_get) = handle->aligned_width_in_pixels();
     return Error::NONE;
   } else if (in_set != nullptr) {
     return Error::UNSUPPORTED;
@@ -639,13 +661,13 @@ Error SnapMetadataManager::AlignedHeightInPixelsHelper(SnapMetadata *metadata,
     auto err =
         constraint_mgr_->GetAllocationData(*buf_des, &ad, &layout, &out_desc, &out_priv_flags);
     if (err != Error::NONE) {
-      ALOGE("Invalid allocation - unable to get allocation size");
+      DLOGE("Invalid allocation - unable to get allocation size");
       return err;
     }
     *static_cast<uint32_t *>(out_get) = layout.aligned_height;
     return Error::NONE;
   } else if (out_get != nullptr) {
-    *static_cast<uint32_t *>(out_get) = handle->aligned_height;
+    *static_cast<uint32_t *>(out_get) = handle->aligned_height();
     return Error::NONE;
   } else if (in_set != nullptr) {
     return Error::UNSUPPORTED;
@@ -677,7 +699,7 @@ Error SnapMetadataManager::BufferTypeHelper(SnapMetadata *metadata, SnapHandleIn
                                             void *in_set, void *out_get,
                                             BufferDescriptor *buf_des) {
   if (out_get != nullptr) {
-    *static_cast<uint32_t *>(out_get) = handle->buffer_type;
+    *static_cast<uint32_t *>(out_get) = handle->buffer_type();
     return Error::NONE;
   }
   return Error::BAD_VALUE;
@@ -722,8 +744,8 @@ Error SnapMetadataManager::CustomDimensionsHeightHelper(SnapMetadata *metadata,
                                                         void *out_get, BufferDescriptor *buf_des) {
   // TODO - can't be returned as pointer
   if (out_get != nullptr) {
-    int32_t stride = handle->aligned_width_in_pixels;
-    int32_t height = handle->aligned_height;
+    int32_t stride = handle->aligned_width_in_pixels();
+    int32_t height = handle->aligned_height();
     if (SnapMetadataManager::GetCustomDimensions(handle, metadata, &stride, &height) == 0) {
       *static_cast<int32_t *>(out_get) = static_cast<int32_t>(height);
       return Error::NONE;
@@ -774,7 +796,7 @@ Error SnapMetadataManager::BufferPermissionHelper(SnapMetadata *metadata,
       metadata->bufferPerm[i] = buf_perm[i];
     }
     if (mem_allocator_ != nullptr) {
-      return mem_allocator_->SetBufferPermission(handle->fd, &metadata->bufferPerm[0],
+      return mem_allocator_->SetBufferPermission(handle->fd(), &metadata->bufferPerm[0],
                                                  &metadata->memHandle);
     }
   }
@@ -809,25 +831,25 @@ Error SnapMetadataManager::CustomContentMetadataHelper(SnapMetadata *metadata,
                                                        SnapHandleInternal *handle, void *in_set,
                                                        void *out_get, BufferDescriptor *buf_des) {
   if (out_get != nullptr) {
-    if (handle->custom_content_md_region_base == 0 ||
-        handle->custom_content_md_reserved_size !=
+    if (handle->custom_content_md_region_base() == 0 ||
+        handle->custom_content_md_reserved_size() !=
             sizeof(vendor_qti_hardware_display_common_CustomContentMetadata)) {
       return Error::UNSUPPORTED;
     } else {
       void *custom_content_metadata_ptr =
-          reinterpret_cast<void *>(handle->custom_content_md_region_base);
+          reinterpret_cast<void *>(handle->custom_content_md_region_base());
       memcpy(out_get, custom_content_metadata_ptr,
              sizeof(vendor_qti_hardware_display_common_CustomContentMetadata));
     }
     return Error::NONE;
   } else if (in_set != nullptr) {
-    if (handle->custom_content_md_region_base == 0 ||
-        handle->custom_content_md_reserved_size !=
+    if (handle->custom_content_md_region_base() == 0 ||
+        handle->custom_content_md_reserved_size() !=
             sizeof(vendor_qti_hardware_display_common_CustomContentMetadata)) {
       return Error::UNSUPPORTED;
     } else {
       void *custom_content_metadata_ptr =
-          reinterpret_cast<void *>(handle->custom_content_md_region_base);
+          reinterpret_cast<void *>(handle->custom_content_md_region_base());
       vendor_qti_hardware_display_common_CustomContentMetadata *c_md_out =
           reinterpret_cast<vendor_qti_hardware_display_common_CustomContentMetadata *>(
               custom_content_metadata_ptr);
@@ -873,8 +895,8 @@ Error SnapMetadataManager::ReservedRegionHelper(SnapMetadata *metadata, SnapHand
                                                 BufferDescriptor *buf_des) {
   if (out_get != nullptr) {
     vendor_qti_hardware_display_common_ReservedRegion snap_reserved_region;
-    snap_reserved_region.size = handle->reserved_size;
-    snap_reserved_region.reserved_region_addr.addressPointer = handle->reserved_region_base;
+    snap_reserved_region.size = handle->reserved_size();
+    snap_reserved_region.reserved_region_addr.addressPointer = handle->reserved_region_base();
     *static_cast<vendor_qti_hardware_display_common_ReservedRegion *>(out_get) =
         snap_reserved_region;
     return Error::NONE;
@@ -891,7 +913,7 @@ Error SnapMetadataManager::FormatModifierHelper(SnapMetadata *metadata, SnapHand
     *static_cast<uint64_t *>(out_get) = static_cast<uint64_t>(GetPixelFormatModifier(*buf_des));
     return Error::NONE;
   } else if (out_get != nullptr) {
-    *static_cast<uint64_t *>(out_get) = handle->pixel_format_modifier;
+    *static_cast<uint64_t *>(out_get) = handle->pixel_format_modifier();
     return Error::NONE;
   } else if (in_set != nullptr) {
     return Error::UNSUPPORTED;
@@ -974,11 +996,26 @@ Error SnapMetadataManager::ColorRemappingInfoHelper(SnapMetadata *metadata,
   return Error::BAD_VALUE;
 }
 
+Error SnapMetadataManager::AnamorphicCompressionHelper(SnapMetadata *metadata,
+                                                       SnapHandleInternal *handle, void *in_set,
+                                                       void *out_get, BufferDescriptor *buf_des) {
+  if (out_get != nullptr) {
+    *static_cast<vendor_qti_hardware_display_common_QtiAnamorphicMetadata *>(out_get) =
+        metadata->anamorphic_compression;
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    metadata->anamorphic_compression =
+        *static_cast<vendor_qti_hardware_display_common_QtiAnamorphicMetadata *>(in_set);
+    return Error::NONE;
+  }
+  return Error::BAD_VALUE;
+}
+
 Error SnapMetadataManager::BaseAddressHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
                                              void *in_set, void *out_get,
                                              BufferDescriptor *buf_des) {
   if (out_get != nullptr) {
-    *static_cast<uint64_t *>(out_get) = handle->base;
+    *static_cast<uint64_t *>(out_get) = handle->base();
     return Error::NONE;
   } else if (in_set != nullptr) {
     return Error::UNSUPPORTED;
@@ -990,15 +1027,14 @@ Error SnapMetadataManager::IsUBWCHelper(SnapMetadata *metadata, SnapHandleIntern
                                         void *in_set, void *out_get, BufferDescriptor *buf_des) {
   if (buf_des != nullptr) {
     int64_t is_ubwc = 0;
-    UBWCPolicy *ubwc_policy = UBWCPolicy::GetInstance();
-    if (ubwc_policy->IsUBWCAlloc(*buf_des)) {
+    if (ubwc_policy_->IsUBWCAlloc(*buf_des)) {
       is_ubwc = 1;
     }
     *static_cast<int64_t *>(out_get) = is_ubwc;
     return Error::NONE;
   } else if (out_get != nullptr) {
     *static_cast<int64_t *>(out_get) =
-        static_cast<int64_t>(handle->flags & PRIV_FLAGS_UBWC_ALIGNED ? 1 : 0);
+        static_cast<int64_t>(handle->flags() & PRIV_FLAGS_UBWC_ALIGNED ? 1 : 0);
     return Error::NONE;
   } else if (in_set != nullptr) {
     return Error::UNSUPPORTED;
@@ -1011,8 +1047,7 @@ Error SnapMetadataManager::IsTileRenderedHelper(SnapMetadata *metadata, SnapHand
                                                 BufferDescriptor *buf_des) {
   if (buf_des != nullptr) {
     int64_t is_tile_rendered = 0;
-    UBWCPolicy *ubwc_policy = UBWCPolicy::GetInstance();
-    if (ubwc_policy->IsUBWCAlloc(*buf_des)) {
+    if (ubwc_policy_->IsUBWCAlloc(*buf_des)) {
       is_tile_rendered = 1;
     }
     if (IsTileRendered(buf_des->format)) {
@@ -1022,7 +1057,7 @@ Error SnapMetadataManager::IsTileRenderedHelper(SnapMetadata *metadata, SnapHand
     return Error::NONE;
   } else if (out_get != nullptr) {
     *static_cast<int64_t *>(out_get) =
-        static_cast<int64_t>(handle->flags & PRIV_FLAGS_TILE_RENDERED ? 1 : 0);
+        static_cast<int64_t>(handle->flags() & PRIV_FLAGS_TILE_RENDERED ? 1 : 0);
     return Error::NONE;
   } else if (in_set != nullptr) {
     return Error::UNSUPPORTED;
@@ -1040,7 +1075,7 @@ Error SnapMetadataManager::IsCachedHelper(SnapMetadata *metadata, SnapHandleInte
     auto err =
         constraint_mgr_->GetAllocationData(*buf_des, &ad, &layout, &out_desc, &out_priv_flags);
     if (err != Error::NONE) {
-      ALOGE("Invalid allocation - unable to get allocation size");
+      DLOGE("Invalid allocation - unable to get allocation size");
       return err;
     }
     int64_t is_cached = 0;
@@ -1051,7 +1086,7 @@ Error SnapMetadataManager::IsCachedHelper(SnapMetadata *metadata, SnapHandleInte
     return Error::NONE;
   } else if (out_get != nullptr) {
     *static_cast<int64_t *>(out_get) =
-        static_cast<int64_t>(handle->flags & PRIV_FLAGS_CACHED ? 1 : 0);
+        static_cast<int64_t>(handle->flags() & PRIV_FLAGS_CACHED ? 1 : 0);
     return Error::NONE;
   } else if (in_set != nullptr) {
     return Error::UNSUPPORTED;
@@ -1089,10 +1124,10 @@ uint32_t SnapMetadataManager::GetCustomContentMetadataSize(
 }
 
 Error SnapMetadataManager::InitializeMetadata(
-    SnapHandleInternal *hnd, BufferDescriptor in_desc, BufferDescriptor out_desc,
-    const AllocData ad, vendor_qti_hardware_display_common_BufferLayout *layout) {
-  UBWCPolicy *ubwc_policy = UBWCPolicy::GetInstance();
-  bool ubwc_enable = ubwc_policy->IsUBWCAlloc(out_desc);
+    SnapHandleInternal *hnd, vendor_qti_hardware_display_common_PixelFormat pixel_format_requested,
+    BufferDescriptor out_desc, const AllocData ad,
+    vendor_qti_hardware_display_common_BufferLayout *layout) {
+  bool ubwc_enable = ubwc_policy_->IsUBWCAlloc(out_desc);
   auto err = Error::NONE;
 
   GraphicsConstraintProvider *graphics_provider = GraphicsConstraintProvider::GetInstance();
@@ -1106,13 +1141,13 @@ Error SnapMetadataManager::InitializeMetadata(
       err = Set(hnd, vendor_qti_hardware_display_common_MetadataType::GRAPHICS_METADATA,
                 &graphics_metadata);
       if (err != Error::NONE) {
-        ALOGE("Error initializing graphics metadata - ret val %d", ret);
+        DLOGE("Error initializing graphics metadata - ret val %d", ret);
       }
     } else {
-      ALOGE("Failed to get graphics metadata - retval %d", ret);
+      DLOGE("Failed to get graphics metadata - retval %d", ret);
     }
   } else {
-    ALOGD_IF(DEBUG,
+    DLOGD_IF(enable_logs,
              "Graphics does not support format %d. Skipping initialization of graphics metadata",
              static_cast<uint64_t>(out_desc.format));
   }
@@ -1122,13 +1157,13 @@ Error SnapMetadataManager::InitializeMetadata(
 
   err = ValidateAndMap(hnd);
   if (err != Error::NONE) {
-    ALOGE("%s: ValidateAndMap failed - unable to set name", __FUNCTION__);
+    DLOGE("%s: ValidateAndMap failed - unable to set name", __FUNCTION__);
     return Error::UNSUPPORTED;
   }
 
-  SnapMetadata *data = reinterpret_cast<SnapMetadata *>(hnd->base_metadata);
+  SnapMetadata *data = reinterpret_cast<SnapMetadata *>(hnd->base_metadata());
   if (data == nullptr) {
-    ALOGE("%s: Invalid metadata address", __FUNCTION__);
+    DLOGE("%s: Invalid metadata address", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
 
@@ -1143,11 +1178,11 @@ Error SnapMetadataManager::InitializeMetadata(
   // Populate Crop
   data->crop.top = 0;
   data->crop.left = 0;
-  data->crop.right = static_cast<int32_t>(hnd->aligned_width_in_pixels);
-  data->crop.bottom = static_cast<int32_t>(hnd->aligned_height);
+  data->crop.right = static_cast<int32_t>(hnd->aligned_width_in_pixels());
+  data->crop.bottom = static_cast<int32_t>(hnd->aligned_height());
 
   // Populate reserved region
-  data->reservedSize = std::min(static_cast<uint64_t>(hnd->reserved_size),
+  data->reservedSize = std::min(static_cast<uint64_t>(hnd->reserved_size()),
                                 static_cast<uint64_t>(RESERVED_REGION_SIZE));
 
   // Populate heap name
@@ -1156,7 +1191,7 @@ Error SnapMetadataManager::InitializeMetadata(
   data->heapName[heap_name_length] = '\0';
 
   // Populate pixel format requested
-  data->pixel_format_requested = in_desc.format;
+  data->pixel_format_requested = pixel_format_requested;
 
   UnmapAndReset(hnd);
   return Error::NONE;
@@ -1165,23 +1200,23 @@ Error SnapMetadataManager::InitializeMetadata(
 Error SnapMetadataManager::GetRgbDataAddress(SnapHandleInternal *hnd,
                                              void **rgb_data) {
   // This api is only for rgb formats
-  if (!IsRgb(hnd->format)) {
+  if (!IsRgb(hnd->format())) {
     return Error::BAD_VALUE;
   }
   // linear buffer, nothing to do further [base addr will have plane address]
-  if (!(hnd->flags & PRIV_FLAGS_UBWC_ALIGNED)) {
-    *rgb_data = reinterpret_cast<void *>(hnd->base);
+  if (!(hnd->flags() & PRIV_FLAGS_UBWC_ALIGNED)) {
+    *rgb_data = reinterpret_cast<void *>(hnd->base());
     return Error::NONE;
   }
   // Ubwc buffer - which has meta planes
   // Get the buffer layout from metadata
-  SnapMetadata *data = reinterpret_cast<SnapMetadata *>(hnd->base_metadata);
+  SnapMetadata *data = reinterpret_cast<SnapMetadata *>(hnd->base_metadata());
   if (data == nullptr) {
-    ALOGE("%s: Invalid metadata address", __FUNCTION__);
+    DLOGE("%s: Invalid metadata address", __FUNCTION__);
     return Error::BAD_VALUE;
   }
   unsigned int plane_layout_size = data->buffer_layout.planes[0].size_in_bytes;
-  *rgb_data = reinterpret_cast<void *>(hnd->base + plane_layout_size);
+  *rgb_data = reinterpret_cast<void *>(hnd->base() + plane_layout_size);
   return Error::NONE;
 }
 
@@ -1189,28 +1224,28 @@ int GetDataAddress(SnapHandleInternal *hnd, uint64_t *data_addr) {
   int err = 0;
 
   // linear buffer, nothing to do further [base addr will have plane address]
-  if (!(hnd->flags & PRIV_FLAGS_UBWC_ALIGNED)) {
-    *data_addr = hnd->base;
+  if (!(hnd->flags() & PRIV_FLAGS_UBWC_ALIGNED)) {
+    *data_addr = hnd->base();
     return err;
   }
   // Ubwc buffer - which has meta planes
   // Get the buffer layout from metadata
-  SnapMetadata *data = reinterpret_cast<SnapMetadata *>(hnd->base_metadata);
+  SnapMetadata *data = reinterpret_cast<SnapMetadata *>(hnd->base_metadata());
   if (data == nullptr) {
-    ALOGE("%s: Invalid metadata address", __FUNCTION__);
+    DLOGE("%s: Invalid metadata address", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
 
   unsigned int plane_layout_size = data->buffer_layout.planes[0].size_in_bytes;
-  *data_addr = hnd->base + plane_layout_size;
+  *data_addr = hnd->base() + plane_layout_size;
   return err;
 }
 
 Error SnapMetadataManager::GetCustomDimensions(SnapHandleInternal *hnd, SnapMetadata *metadata,
                                                int32_t *stride, int32_t *height) {
   int32_t interlaced = 0;
-  *stride = hnd->aligned_width_in_pixels;
-  *height = hnd->aligned_height;
+  *stride = hnd->aligned_width_in_pixels();
+  *height = hnd->aligned_height();
   if (metadata->isStandardMetadataSet[GET_STANDARD_METADATA_STATUS_INDEX(
           (int64_t)vendor_qti_hardware_display_common_MetadataType::CROP)]) {
     *stride = metadata->crop.right;
@@ -1224,16 +1259,16 @@ Error SnapMetadataManager::GetCustomDimensions(SnapHandleInternal *hnd, SnapMeta
       BufferDescriptor out_desc;
       int out_priv_flags = 0;
       // TODO (user) : Add desc modifier support
-      BufferDescriptor desc = {.format = hnd->format,
-                               .usage = hnd->usage,
-                               .width = hnd->aligned_width_in_pixels,
-                               .height = hnd->aligned_height,
-                               .layerCount = static_cast<int32_t>(hnd->layer_count),
-                               .reservedSize = hnd->reserved_size};
+      BufferDescriptor desc = {.format = hnd->format(),
+                               .usage = hnd->usage(),
+                               .width = hnd->aligned_width_in_pixels(),
+                               .height = hnd->aligned_height(),
+                               .layerCount = static_cast<int32_t>(hnd->layer_count()),
+                               .reservedSize = hnd->reserved_size()};
       auto err = Error::NONE;
       err = constraint_mgr_->GetAllocationData(desc, &ad, &layout, &out_desc, &out_priv_flags);
       if (err != Error::NONE) {
-        ALOGE("Invalid allocation - unable to get allocation size");
+        DLOGE("Invalid allocation - unable to get allocation size");
         return err;
       }
       *stride = static_cast<int>(layout.aligned_width_in_bytes / layout.bpp);
@@ -1247,9 +1282,8 @@ int SnapMetadataManager::GetDRMFormat(vendor_qti_hardware_display_common_PixelFo
                                       vendor_qti_hardware_display_common_BufferUsage usage,
                                       int flags, uint32_t *drm_format,
                                       uint64_t *drm_format_modifier) {
-  UBWCPolicy *ubwc_policy = UBWCPolicy::GetInstance();
   vendor_qti_hardware_display_common_Compression qti_compression =
-      ubwc_policy->GetUBWCScheme(format, usage);
+      ubwc_policy_->GetUBWCScheme(format, usage);
   SnapFormatUsageDescriptor format_usage_desc = {.format = format,
                                                  .compression_type = qti_compression};
   if (snap_to_drm_format_.find(format_usage_desc) != snap_to_drm_format_.end()) {
@@ -1269,7 +1303,7 @@ Error SnapMetadataManager::IsMetadataTypeSettable(
       *out = true;
     }
   } else {
-    ALOGW("Metadata type %d not found in metadatatype traits map", static_cast<int>(type));
+    DLOGW("Metadata type %d not found in metadatatype traits map", static_cast<int>(type));
     return Error::BAD_VALUE;
   }
   return Error::NONE;
@@ -1278,15 +1312,15 @@ Error SnapMetadataManager::IsMetadataTypeSettable(
 Error SnapMetadataManager::Get(SnapHandleInternal *hnd,
                                vendor_qti_hardware_display_common_MetadataType type, void *out) {
   if (!out) {
-    ALOGE("%s: Invalid output parameter", __FUNCTION__);
+    DLOGE("%s: Invalid output parameter", __FUNCTION__);
     return Error::UNSUPPORTED;
   }
 
   auto ret = Error::BAD_VALUE;
 
-  SnapMetadata *metadata = reinterpret_cast<SnapMetadata *>(hnd->base_metadata);
+  SnapMetadata *metadata = reinterpret_cast<SnapMetadata *>(hnd->base_metadata());
   if (metadata == nullptr) {
-    ALOGE("%s: Invalid metadata address", __FUNCTION__);
+    DLOGE("%s: Invalid metadata address", __FUNCTION__);
     return ret;
   }
 
@@ -1301,33 +1335,33 @@ Error SnapMetadataManager::Get(SnapHandleInternal *hnd,
 }
 
 Error SnapMetadataManager::ValidateAndMap(SnapHandleInternal *hnd) {
-  if (hnd->fd_metadata < 0) {
-    ALOGE("%s: Snap handle has invalid metadata fd : %d", __FUNCTION__, hnd->fd_metadata);
+  if (hnd->fd_metadata() < 0) {
+    DLOGE("%s: Snap handle has invalid metadata fd : %d", __FUNCTION__, hnd->fd_metadata());
     return Error::BAD_BUFFER;
   }
 
-  if (!hnd->base_metadata) {
-    uint64_t reserved_region_size = hnd->reserved_size;
-    uint64_t custom_content_md_reserved_size = hnd->custom_content_md_reserved_size;
-    ALOGD_IF(DEBUG, "from handle - reserved size %lu custom content metadata size %lu",
+  if (!hnd->base_metadata()) {
+    uint64_t reserved_region_size = hnd->reserved_size();
+    uint64_t custom_content_md_reserved_size = hnd->custom_content_md_reserved_size();
+    DLOGD_IF(enable_logs, "from handle - reserved size %lu custom content metadata size %lu",
              reserved_region_size, custom_content_md_reserved_size);
     uint64_t size = GetMetaDataSize(reserved_region_size, custom_content_md_reserved_size);
-    void *base = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, hnd->fd_metadata, 0);
+    void *base = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, hnd->fd_metadata(), 0);
     if (base == reinterpret_cast<void *>(MAP_FAILED)) {
-      ALOGE("%s: mmap failed - err %s", __FUNCTION__, strerror(errno));
+      DLOGE("%s: mmap failed - err %s", __FUNCTION__, strerror(errno));
       return Error::BAD_BUFFER;
     }
-    hnd->base_metadata = (uintptr_t)base;  // NOLINT
-    ALOGD_IF(DEBUG, "Successfully mapped metadata %p", hnd->base_metadata);
+    hnd->base_metadata() = (uintptr_t)base;  // NOLINT
+    DLOGD_IF(enable_logs, "Successfully mapped metadata %p", hnd->base_metadata());
   }
   return Error::NONE;
 }
 
 void SnapMetadataManager::UnmapAndReset(SnapHandleInternal *hnd) {
-  if (hnd->base_metadata) {
-    munmap(reinterpret_cast<void *>(hnd->base_metadata),
-           GetMetaDataSize(hnd->reserved_size, hnd->custom_content_md_reserved_size));
-    hnd->base_metadata = 0;
+  if (hnd->base_metadata()) {
+    munmap(reinterpret_cast<void *>(hnd->base_metadata()),
+           GetMetaDataSize(hnd->reserved_size(), hnd->custom_content_md_reserved_size()));
+    hnd->base_metadata() = 0;
   }
 }
 
@@ -1335,12 +1369,12 @@ Error SnapMetadataManager::Set(SnapHandleInternal *hnd,
                                vendor_qti_hardware_display_common_MetadataType type, void *in) {
   auto err = ValidateAndMap(const_cast<SnapHandleInternal *>(hnd));
   if (err != 0) {
-    ALOGE("%s: ValidateAndMap failed", __FUNCTION__);
+    DLOGE("%s: ValidateAndMap failed", __FUNCTION__);
     return Error::UNSUPPORTED;
   }
-  SnapMetadata *metadata = reinterpret_cast<SnapMetadata *>(hnd->base_metadata);
+  SnapMetadata *metadata = reinterpret_cast<SnapMetadata *>(hnd->base_metadata());
   if (metadata == nullptr) {
-    ALOGE("%s: Invalid metadata address", __FUNCTION__);
+    DLOGE("%s: Invalid metadata address", __FUNCTION__);
     return Error::UNSUPPORTED;
   }
 
@@ -1361,7 +1395,7 @@ Error SnapMetadataManager::Set(SnapHandleInternal *hnd,
         metadata->video_transcode_stats.stat_len = 0;
         break;
       default:
-        ALOGE("Input is null when setting metadata type %d", type);
+        DLOGE("Input is null when setting metadata type %d", type);
         break;
     }
     return Error::NONE;
@@ -1372,7 +1406,7 @@ Error SnapMetadataManager::Set(SnapHandleInternal *hnd,
     MetadataHelper metadata_helper_func = metadata_helper_function_map[type];
     return ((this->*metadata_helper_func)(metadata, hnd, in, nullptr, nullptr));
   } else {
-    ALOGE("%s Unable to find the metadata type %d", static_cast<int>(type));
+    DLOGE("%s Unable to find the metadata type %d", static_cast<int>(type));
     return Error::UNSUPPORTED;
   }
 }
@@ -1414,15 +1448,15 @@ bool SnapMetadataManager::GetMetadataStateInternal(SnapMetadata *metadata,
 Error SnapMetadataManager::GetMetadataState(SnapHandleInternal *hnd,
                                vendor_qti_hardware_display_common_MetadataType type, bool *out) {
   if (!out) {
-    ALOGE("%s: Invalid output parameter", __FUNCTION__);
+    DLOGE("%s: Invalid output parameter", __FUNCTION__);
     return Error::UNSUPPORTED;
   }
 
   auto ret = Error::BAD_VALUE;
 
-  SnapMetadata *metadata = reinterpret_cast<SnapMetadata *>(hnd->base_metadata);
+  SnapMetadata *metadata = reinterpret_cast<SnapMetadata *>(hnd->base_metadata());
   if (metadata == nullptr) {
-    ALOGE("%s: Invalid metadata address", __FUNCTION__);
+    DLOGE("%s: Invalid metadata address", __FUNCTION__);
     return ret;
   }
 
@@ -1443,7 +1477,7 @@ Error SnapMetadataManager::GetMetadataState(SnapHandleInternal *hnd,
 Error SnapMetadataManager::GetFromBufferDescriptor(
     BufferDescriptor desc, vendor_qti_hardware_display_common_MetadataType type, void *out) {
   if (!out) {
-    ALOGE("%s: Invalid output parameter", __FUNCTION__);
+    DLOGE("%s: Invalid output parameter", __FUNCTION__);
     return Error::UNSUPPORTED;
   }
   if (metadata_helper_function_map.find(type) != metadata_helper_function_map.end()) {
