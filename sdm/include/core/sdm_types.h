@@ -439,7 +439,6 @@ enum SDMPixelFormat {
 enum SDMClientCommitDone {
   kClientPartialUpdate,
   kClientIdlepowerCollapse,
-  kClientTeardownCWB,
   kClientTrustedUI,
   kClientMax
 };
