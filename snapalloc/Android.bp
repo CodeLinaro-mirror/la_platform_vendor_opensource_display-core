@@ -19,7 +19,7 @@ cc_library_shared {
         "snapalloc_interface_headers",
         "common_interface_headers",
     ],
-    defaults: ["qtidisplay_defaults","qtidisplay_smmu_header_defaults"],
+    defaults: ["qtidisplay_defaults_headless","qtidisplay_smmu_header_defaults"],
     cflags: [
         "-DLOG_TAG=\"SnapAlloc\"",
         "-Wno-unused-parameter",
