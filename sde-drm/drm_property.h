@@ -264,6 +264,7 @@ enum struct DRMProperty {
   FRAME_INTERVAL,
   USECASE_IDX,
   BRIGHTNESS,
+  FLUSH_SYNC_EN,
 
   // Insert above
   MAX

@@ -533,12 +533,8 @@ void SnapAllocCore::RegisterHandleLocked(SnapHandle *public_hnd, SnapHandleInter
 Error SnapAllocCore::IsSupported(BufferDescriptor desc, bool *is_supported) {
   std::vector<SnapHandleInternal *> handles;
   auto err = Allocate(desc, 1, &handles, true);
-  if (err == Error::NONE) {
-    *is_supported = true;
-    return err;
-  }
-  *is_supported = false;
-  return err;
+  *is_supported = (err == Error::NONE) ? true : false;
+  return Error::NONE;
 }
 
 Error SnapAllocCore::GetMetadata(SnapHandle *hnd,

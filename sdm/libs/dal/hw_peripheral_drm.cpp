@@ -306,7 +306,7 @@ DisplayError HWPeripheralDRM::UpdateLoopBackConnector() {
   return kErrorNone;
 }
 
-DisplayError HWPeripheralDRM::ConfigureLoopbackCAC(const HWLayersInfo *hw_layers_info) {
+DisplayError HWPeripheralDRM::ConfigureLoopbackCAC(bool cac_enabled) {
   if (hw_resource_.cac_version != kCacVersionLoopback) {
     return kErrorNone;
   }
@@ -315,8 +315,6 @@ DisplayError HWPeripheralDRM::ConfigureLoopbackCAC(const HWLayersInfo *hw_layers
     DLOGE("Invalid virtual connector Id!!");
     return kErrorParameters;
   }
-
-  bool cac_enabled = IsCACEnabled(hw_layers_info);
 
   if (!cac_enabled && !loopback_cac_configured_) {
     return kErrorNone;
@@ -356,7 +354,8 @@ DisplayError HWPeripheralDRM::Commit(HWLayersInfo *hw_layers_info) {
 
   int64_t cwb_fence_fd = -1;
   bool has_fence = SetupConcurrentWriteback(*hw_layers_info, false, &cwb_fence_fd);
-  auto error = ConfigureLoopbackCAC(hw_layers_info);
+  bool cac_enabled = IsCACEnabled(hw_layers_info);
+  auto error = ConfigureLoopbackCAC(cac_enabled);
   if (error != kErrorNone) {
     DLOGE("Failed to configure CacLoopback!");
     return error;
@@ -771,6 +770,12 @@ DisplayError HWPeripheralDRM::PowerOn(const HWQosData &qos_data, SyncPoints *syn
   }
 
   if (sde_dest_scalar_data_.num_dest_scaler) {
+    for (uint32_t i = 0; i < dest_scaler_blocks_used_; i++) {
+      sde_drm_dest_scaler_cfg *dest_scalar_data = &sde_dest_scalar_data_.ds_cfg[i];
+      if (dest_scalar_data->flags & SDE_DRM_DESTSCALER_ENABLE) {
+        dest_scalar_data->flags |= SDE_DRM_DESTSCALER_SCALE_UPDATE;
+      }
+    }
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_DEST_SCALER_CONFIG, token_.crtc_id,
                               reinterpret_cast<uint64_t>(&sde_dest_scalar_data_));
     needs_ds_update_ = true;
@@ -831,6 +836,7 @@ DisplayError HWPeripheralDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   // QSync mode needs to be reset on device suspend and re-enabled on resume.
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_QSYNC_MODE, token_.conn_id,
                             sde_drm::DRMQsyncMode::NONE);
+  ConfigureLoopbackCAC(false /* cac enabled */);
 
   err = HWDeviceDRM::PowerOff(teardown, sync_points);
   if (err != kErrorNone) {

@@ -1941,7 +1941,6 @@ DisplayError ConcurrencyMgr::TeardownConcurrentWriteback(Display display) {
 
     if (disp) {
       disp->TeardownConcurrentWriteback();
-      WaitForCommitDone(display, kClientTeardownCWB);
     }
   }
 

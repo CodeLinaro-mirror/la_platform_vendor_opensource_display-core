@@ -464,6 +464,12 @@ enum struct DRMOps {
    */
   CRTC_SET_UBWC_CLK,
   /*
+   * Op: Enables/disables flush sync between the DPU cores
+   * Args: uint32_t CRTC ID
+   *       uin32_t - flush sync state
+   */
+  CRTC_SET_FLUSH_SYNC_EN,
+  /*
    * Op: Returns retire fence for this commit. Should be called after Commit()
    * on DRMAtomicReqInterface. Arg: uint32_t - Connector ID int * - Pointer to
    * an integer that will hold the returned fence

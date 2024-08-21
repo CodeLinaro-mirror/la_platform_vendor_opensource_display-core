@@ -432,6 +432,9 @@ int HWDeviceDRM::Registry::CreateFbId(const LayerBuffer &buffer, std::vector<uin
   buf_info.format = buffer.format;
   buf_info.usage = buffer.usage;
   buffer_allocator_->GetBufferLayout(buf_info, layout.stride, layout.offset, &layout.num_planes);
+  if (buffer.format == kFormatRGBA8888UbwcLossy2To1) {
+    layout.height *= 2;
+  }
   for (int color = 0; color < fb_id->size(); color++) {
     GetDRMFormat(buf_info.format, &layout.drm_format, &layout.drm_format_modifier,
                  static_cast<HWCacColorComponent>(color));
@@ -1944,6 +1947,10 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
     SetQOSData(qos_data);
   }
 
+  if (hw_panel_info_.dpu_ctl_op_sync) {
+    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_FLUSH_SYNC_EN, token_.crtc_id, 1);
+  }
+
   if (hw_layers_info->common_info->hw_avr_info.update.test(kUpdateAVRModeFlag)) {
     sde_drm::DRMQsyncMode mode = sde_drm::DRMQsyncMode::NONE;
     if (hw_layers_info->common_info->hw_avr_info.mode == kContinuousMode) {
@@ -3251,6 +3258,11 @@ DisplayError HWDeviceDRM::NullCommit(bool synchronous, bool retain_planes) {
   DTRACE_SCOPED();
   AddDimLayerIfNeeded();
   drm_atomic_intf_->Perform(DRMOps::NULL_COMMIT_PANEL_FEATURES, 0 /* argument is not used */);
+
+  if (hw_panel_info_.dpu_ctl_op_sync) {
+    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_FLUSH_SYNC_EN, token_.crtc_id, 0);
+  }
+
   int ret = drm_atomic_intf_->Commit(synchronous , retain_planes);
   if (ret) {
     DLOGE("failed with error %d, crtc=%u", ret, token_.crtc_id);
