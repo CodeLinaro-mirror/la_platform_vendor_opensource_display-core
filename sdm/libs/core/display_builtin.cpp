@@ -4508,6 +4508,9 @@ DisplayError DisplayBuiltIn::SetPanelFeatureConfig(int32_t type, void *data) {
     case kTypeQueryDemuraTnInfo:
       ret = QueryDemuraTnInfo(data);
       break;
+    case kTypeDemuraTnBatchId:
+      ret = SetDemuraTnBatchId(data);
+      break;
     default:
       DLOGE("Invalid type %d", type);
       ret = kErrorParameters;
@@ -4845,6 +4848,33 @@ DisplayError DisplayBuiltIn::TriggerDemuraOemPlugIn(void *data) {
   event_handler_->Refresh();
 
   DLOGI("Trigger demura oem plugin success");
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetDemuraTnBatchId(void *data) {
+  int ret = 0;
+  GenericPayload payload = {};
+  uint32_t *batch_id = nullptr;
+
+  if (!data || !demuratn_) {
+    DLOGE("Data %pK demuratn_ %pK", data, demuratn_.get());
+    return kErrorUndefined;
+  }
+
+  ret = payload.CreatePayload<uint32_t>(batch_id);
+  if (ret) {
+    DLOGE("Failed to create the payload, ret %d", ret);
+    return kErrorUndefined;
+  }
+  *batch_id = *(reinterpret_cast<uint32_t *>(data));
+
+  ret = demuratn_->SetParameter(kDemuraTnCoreUvmParamBatchId, payload);
+  if (ret) {
+    DLOGE("Set batch id failed ret %d", ret);
+    return kErrorUndefined;
+  }
+
+  DLOGI("Set batch id %d success", *batch_id);
   return kErrorNone;
 }
 
