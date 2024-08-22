@@ -66,6 +66,9 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
                               std::vector<SnapHandleInternal *> *handles, bool test_alloc) {
   std::lock_guard<std::mutex> buffer_lock(buffer_lock_);
   for (int i = 0; i < count; i++) {
+    OVERFLOW_ERR_RETURN(desc.reservedSize, sizeof(SnapMetadata), OverflowType::ADD);
+    OVERFLOW_ERR_RETURN((desc.reservedSize + sizeof(SnapMetadata)), PAGE_SIZE, OverflowType::ADD);
+
     AllocData ad;
     AllocData m_data;
     vendor_qti_hardware_display_common_BufferLayout layout;
@@ -406,7 +409,7 @@ Error SnapAllocCore::ValidateBufferSize(SnapHandle *hnd, BufferDescriptor desc) 
   constraint_mgr_->ConvertAlignedWidthFromBytesToPixels(
       out_desc.format, layout.aligned_width_in_bytes, &aligned_width_in_pixels);
 
-  if (OVERFLOW(aligned_width_in_pixels, layout.aligned_height)) {
+  if (OVERFLOW_MUL(aligned_width_in_pixels, layout.aligned_height)) {
     DLOGE("%s: Allocatiom size overflow", __FUNCTION__);
     return Error::BAD_BUFFER;
   }

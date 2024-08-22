@@ -147,17 +147,40 @@ void SnapConstraintManager::GetImplDefinedFormat(
   }
 }
 
+bool SnapConstraintManager::ValidateDescriptor(const BufferDescriptor &snap_desc) {
+  if (format_data_map_.find(snap_desc.format) == format_data_map_.end()) {
+    DLOGE("%s: Could not find entry for format %lu", __FUNCTION__,
+          static_cast<uint64_t>(snap_desc.format));
+    return false;
+  }
+  auto format_data = format_data_map_.at(snap_desc.format);
+  int bpp = (format_data.bits_per_pixel) / 8;
+  bpp = (bpp == -1 || bpp == 0) ? 1 : bpp;
+  if (snap_desc.width == 0 || snap_desc.height == 0 ||
+      (OVERFLOW_MUL((snap_desc.width * bpp), snap_desc.height)) ||
+      (static_cast<int32_t>(snap_desc.format) <= 0) || snap_desc.layerCount <= 0) {
+    DLOGE("Invalid Descriptor: uw%dxuh%d, format %d, layer_count %d, overflow_detected %d",
+          snap_desc.width, snap_desc.height, snap_desc.format, snap_desc.layerCount,
+          (OVERFLOW_MUL((snap_desc.width * bpp), snap_desc.height)) ? 1 : 0);
+    return false;
+  }
+
+  return true;
+}
+
 Error SnapConstraintManager::GetAllocationData(
     BufferDescriptor in_desc, AllocData *out_ad,
     vendor_qti_hardware_display_common_BufferLayout *out_layout, BufferDescriptor *out_desc,
     int *out_priv_flags) {
   *out_desc = in_desc;
+
   // Check for width/height constraints for specific formats
-  if (std::find(formats_with_w_h_constraints.begin(),
-                formats_with_w_h_constraints.end(),
+  if (std::find(formats_with_w_h_constraints.begin(), formats_with_w_h_constraints.end(),
                 out_desc->format) != formats_with_w_h_constraints.end()) {
     if ((!CheckWidthConstraints(out_desc->format, out_desc->width)) ||
         (!(CheckHeightConstraints(out_desc->format, out_desc->height)))) {
+      DLOGE("Width and Height constraints for format %d not satisfied. Failing allocation",
+            out_desc->format);
       return Error::BAD_VALUE;
     }
   }
@@ -187,6 +210,11 @@ Error SnapConstraintManager::GetAllocationData(
         }
       }
     }
+  }
+
+  if (!ValidateDescriptor(*out_desc)) {
+    DLOGE("Buffer Descriptor is not valid. Failing allocation.");
+    return Error::BAD_VALUE;
   }
 
   std::map<SnapConstraintProvider *, CapabilitySet> cap_map = GetCapabilities(*out_desc);
@@ -232,7 +260,7 @@ Error SnapConstraintManager::GetAllocationData(
       static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
           GetPixelFormatModifier(*out_desc));
   auto align = GetDataAlignment(out_desc->format, out_desc->usage, pixel_format_modifier);
-  OVERFLOW_ERR_RETURN(out_ad->size, out_desc->layerCount);
+  OVERFLOW_ERR_RETURN(ALIGN(out_ad->size, align), out_desc->layerCount, OverflowType::MUL);
   out_ad->size = ALIGN(out_ad->size, align) * out_desc->layerCount;
 
   return err;
@@ -275,7 +303,7 @@ Error SnapConstraintManager::ConvertAlignedWidthFromBytesToPixels(
   auto format_data = format_data_map_.at(format);
   *width_in_pixels = width_in_bytes / ((format_data.planes[0].sample_increment_bits) / 8);
   if (format == vendor_qti_hardware_display_common_PixelFormat::TP10) {
-    OVERFLOW_ERR_RETURN(*width_in_pixels, 3);
+    OVERFLOW_ERR_RETURN(*width_in_pixels, 3, OverflowType::MUL);
     *width_in_pixels = (*width_in_pixels) * 3;
   }
   return Error::NONE;
@@ -358,7 +386,8 @@ Error SnapConstraintManager::ConstraintsToBufferLayout(
              __FUNCTION__, desc.format, i, layout->planes[i].horizontal_stride_in_bytes,
              layout->planes[i].scanlines);
 
-    OVERFLOW_ERR_RETURN(layout->planes[i].horizontal_stride_in_bytes, layout->planes[i].scanlines);
+    OVERFLOW_ERR_RETURN(layout->planes[i].horizontal_stride_in_bytes, layout->planes[i].scanlines,
+                        OverflowType::MUL);
     layout->planes[i].size_in_bytes =
         ALIGN(layout->planes[i].horizontal_stride_in_bytes * layout->planes[i].scanlines,
               constraints->planes[i].size_align);
@@ -376,7 +405,7 @@ Error SnapConstraintManager::ConstraintsToBufferLayout(
       layout->planes[i].offset_in_bytes = layout->planes[i].components[0].offset_in_bits / 8.0;
       layout->planes[i].components[0].offset_in_bits = 0;
     }
-
+    OVERFLOW_ERR_RETURN(offset_sum, layout->planes[i].size_in_bytes, OverflowType::ADD);
     offset_sum += layout->planes[i].size_in_bytes;
     DLOGD_IF(enable_logs,
              "%s: format %d, layout->planes[i].horizontal_stride_in_bytes %d "
@@ -386,6 +415,7 @@ Error SnapConstraintManager::ConstraintsToBufferLayout(
              __FUNCTION__, desc.format, layout->planes[i].horizontal_stride_in_bytes,
              layout->planes[i].scanlines, constraints->planes[i].size_align,
              layout->planes[i].size_in_bytes, i, layout->planes[i].offset_in_bytes);
+    OVERFLOW_ERR_RETURN(layout->size_in_bytes, layout->planes[i].size_in_bytes, OverflowType::ADD);
     layout->size_in_bytes += layout->planes[i].size_in_bytes;
   }
   layout->size_in_bytes = ALIGN(layout->size_in_bytes, constraints->size_align_bytes);
@@ -473,7 +503,8 @@ Error SnapConstraintManager::AlignmentToAlignedConstraints(BufferDescriptor desc
       // YV12, move this special handling to default constraint provider
       if ((desc.format == vendor_qti_hardware_display_common_PixelFormat::YV12) &&
           (alignment.planes[i].components[0] != PLANE_LAYOUT_COMPONENT_TYPE_Y)) {
-        OVERFLOW_ERR_RETURN((desc.width / 2), (format_data.planes[0].sample_increment_bits / 8));
+        OVERFLOW_ERR_RETURN((desc.width / 2), (format_data.planes[0].sample_increment_bits / 8),
+                            OverflowType::MUL);
         plane.stride.horizontal_stride =
             ALIGN((desc.width / 2) * (format_data.planes[0].sample_increment_bits / 8),
                   alignment.planes[i].stride.horizontal_stride_align);
@@ -487,7 +518,8 @@ Error SnapConstraintManager::AlignmentToAlignedConstraints(BufferDescriptor desc
               ALIGN(desc.width, alignment.planes[i].stride.horizontal_stride_align) *
               (format_data.bits_per_pixel / 8);
         } else {
-          OVERFLOW_ERR_RETURN(desc.width, (format_data.planes[0].sample_increment_bits / 8));
+          OVERFLOW_ERR_RETURN(desc.width, (format_data.planes[0].sample_increment_bits / 8),
+                              OverflowType::MUL);
           plane.stride.horizontal_stride =
               ALIGN(desc.width * format_data.planes[0].sample_increment_bits / 8,
                     alignment.planes[i].stride.horizontal_stride_align);
