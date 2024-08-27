@@ -192,7 +192,8 @@ Error SnapConstraintManager::GetAllocationData(
   std::map<SnapConstraintProvider *, CapabilitySet> cap_map = GetCapabilities(*out_desc);
   auto err = Error::NONE;
 
-  bool ubwc_enabled = ubwc_policy_->IsUBWCAlloc(*out_desc);
+  bool ubwc_disabled_prop = debug_->IsUBWCDisabled();
+  bool ubwc_enabled = !ubwc_disabled_prop && ubwc_policy_->IsUBWCAlloc(*out_desc);
   SetSnapPrivateFlags(out_desc->format, out_desc->usage, ubwc_enabled, out_priv_flags);
   out_ad->uncached = UseUncached(out_desc->format, out_desc->usage, ubwc_enabled);
 
@@ -205,11 +206,19 @@ Error SnapConstraintManager::GetAllocationData(
       }
     }
     ubwc_caps_.version = ubwc_version;
-    // Commented out below - was temporary workaround for explicit UBWC formats where UBWC flag was not set
-    // out_desc->usage = static_cast<vendor_qti_hardware_display_common_BufferUsage>((static_cast<uint64_t>(out_desc->usage) | static_cast<uint64_t>(vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC)));
-
     err = ubwc_policy_->GetUBWCAlloc(*out_desc, ubwc_caps_, out_ad, out_layout);
   } else {
+    if (ubwc_disabled_prop) {
+      // Reset UBWC bit for UBWC disabled case
+      if (static_cast<vendor_qti_hardware_display_common_BufferUsage>(
+              (static_cast<uint64_t>(out_desc->usage) &
+               static_cast<uint64_t>(
+                   vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC)))) {
+        out_desc->usage = static_cast<vendor_qti_hardware_display_common_BufferUsage>((
+            static_cast<uint64_t>(out_desc->usage) ^
+            static_cast<uint64_t>(vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC)));
+      }
+    }
     err = FetchAndMergeConstraints(*out_desc, cap_map, out_layout);
     if (err) {
       DLOGE("FetchAndMergeConstraints failed with error %d", err);
