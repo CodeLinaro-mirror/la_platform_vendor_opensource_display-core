@@ -3154,7 +3154,7 @@ void SDMDisplay::SubmitActiveConfigChange(
       return;
     }
 
-    rr_refresh_time = pending_refresh_rate_config_;
+    rr_refresh_time = pending_refresh_rate_refresh_time_;
     rr_applied_time = pending_refresh_rate_applied_time_;
     pending_refresh_rate_config_ = UINT_MAX;
     pending_refresh_rate_refresh_time_ = INT64_MAX;
