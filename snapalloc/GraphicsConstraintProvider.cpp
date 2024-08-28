@@ -65,6 +65,8 @@ void GraphicsConstraintProvider::Init(
   } else {
     parser->ParseFormats(&format_data_map_);
   }
+  ::snapalloc::Debug *debug_instance = ::snapalloc::Debug::GetInstance();
+  gfx_ubwc_disable_ = debug_instance->IsUBWCDisabled();
 }
 
 int GraphicsConstraintProvider::GetInitialMetadata(
