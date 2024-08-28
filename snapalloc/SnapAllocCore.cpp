@@ -455,12 +455,14 @@ Error SnapAllocCore::RereadLockedBuffer(SnapHandle *hnd) {
 }
 
 Error SnapAllocCore::ImportHandleLocked(SnapHandle *hnd) {
-  if (SnapHandleInternal::validate(hnd) != 0) {
-    DLOGE("ImportHandleLocked: Invalid handle: %p", hnd);
-    return Error::BAD_BUFFER;
-  }
   if (hnd == nullptr) {
     DLOGE("Invalid SnapHandle");
+    return Error::BAD_BUFFER;
+  }
+
+  if (SnapHandleInternal::validate(hnd) != 0) {
+    DLOGE("ImportHandleLocked: Invalid handle: %p", hnd);
+    FreeBuffer(static_cast<SnapHandleInternal *>(hnd));
     return Error::BAD_BUFFER;
   }
 
