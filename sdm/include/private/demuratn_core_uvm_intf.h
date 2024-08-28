@@ -35,6 +35,8 @@ enum DemuraTnCoreUvmParams {
   kDemuraTnCoreUvmParamQueryInfo,
   /* Setter: int */
   kDemuraTnCoreUvmParamBatchId,
+  /* Setter: None  */
+  kDemuraTnCoreUvmParamAodHandlerCtrl,
   kDemuraTnCoreUvmParamsMax = 2048,
   kDemuraTnCoreUvmPrivParamsStart = 2049,
   kDemuraTnCoreUvmPrivParamsEnd = 4096,

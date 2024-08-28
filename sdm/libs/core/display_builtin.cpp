@@ -4511,6 +4511,9 @@ DisplayError DisplayBuiltIn::SetPanelFeatureConfig(int32_t type, void *data) {
     case kTypeDemuraTnBatchId:
       ret = SetDemuraTnBatchId(data);
       break;
+    case kTypeDemuraTnAodHandlerCtrl:
+      ret = SetDemuraTnAodHandlerCtrl(data);
+      break;
     default:
       DLOGE("Invalid type %d", type);
       ret = kErrorParameters;
@@ -4960,6 +4963,25 @@ DisplayError DisplayBuiltIn::QueryDemuraTnInfo(void *data) {
   }
 
   DLOGI("Query demuraTn infomation done");
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetDemuraTnAodHandlerCtrl(void *data) {
+  (void)data;
+
+  if (!demuratn_ || !demuratn_enabled_) {
+    DLOGE("Demuratn_ %pK demuratn_enabled_ %d", demuratn_.get(), demuratn_enabled_);
+    return kErrorUndefined;
+  }
+
+  GenericPayload payload = {};
+  int ret = demuratn_->SetParameter(kDemuraTnCoreUvmParamAodHandlerCtrl, payload);
+  if (ret) {
+    DLOGE("Set aod handler ctrl failed ret %d", ret);
+    return kErrorUndefined;
+  }
+
+  DLOGI("Set aod handler ctrl done");
   return kErrorNone;
 }
 

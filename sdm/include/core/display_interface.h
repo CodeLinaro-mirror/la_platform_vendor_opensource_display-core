@@ -378,6 +378,8 @@ enum PanelFeatureVendorServiceType {
   kTypeQueryDemuraTnInfo = 8,
   /* Setter: int */
   kTypeDemuraTnBatchId = 9,
+  /* Setter: None */
+  kTypeDemuraTnAodHandlerCtrl = 10,
   PanelFeatureVendorServiceTypeMax,
 };
 
