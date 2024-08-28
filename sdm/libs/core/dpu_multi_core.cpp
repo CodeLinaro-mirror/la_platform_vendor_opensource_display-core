@@ -25,10 +25,14 @@ DisplayError DPUMultiCore::Init() {
     uint32_t core_id = intf->first;
     error = HWInterface::Create(display_id_.GetConnId(core_id), type_, intf->second,
                                 buffer_allocator_, &hw);
-    if (error != kErrorNone) {
+    if (error == kErrorDeviceRemoved) {
+      DLOGW("HW Interface create failed - device removed");
+      return error;
+    } else if (error != kErrorNone) {
       DLOGE("HW interface create failed");
       return error;
     }
+
     hw_intf_.insert(std::make_pair(core_id, hw));
     core_ids_.push_back(core_id);
   }

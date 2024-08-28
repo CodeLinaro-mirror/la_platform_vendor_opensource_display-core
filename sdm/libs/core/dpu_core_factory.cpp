@@ -22,7 +22,10 @@ DisplayError DPUCoreFactory::Create(
   }
 
   DisplayError error = dpu_core->Init();
-  if (error != kErrorNone) {
+  if (error == kErrorDeviceRemoved) {
+    DLOGW("DPUCore create failed - device removed");
+    return error;
+  } else if (error != kErrorNone) {
     DLOGE("DPUCore create failed");
     return error;
   }
