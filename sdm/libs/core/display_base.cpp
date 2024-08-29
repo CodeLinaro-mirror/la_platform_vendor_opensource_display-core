@@ -1116,6 +1116,10 @@ DisplayError DisplayBase::Prepare(LayerStack *layer_stack) {
       break;
     }
 
+    for (auto &hw_info : disp_layer_stack_->info) {
+      hw_info.second.dummy_loopback_cac_info = dummy_loopback_cac_info_;
+    }
+
     // Trigger validate only if needed.
     if (disp_layer_stack_->stack_info.do_hw_validate) {
       error = dpu_core_mux_->Validate(disp_layer_stack_->info);

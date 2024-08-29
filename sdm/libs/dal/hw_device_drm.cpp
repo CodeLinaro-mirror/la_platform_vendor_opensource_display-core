@@ -40,7 +40,6 @@
 #include <time.h>
 #include <drm/drm_fourcc.h>
 #include <drm_lib_loader.h>
-#include <drm_master.h>
 #include <drm_res_mgr.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -95,38 +94,37 @@
 
 #define DEST_SCALAR_OVERFETCH_SIZE 5
 
-using std::string;
-using std::to_string;
-using std::fstream;
-using std::unordered_map;
-using std::stringstream;
-using std::ifstream;
-using std::ofstream;
+using drm_utils::DRMLibLoader;
 using drm_utils::DRMMaster;
 using drm_utils::DRMResMgr;
-using drm_utils::DRMLibLoader;
-using drm_utils::DRMBuffer;
-using sde_drm::GetDRMManager;
-using sde_drm::DRMDisplayType;
-using sde_drm::DRMDisplayToken;
+using sde_drm::DRMBlendType;
+using sde_drm::DRMCacMode;
 using sde_drm::DRMConnectorInfo;
+using sde_drm::DRMCrtcInfo;
+using sde_drm::DRMCscType;
+using sde_drm::DRMCWbCaptureMode;
+using sde_drm::DRMDisplayToken;
+using sde_drm::DRMDisplayType;
+using sde_drm::DRMMultiRectMode;
+using sde_drm::DRMOps;
+using sde_drm::DRMPowerMode;
 using sde_drm::DRMPPFeatureInfo;
 using sde_drm::DRMRect;
 using sde_drm::DRMRotation;
-using sde_drm::DRMBlendType;
-using sde_drm::DRMSrcConfig;
-using sde_drm::DRMOps;
-using sde_drm::DRMTopology;
-using sde_drm::DRMPowerMode;
 using sde_drm::DRMSecureMode;
 using sde_drm::DRMSecurityLevel;
-using sde_drm::DRMCscType;
-using sde_drm::DRMMultiRectMode;
-using sde_drm::DRMCrtcInfo;
-using sde_drm::DRMCWbCaptureMode;
-using sde_drm::DRMUcscIgcMode;
+using sde_drm::DRMSrcConfig;
+using sde_drm::DRMTopology;
 using sde_drm::DRMUcscGcMode;
-using sde_drm::DRMCacMode;
+using sde_drm::DRMUcscIgcMode;
+using sde_drm::GetDRMManager;
+using std::fstream;
+using std::ifstream;
+using std::ofstream;
+using std::string;
+using std::stringstream;
+using std::to_string;
+using std::unordered_map;
 
 namespace sdm {
 
@@ -380,6 +378,12 @@ HWDeviceDRM::Registry::Registry(BufferAllocator *buffer_allocator) :
   }
 }
 
+void HWDeviceDRM::Registry::Init(Handle master, CacVersion cac_version, uint32_t core_id) {
+  master_ = master;
+  cac_version_ = cac_version;
+  core_id_ = core_id;
+}
+
 int HWDeviceDRM::Registry::Register(HWLayersInfo *hw_layers_info) {
   uint32_t hw_layer_count = UINT32(hw_layers_info->hw_layers.size());
   int err = 0;
@@ -403,7 +407,8 @@ int HWDeviceDRM::Registry::Register(HWLayersInfo *hw_layers_info) {
       input_buffer.height /= 2;
     }
     int ret = MapBufferToFbId(&layer, input_buffer, &fb_modified,
-                              layer_config.tunnel_pipes.size() > 0 ? true : false);
+                              layer_config.tunnel_pipes.size() > 0 ? true : false,
+                              hw_layers_info->dummy_loopback_cac_info);
     if (!err) {
       err = ret;
       if (fb_modified) {
@@ -414,7 +419,23 @@ int HWDeviceDRM::Registry::Register(HWLayersInfo *hw_layers_info) {
   return err;
 }
 
-int HWDeviceDRM::Registry::CreateFbId(const LayerBuffer &buffer, std::vector<uint32_t> *fb_id) {
+void HWDeviceDRM::Registry::GetBufInfoForTunnelPipe(HWCacColorComponent color,
+                                                    BufferInfo *loopback_cac_info,
+                                                    AllocatedBufferInfo *buf_info,
+                                                    DRMBuffer *layout) {
+  if ((cac_version_ != kCacVersionLoopback) || (color == kCacNone)) {
+    return;
+  }
+  // Using the plane buffer fd and faking the buffer as full screen for CAC loopback
+  buf_info->aligned_width = layout->width = loopback_cac_info->alloc_buffer_info.aligned_width;
+  buf_info->aligned_height = layout->height = loopback_cac_info->alloc_buffer_info.aligned_height;
+  buf_info->format = loopback_cac_info->buffer_config.format;
+  buffer_allocator_->GetBufferLayout(*buf_info, layout->stride, layout->offset,
+                                     &layout->num_planes);
+}
+
+int HWDeviceDRM::Registry::CreateFbId(const LayerBuffer &buffer, std::vector<uint32_t> *fb_id,
+                                      BufferInfo *loopback_cac_info) {
   DRMMaster *master = reinterpret_cast<DRMMaster*>(master_);
   int ret = -1;
 
@@ -436,6 +457,8 @@ int HWDeviceDRM::Registry::CreateFbId(const LayerBuffer &buffer, std::vector<uin
     layout.height *= 2;
   }
   for (int color = 0; color < fb_id->size(); color++) {
+    GetBufInfoForTunnelPipe(static_cast<HWCacColorComponent>(color), loopback_cac_info, &buf_info,
+                            &layout);
     GetDRMFormat(buf_info.format, &layout.drm_format, &layout.drm_format_modifier,
                  static_cast<HWCacColorComponent>(color));
     ret = master->CreateFbId(layout, fb_id_data);
@@ -453,7 +476,8 @@ int HWDeviceDRM::Registry::CreateFbId(const LayerBuffer &buffer, std::vector<uin
 }
 
 int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buffer,
-                                           bool *fb_modified, bool is_cac_buffer) {
+                                           bool *fb_modified, bool is_cac_buffer,
+                                           BufferInfo &loopback_cac_info) {
   if (buffer.planes[0].fd < 0) {
     return 0;
   }
@@ -519,7 +543,7 @@ int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buff
   if (is_cac_buffer) {
     fb_id.resize(4);
   }
-  if (CreateFbId(buffer, &fb_id) >= 0) {
+  if (CreateFbId(buffer, &fb_id, &loopback_cac_info) >= 0) {
     // Create and cache the fb_id in map
     std::vector<std::shared_ptr<LayerBufferObject>> fb_id_vec;
     for (int i = 0; i < fb_id.size(); i++) {
@@ -659,10 +683,6 @@ DisplayError HWDeviceDRM::Init() {
     return kErrorNotSupported;
   }
 
-  registry_.Init(drm_master);
-  display_id_ = static_cast<int32_t>(token_.conn_id);
-  registry_.core_id_ = core_id_;
-
   ret = drm_mgr_intf_->CreateAtomicReq(token_, &drm_atomic_intf_);
   if (ret) {
     DLOGE("Failed creating atomic request for connector id %u. Error: %d.", token_.conn_id, ret);
@@ -703,6 +723,9 @@ DisplayError HWDeviceDRM::Init() {
 
   std::unique_ptr<HWColorManagerDrm> hw_color_mgr(new HWColorManagerDrm());
   hw_color_mgr_ = std::move(hw_color_mgr);
+
+  registry_.Init(drm_master, hw_resource_.cac_version, core_id_);
+  display_id_ = static_cast<int32_t>(token_.conn_id);
 
   int value = 0;
   if (Debug::GetProperty(FORCE_TONEMAPPING, &value) == kErrorNone) {

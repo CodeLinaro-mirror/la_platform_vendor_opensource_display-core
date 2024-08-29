@@ -255,6 +255,16 @@ DisplayError DisplayBuiltIn::Init() {
     DLOGE("Failed to create hardware events interface on. Error = %d", error);
   }
 
+  // For CAC loopback case where CAC pipes are after DS blocks, These pipes take input w.r.t.
+  // full panel resolution. In case of DS / Anamorphic compression usecase with cac loopback,
+  // src_crop condition will not qualify for CAC pipes as buffer is smallar then panel size.
+  // During CreateFbId for CAC pipes will fake it with dummy full screen buffer.
+  error = AllocateDummyLoopbackCACBuffer();
+  if (error != kErrorNone) {
+    DLOGE("Failed to Get dummu loopback CAC buffer info");
+    return error;
+  }
+
   current_refresh_rate_ = client_ctx_.hw_panel_info.max_fps;
 
   int value = 0;
@@ -3415,6 +3425,36 @@ void DisplayIPCVmCallbackImpl::OnServerExit() {
   server_ready_ = false;
 }
 // LCOV_EXCL_STOP
+
+CacVersion DisplayBuiltIn::GetCacVerion() {
+  int cac_version = 0;
+  for (int i = 0; i < core_count_; i++) {
+    cac_version |= hw_resource_info_[i].cac_version;
+  }
+
+  return static_cast<CacVersion>(cac_version);
+}
+
+DisplayError DisplayBuiltIn::AllocateDummyLoopbackCACBuffer() {
+  if (GetCacVerion() != kCacVersionLoopback) {
+    return kErrorNone;
+  }
+
+  dummy_loopback_cac_info_.buffer_config.width = client_ctx_.display_attributes.x_pixels;
+  dummy_loopback_cac_info_.buffer_config.height = client_ctx_.display_attributes.y_pixels;
+
+  dummy_loopback_cac_info_.buffer_config.format = kFormatRGBA8888Ubwc;
+  dummy_loopback_cac_info_.buffer_config.buffer_count = 1;
+  if (buffer_allocator_->AllocateBuffer(&dummy_loopback_cac_info_) != 0) {
+    DLOGE("Loopback CAC Buffer allocation failed");
+    return kErrorMemory;
+  }
+
+  buffer_allocator_->FreeBuffer(&dummy_loopback_cac_info_);
+  dummy_loopback_cac_info_.alloc_buffer_info.fd = -1;
+
+  return kErrorNone;
+}
 
 void DisplayBuiltIn::InitCWBBuffer() {
   if (client_ctx_.hw_panel_info.mode != kModeVideo || !HasConcurrentWriteback()

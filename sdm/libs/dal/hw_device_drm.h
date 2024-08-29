@@ -69,6 +69,7 @@
 #include <utils/formats.h>
 #include <private/hw_interface.h>
 #include <drm_interface.h>
+#include <drm_master.h>
 #include <errno.h>
 #include <pthread.h>
 #include <xf86drmMode.h>
@@ -89,6 +90,7 @@
 #define VIDEO_FBID_LIMIT 32
 #define OFFLINE_ROTATOR_FBID_LIMIT 2
 
+using drm_utils::DRMBuffer;
 using sde_drm::DRMPowerMode;
 namespace sdm {
 class HWInfoInterface;
@@ -295,31 +297,35 @@ class HWDeviceDRM : public HWInterface {
    public:
     explicit Registry(BufferAllocator *buffer_allocator);
     // Init master
-    void Init(Handle master) {master_ = master;}
+    void Init(Handle master, CacVersion cac_version, uint32_t core_id);
     // Called on each Validate and Commit to map the handle_id to fb_id of each layer buffer.
     int Register(HWLayersInfo *hw_layers_info);
     // Called on display disconnect to clear output buffer map and remove fb_ids.
     void Clear();
     // Create the fd_id for the given buffer.
-    int CreateFbId(const LayerBuffer &buffer, std::vector<uint32_t> *fb_id);
+    int CreateFbId(const LayerBuffer &buffer, std::vector<uint32_t> *fb_id,
+                   BufferInfo *loopback_cac_info = nullptr);
     // Find handle_id in the layer map. Else create fb_id and add <handle_id,fb_id> in map.
-    int MapBufferToFbId(Layer* layer, const LayerBuffer &buffer, bool *fb_modified,
-                        bool is_cac_buffer);
+    int MapBufferToFbId(Layer *layer, const LayerBuffer &buffer, bool *fb_modified,
+                        bool is_cac_buffer, BufferInfo &loopback_cac_info);
     // Find handle_id in output buffer map. Else create fb_id and add <handle_id,fb_id> in map.
     void MapOutputBufferToFbId(std::shared_ptr<LayerBuffer> buffer, bool *fb_modified);
     // Find fb_id for given handle_id in the layer map.
     void GetFbId(Layer *layer, uint64_t handle_id, std::vector<uint32_t> *fb_id);
     // Find fb_id for given handle_id in output buffer map.
     uint32_t GetOutputFbId(uint64_t handle_id);
-    uint32_t core_id_;
 
    private:
+    void GetBufInfoForTunnelPipe(HWCacColorComponent color, BufferInfo *loopback_cac_info,
+                                 AllocatedBufferInfo *buf_info, DRMBuffer *layout);
     bool disable_fbid_cache_ = false;
     std::unordered_map<uint64_t, std::unordered_map<uint32_t, std::shared_ptr<LayerBufferObject>>>
                                                               output_buffer_map_;
     BufferAllocator *buffer_allocator_ = {};
     uint8_t fbid_cache_limit_ = UI_FBID_LIMIT;
     Handle master_ = nullptr;
+    CacVersion cac_version_ = kCacVersionNone;
+    uint32_t core_id_;
   };
 
  protected:

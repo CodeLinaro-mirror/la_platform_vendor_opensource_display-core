@@ -224,6 +224,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   DisplayError HandleSecureEvent(SecureEvent secure_event, bool *needs_refresh) override;
   DisplayError PostHandleSecureEvent(SecureEvent secure_event) override;
   void InitCWBBuffer();
+  DisplayError AllocateDummyLoopbackCACBuffer();
   void DeinitCWBBuffer();
   void AppendCWBLayer(LayerStack *layer_stack);
   uint32_t GetUpdatingAppLayersCount(LayerStack *layer_stack);
@@ -335,6 +336,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   bool GetDemuraTnUserCtrl();
   int UpdateDemuraTnUserCtrl(bool user_ctrl);
   DisplayError TriggerDemuraOemPlugIn(void *data);
+  CacVersion GetCacVerion();
 
   const uint32_t kPuTimeOutMs = 1000;
   std::vector<HWEvent> event_list_;
