@@ -1087,6 +1087,7 @@ struct LayerStackInfo {
   RCLayersInfo rc_layers_info = {};
   CommonStackInfo common_info = {};
   bool enable_cac = false;  // This field hints to enable CAC
+  bool enable_anamorphic_fov = false;  // This field hints to enable anamorphic foveation
   CacConfig cac_config = {};
   Handle comp_stack = nullptr;
   SelfRefreshState self_refresh_state = kSelfRefreshNone;

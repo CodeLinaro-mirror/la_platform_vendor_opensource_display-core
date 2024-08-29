@@ -2158,12 +2158,29 @@ DisplayError DisplayBuiltIn::NotifyDisplayCalibrationMode(bool in_calibration) {
   return ret;
 }
 
+bool DisplayBuiltIn::IsAnamorphicFoveationEnabled(LayerStack *layer_stack) {
+  if (!xr_variant_) {
+    return false;
+  }
+
+  const std::vector<Layer *> &layers = layer_stack->layers;
+  for (uint32_t i = 0; i < layers.size(); i++) {
+    QtiAnamorphicMetadata anamorphic_md = layers[i]->input_buffer.anamorphicMetadata;
+    if (anamorphic_md.leftEyeDataValid || anamorphic_md.rightEyeDataValid) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 std::string DisplayBuiltIn::Dump() {
   ClientLock lock(disp_mutex_);
   uint32_t active_index = 0;
   uint32_t num_modes = 0;
   std::ostringstream os;
   char capabilities[16];
+  CacVersion cac_version = GetCacVerion();
   HWPanelInfo hw_panel_info = client_ctx_.hw_panel_info;
   HWDisplayAttributes display_attributes = client_ctx_.display_attributes;
   HWMixerAttributes mixer_attributes = client_ctx_.mixer_attributes;
@@ -2222,6 +2239,11 @@ std::string DisplayBuiltIn::Dump() {
   os << " Topology: " << display_attributes.topology;
   os << " Qsync mode: " << active_qsync_mode_;
   os << " CAC enabled: " << disp_layer_stack_->stack_info.enable_cac;
+  os << (disp_layer_stack_->stack_info.enable_cac
+             ? (cac_version == kCacVersionLoopback) ? " (CACLoopback)" : " (CACV2)"
+             : "");
+  os << "\n Foveation enabled: " << disp_layer_stack_->stack_info.enable_anamorphic_fov;
+  os << (disp_layer_stack_->stack_info.enable_anamorphic_fov ? " (Anamorphic Foveation)" : "");
   os << std::noboolalpha;
 
   DynamicRangeType curr_dynamic_range = kSdrType;
@@ -2804,6 +2826,7 @@ DisplayError DisplayBuiltIn::BuildLayerStackStats(LayerStack *layer_stack) {
   stack_info.common_info.blend_cs = layer_stack->blend_cs;
   stack_info.wide_color_primaries.clear();
   stack_info.enable_cac = enable_cac_;
+  stack_info.enable_anamorphic_fov = IsAnamorphicFoveationEnabled(layer_stack);
   stack_info.cac_config = cac_config_;
 
   int index = 0;
