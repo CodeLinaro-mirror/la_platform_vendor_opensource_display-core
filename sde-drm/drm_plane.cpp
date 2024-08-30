@@ -338,20 +338,6 @@ static QSEEDStepVersion PopulateQseedStepVersion(uint32_t hw_ver) {
   }
 }
 
-static DRMCacMode PopulateCacMode(uint32_t mode) {
-  switch (mode) {
-    case 0x0: return DRMCacMode::CAC_MODE_DISABLED;
-    case 0x1: return DRMCacMode::CAC_MODE_UNPACK;
-    case 0x2: return DRMCacMode::CAC_MODE_FETCH;
-    case 0x4:
-      return DRMCacMode::CAC_MODE_LOOPBACK_UNPACK;
-    case 0x8:
-      return DRMCacMode::CAC_MODE_LOOPBACK_FETCH;
-    // default corresponds to CAC_MODE_DISABLED
-    default: return DRMCacMode::CAC_MODE_DISABLED;
-  }
-}
-
 static void PopulateMultiRectModes(drmModePropertyRes *prop) {
   static bool multirect_modes_populated = false;
   if (!multirect_modes_populated) {
@@ -812,7 +798,8 @@ void DRMPlane::GetTypeInfo(const PropertyMap &prop_map) {
     }  else if (line.find(demura_block) != string::npos) {
       info->demura_block_capability = std::stoi(line.erase(0, demura_block.length()));
     }  else if (line.find(cac_mode) != string::npos) {
-      info->cac_mode = PopulateCacMode(std::stoi(line.erase(0, cac_mode.length())));
+      // Assign first four bits of cac mode to bitset
+      info->cac_mode = 0xF & std::stoi(line.erase(0, cac_mode.length()));
     }  else if (line.find(cac_parent_rect) != string::npos) {
       info->cac_parent_rect = std::stoi(line.erase(0, cac_parent_rect.length()));
     }

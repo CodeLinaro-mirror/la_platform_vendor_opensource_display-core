@@ -147,15 +147,19 @@ static InlineRotationVersion GetInRotVersion(sde_drm::InlineRotationVersion drm_
   }
 }
 
-static HWPipeCacMode GetCacMode(sde_drm::DRMCacMode cac_mode) {
-  switch (cac_mode) {
-    case sde_drm::DRMCacMode::CAC_MODE_UNPACK:
-      return kModeUnpack;
-    case sde_drm::DRMCacMode::CAC_MODE_FETCH:
-      return kModeFetch;
-    default:
-      return kModeDisabled;
+static HWPipeCacMode GetCacMode(std::bitset<4> cac_mode, CacVersion cac_version) {
+  HWPipeCacMode pipe_cac_mode = kModeDisabled;
+  if (cac_version == kCacVersion2) {
+    pipe_cac_mode = cac_mode.test(sde_drm::CAC_MODE_UNPACK_BIT)  ? kModeUnpack
+                    : cac_mode.test(sde_drm::CAC_MODE_FETCH_BIT) ? kModeFetch
+                                                                 : kModeDisabled;
+  } else if (cac_version == kCacVersionLoopback) {
+    pipe_cac_mode = cac_mode.test(sde_drm::CAC_MODE_LOOPBACK_UNPACK_BIT) ? kModeLoopbackUnpack
+                    : cac_mode.test(sde_drm::CAC_MODE_FETCH_BIT)         ? kModeLoopbackFetch
+                                                                         : kModeDisabled;
   }
+
+  return pipe_cac_mode;
 }
 
 DisplayError HWInfoDRM::Init() {
@@ -553,7 +557,7 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
     pipe_caps.dgm_csc_version = pipe_obj.second.dgm_csc_version;
     pipe_caps.pipe_idx = pipe_obj.second.pipe_idx;
     pipe_caps.demura_block_capability = pipe_obj.second.demura_block_capability;
-    pipe_caps.cac_mode = GetCacMode(pipe_obj.second.cac_mode);
+    pipe_caps.cac_mode = GetCacMode(pipe_obj.second.cac_mode, hw_resource->cac_version);
     pipe_caps.cac_parent_id = pipe_obj.second.cac_parent_rect;
     // disable src tonemap feature if its disabled using property.
     if (!disable_src_tonemap) {

@@ -1116,6 +1116,10 @@ DisplayError DisplayBase::Prepare(LayerStack *layer_stack) {
       break;
     }
 
+    for (auto &hw_info : disp_layer_stack_->info) {
+      hw_info.second.dummy_loopback_cac_info = dummy_loopback_cac_info_;
+    }
+
     // Trigger validate only if needed.
     if (disp_layer_stack_->stack_info.do_hw_validate) {
       error = dpu_core_mux_->Validate(disp_layer_stack_->info);
@@ -2145,6 +2149,7 @@ DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
   }
 
   SyncPoints sync_points = {};
+  std::map<uint32_t, HWQosData> qos_data;
 
   switch (state) {
     case kStateOff:
@@ -2171,9 +2176,11 @@ DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
       break;
 
     case kStateOn:
-      for (int i = 0; i < cached_qos_data_.size(); i++) {
-        cached_qos_data_[i].clock_hz =
-        std::max(cached_qos_data_[i].clock_hz, disp_layer_stack_->info[i].qos_data.clock_hz);
+      if (comp_manager_->GetDefaultQosData(display_comp_ctx_, &qos_data) == kErrorNone) {
+        for (int i = 0; i < cached_qos_data_.size(); i++) {
+          if (!cached_qos_data_[i].valid)
+            cached_qos_data_[i] = qos_data[i];
+        }
       }
       error = dpu_core_mux_->PowerOn(cached_qos_data_, &sync_points);
       if (error != kErrorNone) {
@@ -2200,6 +2207,12 @@ DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
       break;
 
     case kStateDoze:
+      if (comp_manager_->GetDefaultQosData(display_comp_ctx_, &qos_data) == kErrorNone) {
+        for (int i = 0; i < cached_qos_data_.size(); i++) {
+          if (!cached_qos_data_[i].valid)
+            cached_qos_data_[i] = qos_data[i];
+        }
+      }
       error = dpu_core_mux_->Doze(cached_qos_data_, &sync_points);
       if (error != kErrorNone) {
         if (error == kErrorDeferred) {
@@ -2215,6 +2228,12 @@ DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
       break;
 
     case kStateDozeSuspend:
+      if (comp_manager_->GetDefaultQosData(display_comp_ctx_, &qos_data) == kErrorNone) {
+        for (int i = 0; i < cached_qos_data_.size(); i++) {
+          if (!cached_qos_data_[i].valid)
+            cached_qos_data_[i] = qos_data[i];
+        }
+      }
       error = dpu_core_mux_->DozeSuspend(cached_qos_data_, &sync_points);
       if (error != kErrorNone) {
         if (error == kErrorDeferred) {

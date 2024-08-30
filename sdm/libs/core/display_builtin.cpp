@@ -255,6 +255,16 @@ DisplayError DisplayBuiltIn::Init() {
     DLOGE("Failed to create hardware events interface on. Error = %d", error);
   }
 
+  // For CAC loopback case where CAC pipes are after DS blocks, These pipes take input w.r.t.
+  // full panel resolution. In case of DS / Anamorphic compression usecase with cac loopback,
+  // src_crop condition will not qualify for CAC pipes as buffer is smallar then panel size.
+  // During CreateFbId for CAC pipes will fake it with dummy full screen buffer.
+  error = AllocateDummyLoopbackCACBuffer();
+  if (error != kErrorNone) {
+    DLOGE("Failed to Get dummu loopback CAC buffer info");
+    return error;
+  }
+
   current_refresh_rate_ = client_ctx_.hw_panel_info.max_fps;
 
   int value = 0;
@@ -2148,12 +2158,29 @@ DisplayError DisplayBuiltIn::NotifyDisplayCalibrationMode(bool in_calibration) {
   return ret;
 }
 
+bool DisplayBuiltIn::IsAnamorphicFoveationEnabled(LayerStack *layer_stack) {
+  if (!xr_variant_) {
+    return false;
+  }
+
+  const std::vector<Layer *> &layers = layer_stack->layers;
+  for (uint32_t i = 0; i < layers.size(); i++) {
+    QtiAnamorphicMetadata anamorphic_md = layers[i]->input_buffer.anamorphicMetadata;
+    if (anamorphic_md.leftEyeDataValid || anamorphic_md.rightEyeDataValid) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 std::string DisplayBuiltIn::Dump() {
   ClientLock lock(disp_mutex_);
   uint32_t active_index = 0;
   uint32_t num_modes = 0;
   std::ostringstream os;
   char capabilities[16];
+  CacVersion cac_version = GetCacVerion();
   HWPanelInfo hw_panel_info = client_ctx_.hw_panel_info;
   HWDisplayAttributes display_attributes = client_ctx_.display_attributes;
   HWMixerAttributes mixer_attributes = client_ctx_.mixer_attributes;
@@ -2212,6 +2239,11 @@ std::string DisplayBuiltIn::Dump() {
   os << " Topology: " << display_attributes.topology;
   os << " Qsync mode: " << active_qsync_mode_;
   os << " CAC enabled: " << disp_layer_stack_->stack_info.enable_cac;
+  os << (disp_layer_stack_->stack_info.enable_cac
+             ? (cac_version == kCacVersionLoopback) ? " (CACLoopback)" : " (CACV2)"
+             : "");
+  os << "\n Foveation enabled: " << disp_layer_stack_->stack_info.enable_anamorphic_fov;
+  os << (disp_layer_stack_->stack_info.enable_anamorphic_fov ? " (Anamorphic Foveation)" : "");
   os << std::noboolalpha;
 
   DynamicRangeType curr_dynamic_range = kSdrType;
@@ -2794,6 +2826,7 @@ DisplayError DisplayBuiltIn::BuildLayerStackStats(LayerStack *layer_stack) {
   stack_info.common_info.blend_cs = layer_stack->blend_cs;
   stack_info.wide_color_primaries.clear();
   stack_info.enable_cac = enable_cac_;
+  stack_info.enable_anamorphic_fov = IsAnamorphicFoveationEnabled(layer_stack);
   stack_info.cac_config = cac_config_;
 
   int index = 0;
@@ -3415,6 +3448,36 @@ void DisplayIPCVmCallbackImpl::OnServerExit() {
   server_ready_ = false;
 }
 // LCOV_EXCL_STOP
+
+CacVersion DisplayBuiltIn::GetCacVerion() {
+  int cac_version = 0;
+  for (int i = 0; i < core_count_; i++) {
+    cac_version |= hw_resource_info_[i].cac_version;
+  }
+
+  return static_cast<CacVersion>(cac_version);
+}
+
+DisplayError DisplayBuiltIn::AllocateDummyLoopbackCACBuffer() {
+  if (GetCacVerion() != kCacVersionLoopback) {
+    return kErrorNone;
+  }
+
+  dummy_loopback_cac_info_.buffer_config.width = client_ctx_.display_attributes.x_pixels;
+  dummy_loopback_cac_info_.buffer_config.height = client_ctx_.display_attributes.y_pixels;
+
+  dummy_loopback_cac_info_.buffer_config.format = kFormatRGBA8888Ubwc;
+  dummy_loopback_cac_info_.buffer_config.buffer_count = 1;
+  if (buffer_allocator_->AllocateBuffer(&dummy_loopback_cac_info_) != 0) {
+    DLOGE("Loopback CAC Buffer allocation failed");
+    return kErrorMemory;
+  }
+
+  buffer_allocator_->FreeBuffer(&dummy_loopback_cac_info_);
+  dummy_loopback_cac_info_.alloc_buffer_info.fd = -1;
+
+  return kErrorNone;
+}
 
 void DisplayBuiltIn::InitCWBBuffer() {
   if (client_ctx_.hw_panel_info.mode != kModeVideo || !HasConcurrentWriteback()

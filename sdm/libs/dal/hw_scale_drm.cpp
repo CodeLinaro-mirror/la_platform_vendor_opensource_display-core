@@ -66,7 +66,7 @@
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -254,6 +254,13 @@ void HWScaleDRM::SetScalerV2(const HWScaleData &scale_data, sde_drm_scaler_v2 *s
   scaler->cac_cfg.cac_le_dst_h_offset = scale_data.cac_le_dst_h_offset;
   scaler->cac_cfg.cac_le_dst_v_offset = scale_data.cac_le_dst_v_offset;
   scaler->cac_cfg.cac_re_dst_v_offset = scale_data.cac_re_dst_v_offset;
+
+  // fov params
+  scaler->cac_cfg.fov_mode = scale_data.fov_mode;
+  scaler->cac_cfg.cac_asym_phase_step_h = scale_data.cac_asym_phase_step_h;
+  scaler->cac_cfg.cac_asym_phase_step_v = scale_data.cac_asym_phase_step_v;
+  scaler->cac_cfg.cac_re_phase_step_v = scale_data.cac_re_phase_step_v;
+  scaler->cac_cfg.cac_re_asym_phase_step_v = scale_data.cac_re_asym_phase_step_v;
 
   return;
 }
