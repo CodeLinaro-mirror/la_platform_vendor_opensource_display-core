@@ -82,6 +82,11 @@ DisplayError SDMDisplayResolutionExtn::GetExtendedDisplayResolutions(uint32_t pa
               }
               const double x_factor = std::atof(x);
               const double y_factor = std::atof(y);
+              if (x_factor < 1 || y_factor < 1) {
+                DLOGW("Unsupported scaling factor");
+                scaling_node = scaling_node->NextSiblingElement();
+                continue;
+              }
 
               res_x = panel_width / x_factor;
               res_y = panel_height / y_factor;
