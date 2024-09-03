@@ -1007,6 +1007,7 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
     hw_panel_info_.partial_update = connector_info_.modes[index].num_roi;
   }
 
+  hw_panel_info_.has_ai_scaler = enable_ai_scaler;
   hw_panel_info_.left_roi_count = UINT32(connector_info_.modes[index].num_roi);
   hw_panel_info_.right_roi_count = UINT32(connector_info_.modes[index].num_roi);
   hw_panel_info_.left_align = connector_info_.modes[index].xstart;
