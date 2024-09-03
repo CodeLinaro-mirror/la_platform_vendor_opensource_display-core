@@ -967,6 +967,7 @@ void SDMDisplay::BuildLayerStack() {
   layer_stack_.flags.advance_fb_present = client_target_3_1_set_;
   // Append client target to the layer stack
   Layer *sdm_client_target = client_target_->GetSDMLayer();
+  sdm_client_target->request.flags = {};
   sdm_client_target->layer_id = client_target_->GetId();
   sdm_client_target->geometry_changes = client_target_->GetGeometryChanges();
   sdm_client_target->flags.updating = IsLayerUpdating(client_target_);
@@ -1948,8 +1949,6 @@ SDMDisplay::PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence) {
     layer->request.flags = {};
     layer_buffer->acquire_fence = nullptr;
   }
-
-  client_target_->GetSDMLayer()->request.flags = {};
 
   layer_stack_.flags.geometry_changed = false;
   sdm_layer_stack_->geometry_changes_ = GeometryChanges::kNone;
