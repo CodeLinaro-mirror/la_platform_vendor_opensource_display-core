@@ -1336,11 +1336,9 @@ DisplayError SDMDisplay::GetActiveConfig(bool get_real_config, Config *out_confi
   return kErrorNone;
 }
 
-DisplayError SDMDisplay::SetClientTarget(const SnapHandle *target,
-                                         shared_ptr<Fence> acquire_fence,
-                                         int32_t dataspace,
-                                         const SDMRegion &damage,
-                                         uint32_t version) {
+DisplayError SDMDisplay::SetClientTarget(const SnapHandle *target, shared_ptr<Fence> acquire_fence,
+                                         int32_t dataspace, const SDMRegion &damage,
+                                         uint32_t version, float hdr_sdr_ratio) {
   DTRACE_SCOPED();
   // moved this check here from sdm_display
   // TODO(user): SurfaceFlinger gives us a null pointer here when doing full SDE composition
@@ -1358,6 +1356,7 @@ DisplayError SDMDisplay::SetClientTarget(const SnapHandle *target,
   Layer *sdm_layer = client_target_->GetSDMLayer();
   sdm_layer->frame_rate =
       std::min(current_refresh_rate_, SDMDisplay::GetThrottlingRefreshRate());
+  sdm_layer->hdr_sdr_ratio = hdr_sdr_ratio;
 
   SetClientTargetDataSpace(dataspace);
   client_target_->SetLayerSurfaceDamage(damage);
