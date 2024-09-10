@@ -904,6 +904,49 @@ DisplayError DisplayBuiltIn::SetupDemuraLayer() {
   return kErrorNone;
 }
 
+DisplayError DisplayBuiltIn::DumpDemuraSurface(const char *dir_path, uint32_t frame_index) {
+  ClientLock lock(disp_mutex_);
+
+  if (demura_layer_.empty()) {
+    DLOGI("No demura layer present");
+    return kErrorNone;
+  }
+
+  for (int i = 0; i < demura_layer_.size(); i++) {
+    if (demura_layer_[i].input_buffer.planes[0].fd > 0 && demura_layer_[i].input_buffer.size) {
+      void *mapped_buffer = mmap(NULL, demura_layer_[i].input_buffer.size, PROT_READ | PROT_WRITE,
+                                 MAP_SHARED, demura_layer_[i].input_buffer.planes[0].fd, 0);
+      if (mapped_buffer == MAP_FAILED) {
+        DLOGE("mmap failed with err %s", strerror(errno));
+        return kErrorUndefined;
+      }
+
+      if (!mapped_buffer) {
+        DLOGE("mapped buffer is empty");
+        return kErrorUndefined;
+      }
+
+      char dump_file_name[PATH_MAX];
+      snprintf(dump_file_name, sizeof(dump_file_name),
+               "%s/input_layer_demura%d_%dx%d_%s_frame%d.raw", dir_path, i, hfc_buffer_width_,
+               hfc_buffer_height_, GetFormatString(demura_layer_[i].input_buffer.format),
+               frame_index);
+
+      FILE *fp = fopen(dump_file_name, "w+");
+      size_t result = 0;
+      if (fp) {
+        result = fwrite(mapped_buffer, demura_layer_[i].input_buffer.size, 1, fp);
+        fclose(fp);
+      }
+
+      DLOGI("Frame Dump %s: is %s", dump_file_name, result ? "Successful" : "Failed");
+      munmap(mapped_buffer, demura_layer_[i].input_buffer.size);
+    }
+  }
+
+  return kErrorNone;
+}
+
 DisplayError DisplayBuiltIn::SetupABCLayer() {
   int ret = 0;
   GenericPayload pl;
