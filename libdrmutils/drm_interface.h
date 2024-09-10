@@ -218,7 +218,7 @@ enum struct DRMOps {
   /*
    * Op: Sets FP16 CSC config on this plane.
    * Arg: uint32_t - Plane ID
-   *      uint32_t - csc type
+   *      DRMFp16CscConfig* - CSC config
    */
   PLANE_SET_FP16_CSC_CONFIG,
   /*
@@ -1390,14 +1390,20 @@ enum struct DRMWBUsageType {
 enum DRMFp16CscType {
   kFP16CscSrgb2Dcip3 = 0,
   kFP16CscSrgb2Bt2020,
+  kFP16CscTypeUnity,  // to apply HDR/SDR ratio
   kFP16CscTypeMax,
 };
 
+struct DRMFp16CscConfig {
+  DRMFp16CscType csc_type = kFP16CscTypeMax;
+  float hdr_sdr_ratio = 1.0;
+};
+
 struct DRMFp16Config {
-  uint32_t igc_en;
-  uint32_t unmult_en;
-  uint32_t csc_idx;
-  drm_msm_fp16_gc gc;
+  uint32_t igc_en = 0;
+  uint32_t unmult_en = 0;
+  DRMFp16CscConfig csc_config = {};
+  drm_msm_fp16_gc gc_config = {.flags = 0, .mode = FP16_GC_MODE_INVALID};
 };
 
 enum struct DRMCacheWBState {
