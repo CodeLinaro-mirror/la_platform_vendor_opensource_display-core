@@ -865,7 +865,6 @@ DisplayError SDMDisplayBuiltIn::SetHWDetailedEnhancerConfig(void *params) {
           de_tuning_cfg_data->params.de_lpf_l);
 #endif
       if (de_tuning_cfg_data->params.flags & kDeTuningFlagSharpFactor) {
-        de_data.override_flags |= kOverrideDESharpen1;
         de_data.sharp_factor = de_tuning_cfg_data->params.sharp_factor;
       }
 
