@@ -3326,6 +3326,7 @@ DisplayError DisplayBuiltIn::PostHandleSecureEvent(SecureEvent secure_event) {
   }
   if (secure_event == kTUITransitionEnd) {
     comp_manager_->PostHandleSecureEvent(display_comp_ctx_, secure_event);
+    event_handler_->Refresh();
   }
   return kErrorNone;
 }
