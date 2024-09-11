@@ -130,7 +130,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual bool IsUnderscanSupported() {
     return false;
   }
-  virtual DisplayError SetPanelBrightness(float brightness) {
+  virtual DisplayError SetPanelBrightness(float brightness, bool return_error = false) {
     return kErrorNotSupported;
   }
   virtual DisplayError SetBppMode(uint32_t bpp) {

@@ -1359,15 +1359,19 @@ DisplayError DisplayBuiltIn::CommitLocked(LayerStack *layer_stack) {
 }
 
 DisplayError DisplayBuiltIn::PostCommit() {
+  DisplayError err = kErrorNone;
   DisplayBase::PostCommit();
   // Mutex scope
   {
     lock_guard<recursive_mutex> obj(brightness_lock_);
     if (pending_brightness_) {
       Fence::Wait(retire_fence_);
-      SetPanelBrightness(cached_brightness_);
+      err = SetPanelBrightness(cached_brightness_, true);
       pending_brightness_ = false;
     }
+  }
+  if (err == kErrorNone) {
+    HandleDemuraScreenRefresh();
   }
 
   if (commit_event_enabled_) {
@@ -1493,8 +1497,11 @@ DisplayError DisplayBuiltIn::SetDisplayState(DisplayState state, bool teardown,
   }
 
   if (secure_event_ == kTUITransitionEnd && state == kStateOff) {
-    SetPanelBrightness(cached_brightness_);
+    error = SetPanelBrightness(cached_brightness_, true);
     pending_brightness_ = false;
+    if (error == kErrorNone) {
+      HandleDemuraScreenRefresh();
+    }
   }
 
   if (client_ctx_.hw_panel_info.mode != panel_mode) {
@@ -1591,74 +1598,55 @@ DisplayError DisplayBuiltIn::SetDisplayMode(uint32_t mode) {
   return error;
 }
 
-DisplayError DisplayBuiltIn::SetPanelBrightness(float brightness) {
-  lock_guard<recursive_mutex> obj(brightness_lock_);
+DisplayError DisplayBuiltIn::SetPanelBrightness(float brightness, bool return_error) {
+  DisplayError err = kErrorNone;
+  {
+    lock_guard<recursive_mutex> obj(brightness_lock_);
 
-  if (brightness != -1.0f && !(0.0f <= brightness && brightness <= 1.0f)) {
-    DLOGE("Bad brightness value = %f", brightness);
-    return kErrorParameters;
-  }
-
-  // -1.0f = off, 0.0f = min, 1.0f = max
-  float level_remainder = 0.0f;
-  int level = 0;
-  if (brightness == -1.0f) {
-    level = 0;
-  } else {
-    // Node only supports int level, so store the float remainder for accurate GetPanelBrightness
-    float max = client_ctx_.hw_panel_info.panel_max_brightness;
-    float min = client_ctx_.hw_panel_info.panel_min_brightness;
-    if (min >= max) {
-      DLOGE("Minimum brightness is greater than or equal to maximum brightness");
-      return kErrorDriverData;
+    if (brightness != -1.0f && !(0.0f <= brightness && brightness <= 1.0f)) {
+      DLOGE("Bad brightness value = %f", brightness);
+      return kErrorParameters;
     }
-    float t = (brightness * (max - min)) + min;
-    level = static_cast<int>(t);
-    level_remainder = t - level;
-  }
 
-  DisplayError err = dpu_core_mux_->SetPanelBrightness(level);
-  if (enable_brightness_drm_prop_) {
-    event_handler_->Refresh();
-  }
-  if (err == kErrorNone) {
-    level_remainder_ = level_remainder;
-    pending_brightness_ = false;
-    comp_manager_->SetBacklightLevel(display_comp_ctx_, level);
-    DLOGI_IF(kTagDisplay, "Setting brightness to level %d (%f percent)", level,
-             brightness * 100);
-
-    if (demura_intended_ && comp_manager_->GetDemuraStatusForDisplay(display_id_)) {
-      if (!demura_) {
-        DLOGE("demura_ is nullptr");
-        return kErrorParameters;
+    // -1.0f = off, 0.0f = min, 1.0f = max
+    float level_remainder = 0.0f;
+    int level = 0;
+    if (brightness == -1.0f) {
+      level = 0;
+    } else {
+      // Node only supports int level, so store the float remainder for accurate GetPanelBrightness
+      float max = client_ctx_.hw_panel_info.panel_max_brightness;
+      float min = client_ctx_.hw_panel_info.panel_min_brightness;
+      if (min >= max) {
+        DLOGE("Minimum brightness is greater than or equal to maximum brightness");
+        return kErrorDriverData;
       }
-
-      GenericPayload pl;
-      int32_t *need_screen_refresh = nullptr;
-      int rc = 0;
-      if ((rc = pl.CreatePayload<int32_t>(need_screen_refresh))) {
-        DLOGE("Failed to create payload for need_screen_refresh, error = %d", rc);
-        return kErrorParameters;
-      }
-
-      rc = demura_->GetParameter(kDemuraFeatureParamNeedScreenRefresh, &pl);
-      if (rc) {
-        DLOGE("Failed to get need screen refresh, error %d", rc);
-        return kErrorParameters;
-      }
-
-      if (*need_screen_refresh) {
-        event_handler_->Refresh();
-      }
+      float t = (brightness * (max - min)) + min;
+      level = static_cast<int>(t);
+      level_remainder = t - level;
     }
-  } else if (err == kErrorDeferred) {
-    // TODO(user): I8508d64a55c3b30239c6ed2886df391407d22f25 causes mismatch between perceived
-    // power state and actual panel power state. Requires a rework. Below check will set up
-    // deferment of brightness operation if DAL reports defer use case.
-    cached_brightness_ = brightness;
-    pending_brightness_ = true;
-    return kErrorNone;
+
+    err = dpu_core_mux_->SetPanelBrightness(level);
+    if (enable_brightness_drm_prop_) {
+      event_handler_->Refresh();
+    }
+    if (err == kErrorNone) {
+      level_remainder_ = level_remainder;
+      pending_brightness_ = false;
+      comp_manager_->SetBacklightLevel(display_comp_ctx_, level);
+      DLOGI_IF(kTagDisplay, "Setting brightness to level %d (%f percent)", level, brightness * 100);
+    } else if (err == kErrorDeferred) {
+      // TODO(user): I8508d64a55c3b30239c6ed2886df391407d22f25 causes mismatch between perceived
+      // power state and actual panel power state. Requires a rework. Below check will set up
+      // deferment of brightness operation if DAL reports defer use case.
+      cached_brightness_ = brightness;
+      pending_brightness_ = true;
+      return return_error ? kErrorDeferred : kErrorNone;
+    }
+  }
+
+  if (!return_error && err == kErrorNone) {
+    HandleDemuraScreenRefresh();
   }
 
   return err;
@@ -3785,6 +3773,7 @@ DisplayError DisplayBuiltIn::SetDemuraState(int state) {
 }
 
 DisplayError DisplayBuiltIn::SetDemuraConfig(int demura_idx) {
+  ClientLock lock(disp_mutex_);
   int ret = 0;
   GenericPayload pl;
   uConfigIdx *idx = nullptr;
@@ -4514,6 +4503,35 @@ DisplayError DisplayBuiltIn::StartService(TvmDispServiceManagerParams service) {
     return kErrorUndefined;
   } else {
     DLOGI("Start service %d", service);
+  }
+
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::HandleDemuraScreenRefresh() {
+  if (demura_intended_ && comp_manager_->GetDemuraStatusForDisplay(display_id_)) {
+    if (!demura_) {
+      DLOGE("demura_ is nullptr");
+      return kErrorParameters;
+    }
+
+    GenericPayload pl;
+    int32_t *need_screen_refresh = nullptr;
+    int rc = 0;
+    if ((rc = pl.CreatePayload<int32_t>(need_screen_refresh))) {
+      DLOGE("Failed to create payload for need_screen_refresh, error = %d", rc);
+      return kErrorParameters;
+    }
+
+    rc = demura_->GetParameter(kDemuraFeatureParamNeedScreenRefresh, &pl);
+    if (rc) {
+      DLOGE("Failed to get need screen refresh, error %d", rc);
+      return kErrorParameters;
+    }
+
+    if (*need_screen_refresh) {
+      event_handler_->Refresh();
+    }
   }
 
   return kErrorNone;
