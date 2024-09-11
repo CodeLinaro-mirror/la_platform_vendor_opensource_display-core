@@ -30,7 +30,7 @@
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -818,6 +818,21 @@ void HWDeviceDRM::GetCWBCapabilities() {
         }
       }
       DLOGI("Max supported CWB session = %d", max_cwb_);
+      break;
+    }
+  }
+}
+
+void HWDeviceDRM::GetCWBDitherVersion(DRMPPFeatureInfo *info) {
+  sde_drm::DRMConnectorsInfo conns_info = {};
+  int ret = drm_mgr_intf_->GetConnectorsInfo(&conns_info);
+  if (ret) {
+    DLOGW("DRM Driver error %d while getting Connectors info.", ret);
+    return;
+  }
+  for (auto &iter : conns_info) {
+    if (iter.second.type == DRM_MODE_CONNECTOR_VIRTUAL) {
+      drm_mgr_intf_->GetConnectorPPInfo(iter.first, info);
       break;
     }
   }
@@ -2681,7 +2696,16 @@ DisplayError HWDeviceDRM::GetPPFeaturesVersion(PPFeatureVersion *vers) {
 
     info.id = drm_id.at(0);
 
-    drm_mgr_intf_->GetCrtcPPInfo(token_.crtc_id, &info);
+    if (i == kGlobalColorFeatureDither) {
+      drm_mgr_intf_->GetConnectorPPInfo(token_.conn_id, &info);
+    } else if (i == kGlobalColorFeatureCWBDither) {
+      if (has_cwb_dither_) {
+        GetCWBDitherVersion(&info);
+      }
+    } else {
+      drm_mgr_intf_->GetCrtcPPInfo(token_.crtc_id, &info);
+    }
+
     vers->version[i] = hw_color_mgr_->GetFeatureVersion(info);
   }
   return kErrorNone;
