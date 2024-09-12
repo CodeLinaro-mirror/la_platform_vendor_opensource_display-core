@@ -566,6 +566,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   HWDisplayMode default_panel_mode_ = kModeDefault;
   bool idle_hint_set_ = false;
   uint32_t idle_active_ms_ = 0;
+  int32_t mirror_src_display_id_ = -1;
+  bool needs_mirror_source_validation_ = false;
   bool enable_ai_scaler_ = false;
 };
 

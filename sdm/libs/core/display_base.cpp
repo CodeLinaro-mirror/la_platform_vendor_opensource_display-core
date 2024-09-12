@@ -1075,6 +1075,22 @@ DisplayError DisplayBase::Prepare(LayerStack *layer_stack) {
     return kErrorPermission;
   }
 
+  if (needs_mirror_source_validation_ && !IsPrimaryDisplayLocked()) {
+    auto mirrored =
+        comp_manager_->IsMirroredOfAnyDisplay(display_id_, layer_stack, &mirror_src_display_id_);
+    DLOGI("Display %d-%d is running in %s mode!!", display_id_, display_type_,
+          (mirrored) ? "mirror" : "presentation");
+    if (mirrored) {
+      DLOGI("Display %d-%d is mirrored of display %d", display_id_, display_type_,
+            mirror_src_display_id_);
+      DLOGI("Mirror Source Display %d is %sctive!", mirror_src_display_id_,
+            (comp_manager_->IsActiveDisplay(mirror_src_display_id_)) ? "A" : "Ina");
+    } else {
+      mirror_src_display_id_ = -1;
+    }
+    needs_mirror_source_validation_ = false;
+  }
+
   DLOGI_IF(kTagDisplay, "Entering Prepare for display: %d-%d", display_id_, display_type_);
   error = BuildLayerStackStats(layer_stack);
   if (error != kErrorNone) {
@@ -1667,11 +1683,10 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
     }
   }
 
-  // Drop commits for external, if CWB is enabled and primary display is already down.
-  // TODO(user): Expecting mirroring hint for secondary display from composer client and need to
-  // remove the primary display power state dependency.
-  if (layer_stack->output_buffer && display_type_ != kPrimary &&
-      !comp_manager_->IsPrimaryDisplayActive()) {
+  // Drop commits for mirrored display, if CWB is enabled and mirroring source display is
+  // already down.
+  if (layer_stack->output_buffer && display_type_ != kVirtual && mirror_src_display_id_ != -1 &&
+      !comp_manager_->IsActiveDisplay(mirror_src_display_id_)) {
     validated_ = false;
     return kErrorPermission;
   }
@@ -2207,6 +2222,7 @@ DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
     }
 
       active = true;
+      needs_mirror_source_validation_ = true;
       break;
 
     case kStateDoze:
@@ -4868,10 +4884,8 @@ void DisplayBase::RefreshOnIdleTimeoutForCwb(bool is_cwb_requested) {
     idle_time_ms = IDLE_TIMEOUT_DEFAULT_MS;
   }
 
-  // TODO(user): Expecting mirroring hint for secondary display from composer client and need to
-  // remove the primary display power state dependency.
   if (!enable_client_control_cwb_refresh_ && !force_refresh_to_process_cwb_ &&
-      comp_manager_->IsPrimaryDisplayActive() &&
+      (mirror_src_display_id_ == -1 || comp_manager_->IsActiveDisplay(mirror_src_display_id_)) &&
       (handle_idle_timeout_ || idle_hint_set_ || idle_time_ms <= 0) &&
       (is_cwb_requested || comp_manager_->HasPendingCwbRequest(display_comp_ctx_))) {
     event_handler_->Refresh();

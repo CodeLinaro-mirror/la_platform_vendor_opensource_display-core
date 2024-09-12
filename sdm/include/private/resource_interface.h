@@ -58,6 +58,7 @@ class ResourceInterface {
     kCmdSetBacklightLevel,
     kCmdSetCwbBoost,
     kCmdSetCacMode,
+    kCmdGetMirrorSource,
     kCmdMax,
   };
 
