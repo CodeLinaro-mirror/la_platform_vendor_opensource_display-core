@@ -565,6 +565,7 @@ struct HWPanelInfo {
   bool dpu_ctl_op_sync = false;        // Supports multi-core DPU Interface Sync
   HWDMSType dms_type = kDMSVIDDisabled;  // DMS type
   bool ssip_enabled = false;           // SSIP features supported
+  bool has_ai_scaler = false;          // AI Scaler feature is enabled
 
   bool operator !=(const HWPanelInfo &panel_info) {
     return ((port != panel_info.port) || (mode != panel_info.mode) ||
@@ -588,7 +589,9 @@ struct HWPanelInfo {
             (panel_mode_caps != panel_info.panel_mode_caps) ||
             (qsync_support != panel_info.qsync_support) ||
             (dyn_bitclk_support != panel_info.dyn_bitclk_support) ||
-            (bitclk_rates != panel_info.bitclk_rates) || (ssip_enabled != panel_info.ssip_enabled));
+            (bitclk_rates != panel_info.bitclk_rates) ||
+            (ssip_enabled != panel_info.ssip_enabled) ||
+            (has_ai_scaler != panel_info.has_ai_scaler));
   }
 
   bool operator ==(const HWPanelInfo &panel_info) {
