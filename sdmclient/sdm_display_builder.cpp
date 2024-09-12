@@ -658,6 +658,7 @@ void SDMDisplayBuilder::HandlePluggableDisplaysAsync(
     Fence::Wait(retire_fence);
   }
 
+  pending_hotplug_event_ = kHotPlugProcessing;
   std::thread(&SDMDisplayBuilder::HandlePluggableDisplays, this, true).detach();
 }
 
