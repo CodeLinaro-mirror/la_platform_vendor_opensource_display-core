@@ -501,7 +501,7 @@
                                 }
                             ],
                             "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 2,
+                            "scanline_align" : 1,
                             "size_align_bytes" : 1
                         },
                         {
@@ -511,7 +511,7 @@
                                 }
                             ],
                             "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 2,
+                            "scanline_align" : 1,
                             "size_align_bytes" : 1
                         },
                         {
@@ -521,7 +521,7 @@
                                 }
                             ],
                             "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 2,
+                            "scanline_align" : 1,
                             "size_align_bytes" : 1
                         }
                     ]
