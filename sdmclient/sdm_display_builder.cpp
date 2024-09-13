@@ -756,6 +756,10 @@ int SDMDisplayBuilder::HandleConnectedDisplays(HWDisplaysInfo *displays_info,
         DLOGW("Pluggable display creation failed/aborted. Error %d '%s'.", err,
               strerror(abs(err)));
         status = err;
+
+        if (err == kErrorDeviceRemoved) {
+          status = -ENODEV;
+        }
         // Attempt creating remaining pluggable displays.
         break;
       }
