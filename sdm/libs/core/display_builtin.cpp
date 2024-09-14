@@ -1554,7 +1554,7 @@ DisplayError DisplayBuiltIn::SetDisplayState(DisplayState state, bool teardown,
   if (((demura_intended_ && demura_dynamic_enabled_) || abc_enabled_) &&
       comp_manager_->GetDemuraStatusForDisplay(display_id_) && (state == kStateOff)) {
     comp_manager_->SetDemuraStatusForDisplay(display_id_, false);
-    SetDemuraIntfStatus(false);
+    SetDemuraIntfStatus(false, demura_current_idx_);
   }
 
   error = DisplayBase::SetDisplayState(state, teardown, release_fence);
@@ -3370,12 +3370,10 @@ DisplayError DisplayBuiltIn::HandleSecureEvent(SecureEvent secure_event, bool *n
     return error;
   }
 
-  if (secure_event == kTUITransitionEnd) {
-    comp_manager_->SetDemuraStatusForDisplay(display_id_, true);
+  if (secure_event == kTUITransitionEnd && demura_intended_ && demura_dynamic_enabled_) {
     // enable demura after TUI transition end
-    if (demura_) {
-      SetDemuraIntfStatus(true, demura_current_idx_);
-    }
+    SetDemuraIntfStatus(true, demura_current_idx_);
+    comp_manager_->SetDemuraStatusForDisplay(display_id_, true);
   }
 
   return error;
@@ -3395,12 +3393,11 @@ DisplayError DisplayBuiltIn::PostHandleSecureEvent(SecureEvent secure_event) {
       SendDisplayConfigs();
     }
 
-    if (secure_event == kTUITransitionStart) {
+    if (secure_event == kTUITransitionStart &&
+        comp_manager_->GetDemuraStatusForDisplay(display_id_)) {
       comp_manager_->SetDemuraStatusForDisplay(display_id_, false);
       //  disable demura before TUI transition start
-      if (demura_) {
-        SetDemuraIntfStatus(false);
-      }
+      SetDemuraIntfStatus(false, demura_current_idx_);
     }
   }
   if (secure_event == kTUITransitionEnd) {

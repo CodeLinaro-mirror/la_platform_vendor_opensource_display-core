@@ -1063,6 +1063,7 @@ void CompManager::SetDemuraStatusForDisplay(const int32_t &display_id, bool stat
 }
 
 bool CompManager::GetDemuraStatusForDisplay(const int32_t &display_id) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
   return display_demura_status_[display_id];
 }
 
