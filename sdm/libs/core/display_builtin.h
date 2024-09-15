@@ -341,6 +341,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   CacVersion GetCacVerion();
   bool IsAnamorphicFoveationEnabled(LayerStack *layer_stack);
   DisplayError SendPanelIdToParserManager();
+  DisplayError ReloadDemuraCalibFiles(void *data);
 
   const uint32_t kPuTimeOutMs = 1000;
   std::map<uint32_t, std::vector<HWEvent>> event_list_;
@@ -422,6 +423,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   bool demura_allowed_ = false;
   bool demuratn_allowed_ = false;
   int demura_prop_ = 0;
+  bool demura_calib_files_reloaded_ = false;
 };
 
 }  // namespace sdm
