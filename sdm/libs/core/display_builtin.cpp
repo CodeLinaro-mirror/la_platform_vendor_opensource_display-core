@@ -1882,7 +1882,7 @@ void DisplayBuiltIn::PingPongTimeout() {
 }
 
 void DisplayBuiltIn::IdlePowerCollapse() {
-  if (client_ctx_.hw_panel_info.mode == kModeCommand) {
+  if ((client_ctx_.hw_panel_info.mode == kModeCommand) || client_ctx_.hw_panel_info.vhm_support) {
     ClientLock lock(disp_mutex_);
     validated_ = false;
     comp_manager_->ProcessIdlePowerCollapse(display_comp_ctx_);

@@ -566,6 +566,7 @@ struct HWPanelInfo {
   HWDMSType dms_type = kDMSVIDDisabled;  // DMS type
   bool ssip_enabled = false;           // SSIP features supported
   bool has_ai_scaler = false;          // AI Scaler feature is enabled
+  bool vhm_support = false;            // Video Hybrid Mode support
 
   bool operator !=(const HWPanelInfo &panel_info) {
     return ((port != panel_info.port) || (mode != panel_info.mode) ||
@@ -591,7 +592,8 @@ struct HWPanelInfo {
             (dyn_bitclk_support != panel_info.dyn_bitclk_support) ||
             (bitclk_rates != panel_info.bitclk_rates) ||
             (ssip_enabled != panel_info.ssip_enabled) ||
-            (has_ai_scaler != panel_info.has_ai_scaler));
+            (has_ai_scaler != panel_info.has_ai_scaler) ||
+            (vhm_support != panel_info.vhm_support));
   }
 
   bool operator ==(const HWPanelInfo &panel_info) {

@@ -1115,6 +1115,8 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
     hw_panel_info_.mode = kModeVideo;
   }
 
+  hw_panel_info_.vhm_support = connector_info_.modes[current_mode_index_].vhm_support;
+
   DLOGI_IF(kTagDriverConfig, "%s, Panel Interface = %s, Panel Mode = %s, Is Primary = %d",
            device_name_, interface_str_.c_str(),
            hw_panel_info_.mode == kModeVideo ? "Video" : "Command",
