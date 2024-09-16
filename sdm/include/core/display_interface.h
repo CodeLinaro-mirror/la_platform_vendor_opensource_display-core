@@ -435,6 +435,9 @@ class DisplayEventHandler {
   /*! @brief Event handler for sending status of Qsync */
   virtual DisplayError HandleQsyncState(const QsyncEventData &event_data) { return kErrorNone; }
 
+  /*! @brief Event handler to check if a Display is in Prepare phase. */
+  virtual DisplayError IsPreparePhase(bool *prepare_phase) { return kErrorNone; }
+
   /*! @brief Event handler to notify CWB Done */
   virtual void NotifyCwbDone(int32_t status, const LayerBuffer& buffer) { }
 

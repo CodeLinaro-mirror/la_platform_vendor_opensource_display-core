@@ -544,6 +544,7 @@ public:
   virtual DisplayError HistogramEvent(int source_fd, uint32_t blob_id);
   virtual DisplayError HandleEvent(DisplayEvent event);
   virtual DisplayError HandleQsyncState(const QsyncEventData &qsync_data);
+  virtual DisplayError IsPreparePhase(bool *prepare_phase);
   virtual void NotifyCwbDone(int32_t status, const LayerBuffer &buffer);
   virtual void DumpOutputBuffer(const BufferInfo &buffer_info, void *base,
                                 shared_ptr<Fence> &retire_fence);
@@ -702,8 +703,9 @@ public:
   static constexpr unsigned int kCwbWaitMs = 100;
   bool validate_done_ = false;
   SDMLayerStack *sdm_layer_stack_ = nullptr;
+  bool prepare_phase_ = false;
 
-private:
+ private:
   bool CanSkipSdmPrepare(uint32_t *num_types, uint32_t *num_requests);
   void WaitOnPreviousFence();
   bool IsPanelConfig(uint32_t x, uint32_t y);

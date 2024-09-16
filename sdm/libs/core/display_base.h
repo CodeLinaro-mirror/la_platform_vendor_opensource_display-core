@@ -309,6 +309,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   }
   virtual DisplayError EnableCopr(bool en) { return kErrorNotSupported; }
   virtual DisplayError GetCoprStats(std::vector<int> *stats) { return kErrorNotSupported; }
+  void HandleSelfRefresh();
 
  protected:
   struct DisplayMutex {
@@ -402,6 +403,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   std::chrono::system_clock::time_point WaitUntil();
   virtual void Abort();
   DisplayError DisableDestinationScalar();
+  void SetSelfRefreshRefCount(uint32_t sr_ref_count);
+  uint32_t GetSelfRefreshRefCount();
 
   DisplayMutex disp_mutex_;
   std::thread commit_thread_;
@@ -510,6 +513,12 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool ssrc_feature_enabled_ = false;
   bool xr_variant_ = false;
   BufferInfo dummy_loopback_cac_info_ = {};
+  bool commit_phase_ = false;
+  uint32_t avr_step_ = 0;
+  uint32_t self_refresh_refcount_ = 0;
+  std::mutex sr_ref_count_mutex_;
+  bool enable_hal_self_refresh_ = false;
+  int hal_refresh_headroom_ = 4;  // In msec
 
  private:
   // Max tolerable power-state-change wait-times in milliseconds.
@@ -535,6 +544,9 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   std::vector<LayerRect> GetBorderRects();
   void GenerateBorderLayers(const std::vector<LayerRect> &border_rects);
   uint32_t GetMixerCountFromTopology(HWTopology topology);
+  void PerformSelfRefresh(uint64_t srEPT);
+  std::chrono::system_clock::time_point WaitUntilForSelfRefresh(uint64_t *srEPT);
+
   unsigned int rc_cached_res_width_ = 0;
   unsigned int rc_cached_res_height_ = 0;
   unsigned int rc_cached_mixer_width_ = 0;
@@ -569,6 +581,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   int32_t mirror_src_display_id_ = -1;
   bool needs_mirror_source_validation_ = false;
   bool enable_ai_scaler_ = false;
+  uint64_t next_expected_present_ = 0;
 };
 
 }  // namespace sdm

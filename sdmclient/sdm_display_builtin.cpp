@@ -1517,6 +1517,7 @@ DisplayError SDMDisplayBuiltIn::CommitOrPrepare(
     uint32_t *out_num_types, uint32_t *out_num_requests, bool *needs_commit) {
   DTRACE_SCOPED();
 
+  prepare_phase_ = true;
   auto status = SDMDisplay::CommitOrPrepare(validate_only, out_retire_fence,
                                             out_num_types, out_num_requests,
                                             needs_commit);
@@ -1526,6 +1527,7 @@ DisplayError SDMDisplayBuiltIn::CommitOrPrepare(
     HandleLargeCompositionHint(!needs_hint);
   }
 
+  prepare_phase_ = false;
   return status;
 }
 

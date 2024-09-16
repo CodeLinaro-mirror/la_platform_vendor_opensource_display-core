@@ -27,6 +27,12 @@
 * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+/*
+* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+* Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
+*/
+
 #include <utils/fence.h>
 #include <core/sdm_types.h>
 #include <debug_handler.h>
@@ -177,6 +183,12 @@ int Fence::ScopedRef::Get(const shared_ptr<Fence> &fence) {
   }
 
   return dup_fd;
+}
+
+uint64_t Fence::GetSignalTime(const shared_ptr<Fence> &fence) {
+  ASSERT_IF_NO_BUFFER_SYNC(g_buffer_sync_handler_);
+
+  return g_buffer_sync_handler_->GetSignalTime(Fence::Get(fence));
 }
 
 }  // namespace sdm

@@ -335,6 +335,18 @@ DisplayError DisplayBase::Init() {
   if (Debug::Get()->GetProperty(ENABLE_CLIENT_CONTROL_CWB_REFRESH, &prop) == kErrorNone) {
     enable_client_control_cwb_refresh_ = (prop == 1);
   }
+  prop = 0;
+  if (Debug::Get()->GetProperty(ENABLE_HAL_SELF_REFRESH, &prop) == kErrorNone) {
+    enable_hal_self_refresh_ = (prop == 1) && (display_type_ == kBuiltIn);
+  }
+  prop = 0;
+  if (enable_hal_self_refresh_) {
+    if (Debug::Get()->GetProperty(HAL_REFRESH_HEADROOM, &prop) == kErrorNone) {
+      if (prop > 0 && prop <= 6) {
+        hal_refresh_headroom_ = prop;
+      }
+    }
+  }
 
   Debug::GetIdleTimeoutMs(&idle_active_ms_, &inactive_ms);
 
@@ -1574,6 +1586,9 @@ DisplayError DisplayBase::CommitOrPrepare(LayerStack *layer_stack) {
   // Trigger commit based on draw outcome.
   bool async_commit = disp_layer_stack_->stack_info.trigger_async_commit;
   DLOGV_IF(kTagDisplay, "Trigger async commit: %d", async_commit);
+  commit_phase_ = true;
+  next_expected_present_ = layer_stack->expected_present_time + layer_stack->frame_interval_ns;
+
   if (async_commit) {
     // Copy layer stack attributes needed for commit.
     error = SetUpCommit(layer_stack);
@@ -1613,21 +1628,32 @@ void DisplayBase::CommitThread() {
   }
 
   DLOGI("Commit thread started.");
+  uint64_t srEPT = 0;
 
   while (1) {
     // Reset busy status and notify. There may be some thread waiting for the status to reset.
     disp_mutex_.worker_busy = false;
     disp_mutex_.worker_cv.notify_one();
+    srEPT = 0;
 
-    auto timeout_at = WaitUntil();
+    // If a Self-Refresh has been requested, attempt to perform a Self-Refresh
+    bool self_refresh_state = !commit_phase_ && (GetSelfRefreshRefCount() > 0);
+    auto timeout_at = self_refresh_state ? WaitUntilForSelfRefresh(&srEPT) : WaitUntil();
     auto wait_duration = timeout_at.time_since_epoch().count() -
                          std::chrono::system_clock::now().time_since_epoch().count();
 
     // Wait for client thread to signal. Handle spurious interrupts.
     if (!(disp_mutex_.worker_cv.wait_until(disp_mutex_.worker_mutex, timeout_at,
                                            [this] { return (disp_mutex_.worker_busy); }))) {
-      DLOGI("Received idle timeout, panel: %s, timeout: %d us",
+      DLOGI("Received %s Timeout, panel: %s, timeout: %d us",
+            (self_refresh_state ? "Self-Refresh Threshold" : "Idle"),
             client_ctx_.hw_panel_info.mode == kModeVideo ? "video" : "cmd", wait_duration);
+
+      // Perform a self refresh within HAL if not in commit/prepare phase and one has been requested
+      if (self_refresh_state) {
+        PerformSelfRefresh(srEPT);
+        continue;
+      }
 
       event_handler_->HandleEvent(kIdleTimeout);
       if (client_ctx_.hw_panel_info.mode == kModeCommand || idle_active_ms_ <= 0) {
@@ -1647,7 +1673,9 @@ void DisplayBase::CommitThread() {
       break;
     }
 
-    HandleAsyncCommit();
+    if (commit_phase_) {
+      HandleAsyncCommit();
+    }
   }
 }
 
@@ -1741,6 +1769,9 @@ DisplayError DisplayBase::PerformCommit(std::map<uint32_t, HWLayersInfo> &hw_lay
     DLOGE("COMMIT failed: %d ", error);
   }
 
+  SetSelfRefreshRefCount(0);
+  commit_phase_ = false;
+
   return error;
 }
 
@@ -1771,6 +1802,8 @@ DisplayError DisplayBase::Commit(LayerStack *layer_stack) {
   ClientLock lock(disp_mutex_);
 
   disp_layer_stack_->stack = layer_stack;
+  commit_phase_ = true;
+  next_expected_present_ = layer_stack->expected_present_time + layer_stack->frame_interval_ns;
 
   if (draw_method_ == kDrawDefault) {
     return CommitLocked(layer_stack);
@@ -1812,6 +1845,7 @@ DisplayError DisplayBase::PerformHwCommit(std::map<uint32_t, HWLayersInfo> &hw_l
 
   DisplayError error = comp_manager_->PreCommit(display_comp_ctx_);
   if (error != kErrorNone) {
+    commit_phase_ = false;
     return error;
   }
 
@@ -4591,7 +4625,7 @@ DisplayError DisplayBase::SetPPConfig(void *payload, size_t size) {
   DLOGI_IF(kTagDisplay, "PP Event is set successfully");
   struct sde_drm::DRMPPFeatureInfo *info = reinterpret_cast<sde_drm::DRMPPFeatureInfo *>(payload);
   if (info->id != sde_drm::kFeaturePaHistIrq) {
-    event_handler_->Refresh();
+    HandleSelfRefresh();
   }
   return kErrorNone;
 }
@@ -4678,6 +4712,109 @@ void DisplayBase::PrepareForAsyncTransition() {
   // To prevent accidental usage, reset all such internal pointers referring to caller structures
   //    so that an instant fatal error is observed in place of prolonged corruption.
   disp_layer_stack_->stack = nullptr;
+}
+
+std::chrono::system_clock::time_point DisplayBase::WaitUntilForSelfRefresh(uint64_t *srEPT) {
+  DTRACE_SCOPED();
+
+  uint64_t signal_time = 0;
+  uint64_t last_ept = disp_layer_stack_->stack_info.common_info.expected_present_time;
+  bool isSignaled = (Fence::GetStatus(retire_fence_) == Fence::Status::kSignaled);
+  DLOGI_IF(kTagSelfRefresh, "Last Retire fence: %s, Signaled: %d",
+           Fence::GetStr(retire_fence_).c_str(), isSignaled);
+
+  if (isSignaled) {
+    signal_time = Fence::GetSignalTime(retire_fence_);
+    DLOGI_IF(kTagSelfRefresh, "Last Retire fence signal time: %" PRId64, signal_time);
+  }
+
+  struct timespec now = {0, 0};
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  uint64_t current_time = (UINT64(now.tv_sec) * 1000000000LL + now.tv_nsec);
+
+  if ((signal_time != 0) && (signal_time <= current_time)) {
+    last_ept = signal_time;
+  }
+
+  if (current_time > last_ept) {
+    if ((current_time - last_ept) > (IDLE_TIMEOUT_DEFAULT_MS * 1000000)) {
+      // WakeUp display from IPC state
+      hw_intf_->DisplayEarlyWakeUp();
+    }
+  }
+
+  uint64_t self_refresh_ept = 0;
+  uint64_t headroom = hal_refresh_headroom_ * 1000000;  // ms to nsec
+  uint64_t frame_interval = disp_layer_stack_->stack_info.common_info.frame_interval;
+  uint64_t min_frame_interval = static_cast<int32_t>(
+      (1000.f / static_cast<float>(client_ctx_.display_attributes.fps)) * 1000000);
+
+  DLOGI_IF(kTagSelfRefresh, "FrameInterval: %" PRId64 " MinFrameInterval: %" PRId64, frame_interval,
+           min_frame_interval);
+
+  if (!frame_interval) {
+    frame_interval = min_frame_interval;
+  }
+
+  if (frame_interval < min_frame_interval) {
+    min_frame_interval = frame_interval;
+  }
+
+  // Update Next EPT, if it's in the past.
+  if (next_expected_present_ < current_time) {
+    uint64_t delta = current_time - next_expected_present_;
+    uint64_t frames = delta / frame_interval;
+    next_expected_present_ = next_expected_present_ + ((frames + 1) * frame_interval);
+  }
+  DLOGI_IF(kTagSelfRefresh, "Last_EPT: %" PRId64 " Current Time: %" PRId64 " Next_EPT: %" PRId64,
+           last_ept, current_time, next_expected_present_);
+
+  uint64_t avr_step = static_cast<int32_t>((1000.f / static_cast<float>(avr_step_)) * 1000000.f);
+  // Keep 1 ms buffer to accomodate frame-interval jitter in delta computation.
+  bool low_fps = (frame_interval - min_frame_interval) >= (avr_step + 1000000);
+  uint64_t reference_ept = 0;
+
+  if (current_time > last_ept) {
+    // Last frame was presented in the past.
+    uint64_t multiple = (current_time - last_ept) / frame_interval;
+    uint64_t latest_ept = last_ept + (multiple * frame_interval);
+    uint64_t step = low_fps ? min_frame_interval : frame_interval;
+    uint64_t num_steps = ((current_time - latest_ept) / step) + 1;
+    self_refresh_ept = latest_ept + (num_steps * step);
+    reference_ept = self_refresh_ept;
+  } else {
+    // Last frame will be presented in near future.
+    self_refresh_ept = last_ept + (low_fps ? min_frame_interval : frame_interval);
+    reference_ept = last_ept;
+  }
+
+  if (low_fps && ((reference_ept + avr_step) > next_expected_present_)) {
+    DLOGI_IF(kTagSelfRefresh, "Ref_EPT: %" PRId64 " Next_EPT: %" PRId64 " AVRStep: %" PRId64,
+             reference_ept, next_expected_present_, avr_step);
+    self_refresh_ept = next_expected_present_;
+  }
+
+  if (self_refresh_ept > current_time) {
+    if ((self_refresh_ept - current_time) < headroom) {
+      self_refresh_ept = self_refresh_ept + min_frame_interval;
+    }
+  }
+
+  uint64_t wait_until = self_refresh_ept - headroom;
+  DLOGI_IF(kTagSelfRefresh, "SelfRefresh_EPT: %" PRId64 " wait_until: %" PRId64, self_refresh_ept,
+           wait_until);
+
+  int wait_delta_ms = 0;
+  if (wait_until > current_time) {
+    wait_delta_ms = (wait_until - current_time) / 1000000;
+    DLOGI_IF(kTagSelfRefresh, "wait_delta: %" PRId64 " ns, In msec: %d ms",
+             (wait_until - current_time), wait_delta_ms);
+  }
+
+  *srEPT = self_refresh_ept;
+  std::chrono::milliseconds timeout_duration = std::chrono::milliseconds(wait_delta_ms);
+  std::chrono::system_clock::time_point current = std::chrono::system_clock::now();
+  return (current + timeout_duration);
 }
 
 std::chrono::system_clock::time_point DisplayBase::WaitUntil() {
@@ -4958,6 +5095,82 @@ bool DisplayBase::HasSrcTonemap() {
 DisplayError DisplayBase::NotifyExpectedPresent(uint64_t expected_present_time,
                                                 uint32_t frame_interval_ns) {
   return hw_intf_->NotifyExpectedPresent(expected_present_time, frame_interval_ns);
+}
+
+void DisplayBase::PerformSelfRefresh(uint64_t srEPT) {
+  DTRACE_SCOPED();
+
+  if ((state_ != kStateOn) || !disp_layer_stack_) {
+    SetSelfRefreshRefCount(0);
+    return;
+  }
+
+  disp_layer_stack_->stack_info.common_info.expected_present_time = srEPT;
+
+#ifdef SDM_VIRTUAL_DRIVER
+  disp_layer_stack_->stack_info.common_info.updates_mask.set(kHalSelfRefresh);
+#endif
+
+  // Trigger Self-Refresh Commit
+  DisplayError error = PerformHwCommit(disp_layer_stack_->info);
+  if (error != kErrorNone) {
+    DLOGE("Self-Refresh PerformHwCommit failed %d", error);
+  }
+}
+
+void DisplayBase::SetSelfRefreshRefCount(uint32_t ref_count) {
+  std::lock_guard<std::mutex> lock(sr_ref_count_mutex_);
+  self_refresh_refcount_ = ref_count;
+}
+
+uint32_t DisplayBase::GetSelfRefreshRefCount() {
+  std::lock_guard<std::mutex> lock(sr_ref_count_mutex_);
+  return self_refresh_refcount_;
+}
+
+void DisplayBase::HandleSelfRefresh() {
+  DTRACE_SCOPED();
+
+  if (state_ == kStateOff) {
+    return;
+  }
+
+  // Allow HAL Self-Refresh Commit path on validated stack of single display in ON state.
+  bool multi_display = (comp_manager_->GetActiveDisplayCount() > 1);
+  if (!enable_hal_self_refresh_ || multi_display || !validated_ || (state_ != kStateOn)) {
+    event_handler_->Refresh();
+    return;
+  }
+
+  // Use legacy path on a non-vrr device Or if there was no draw-cycle.
+  bool unsupported = !avr_step_ || !client_ctx_.display_attributes.fps;
+  uint64_t ept = disp_layer_stack_->stack_info.common_info.expected_present_time;
+  if (unsupported || !ept || !next_expected_present_) {
+    event_handler_->Refresh();
+    return;
+  }
+
+  ClientLock lock(disp_mutex_);
+  bool prepare_phase = false;
+  event_handler_->IsPreparePhase(&prepare_phase);
+  // Check if Display is in Draw Cycle or Self-Refresh state.
+  if (prepare_phase || commit_phase_) {
+    DLOGI_IF(kTagSelfRefresh, "No-Op, DC state: prepare_phase: %d, commit_phase: %d", prepare_phase,
+             commit_phase_);
+    return;
+  }
+  {
+    std::lock_guard<std::mutex> lock(sr_ref_count_mutex_);
+    self_refresh_refcount_++;
+    if (self_refresh_refcount_ > 1) {
+      DLOGI_IF(kTagSelfRefresh, "No-Op, Self-Refresh RefCount > 1: RefCount = %d",
+               self_refresh_refcount_);
+      return;
+    }
+  }
+  // Signal to wake-up the Commit Thread for Self-Refresh
+  DLOGI_IF(kTagSelfRefresh, "Notify Commit Thread to perform Self-Refresh ...");
+  lock.NotifyWorker();
 }
 
 }  // namespace sdm

@@ -3888,6 +3888,11 @@ DisplayError SDMDisplay::HandleQsyncState(const QsyncEventData &qsync_data) {
   return kErrorNone;
 }
 
+DisplayError SDMDisplay::IsPreparePhase(bool *prepare_phase) {
+  *prepare_phase = prepare_phase_;
+  return kErrorNone;
+}
+
 DisplayError SDMDisplay::GetClientTargetProperty(
     SDMClientTargetProperty *out_client_target_property) {
   Layer *client_layer = client_target_->GetSDMLayer();

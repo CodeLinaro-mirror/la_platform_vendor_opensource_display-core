@@ -1623,8 +1623,10 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
   bool resource_update = hw_layers_info->common_info->updates_mask.test(kUpdateResources);
   bool buffer_update = hw_layers_info->common_info->updates_mask.test(kSwapBuffers);
   bool fb_update = hw_layers_info->common_info->updates_mask.test(kUpdateFBObject);
+  bool self_refresh = hw_layers_info->common_info->updates_mask.test(kHalSelfRefresh);
   bool update_config = resource_update || buffer_update || tui_state_ == kTUIStateEnd ||
-                       hw_layers_info->common_info->flags.geometry_changed || fb_update;
+                       hw_layers_info->common_info->flags.geometry_changed || fb_update ||
+                       self_refresh;
   bool update_luts = hw_layers_info->common_info->updates_mask.test(kUpdateLuts);
 
   if (hw_panel_info_.partial_update && update_config) {
@@ -3879,6 +3881,22 @@ DisplayError HWDeviceDRM::NotifyExpectedPresent(uint64_t expected_present_time,
   }
 #endif
   return kErrorNone;
+}
+
+void HWDeviceDRM::DisplayEarlyWakeUp() {
+  DTRACE_SCOPED();
+  struct drm_msm_display_hint display_hint = {};
+  struct drm_msm_early_wakeup early_wakeup = {};
+
+  display_hint.hint_flags = DRM_MSM_DISPLAY_EARLY_WAKEUP_HINT;
+  display_hint.data = (uint64_t)&early_wakeup;
+  early_wakeup.connector_id = token_.conn_id;
+  early_wakeup.wakeup_hint = 1;
+
+  int result = drmIoctl(dev_fd_, DRM_IOCTL_MSM_DISPLAY_HINT, &display_hint);
+  if (result < 0) {
+    DLOGW("MSM_DISPLAY_HINT IOCTL failed! error: %d", result);
+  }
 }
 
 }  // namespace sdm
