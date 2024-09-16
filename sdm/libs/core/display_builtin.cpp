@@ -1412,6 +1412,12 @@ DisplayError DisplayBuiltIn::SetUpCommit(LayerStack *layer_stack) {
   DTRACE_SCOPED();
   last_panel_mode_ = client_ctx_.hw_panel_info.mode;
   PreCommit(layer_stack);
+  if (pending_cycles_for_poms_setup_ && !avoid_vsync_enable_) {
+    avoid_vsync_enable_ = true;
+    vsync_enable_pending_ |= vsync_enable_;
+    // Need to disable vsync while POMS in progress as it can't be processed by driver.
+    SetVsyncStatus(false /*Disable vsync events.*/);
+  }
 
   return DisplayBase::SetUpCommit(layer_stack);
 }
@@ -1485,6 +1491,11 @@ DisplayError DisplayBuiltIn::PostCommit() {
 
   pending_commit_ = false;
   lower_fps_ = false;
+
+  if (pending_cycles_for_poms_setup_ > 0) {
+    pending_cycles_for_poms_setup_--;
+    avoid_vsync_enable_ = !!pending_cycles_for_poms_setup_;
+  }
 
   return kErrorNone;
 }
@@ -1661,6 +1672,11 @@ DisplayError DisplayBuiltIn::SetDisplayMode(uint32_t mode) {
       comp_manager_->SetIdleTimeoutMs(display_comp_ctx_, 0, 0);
       switch_to_cmd_ = true;
     }
+
+    // Assumption: POMS needs setup time in between 30ms to 70ms.
+    // Calculate maximum number of cycles needed for POMS setup as per current FPS
+    // configuration by considering minimum ~70ms setup time for POMS.
+    pending_cycles_for_poms_setup_ = (UINT32(client_ctx_.display_attributes.fps) >> 4) + 1;
   }
 
   // Request for a new draw cycle. New display mode will get applied on next draw cycle.
@@ -1848,17 +1864,22 @@ void DisplayBuiltIn::SetVsyncStatus(bool enable) {
   DTRACE_BEGIN(trace_name.c_str());
   if (enable) {
     // Enable if vsync is still enabled.
-    master_hw_events_intf_->SetEventState(HWEvent::VSYNC, vsync_enable_);
-    pending_vsync_enable_ = false;
+    vsync_enable_pending_ |= vsync_enable_;
+    vsync_enable_ = false;
+    SetVSyncStateLocked(vsync_enable_pending_);
   } else {
     master_hw_events_intf_->SetEventState(HWEvent::VSYNC, false);
-    pending_vsync_enable_ = true;
   }
   DTRACE_END();
 }
 
 void DisplayBuiltIn::IdleTimeout() {
   DTRACE_SCOPED();
+  if (pending_cycles_for_poms_setup_ > 0) {
+    pending_cycles_for_poms_setup_ = 0;
+    avoid_vsync_enable_ = false;
+  }
+
   if ((state_ == kStateOff) || avr_step_enabled_) {
     return;
   }
@@ -1887,6 +1908,10 @@ void DisplayBuiltIn::IdlePowerCollapse() {
     validated_ = false;
     comp_manager_->ProcessIdlePowerCollapse(display_comp_ctx_);
     event_handler_->HandleEvent(kIdleTimeout);
+    if (pending_cycles_for_poms_setup_ > 0) {
+      pending_cycles_for_poms_setup_ = 0;
+      avoid_vsync_enable_ = false;
+    }
   }
 }
 

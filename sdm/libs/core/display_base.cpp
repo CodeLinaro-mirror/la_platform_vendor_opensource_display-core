@@ -3088,7 +3088,7 @@ DisplayError DisplayBase::SetVSyncState(bool enable) {
 }
 
 DisplayError DisplayBase::SetVSyncStateLocked(bool enable) {
-  if ((state_ == kStateOff || secure_event_ != kSecureEventMax) && enable) {
+  if ((state_ == kStateOff || avoid_vsync_enable_ || secure_event_ != kSecureEventMax) && enable) {
     DLOGW("Can't enable vsync when display %d-%d is powered off or SecureDisplay/TUI in progress",
           display_id_, display_type_);
     vsync_enable_pending_ = true;

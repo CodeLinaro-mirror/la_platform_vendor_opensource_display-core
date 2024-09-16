@@ -463,6 +463,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool disable_llcc_during_aod_ = false;
   bool custom_mixer_resolution_ = false;
   bool vsync_enable_pending_ = false;
+  bool avoid_vsync_enable_ = false;
   HWPowerState pending_power_state_ = kPowerStateNone;
   QSyncMode qsync_mode_ = kQSyncModeNone;
   std::bitset<kUpdateAVRFlagMax> needs_avr_update_ = {};

@@ -376,7 +376,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   std::shared_ptr<SPRIntf> spr_ = nullptr;
   bool needs_validate_on_pu_enable_ = false;
   bool enable_qsync_idle_ = false;
-  bool pending_vsync_enable_ = false;
+  uint32_t pending_cycles_for_poms_setup_ = 0;
   QSyncMode active_qsync_mode_ = kQSyncModeNone;
   std::shared_ptr<IPCIntf> ipc_intf_ = nullptr;
   bool enhance_idle_time_ = false;
