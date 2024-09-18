@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapMapper.h"
@@ -25,6 +25,14 @@ Error SnapMapper::Retain(const SnapHandle &in_handle) {
   SnapHandle *hnd = const_cast<SnapHandle *>(&in_handle);
 
   auto error = snap_alloc_core_->Retain(hnd);
+  return error;
+}
+
+Error SnapMapper::RetainViewBuffer(const SnapHandle &in_meta_handle, uint32_t view,
+                                   SnapHandle **out_view_handle) {
+  SnapHandle *meta_hnd = const_cast<SnapHandle *>(&in_meta_handle);
+
+  auto error = snap_alloc_core_->RetainViewBuffer(meta_hnd, view, out_view_handle);
   return error;
 }
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #ifndef __SNAPALLOCCORE_H__
@@ -43,6 +43,7 @@ class SnapAllocCore {
   Error DumpBuffers();
   Error GetMetadataState(SnapHandle *hnd, vendor_qti_hardware_display_common_MetadataType type,
                           bool *out);
+  Error RetainViewBuffer(SnapHandle *meta_hnd, uint32_t view, SnapHandle **out_view_handle);
   void RegisterHandleLocked(SnapHandle *public_hnd, SnapHandleInternal *snap_hnd);
 
  private:
@@ -53,6 +54,8 @@ class SnapAllocCore {
   Error FreeBuffer(SnapHandleInternal *buf);
   Error ImportHandleLocked(SnapHandle *hnd);
   int GetPrivateFlags(vendor_qti_hardware_display_common_BufferUsage usage);
+  Error AllocateBuffer(AllocData *ad, AllocData *m_data, unsigned custom_content_md_size,
+                       BufferDescriptor *desc, BufferDescriptor *out_desc, bool test_alloc);
 
   static std::mutex snapalloc_core_mutex_;
   static SnapAllocCore *instance_;

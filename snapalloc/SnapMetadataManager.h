@@ -231,6 +231,10 @@ class SnapMetadataManager {
   Error AnamorphicCompressionHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
                                     void *in_set = nullptr, void *out_get = nullptr,
                                     BufferDescriptor *buf_des = nullptr);
+  Error BaseViewHelper(SnapMetadata *metadata, SnapHandleInternal *handle, void *in_set = nullptr,
+                       void *out_get = nullptr, BufferDescriptor *buf_des = nullptr);
+  Error MultiViewHelper(SnapMetadata *metadata, SnapHandleInternal *handle, void *in_set = nullptr,
+                        void *out_get = nullptr, BufferDescriptor *buf_des = nullptr);
 
   struct DRMFormatDescriptor {
     uint32_t drm_format;
@@ -455,6 +459,8 @@ class SnapMetadataManager {
           {PIXEL_FORMAT_ALLOCATED, &SnapMetadataManager::PixelFormatAllocatedHelper},
           {BUFFER_DEQUEUE_DURATION, &SnapMetadataManager::BufferDequeueDurationHelper},
           {ANAMORPHIC_COMPRESSION_METADATA, &SnapMetadataManager::AnamorphicCompressionHelper},
+          {BASE_VIEW, &SnapMetadataManager::BaseViewHelper},
+          {MULTI_VIEW_INFO, &SnapMetadataManager::MultiViewHelper},
   };
   struct metadata_traits {
     bool is_settable;
@@ -522,6 +528,8 @@ class SnapMetadataManager {
           {PIXEL_FORMAT_ALLOCATED, {false}},
           {BUFFER_DEQUEUE_DURATION, {true}},
           {ANAMORPHIC_COMPRESSION_METADATA, {true}},
+          {BASE_VIEW, {false}},
+          {MULTI_VIEW_INFO, {false}},
       };
 };
 }  // namespace snapalloc
