@@ -136,6 +136,7 @@ SDMDisplayVirtualDPU::SetOutputBuffer(const SnapHandle *output_handle,
   new_descriptor.format =
       static_cast<vendor_qti_hardware_display_common_PixelFormat>(output_handle_format);
   new_descriptor.usage = usage;
+  new_descriptor.layerCount = 1;
   new_descriptor.additionalOptions.push_back(modifier_pair);
   snapmapper_->GetFromBufferDescriptor(new_descriptor, MetadataType::ALIGNED_WIDTH_IN_PIXELS,
                                        &new_aligned_w);
@@ -149,7 +150,8 @@ SDMDisplayVirtualDPU::SetOutputBuffer(const SnapHandle *output_handle,
   active_descriptor.format =
       static_cast<vendor_qti_hardware_display_common_PixelFormat>(output_handle_format);
   active_descriptor.usage = usage;
-  new_descriptor.additionalOptions.push_back(modifier_pair);
+  active_descriptor.layerCount = 1;
+  active_descriptor.additionalOptions.push_back(modifier_pair);
   snapmapper_->GetFromBufferDescriptor(active_descriptor, MetadataType::ALIGNED_WIDTH_IN_PIXELS,
                                        &active_aligned_w);
   snapmapper_->GetFromBufferDescriptor(active_descriptor, MetadataType::ALIGNED_HEIGHT_IN_PIXELS,
