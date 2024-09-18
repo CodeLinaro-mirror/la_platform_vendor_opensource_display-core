@@ -166,6 +166,8 @@
 #define DEMURA_SECONDARY_PANEL_OVERRIDE_LOW    DISPLAY_PROP("demura_secondary_panel_override_low")
 #define DEMURA_SECONDARY_PANEL_OVERRIDE_HIGH    DISPLAY_PROP("demura_secondary_panel_override_high")
 #define ENABLE_DEMURA_BL_SCREEN_REFRESH      DISPLAY_PROP("enable_demura_backlight_screen_refresh")
+#define DEMURA_CONFIG_FILE_RENAME_ALLOWED    DISPLAY_PROP("demura_config_file_rename_allowed")
+
 // Panel Feature DemuraTn Properties
 #define ENABLE_ANTI_AGING                    DISPLAY_PROP("enable_antiaging")
 #define ENABLE_ACCELERATED_AGING             DISPLAY_PROP("enable_accelerated_aging")
@@ -259,6 +261,8 @@
 #define DISABLE_RCMASK_SIMD_OPT              DISPLAY_PROP("disable_rcmask_simd_opt")
 #define IDLE_FALLBACK_ON_DSPP                DISPLAY_PROP("idle_fallback_on_dspp")
 #define FORCE_LM_TO_FB_CONFIG                DISPLAY_PROP("force_lm_to_fb_config")
+#define ENABLE_HAL_SELF_REFRESH              DISPLAY_PROP("enable_hal_self_refresh")
+#define HAL_REFRESH_HEADROOM                 DISPLAY_PROP("hal_refresh_headroom")
 
 // Enable AI Scaler
 #define ENABLE_AI_SCALER_PROP                DISPLAY_PROP("enable_ai_scaler")

@@ -46,10 +46,9 @@ public:
 
   virtual void Refresh(uint64_t disp_idx) = 0;
   virtual SDMDisplay *GetDisplayFromClientId(Display id) = 0;
-  virtual DisplayError WaitForCommitDoneAsync(Display display,
-                                              int client_id) = 0;
-  virtual DisplayError NotifyTUIDone(int ret, int disp_id,
-                                     SDMTUIEventType event_type) = 0;
+  virtual DisplayError WaitForCommitDone(Display display, int client_id) = 0;
+  virtual DisplayError WaitForCommitDoneAsync(Display display, int client_id) = 0;
+  virtual DisplayError NotifyTUIDone(int ret, int disp_id, SDMTUIEventType event_type) = 0;
   virtual DisplayError TeardownConcurrentWriteback(Display display) = 0;
 
   std::mutex tui_mutex_;

@@ -66,6 +66,9 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
                               std::vector<SnapHandleInternal *> *handles, bool test_alloc) {
   std::lock_guard<std::mutex> buffer_lock(buffer_lock_);
   for (int i = 0; i < count; i++) {
+    OVERFLOW_ERR_RETURN(desc.reservedSize, sizeof(SnapMetadata), OverflowType::ADD);
+    OVERFLOW_ERR_RETURN((desc.reservedSize + sizeof(SnapMetadata)), PAGE_SIZE, OverflowType::ADD);
+
     AllocData ad;
     AllocData m_data;
     vendor_qti_hardware_display_common_BufferLayout layout;
@@ -153,6 +156,7 @@ SnapHandleInternal *SnapAllocCore::GetBufferFromHandleLocked(SnapHandle *hnd) {
   if (hnd == nullptr) {
     return nullptr;
   }
+  std::lock_guard<std::mutex> lock(handles_map_lock_);
   auto it = handles_map_.find(hnd);
   if (it != handles_map_.end()) {
     return it->second;
@@ -265,13 +269,14 @@ Error SnapAllocCore::Release(SnapHandle *hnd) {
       allocated_ -= hnd->size();
     }*/
     if (FreeBuffer(buf) == Error::NONE) {
+      std::lock_guard<std::mutex> lock(handles_map_lock_);
       handles_map_.erase(hnd);
-      DLOGD_IF(enable_logs, "%s: line %d: handles_map_ size after freeing  %d", __FUNCTION__,
-               __LINE__, handles_map_.size());
     } else {
       DLOGE("Failed to free buffer %p", buf);
       return Error::BAD_BUFFER;
     }
+    DLOGD_IF(enable_logs, "%s: line %d: handles_map_ size after freeing  %d", __FUNCTION__,
+             __LINE__, handles_map_.size());
   } else {
     DLOGD_IF(enable_logs, "Not freeing - ref count > 0; fd %d metadata_fd %d", buf->fd(),
              buf->fd_metadata());
@@ -406,7 +411,7 @@ Error SnapAllocCore::ValidateBufferSize(SnapHandle *hnd, BufferDescriptor desc) 
   constraint_mgr_->ConvertAlignedWidthFromBytesToPixels(
       out_desc.format, layout.aligned_width_in_bytes, &aligned_width_in_pixels);
 
-  if (OVERFLOW(aligned_width_in_pixels, layout.aligned_height)) {
+  if (OVERFLOW_MUL(aligned_width_in_pixels, layout.aligned_height)) {
     DLOGE("%s: Allocatiom size overflow", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
@@ -455,12 +460,14 @@ Error SnapAllocCore::RereadLockedBuffer(SnapHandle *hnd) {
 }
 
 Error SnapAllocCore::ImportHandleLocked(SnapHandle *hnd) {
-  if (SnapHandleInternal::validate(hnd) != 0) {
-    DLOGE("ImportHandleLocked: Invalid handle: %p", hnd);
-    return Error::BAD_BUFFER;
-  }
   if (hnd == nullptr) {
     DLOGE("Invalid SnapHandle");
+    return Error::BAD_BUFFER;
+  }
+
+  if (SnapHandleInternal::validate(hnd) != 0) {
+    DLOGE("ImportHandleLocked: Invalid handle: %p", hnd);
+    FreeBuffer(static_cast<SnapHandleInternal *>(hnd));
     return Error::BAD_BUFFER;
   }
 
@@ -527,6 +534,7 @@ void SnapAllocCore::RegisterHandleLocked(SnapHandle *public_hnd, SnapHandleInter
       snap_hnd->custom_content_md_region_base() = 0;
     }
   }
+  std::lock_guard<std::mutex> lock(handles_map_lock_);
   handles_map_.emplace(std::make_pair(public_hnd, snap_hnd));
 }
 

@@ -27,6 +27,12 @@
 * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+/*
+* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+* Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
+*/
+
 #ifndef __FENCE_H__
 #define __FENCE_H__
 
@@ -92,6 +98,8 @@ class Fence {
 
   // Write all fences info to the output stream.
   static void Dump(std::ostringstream *os);
+
+  static uint64_t GetSignalTime(const shared_ptr<Fence> &fence);
 
  private:
   explicit Fence(int fd, const string &name);

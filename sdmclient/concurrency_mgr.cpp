@@ -1268,7 +1268,9 @@ void ConcurrencyMgr::PerformDisplayPowerReset() {
     locker_[display].Unlock();
   }
 
-  Refresh(vsync_source);
+  if (vsync_source != kNumDisplays && sdm_display_[vsync_source]) {
+    Refresh(vsync_source);
+  }
 }
 
 void ConcurrencyMgr::DisplayPowerReset() {
@@ -1876,12 +1878,10 @@ DisplayError ConcurrencyMgr::WaitForCommitDone(Display display, int client_id) {
     retire_fence_[display] = nullptr;
     if (sdm_display_[display]) {
       uint32_t config = 0;
-      sdm_display_[display]->GetActiveDisplayConfig(false, &config);
       DisplayConfigVariableInfo display_attributes = {};
-      sdm_display_[display]->GetDisplayAttributesForConfig(config,
-                                                           &display_attributes);
-      timeout_ms =
-          kNumDrawCycles * (display_attributes.vsync_period_ns / kDenomNstoMs);
+      sdm_display_[display]->GetCachedActiveConfig(false, &config);
+      sdm_display_[display]->GetDisplayAttributes(config, &display_attributes);
+      timeout_ms = (kNumDrawCycles * (display_attributes.vsync_period_ns / kDenomNstoMs)) + 100;
       DLOGI("timeout in ms %d", timeout_ms);
     }
   }

@@ -130,7 +130,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual bool IsUnderscanSupported() {
     return false;
   }
-  virtual DisplayError SetPanelBrightness(float brightness) {
+  virtual DisplayError SetPanelBrightness(float brightness, bool return_error = false) {
     return kErrorNotSupported;
   }
   virtual DisplayError SetBppMode(uint32_t bpp) {
@@ -309,6 +309,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   }
   virtual DisplayError EnableCopr(bool en) { return kErrorNotSupported; }
   virtual DisplayError GetCoprStats(std::vector<int> *stats) { return kErrorNotSupported; }
+  void HandleSelfRefresh();
 
  protected:
   struct DisplayMutex {
@@ -402,6 +403,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   std::chrono::system_clock::time_point WaitUntil();
   virtual void Abort();
   DisplayError DisableDestinationScalar();
+  void SetSelfRefreshRefCount(uint32_t sr_ref_count);
+  uint32_t GetSelfRefreshRefCount();
 
   DisplayMutex disp_mutex_;
   std::thread commit_thread_;
@@ -433,7 +436,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   int core_count_ = 0;
   ColorManagerIntf *color_mgr_ = NULL;
   bool partial_update_control_ = true;
-  HWEventsInterface *hw_events_intf_ = NULL;
+  std::vector<HWEventsInterface *> hw_events_intf_ = {};
+  HWEventsInterface *master_hw_events_intf_ = nullptr;
   bool disable_pu_one_frame_ = false;
   bool pu_pending_ = false;
   uint32_t num_color_modes_ = 0;
@@ -459,6 +463,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool disable_llcc_during_aod_ = false;
   bool custom_mixer_resolution_ = false;
   bool vsync_enable_pending_ = false;
+  bool avoid_vsync_enable_ = false;
   HWPowerState pending_power_state_ = kPowerStateNone;
   QSyncMode qsync_mode_ = kQSyncModeNone;
   std::bitset<kUpdateAVRFlagMax> needs_avr_update_ = {};
@@ -509,6 +514,12 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool ssrc_feature_enabled_ = false;
   bool xr_variant_ = false;
   BufferInfo dummy_loopback_cac_info_ = {};
+  bool commit_phase_ = false;
+  uint32_t avr_step_ = 0;
+  uint32_t self_refresh_refcount_ = 0;
+  std::mutex sr_ref_count_mutex_;
+  bool enable_hal_self_refresh_ = false;
+  int hal_refresh_headroom_ = 4;  // In msec
 
  private:
   // Max tolerable power-state-change wait-times in milliseconds.
@@ -534,6 +545,9 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   std::vector<LayerRect> GetBorderRects();
   void GenerateBorderLayers(const std::vector<LayerRect> &border_rects);
   uint32_t GetMixerCountFromTopology(HWTopology topology);
+  void PerformSelfRefresh(uint64_t srEPT);
+  std::chrono::system_clock::time_point WaitUntilForSelfRefresh(uint64_t *srEPT);
+
   unsigned int rc_cached_res_width_ = 0;
   unsigned int rc_cached_res_height_ = 0;
   unsigned int rc_cached_mixer_width_ = 0;
@@ -565,7 +579,10 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   HWDisplayMode default_panel_mode_ = kModeDefault;
   bool idle_hint_set_ = false;
   uint32_t idle_active_ms_ = 0;
+  int32_t mirror_src_display_id_ = -1;
+  bool needs_mirror_source_validation_ = false;
   bool enable_ai_scaler_ = false;
+  uint64_t next_expected_present_ = 0;
 };
 
 }  // namespace sdm

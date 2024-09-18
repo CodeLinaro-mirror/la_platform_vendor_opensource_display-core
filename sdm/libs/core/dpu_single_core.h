@@ -79,7 +79,7 @@ class DPUSingleCore : public DPUCoreMux {
   DisplayError GetQsyncFps(uint32_t *qsync_fps);
   DisplayError CancelDeferredPowerMode();
   void GetHWInterface(HWInterface **intf);
-  void GetDRMDisplayToken(sde_drm::DRMDisplayToken *token) const;
+  void GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) const;
   DisplayError SetPPConfig(void *payload, size_t size);
   DisplayError GetFbConfig(uint32_t width, uint32_t height, DisplayDeviceContext *device_ctx,
                            DisplayClientContext *client_ctx);

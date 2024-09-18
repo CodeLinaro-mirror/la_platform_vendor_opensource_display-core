@@ -770,10 +770,6 @@ bool CompManager::SetDisplayState(Handle display_ctx, DisplayState state,
     break;
   }
 
-  if (display_comp_ctx->is_primary_panel) {
-    primary_display_active_ = (state == kStateOn || state == kStateDoze);
-  }
-
   bool inactive = (state == kStateOff) || (state == kStateDozeSuspend);
   UpdateStrategyConstraints(display_comp_ctx->is_primary_panel, inactive);
 
@@ -1067,6 +1063,7 @@ void CompManager::SetDemuraStatusForDisplay(const int32_t &display_id, bool stat
 }
 
 bool CompManager::GetDemuraStatusForDisplay(const int32_t &display_id) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
   return display_demura_status_[display_id];
 }
 
@@ -1153,9 +1150,19 @@ DisplayError CompManager::SetSprIntf(Handle display_ctx, std::shared_ptr<SPRIntf
   return disp_comp_ctx->strategy->SetSprIntf(intf);
 }
 
-bool CompManager::IsPrimaryDisplayActive() {
+bool CompManager::IsMirroredOfAnyDisplay(int32_t display_id, const LayerStack *layer_stack,
+                                         int32_t *out_src_display) {
+  if (resource_intf_ && resource_intf_->Perform(ResourceInterface::kCmdGetMirrorSource, display_id,
+                                                layer_stack, out_src_display) == kErrorNone) {
+    return true;
+  }
+
+  return false;
+}
+
+bool CompManager::IsActiveDisplay(int32_t display_id) {
   std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
-  return primary_display_active_;
+  return !!powered_on_displays_.count(display_id);
 }
 
 }  // namespace sdm

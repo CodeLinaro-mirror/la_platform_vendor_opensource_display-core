@@ -967,6 +967,7 @@ void SDMDisplay::BuildLayerStack() {
   layer_stack_.flags.advance_fb_present = client_target_3_1_set_;
   // Append client target to the layer stack
   Layer *sdm_client_target = client_target_->GetSDMLayer();
+  sdm_client_target->request.flags = {};
   sdm_client_target->layer_id = client_target_->GetId();
   sdm_client_target->geometry_changes = client_target_->GetGeometryChanges();
   sdm_client_target->flags.updating = IsLayerUpdating(client_target_);
@@ -1949,8 +1950,6 @@ SDMDisplay::PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence) {
     layer_buffer->acquire_fence = nullptr;
   }
 
-  client_target_->GetSDMLayer()->request.flags = {};
-
   layer_stack_.flags.geometry_changed = false;
   sdm_layer_stack_->geometry_changes_ = GeometryChanges::kNone;
   geometry_changes_ = GeometryChanges::kNone;
@@ -1964,9 +1963,7 @@ SDMDisplay::PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence) {
     display_paused_ = true;
     display_pause_pending_ = false;
   }
-  if (secure_event_ == kTUITransitionEnd ||
-      secure_event_ == kSecureDisplayEnd ||
-      secure_event_ == kTUITransitionUnPrepare) {
+  if (secure_event_ == kSecureDisplayEnd || secure_event_ == kTUITransitionUnPrepare) {
     secure_event_ = kSecureEventMax;
   }
 
@@ -3353,6 +3350,7 @@ DisplayError SDMDisplay::PostHandleSecureEvent(SecureEvent secure_event) {
   if (err == kErrorNone) {
     if (secure_event == kTUITransitionEnd ||
         secure_event == kTUITransitionUnPrepare) {
+      secure_event_ = kSecureEventMax;
       return kErrorNone;
     }
     DLOGV("Set secure_event to %d", secure_event);
@@ -3887,6 +3885,11 @@ DisplayError SDMDisplay::HandleQsyncState(const QsyncEventData &qsync_data) {
   event_handler_->PerformQsyncCallback(id_, qsync_data.enabled,
                                        qsync_data.refresh_rate,
                                        qsync_data.qsync_refresh_rate);
+  return kErrorNone;
+}
+
+DisplayError SDMDisplay::IsPreparePhase(bool *prepare_phase) {
+  *prepare_phase = prepare_phase_;
   return kErrorNone;
 }
 

@@ -194,7 +194,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   DisplayError GetRefreshRateRange(uint32_t *min_refresh_rate,
                                    uint32_t *max_refresh_rate) override;
   DisplayError SetRefreshRate(uint32_t refresh_rate, bool final_rate, bool idle_screen) override;
-  DisplayError SetPanelBrightness(float brightness) override;
+  DisplayError SetPanelBrightness(float brightness, bool return_error = false) override;
   DisplayError GetPanelBrightness(float *brightness) override;
   DisplayError GetPanelBrightnessFromLevel(float level, float *brightness);
   DisplayError GetPanelBrightnessLevel(int *level) override;
@@ -276,7 +276,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   void HandleBacklightEvent(float brightness_level) override;
   void HandlePowerEvent() override;
   void HandleVmReleaseEvent() override;
-  void GetDRMDisplayToken(sde_drm::DRMDisplayToken *token) override;
+  void GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) override;
   bool IsPrimaryDisplay() override;
   DisplayError GetPanelBrightnessBasePath(std::string *base_path) override;
 
@@ -306,6 +306,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   DisplayError SetupDemuraTn();
   DisplayError EnableDemuraTn(bool enable);
   DisplayError SetupDemuraT0AndTn();
+  DisplayError SetupDemuraT0();
   DisplayError SetupABCFeature();
   DisplayError SetupABC();
   DisplayError SetDisplayStateForDemuraTn(DisplayState state);
@@ -336,11 +337,14 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   bool GetDemuraTnUserCtrl();
   int UpdateDemuraTnUserCtrl(bool user_ctrl);
   DisplayError TriggerDemuraOemPlugIn(void *data);
+  DisplayError HandleDemuraScreenRefresh();
   CacVersion GetCacVerion();
   bool IsAnamorphicFoveationEnabled(LayerStack *layer_stack);
+  DisplayError SendPanelIdToParserManager();
+  DisplayError ReloadDemuraCalibFiles(void *data);
 
   const uint32_t kPuTimeOutMs = 1000;
-  std::vector<HWEvent> event_list_;
+  std::map<uint32_t, std::vector<HWEvent>> event_list_;
   bool avr_prop_disabled_ = false;
   bool switch_to_cmd_ = false;
   bool commit_event_enabled_ = false;
@@ -372,7 +376,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   std::shared_ptr<SPRIntf> spr_ = nullptr;
   bool needs_validate_on_pu_enable_ = false;
   bool enable_qsync_idle_ = false;
-  bool pending_vsync_enable_ = false;
+  uint32_t pending_cycles_for_poms_setup_ = 0;
   QSyncMode active_qsync_mode_ = kQSyncModeNone;
   std::shared_ptr<IPCIntf> ipc_intf_ = nullptr;
   bool enhance_idle_time_ = false;
@@ -415,6 +419,11 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   bool avr_step_enabled_ = false;
   bool vrr_enabled_ = false;
   std::shared_ptr<TvmDispServiceManagerIntf> service_manager_intf_ = nullptr;
+  std::shared_ptr<DemuraParserManagerIntf> pm_intf_ = nullptr;
+  bool demura_allowed_ = false;
+  bool demuratn_allowed_ = false;
+  int demura_prop_ = 0;
+  bool demura_calib_files_reloaded_ = false;
 };
 
 }  // namespace sdm

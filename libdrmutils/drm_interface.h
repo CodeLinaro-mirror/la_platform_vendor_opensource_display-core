@@ -1033,8 +1033,9 @@ struct DRMModeInfo {
   std::vector<DRMSubModeInfo> sub_modes;
   uint32_t qsync_min_fps;
   uint32_t curr_bpp_mode;
-  uint32_t avr_step_fps;
+  uint32_t avr_step_fps = 0;
   uint32_t early_ept_timeout;
+  bool vhm_support = false;
 };
 
 /* Per Connector Info*/

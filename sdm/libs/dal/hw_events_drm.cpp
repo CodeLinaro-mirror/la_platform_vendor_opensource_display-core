@@ -29,7 +29,7 @@
 
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
-* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
   SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -84,21 +84,13 @@ namespace sdm {
 
 using drm_utils::DRMMaster;
 
-void HWEventsDRM::HandleDRMOpen(int& fd) {
-  for (int i = 0; i < core_id_map_.size(); i++) {
-    if (!core_id_map_[i]) {
-      continue;
-    }
-
-    if (i == 0) {
-      fd = drmOpen("msm_drm", nullptr);
-      return;
-    }
-
-    snprintf(path_, sizeof(path_), "/dev/dri/card%d", i);
-    fd = open(path_, O_RDWR | O_CLOEXEC, 0);
-    break;
+void HWEventsDRM::HandleDRMOpen(int &fd) {
+  if (core_id_ == 0) {
+    fd = drmOpen("msm_drm", nullptr);
+    return;
   }
+  snprintf(path_, sizeof(path_), "/dev/dri/card%d", core_id_);
+  fd = Sys::open_(path_, O_RDWR | O_CLOEXEC, 0);
 }
 
 DisplayError HWEventsDRM::InitializePollFd() {
@@ -279,20 +271,20 @@ void HWEventsDRM::PopulateHWEventData(const vector<HWEvent> &event_list) {
   InitializePollFd();
 }
 
-DisplayError HWEventsDRM::Init(DisplayId display_id, SDMDisplayType display_type,
+DisplayError HWEventsDRM::Init(DisplayId display_id, uint32_t core_id, SDMDisplayType display_type,
                                HWEventHandler *event_handler, const vector<HWEvent> &event_list) {
   if (!event_handler)
     return kErrorParameters;
 
-  core_id_map_ = display_id.GetCoreIdMap();
-  event_handler->GetDRMDisplayToken(&token_);
+  core_id_ = core_id;
+  event_handler->GetDRMDisplayToken(core_id_, &token_);
   is_primary_ = event_handler->IsPrimaryDisplay();
   std::string backlight_path;
   event_handler->GetPanelBrightnessBasePath(&backlight_path);
   brightness_node_ = backlight_path + "brightness";
 
-  DLOGI("Setup event handler for display %d-%d, CRTC %d, Connector %d", display_id.GetDisplayId(),
-        display_type, token_.crtc_id, token_.conn_id);
+  DLOGI("Setup event handler for display %d-%d, CRTC %d, Connector %d core_id %d",
+        display_id.GetDisplayId(), display_type, token_.crtc_id, token_.conn_id, core_id);
 
   event_handler_ = event_handler;
   poll_fds_.resize(event_list.size());
@@ -612,7 +604,7 @@ DisplayError HWEventsDRM::RegisterPanelDead(bool enable) {
   }
 
   if (ret) {
-    DLOGE("register panel dead enable:%d failed", enable);
+    DLOGE("register panel dead enable:%d failed conn_id %d", enable, token_.conn_id);
     return kErrorResources;
   }
 

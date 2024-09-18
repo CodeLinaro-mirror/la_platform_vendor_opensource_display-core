@@ -370,6 +370,8 @@ enum PanelFeatureVendorServiceType {
   kTypeDeleteDemuraTnConfig = 4,
   /* Setter: None */
   kTypeTriggerDemuraOemPlugIn = 5,
+  /* Setter: None */
+  kTypeReloadDemuraCalibFiles = 6,
   PanelFeatureVendorServiceTypeMax,
 };
 
@@ -432,6 +434,9 @@ class DisplayEventHandler {
 
   /*! @brief Event handler for sending status of Qsync */
   virtual DisplayError HandleQsyncState(const QsyncEventData &event_data) { return kErrorNone; }
+
+  /*! @brief Event handler to check if a Display is in Prepare phase. */
+  virtual DisplayError IsPreparePhase(bool *prepare_phase) { return kErrorNone; }
 
   /*! @brief Event handler to notify CWB Done */
   virtual void NotifyCwbDone(int32_t status, const LayerBuffer& buffer) { }
@@ -760,10 +765,11 @@ class DisplayInterface {
   /*! @brief Method to set brightness of the builtin display.
 
     @param[in] brightness the new backlight level 0.0f(min) to 1.0f(max) where -1.0f represents off.
+    @param[in] return_error false by default, true to distinguish deferred error case.
 
     @return \link DisplayError \endlink
   */
-  virtual DisplayError SetPanelBrightness(float brightness) = 0;
+  virtual DisplayError SetPanelBrightness(float brightness, bool return_error = false) = 0;
 
   /*! @brief Method to notify display about change in min HDCP encryption level.
 

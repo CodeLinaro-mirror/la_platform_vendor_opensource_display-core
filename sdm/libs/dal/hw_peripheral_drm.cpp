@@ -590,6 +590,7 @@ void HWPeripheralDRM::SetSelfRefreshState() {
 }
 
 DisplayError HWPeripheralDRM::Flush(HWLayersInfo *hw_layers_info) {
+  ConfigureLoopbackCAC(false /* cac disabled */);
   DisplayError err = HWDeviceDRM::Flush(hw_layers_info);
   if (err != kErrorNone) {
     return err;
@@ -786,7 +787,13 @@ DisplayError HWPeripheralDRM::PowerOn(const HWQosData &qos_data, SyncPoints *syn
   if (sde_dest_scalar_data_.num_dest_scaler) {
     for (uint32_t i = 0; i < dest_scaler_blocks_used_; i++) {
       sde_drm_dest_scaler_cfg *dest_scalar_data = &sde_dest_scalar_data_.ds_cfg[i];
-      if (dest_scalar_data->flags & SDE_DRM_DESTSCALER_ENABLE) {
+      if ((dest_scalar_data->flags & SDE_DRM_DESTSCALER_ENABLE) &&
+          (hw_resource_.cac_version == kCacVersionLoopback)) {
+        // Disable DS during power On for DS and loopback CAC case.
+        // LM will contain overfetch pixels in case of loopback CAC and loopback connector
+        // is disabled during power off because loopabck CAC + borderfill not supported.
+        dest_scalar_data->flags &= ~SDE_DRM_DESTSCALER_ENABLE;
+      } else if (dest_scalar_data->flags & SDE_DRM_DESTSCALER_ENABLE) {
         dest_scalar_data->flags |= SDE_DRM_DESTSCALER_SCALE_UPDATE;
       }
     }
@@ -1368,9 +1375,8 @@ DisplayError HWPeripheralDRM::GetQsyncFps(uint32_t *qsync_fps) {
   return kErrorNotSupported;
 }
 
-bool HWPeripheralDRM::IsAVRStepSupported(uint32_t config_index) {
-  uint32_t avr_step = connector_info_.modes[config_index].avr_step_fps;
-  return (avr_step > 0);
+uint32_t HWPeripheralDRM::GetAVRStep(uint32_t config_index) {
+  return connector_info_.modes[config_index].avr_step_fps;
 }
 
 bool HWPeripheralDRM::IsVRRSupported() {
