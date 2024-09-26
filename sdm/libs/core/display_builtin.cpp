@@ -2651,12 +2651,13 @@ DisplayError DisplayBuiltIn::ControlIdlePowerCollapse(bool enable, bool synchron
           display_type_);
     return kErrorPermission;
   }
-  if (client_ctx_.hw_panel_info.mode == kModeVideo) {
-    DLOGW("Idle power collapse not supported for video mode panel.");
-    return kErrorNotSupported;
+
+  if ((client_ctx_.hw_panel_info.mode == kModeCommand) || client_ctx_.hw_panel_info.vhm_support) {
+    validated_ = false;
+    return dpu_core_mux_->ControlIdlePowerCollapse(enable, synchronous);
   }
-  validated_ = false;
-  return dpu_core_mux_->ControlIdlePowerCollapse(enable, synchronous);
+
+  return kErrorNotSupported;
 }
 
 DisplayError DisplayBuiltIn::GetSupportedDSIClock(std::vector<uint64_t> *bitclk_rates) {

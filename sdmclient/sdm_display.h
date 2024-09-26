@@ -346,9 +346,10 @@ public:
     return kErrorNotSupported;
   }
   virtual DisplayError SetBppMode(uint32_t bpp) { return kErrorNotSupported; }
-  virtual DisplayError SetDynamicDSIClock(uint64_t bitclk) {
-    return kErrorNotSupported;
-  }
+  virtual DisplayError ScheduleDynamicDSIClock(uint64_t bitclk) { return kErrorNotSupported; }
+
+  virtual DisplayError SetDynamicDSIClock() { return kErrorNotSupported; }
+
   virtual DisplayError GetDynamicDSIClock(uint64_t *bitclk) {
     return kErrorNotSupported;
   }
@@ -704,6 +705,7 @@ public:
   bool validate_done_ = false;
   SDMLayerStack *sdm_layer_stack_ = nullptr;
   bool prepare_phase_ = false;
+  uint64_t scheduled_dynamic_dsi_clk_ = 0;
 
  private:
   bool CanSkipSdmPrepare(uint32_t *num_types, uint32_t *num_requests);

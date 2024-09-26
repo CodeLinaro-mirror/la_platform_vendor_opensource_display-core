@@ -2393,7 +2393,7 @@ DisplayError ConcurrencyMgr::SetDSIClk(uint64_t disp_id, uint64_t bit_clk) {
     return kErrorResources;
   }
 
-  return sdm_display_[disp_id]->SetDynamicDSIClock(bit_clk);
+  return sdm_display_[disp_id]->ScheduleDynamicDSIClock(bit_clk);
 }
 
 DisplayError ConcurrencyMgr::SetQsyncMode(uint64_t disp_id, QSyncMode mode) {

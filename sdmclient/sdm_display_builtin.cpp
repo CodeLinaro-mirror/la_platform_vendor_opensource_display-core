@@ -280,8 +280,16 @@ DisplayError SDMDisplayBuiltIn::PreValidateDisplay(bool *exit_validate) {
 }
 
 DisplayError SDMDisplayBuiltIn::CommitLayerStack() {
+  SetDynamicDSIClock();
+
   skip_commit_ = CanSkipCommit();
-  return SDMDisplay::CommitLayerStack();
+  DisplayError error = SDMDisplay::CommitLayerStack();
+
+  if (commit_counter_) {
+    callbacks_->OnRefresh(id_);
+  }
+
+  return error;
 }
 
 bool SDMDisplayBuiltIn::CanSkipCommit() {
@@ -1069,13 +1077,41 @@ DisplayError SDMDisplayBuiltIn::SetJitterConfig(uint32_t jitter_type,
   return kErrorNone;
 }
 
-DisplayError SDMDisplayBuiltIn::SetDynamicDSIClock(uint64_t bitclk) {
-  DisablePartialUpdateOneFrame();
-  DisplayError error = display_intf_->SetDynamicDSIClock(bitclk);
-  if (error != kErrorNone) {
-    DLOGE(" failed: Clk: %" PRIu64 " Error: %d", bitclk, error);
-    return error;
+DisplayError SDMDisplayBuiltIn::SetDynamicDSIClock() {
+  // decrement the counter and set dsi clock when counter hit 0
+  if (!scheduled_dynamic_dsi_clk_ || (commit_counter_ >>= 1)) {
+    return kErrorNone;
   }
+
+  DTRACE_SCOPED();
+
+  DisplayError error = display_intf_->SetDynamicDSIClock(scheduled_dynamic_dsi_clk_);
+  if (error != kErrorNone) {
+    DLOGE(" failed: Clk: %" PRIu64 " Error: %d", scheduled_dynamic_dsi_clk_, error);
+  }
+
+  scheduled_dynamic_dsi_clk_ = 0;
+  ControlIdlePowerCollapse(true, false);
+
+  return error;
+}
+
+DisplayError SDMDisplayBuiltIn::ScheduleDynamicDSIClock(uint64_t bitclk) {
+  if (scheduled_dynamic_dsi_clk_) {
+    return kErrorPermission;
+  }
+
+  DTRACE_SCOPED();
+
+  DisablePartialUpdateOneFrame();
+  ControlIdlePowerCollapse(false, false);
+
+  scheduled_dynamic_dsi_clk_ = bitclk;
+
+  // Set counter to b10
+  // On first commit it will be b01
+  // On second commit it will be b00
+  commit_counter_ = 1 << 1;
 
   callbacks_->OnRefresh(id_);
 
@@ -1517,6 +1553,8 @@ DisplayError SDMDisplayBuiltIn::CommitOrPrepare(
     uint32_t *out_num_types, uint32_t *out_num_requests, bool *needs_commit) {
   DTRACE_SCOPED();
 
+  SetDynamicDSIClock();
+
   prepare_phase_ = true;
   auto status = SDMDisplay::CommitOrPrepare(validate_only, out_retire_fence,
                                             out_num_types, out_num_requests,
@@ -1528,6 +1566,12 @@ DisplayError SDMDisplayBuiltIn::CommitOrPrepare(
   }
 
   prepare_phase_ = false;
+
+  // Need a commit call to flush the dsi dynamic clock
+  if (commit_counter_) {
+    callbacks_->OnRefresh(id_);
+  }
+
   return status;
 }
 
