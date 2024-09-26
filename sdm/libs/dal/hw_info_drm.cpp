@@ -782,6 +782,12 @@ void HWInfoDRM::GetSDMFormat(uint32_t v4l2_format, LayerBufferFormat *sdm_format
     case SDE_PIX_FMT_Y_CBCR_H2V2_TP10_UBWC:  *sdm_format = kFormatYCbCr420TP10Ubwc;     break;
     case SDE_PIX_FMT_Y_CBCR_H2V2_P010_UBWC:  *sdm_format = kFormatYCbCr420P010Ubwc;     break;
     case SDE_PIX_FMT_Y_CBCR_H2V2_P010_VENUS: *sdm_format = kFormatYCbCr420P010Venus;    break;
+    case SDE_PIX_FMT_Y_CBCR_H2V1_P210:
+      *sdm_format = kFormatYCbCr422P210;
+      break;
+    case SDE_PIX_FMT_Y_CBCR_H2V1_P210_UBWC:
+      *sdm_format = kFormatYCbCr422P210Ubwc;
+      break;
     default: *sdm_format = kFormatInvalid;
   }
 }
@@ -985,6 +991,13 @@ void HWInfoDRM::GetSDMFormat(uint32_t drm_format, uint64_t drm_format_modifier,
       fmts.push_back(drm_format_modifier == DRM_FORMAT_MOD_QCOM_COMPRESSED
                          ? kFormatRGBA16161616FUbwc
                          : kFormatRGBA16161616F);
+      break;
+    case DRM_FORMAT_P210:
+      if (drm_format_modifier == (DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_DX)) {
+        fmts.push_back(kFormatYCbCr422P210Ubwc);
+      } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_DX) {
+        fmts.push_back(kFormatYCbCr422P210);
+      }
       break;
     default:
       break;

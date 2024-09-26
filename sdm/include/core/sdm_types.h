@@ -402,6 +402,7 @@ enum SDMPowerMode {
     POWER_MODE_ON_SUSPEND = 4,
 };
 
+// Values taken from PixelFormat.aidl
 enum SDMPixelFormat {
   PIXEL_FORMAT_UNSPECIFIED             = 0,
   PIXEL_FORMAT_RGBA_8888               = 0x1,
@@ -436,6 +437,7 @@ enum SDMPixelFormat {
   PIXEL_FORMAT_R_16_UINT               = 0x39,
   PIXEL_FORMAT_RG_1616_UINT            = 0x3a,
   PIXEL_FORMAT_RGBA_10101010           = 0x3b,
+  PIXEL_FORMAT_YCBCR_P210              = 0x3c,
 };
 
 enum SDMClientCommitDone {

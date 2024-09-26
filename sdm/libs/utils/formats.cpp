@@ -30,7 +30,7 @@
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -55,6 +55,7 @@ bool IsUBWCFormat(LayerBufferFormat format) {
   case kFormatRGBA16161616FUbwc:
   case kFormatRGBA8888UbwcLossy2To1:
   case kFormatRGBA8888UbwcLossy8To5:
+  case kFormatYCbCr422P210Ubwc:
     return true;
   default:
     return false;
@@ -77,6 +78,8 @@ bool Is10BitFormat(LayerBufferFormat format) {
   case kFormatYCbCr420TP10Ubwc:
   case kFormatYCbCr420P010Ubwc:
   case kFormatYCbCr420P010Venus:
+  case kFormatYCbCr422P210:
+  case kFormatYCbCr422P210Ubwc:
     return true;
   default:
     return false;
@@ -184,6 +187,8 @@ const char *GetFormatString(const LayerBufferFormat &format) {
   case kFormatA8:                       return "A8";
   case kFormatRGBA8888UbwcLossy2To1:    return "RGBA_8888_UBWC_LOSSY_2_TO_1";
   case kFormatRGBA8888UbwcLossy8To5:    return "RGBA_8888_UBWC_LOSSY_8_TO_5";
+  case kFormatYCbCr422P210:             return "Y_CBCR_422_P210";
+  case kFormatYCbCr422P210Ubwc:         return "Y_CBCR_422_P210_UBWC";
   default:                              return "UNKNOWN";
   }
 }
@@ -227,6 +232,8 @@ float GetBufferFormatBpp(LayerBufferFormat format) {
     case kFormatRGBX1010102Ubwc:
     case kFormatRGBA8888UbwcLossy2To1:
     case kFormatRGBA8888UbwcLossy8To5:
+    case kFormatYCbCr422P210:
+    case kFormatYCbCr422P210Ubwc:
       return 4.0f;
     case kFormatRGB888:
     case kFormatBGR888:
@@ -321,6 +328,7 @@ int GetBufferFormatTileSize(LayerBufferFormat format, FormatTileSize *tile_size)
     break;
   case kFormatYCbCr420P010Ubwc:
   case kFormatYCbCr420P010Tile:
+  case kFormatYCbCr422P210Ubwc:
     tile_size->tile_width = 32;
     tile_size->tile_height = 4;
     tile_size->uv_tile_width = 16;
