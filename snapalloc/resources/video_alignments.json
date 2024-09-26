@@ -182,6 +182,37 @@
                         }
                     ]
                 }
+            },
+            {
+                "format" : "YCBCR_P210",
+                "constraints" : {
+                    "size_align_bytes" : 4096,
+                    "planes" : [
+                        {
+                            "components": [
+                                {
+                                    "component_type" : "Y"
+                                }
+                            ],
+                            "horiz_stride_align_bytes" : 256,
+                            "scanline_align" : 16,
+                            "size_align_bytes" : 1
+                        },
+                        {
+                            "components": [
+                                {
+                                    "component_type" : "CB"
+                                },
+                                {
+                                    "component_type" : "CR"
+                                }
+                            ],
+                            "horiz_stride_align_bytes" : 256,
+                            "scanline_align" : 16,
+                            "size_align_bytes" : 1
+                        }
+                    ]
+                }
             }
         ]
     }
