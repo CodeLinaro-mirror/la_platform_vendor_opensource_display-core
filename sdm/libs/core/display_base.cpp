@@ -4287,7 +4287,7 @@ DisplayError DisplayBase::HandleSecureEvent(SecureEvent secure_event, bool *need
     }
 
     // Disable Destination Scalar for TUI Use Case
-    if (client_ctx_.hw_panel_info.mode != kModeCommand) {
+    if ((client_ctx_.hw_panel_info.mode != kModeCommand) && !(enable_ai_scaler_)) {
       if ((mixer_width != display_width) || (mixer_height != display_height)) {
         err = DisableDestinationScalar();
         if (err != kErrorNone) {
