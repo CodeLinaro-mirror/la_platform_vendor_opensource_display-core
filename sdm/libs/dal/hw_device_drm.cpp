@@ -1831,6 +1831,15 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
 
           DRMRect src = {};
           SetRect(pipe_info->src_roi, &src);
+          DRMRect dst = {};
+          SetRect(pipe_info->dst_roi, &dst);
+          if (layer_blend == kBlendingSkip) {
+            src.top = src.top + hw_layers_info->common_info->spr_overfetch_lines.top;
+            dst.top = dst.top + hw_layers_info->common_info->spr_overfetch_lines.top;
+            src.bottom = src.bottom - hw_layers_info->common_info->spr_overfetch_lines.bottom;
+            dst.bottom = dst.bottom - hw_layers_info->common_info->spr_overfetch_lines.bottom;
+          }
+          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_DST_RECT, pipe_id, dst);
           drm_atomic_intf_->Perform(DRMOps::PLANE_SET_SRC_RECT, pipe_id, src);
 
           if (IsValid(pipe_info->ext_src_roi)) {
@@ -1838,10 +1847,6 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
             SetRect(pipe_info->ext_src_roi, &src_ext);
             drm_atomic_intf_->Perform(DRMOps::PLANE_SET_SRC_RECT_EXT, pipe_id, src_ext);
           }
-
-          DRMRect dst = {};
-          SetRect(pipe_info->dst_roi, &dst);
-          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_DST_RECT, pipe_id, dst);
 
           if (IsValid(pipe_info->ext_dst_roi)) {
             DRMRect dst_ext = {};
