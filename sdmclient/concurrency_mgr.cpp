@@ -735,40 +735,39 @@ DisplayError ConcurrencyMgr::Hotplug(Display display, bool state) {
   return kErrorNone;
 }
 
-void ConcurrencyMgr::RegisterCompositorCallback(SDMCompositorCbIntf *cb, bool enable) {
-  SCOPE_LOCK(client_lock_);
-  callbacks_.RegisterCallback(cb, enable);
+void ConcurrencyMgr::GetPendingHotplug(vector<Display> &pending_hotplugs) {
+  for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_BUILTIN_2)) {
+    SCOPE_LOCK(locker_[map_info.client_id]);
 
-  // Detect if client died and now is back
-  vector<Display> pending_hotplugs;
-
-  if (enable && client_connected_) {
-    for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_BUILTIN_2)) {
-      SCOPE_LOCK(locker_[map_info.client_id]);
-
-      if (sdm_display_[map_info.client_id]) {
-        pending_hotplugs.push_back(static_cast<Display>(map_info.client_id));
-      }
-    }
-
-    for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_EXTERNAL)) {
-      SCOPE_LOCK(locker_[map_info.client_id]);
-
-      if (sdm_display_[map_info.client_id]) {
-        pending_hotplugs.push_back(static_cast<Display>(map_info.client_id));
-      }
+    if (sdm_display_[map_info.client_id]) {
+      pending_hotplugs.push_back(static_cast<Display>(map_info.client_id));
     }
   }
 
+  for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_EXTERNAL)) {
+    SCOPE_LOCK(locker_[map_info.client_id]);
+
+    if (sdm_display_[map_info.client_id]) {
+      pending_hotplugs.push_back(static_cast<Display>(map_info.client_id));
+    }
+  }
+}
+
+void ConcurrencyMgr::RegisterCompositorCallback(SDMCompositorCbIntf *cb, bool enable) {
+  SCOPE_LOCK(client_lock_);
+  callbacks_.RegisterCallback(cb, enable);
+  vector<Display> pending_hotplugs;
+
   client_connected_ = enable;
   if (enable) {
+    GetPendingHotplug(pending_hotplugs);
+
     if (sdm_display_[SDM_DISPLAY_PRIMARY]) {
       DLOGI("Hotplugging primary...");
       Hotplug(SDM_DISPLAY_PRIMARY, true);
     }
 
-    // Create displays since they should now have their final display indices
-    // set.
+    // Create displays since they should now have their final display indices set.
     DLOGI("Handling built-in displays...");
     {
       SCOPE_LOCK(primary_display_lock_);
@@ -790,22 +789,22 @@ void ConcurrencyMgr::RegisterCompositorCallback(SDMCompositorCbIntf *cb, bool en
       }
     }
 
-    // If previously registered, call hotplug for all connected displays to
-    // refresh
-    if (client_connected_) {
-      std::vector<Display> updated_pending_hotplugs;
-      for (auto client_id : pending_hotplugs) {
-        SCOPE_LOCK(locker_[client_id]);
-        // check if the display is unregistered
-        if (sdm_display_[client_id]) {
-          updated_pending_hotplugs.push_back(client_id);
-        }
+    // Call hotplug for all connected displays to refresh
+    // This is needed for cases where -
+    // 1. client has died and is now back (client_connected_ will remain true)
+    // 2. client is unregistered and then registered (client_connected_ will be false)
+    // pending_hotplugs will not have valid displays for other cases
+    std::vector<Display> updated_pending_hotplugs;
+    for (auto client_id : pending_hotplugs) {
+      SCOPE_LOCK(locker_[client_id]);
+      // check if the display is unregistered
+      if (sdm_display_[client_id]) {
+        updated_pending_hotplugs.push_back(client_id);
       }
-      for (auto client_id : updated_pending_hotplugs) {
-        DLOGI("Re-hotplug display connected: client id = %d",
-              UINT32(client_id));
-        Hotplug(client_id, true);
-      }
+    }
+    for (auto client_id : updated_pending_hotplugs) {
+      DLOGI("Re-hotplug display connected: client id = %d", UINT32(client_id));
+      Hotplug(client_id, true);
     }
   }
 
@@ -2393,7 +2392,7 @@ DisplayError ConcurrencyMgr::SetDSIClk(uint64_t disp_id, uint64_t bit_clk) {
     return kErrorResources;
   }
 
-  return sdm_display_[disp_id]->SetDynamicDSIClock(bit_clk);
+  return sdm_display_[disp_id]->ScheduleDynamicDSIClock(bit_clk);
 }
 
 DisplayError ConcurrencyMgr::SetQsyncMode(uint64_t disp_id, QSyncMode mode) {

@@ -778,7 +778,7 @@ DisplayError SDMServices::SetDsiClk(int disp_id, uint64_t clk) {
     return kErrorNotSupported;
   }
 
-  return sdm_display->SetDynamicDSIClock(clk);
+  return sdm_display->ScheduleDynamicDSIClock(clk);
 }
 
 DisplayError SDMServices::SetJitterConfig(uint32_t jitter_type,

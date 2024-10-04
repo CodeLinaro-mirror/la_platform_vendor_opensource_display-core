@@ -88,6 +88,13 @@ static bool AdrenoAlignmentRequired(vendor_qti_hardware_display_common_BufferUsa
 int GraphicsConstraintProvider::GetInitialMetadata(
     BufferDescriptor desc, vendor_qti_hardware_display_common_GraphicsMetadata *graphics_metadata,
     bool is_ubwc_enabled) {
+  // Due to a plane alignment calculation delta for metadata blob for YV12,
+  // do not initialize graphics metadata blob
+  // TODO: remove once support is added from adreno API
+  if (desc.format == YV12) {
+    return Error::UNSUPPORTED;
+  }
+
   uint64_t pixel_format_modifier = GetPixelFormatModifier(desc);
   auto adreno_format = GetGpuPixelFormat(
       desc.format,
