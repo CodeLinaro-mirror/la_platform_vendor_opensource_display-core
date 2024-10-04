@@ -173,4 +173,10 @@ DisplayError DisplayNull::GetDisplayType(SDMDisplayType *display_type) {
   return kErrorNone;
 }
 
+DisplayError DisplayNull::ValidateExtendedDisplayResolutions(
+    std::vector<std::pair<uint32_t, uint32_t>> ext_disp_res,
+    std::vector<std::pair<uint32_t, uint32_t>> *fin_disp_res) {
+  return kErrorNone;
+}
+
 }  // namespace sdm

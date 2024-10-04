@@ -683,9 +683,12 @@ void SDMDisplay::PopulateSDMExtendedDisplayResolution() {
     return;
   }
 
-  if (extended_display_resolutions.size() == 0) {
+  std::vector<std::pair<uint32_t, uint32_t>> final_extended_display_resolutions = {};
+  if (display_intf_->ValidateExtendedDisplayResolutions(extended_display_resolutions,
+                                                        &final_extended_display_resolutions)) {
     return;
   }
+  extended_display_resolutions = final_extended_display_resolutions;
 
   uint32_t config_index = variable_config_map_.size();
   for (uint32_t res_index = 0; res_index < extended_display_resolutions.size(); res_index++) {

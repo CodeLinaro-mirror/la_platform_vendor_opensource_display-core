@@ -1498,6 +1498,18 @@ class DisplayInterface {
   */
   virtual DisplayError GetScalerCount(uint32_t *scaler_count) = 0;
 
+  /*! @brief Method to validate extended display resolutions.
+
+   @param[in] vector of resolutions
+
+   @param[out] vector of resolutions
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError ValidateExtendedDisplayResolutions(
+      std::vector<std::pair<uint32_t, uint32_t>> ext_disp_res,
+      std::vector<std::pair<uint32_t, uint32_t>> *fin_disp_res) = 0;
+
  protected:
   virtual ~DisplayInterface() { }
 };

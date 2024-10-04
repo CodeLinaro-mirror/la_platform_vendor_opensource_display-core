@@ -406,6 +406,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   DisplayError DisableDestinationScalar();
   void SetSelfRefreshRefCount(uint32_t sr_ref_count);
   uint32_t GetSelfRefreshRefCount();
+  DisplayError ValidateExtendedDisplayResolutions(vector<pair<uint32_t, uint32_t>> ext_disp_res,
+                                                  vector<pair<uint32_t, uint32_t>> *fin_disp_res);
 
   DisplayMutex disp_mutex_;
   std::thread commit_thread_;
