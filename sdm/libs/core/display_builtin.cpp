@@ -4034,6 +4034,24 @@ DisplayError DisplayBuiltIn::GetCoprStats(std::vector<int> *stats) {
   return ret;
 }
 
+DisplayError DisplayBuiltIn::GetScalerCount(uint32_t *scaler_count) {
+  int enable_ai_scaler = 0;
+  Debug::Get()->GetProperty(ENABLE_AI_SCALER_PROP, &enable_ai_scaler);
+  *scaler_count = 0;
+
+  if (client_ctx_.hw_panel_info.is_primary_panel && enable_ai_scaler) {
+    for (auto &res_info : hw_resource_info_) {
+      *scaler_count = std::max(*scaler_count, res_info.hw_ai_scaler_count);
+    }
+  } else {
+    for (auto &res_info : hw_resource_info_) {
+      *scaler_count = std::max(*scaler_count, res_info.hw_dest_scalar_info.count);
+    }
+  }
+
+  return kErrorNone;
+}
+
 DisplayError EventProxyInfo::Init(const std::string &panel_name, DisplayInterface *intf,
                                   DynLib &extension_lib, PanelFeaturePropertyIntf *prop_intf) {
   std::lock_guard<std::mutex> guard(lock_);
