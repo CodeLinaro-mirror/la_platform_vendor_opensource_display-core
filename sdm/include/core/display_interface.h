@@ -65,19 +65,26 @@ typedef std::vector<std::pair<std::string, std::string>> AttrVal;
   @sa DisplayInterface::SetDetailEnhancerData
 */
 enum DetailEnhancerOverrideFlags {
-  kOverrideDEEnable            = 0x1,     // Specifies to enable detail enhancer
-  kOverrideDESharpen1          = 0x2,     // Specifies user defined Sharpening/smooth for noise
-  kOverrideDESharpen2          = 0x4,     // Specifies user defined Sharpening/smooth for signal
-  kOverrideDEClip              = 0x8,     // Specifies user defined DE clip shift
-  kOverrideDELimit             = 0x10,    // Specifies user defined DE limit value
-  kOverrideDEThrQuiet          = 0x20,    // Specifies user defined DE quiet threshold
-  kOverrideDEThrDieout         = 0x40,    // Specifies user defined DE dieout threshold
-  kOverrideDEThrLow            = 0x80,    // Specifies user defined DE low threshold
-  kOverrideDEThrHigh           = 0x100,   // Specifies user defined DE high threshold
-  kOverrideDEFilterConfig      = 0x200,   // Specifies user defined scaling filter config
-  kOverrideDEBlend             = 0x400,   // Specifies user defined DE blend.
-  kOverrideDELpfBlend          = 0x800,   // Specifies user defined DE LPF blend.
-  kOverrideDEMax               = 0xFFFFFFFF,
+  kOverrideDEEnable = 0x1,                  // Specifies to enable detail enhancer
+  kOverrideDESharpen1 = 0x2,                // Specifies user defined Sharpening/smooth for noise
+  kOverrideDESharpen2 = 0x4,                // Specifies user defined Sharpening/smooth for signal
+  kOverrideDEClip = 0x8,                    // Specifies user defined DE clip shift
+  kOverrideDELimit = 0x10,                  // Specifies user defined DE limit value
+  kOverrideDEThrQuiet = 0x20,               // Specifies user defined DE quiet threshold
+  kOverrideDEThrDieout = 0x40,              // Specifies user defined DE dieout threshold
+  kOverrideDEThrLow = 0x80,                 // Specifies user defined DE low threshold
+  kOverrideDEThrHigh = 0x100,               // Specifies user defined DE high threshold
+  kOverrideDEFilterConfig = 0x200,          // Specifies user defined scaling filter config
+  kOverrideDEBlend = 0x400,                 // Specifies user defined DE blend.
+  kOverrideDELpfBlend = 0x800,              // Specifies user defined DE LPF blend
+  kOverrideDEAdaptiveDeEn = 0x1000,         // Specifies to enable adaptive detail enhancer
+  kOverrideDEAdeStrengthMapSlope = 0x2000,  // Specifies user defined ADE slope
+  kOverrideDEAdeStrengthMapConst = 0x4000,  // Specifies user defined ADE const
+  kOverrideDEAdeStrengthCoeff = 0x8000,     // Specifies user defined ADE coeff low and high
+  kOverrideDEHaloSuppressCoeff = 0x10000,   // Specifies user defined halo suppression coeff
+  kOverrideDEPolarityEn = 0x20000,          // Specifies to enable polarity
+  kOverrideDEEdgeBleedSupEn = 0x40000,      // Specifies to enable edge bleed support
+  kOverrideDEMax = 0xFFFFFFFF,
 };
 
 /*! @brief This enum represents Y/RGB scaling filter configuration.
@@ -315,9 +322,19 @@ struct DisplayDetailEnhancerData {
   uint32_t de_blend = 0;              // DE Unsharp Mask blend between High and Low frequencies
   DeContentType content_type = kContentTypeUnknown;  // Specifies content type
   bool de_lpf_en = false;
-  uint32_t de_lpf_h;                  // Weight for DE Unsharp Mask LPF-High
-  uint32_t de_lpf_m;                  // Weight for DE Unsharp Mask LPF-Mid
-  uint32_t de_lpf_l;                  // Weight for DE Unsharp Mask LPF-Low
+  uint32_t de_lpf_h = 0;                    // Weight for DE Unsharp Mask LPF-High
+  uint32_t de_lpf_m = 0;                    // Weight for DE Unsharp Mask LPF-Mid
+  uint32_t de_lpf_l = 0;                    // Weight for DE Unsharp Mask LPF-Low
+  uint32_t detail_suppression_factor = 30;  // from 0 to 100 mapping to ADE
+  uint32_t halo_suppression_factor = 100;  // from 0 to 100 mapping to ADE_HALO_SUPPRESS.COEFF 0-255
+  uint32_t adaptive_de_en = 0;             // Adaptive detail enhancer enable
+  uint32_t ade_strength_slope = 0;         // Adaptive DE slope
+  uint32_t ade_strength_const = 0;         // Adaptive DE constant
+  uint32_t ade_strength_coeff_tl = 0;      // Adaptive DE min threshold
+  uint32_t ade_strength_coeff_th = 0;      // Adaptive DE max threshold
+  uint32_t halo_suppress_coeff = 0;        // Halo suppression enable
+  uint32_t polarity_en = 0;                // Polarity enable
+  uint32_t edge_bleed_sup_en = 0;          // Edge bleed support enable
 };
 
 /*! @brief This enum represents the supported display features that needs to be queried
