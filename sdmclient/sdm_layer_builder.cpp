@@ -107,13 +107,30 @@ DisplayError SDMLayerBuilder::SetLayerAsMask(uint64_t disp_id,
 
 DisplayError SDMLayerBuilder::CreateLayer(uint64_t display_id,
                                           int64_t *out_layer_id) {
+  if (!out_layer_id) {
+    return kErrorParameters;
+  }
+
   SCOPE_LOCK(locker_[display_id]);
   if (display_layer_stack_.find(display_id) == display_layer_stack_.end()) {
     DLOGW("Display: %" PRIu64 " not found - may have been deleted already", display_id);
     return kErrorNotSupported;
   }
-  auto layer = new SDMLayer(display_id, buffer_allocator_);
-  auto layer_id = layer->GetId();
+
+  LayerId layer_id = *out_layer_id;
+  SDMLayer *layer = nullptr;
+  if (layer_id > 0) {
+    if (SDMLayer::IsLayerIdExisting(layer_id)) {
+      DLOGW("Layer-%" PRIu64 ": Layer already exists, and trying to recreate!", layer_id);
+      // Destroy the intact layer, if already exists to create as per new requirement.
+      DestroyLayerLocked(display_id, layer_id);
+    }
+    layer = new SDMLayer(display_id, layer_id, buffer_allocator_);
+  } else {
+    layer = new SDMLayer(display_id, buffer_allocator_);
+  }
+
+  layer_id = layer->GetId();
 
   if (disable_sdr_histogram_) {
     layer->IgnoreSdrHistogramMetadata(true);
@@ -133,6 +150,10 @@ DisplayError SDMLayerBuilder::CreateLayer(uint64_t display_id,
 DisplayError SDMLayerBuilder::DestroyLayer(uint64_t display_id,
                                            int64_t layer_id) {
   SCOPE_LOCK(locker_[display_id]);
+  return DestroyLayerLocked(display_id, layer_id);
+}
+
+DisplayError SDMLayerBuilder::DestroyLayerLocked(uint64_t display_id, int64_t layer_id) {
   auto stack = display_layer_stack_.find(display_id);
   if (stack == display_layer_stack_.end()) {
     DLOGW("Display: %" PRIu64 " not found - may have been deleted already", display_id);

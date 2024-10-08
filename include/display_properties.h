@@ -77,6 +77,7 @@
 #define FB_HEIGHT_PROP                       DISPLAY_PROP("fb_height")
 #define DISABLE_METADATA_DYNAMIC_FPS_PROP    DISPLAY_PROP("disable_metadata_dynamic_fps")
 #define DISABLE_SKIP_VALIDATE_PROP           DISPLAY_PROP("disable_skip_validate")
+#define DISABLE_LLCBC_SUPPORT_PROP           DISPLAY_PROP("disable_llcbc_support")
 #define DISABLE_DESTINATION_SCALER_PROP      DISPLAY_PROP("disable_dest_scaler")
 #define DISABLE_SECURE_INLINE_ROTATOR_PROP   DISPLAY_PROP("disable_secure_inline_rotator")
 #define DISABLE_MULTIRECT_PROP               DISPLAY_PROP("disable_multirect")

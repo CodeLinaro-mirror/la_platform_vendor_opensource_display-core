@@ -362,9 +362,21 @@ void ConcurrencyMgr::GetCapabilities(uint32_t *outCount,
   }
   uint32_t count = disable_skip_validate ? 0 : 1;
 
+  value = 0;
+  bool disable_llcbc_support = false;
+  if (Debug::Get()->GetProperty(DISABLE_LLCBC_SUPPORT_PROP, &value) == kErrorNone) {
+    disable_llcbc_support = (value == 1);
+  }
+  count += disable_llcbc_support ? 0 : 1;
+
   if (outCapabilities != nullptr && (*outCount >= count)) {
+    int index = 0;
     if (!disable_skip_validate) {
-      outCapabilities[0] = INT32(SDMCapability::kSkipValidate);
+      outCapabilities[index++] = INT32(SDMCapability::kSkipValidate);
+    }
+
+    if (!disable_llcbc_support) {
+      outCapabilities[index++] = INT32(SDMCapability::kLayerLifeCycleBatchCommand);
     }
   }
   *outCount = count;

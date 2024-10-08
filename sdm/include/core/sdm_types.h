@@ -501,6 +501,9 @@ enum SDMCapability {
   kPresentFenceIsNotReliable = 3,
   kSkipValidate = 4,
   kBootDisplayConfig = 5,
+  kHdrOutputConversionConfig = 6,
+  kRefreshRateChangedCallbackDebug = 7,
+  kLayerLifeCycleBatchCommand = 8,
 };
 
 enum SDMFormatColorComponent {
