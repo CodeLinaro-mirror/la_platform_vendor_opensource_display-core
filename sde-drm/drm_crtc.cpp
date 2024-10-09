@@ -518,7 +518,8 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
     } else if (line.find(max_bandwidth_high) != string::npos) {
       crtc_info_.max_bandwidth_high = std::stoull(string(line, max_bandwidth_high.length()));
     } else if (line.find(max_mdp_clk) != string::npos) {
-      crtc_info_.max_sde_clk = std::stoi(string(line, max_mdp_clk.length()));
+      //the max_mdp_clk maybe bigger than int32_max, but it's in uint32_max
+      crtc_info_.max_sde_clk = static_cast<uint32_t>(std::stoll(string(line, max_mdp_clk.length())));
     } else if (line.find(core_clk_ff) != string::npos) {
       crtc_info_.clk_fudge_factor = std::stof(string(line, core_clk_ff.length()));
     } else if (line.find(comp_ratio_rt) != string::npos) {
