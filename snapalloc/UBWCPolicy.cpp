@@ -38,7 +38,7 @@ void UBWCPolicy::Init(
     parser->ParseFormats(&format_data_map_);
   }
 #ifndef __ANDROID__
-  parser->ParseAlignments("/vendor/etc/display/ubwc_alignments.json", &constraint_set_map_);
+  parser->ParseAlignments("/vendor/etc/ubwc_alignments.json", &constraint_set_map_);
 #endif
 }
 

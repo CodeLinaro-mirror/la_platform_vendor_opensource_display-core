@@ -58,7 +58,7 @@ void GraphicsConstraintProvider::Init(
   } else {
     ALOGW("Graphics lib is not available - read json file");
     // change to shared pointer
-    parser->ParseAlignments("/vendor/etc/display/graphics_alignments.json", &constraint_set_map_);
+    parser->ParseAlignments("/vendor/etc/graphics_alignments.json", &constraint_set_map_);
   }
   if (!format_data_map.empty()) {
     format_data_map_ = format_data_map;

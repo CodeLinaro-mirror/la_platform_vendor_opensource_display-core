@@ -1,6 +1,9 @@
 cc_library_headers {
   name: "display_core_headers",
   vendor: true,
+  export_include_dirs: [
+      "include",
+  ],
   header_libs: [
       "display_intf_headers",
       "common_interface_headers",

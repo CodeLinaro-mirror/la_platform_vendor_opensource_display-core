@@ -3,7 +3,7 @@
 #ifndef __DEBUG_H__
 #define __DEBUG_H__
 
-#include <display_properties.h>
+#include "display_properties.h"
 #include <errno.h>
 #include <string>
 

@@ -31,7 +31,7 @@ DisplayConstraintProvider *DisplayConstraintProvider::GetInstance(
 void DisplayConstraintProvider::Init(
     std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map) {
   SnapConstraintParser *parser = SnapConstraintParser::GetInstance();
-  parser->ParseAlignments("/vendor/etc/display/display_alignments.json", &constraint_set_map_);
+  parser->ParseAlignments("/vendor/etc/display_alignments.json", &constraint_set_map_);
   if (!format_data_map.empty()) {
     format_data_map_ = format_data_map;
   } else {

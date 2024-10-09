@@ -30,7 +30,7 @@ DefaultConstraintProvider *DefaultConstraintProvider::GetInstance(
 void DefaultConstraintProvider::Init(
     std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map) {
   SnapConstraintParser *parser = SnapConstraintParser::GetInstance();
-  parser->ParseAlignments("/vendor/etc/display/default_alignments.json", &constraint_set_map_);
+  parser->ParseAlignments("/vendor/etc/default_alignments.json", &constraint_set_map_);
 }
 
 int DefaultConstraintProvider::GetCapabilities(BufferDescriptor desc, CapabilitySet *out) {

@@ -75,7 +75,7 @@ void CameraConstraintProvider::Init(
     }
   } else {
     ALOGW("Camera lib is not available - read json file");
-    parser->ParseAlignments("/vendor/etc/display/camera_alignments.json", &constraint_set_map_);
+    parser->ParseAlignments("/vendor/etc/camera_alignments.json", &constraint_set_map_);
   }
 }
 

@@ -32,7 +32,7 @@ CPUConstraintProvider *CPUConstraintProvider::GetInstance(
 void CPUConstraintProvider::Init(
     std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map) {
   SnapConstraintParser *parser = SnapConstraintParser::GetInstance();
-  parser->ParseAlignments("/vendor/etc/display/cpu_alignments.json", &constraint_set_map_);
+  parser->ParseAlignments("/vendor/etc/cpu_alignments.json", &constraint_set_map_);
 }
 
 int CPUConstraintProvider::GetCapabilities(BufferDescriptor desc, CapabilitySet *out) {

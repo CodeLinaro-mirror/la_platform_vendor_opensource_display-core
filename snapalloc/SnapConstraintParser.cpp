@@ -156,12 +156,14 @@ bool SnapConstraintParser::StringToEnumType(
 
 int SnapConstraintParser::ParseFormats(
     std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> *format_data_map) {
-  std::string json_path = "/vendor/etc/display/formats.json";
+  std::string json_path = "/vendor/etc/formats.json";
 
   std::ifstream ifs(json_path.c_str());
   if (!ifs.is_open()) {
-    ALOGE("Error opening file");
+    ALOGE("%s: Error opening file %s", __func__, json_path.c_str());
     return -1;
+  } else {
+    ALOGI("%s: opened file %s", __func__, json_path.c_str());
   }
 
   Json::Reader reader;
@@ -235,8 +237,10 @@ int SnapConstraintParser::ParseAlignments(const std::string &json_path,
   std::ifstream ifs(json_path.c_str());
 
   if (!ifs.is_open()) {
-    ALOGE("Error opening file");
+    ALOGE("%s: Error opening file %s", __func__, json_path.c_str());
     return -1;
+  } else {
+    ALOGI("%s: opened file %s", __func__, json_path.c_str());
   }
 
   Json::Reader reader;

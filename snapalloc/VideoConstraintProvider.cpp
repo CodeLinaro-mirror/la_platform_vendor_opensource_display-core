@@ -32,7 +32,7 @@ void VideoConstraintProvider::Init(
     std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map) {
   SnapConstraintParser *parser = SnapConstraintParser::GetInstance();
   // change to shared pointer
-  parser->ParseAlignments("/vendor/etc/display/video_alignments.json", &constraint_set_map_);
+  parser->ParseAlignments("/vendor/etc/video_alignments.json", &constraint_set_map_);
   if (!format_data_map.empty()) {
     format_data_map_ = format_data_map;
   } else {
