@@ -62,6 +62,9 @@ class DisplayNull : public DisplayInterface {
   virtual DisplayError GetActiveConfig(uint32_t *config);
   virtual DisplayError GetNumVariableInfoConfigs(uint32_t *count);
   virtual DisplayError Prepare(LayerStack *layer_stack);
+  virtual DisplayError ValidateExtendedDisplayResolutions(
+      std::vector<std::pair<uint32_t, uint32_t>> ext_disp_res,
+      std::vector<std::pair<uint32_t, uint32_t>> *fin_disp_res);
   virtual bool IsPrimaryDisplay() { return true; }
   virtual bool IsUnderscanSupported() { return true; }
   virtual void SetIdleTimeoutMs(uint32_t active_ms, uint32_t inactive_ms) {}
@@ -186,6 +189,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(SetPanelFeatureConfig(int32_t, void *));
   MAKE_NO_OP(EnableCopr(bool en))
   MAKE_NO_OP(GetCoprStats(std::vector<int> *stats))
+  MAKE_NO_OP(GetScalerCount(uint32_t *scaler_count));
 
  protected:
   DisplayConfigVariableInfo default_variable_config_ = {};
