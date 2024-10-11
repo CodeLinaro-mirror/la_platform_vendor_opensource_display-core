@@ -1743,11 +1743,13 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
 
     for (auto count = 0; count < pipe_info_vec.size(); count++) {
       HWPipeInfo *pipe_info = pipe_info_vec[count];
-      HWRotateInfo *hw_rotate_info = (count <= 1) ?
-                                     &hw_rotator_session->hw_rotate_info[count] : NULL;
 
-      if (hw_rotator_session->mode == kRotatorOffline && hw_rotate_info && hw_rotate_info->valid) {
-        input_buffer = &hw_rotator_session->output_buffer;
+      // offline rotator is unsupported with quad pipe (max 2 rotator blocks can be used)
+      if (hw_rotator_session->mode == kRotatorOffline && count < kMaxRotatePerLayer) {
+        HWRotateInfo *hw_rotate_info = &hw_rotator_session->hw_rotate_info[count];
+        if (hw_rotate_info->valid) {
+          input_buffer = &hw_rotator_session->output_buffer;
+        }
       }
 
       std::vector<uint32_t> fb_id = {};
