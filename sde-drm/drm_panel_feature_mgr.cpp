@@ -76,6 +76,8 @@
 #include <tuple>
 
 #include "display/drm/msm_drm_aiqe.h"
+#include <utils/debug.h>
+#include <display_properties.h>
 
 #define __CLASS__ "DRMPanelFeatureMgr"
 
@@ -230,6 +232,10 @@ void DRMPanelFeatureMgr::Init(int fd, drmModeRes* res) {
       DRMPanelFeatureInfo{kDRMPanelFeatureABC, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, 64, 0};
   feature_info_tbl_[kDRMPanelFeatureDemuraBacklight] = DRMPanelFeatureInfo{
       kDRMPanelFeatureDemuraBacklight, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, sizeof(uint32_t), 0};
+
+  int value = 0;
+  sdm::Debug::Get()->GetProperty(ENABLE_AI_SCALER_PROP, &value);
+  enable_ai_scaler_ = (value > 0);
 }
 
 void DRMPanelFeatureMgr::Deinit() {
@@ -620,6 +626,11 @@ void DRMPanelFeatureMgr::ResetPanelFeatures(drmModeAtomicReq *req,
   info.prop_id = kDRMPanelFeatureABC;
   ApplyDirtyFeature(req, token, info);
 #endif
+
+  if (enable_ai_scaler_) {
+    info.prop_id = kDRMPanelFeatureAIScalerCfg;
+    ApplyDirtyFeature(req, token, info);
+  }
 
   info.prop_id = kDRMPanelFeatureSPRUDC;
   uint32_t prop_id = prop_mgr_.GetPropertyId(drm_property_map_[info.prop_id]);
