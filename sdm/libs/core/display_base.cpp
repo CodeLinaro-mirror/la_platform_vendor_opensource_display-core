@@ -354,6 +354,11 @@ DisplayError DisplayBase::Init() {
 
   Debug::GetIdleTimeoutMs(&idle_active_ms_, &inactive_ms);
 
+  is_mirror_mode_active_ = Debug::IsMirrorModeActive();
+  if (is_mirror_mode_active_) {
+    DLOGI("Mirror mode active for %d-%d", display_id_, display_type_);
+  }
+
   xr_variant_ = IsXRVariant();
 
   SetupPanelFeatureFactory();
@@ -1666,6 +1671,9 @@ void DisplayBase::CommitThread() {
         idle_hint_set_ = true;
       } else {
         IdleTimeout();
+        if (display_type_ == kBuiltIn && is_mirror_mode_active_) {
+          event_handler_->TimeoutOnBuiltins();
+        }
       }
 
       RefreshOnIdleTimeoutForCwb(false);
@@ -1675,6 +1683,12 @@ void DisplayBase::CommitThread() {
     if (disp_mutex_.worker_exit) {
       DLOGI("Terminate commit thread.");
       break;
+    }
+
+    if (trigger_idle_timeout_) {
+      IdleTimeout();
+      trigger_idle_timeout_ = false;
+      continue;
     }
 
     if (commit_phase_) {

@@ -317,5 +317,21 @@ int Debug::GetNullDisplayResolution(uint32_t *width, uint32_t *height) {
   return 0;
 }
 
+bool Debug::IsMirrorModeActive() {
+  char value[64] = {};
+
+  int error = DebugHandler::Get()->GetProperty(BUILTIN_MIRRORING, value);
+  if (error != 0) {
+    return false;
+  }
+  if (std::string(value) == "true") {
+    error = DebugHandler::Get()->GetProperty(BUILTIN_PRESENTATION, value);
+    if (error == 0) {
+      return (std::string(value) == "false");
+    }
+  }
+  return false;
+}
+
 }  // namespace sdm
 

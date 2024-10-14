@@ -466,6 +466,9 @@ class DisplayEventHandler {
   /*! @brief Event handler to notify CWB Done */
   virtual void NotifyCwbDone(int32_t status, const LayerBuffer& buffer) { }
 
+  /*! @brief Event handler to trigger Timeout event on connected Builtin displays */
+  virtual void TimeoutOnBuiltins() {}
+
  protected:
   virtual ~DisplayEventHandler() { }
 };
@@ -1543,6 +1546,12 @@ class DisplayInterface {
    @return \link DisplayError \endlink
   */
   virtual DisplayError DumpDemuraSurface(const char *dir_path, uint32_t frame_index) = 0;
+
+  /*! @brief Method to trigger Timeout event on current display
+
+   @return \link void \endlink
+  */
+  virtual void TriggerIdleTimeout() = 0;
 
  protected:
   virtual ~DisplayInterface() { }

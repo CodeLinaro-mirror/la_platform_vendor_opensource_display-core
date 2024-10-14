@@ -45,6 +45,7 @@
 #include "sdm_color_mode_stc.h"
 #include "sdm_debugger.h"
 #include "sdm_display_builtin.h"
+#include "sdm_factory.h"
 
 #define __CLASS__ "SDMDisplayBuiltIn"
 
@@ -1143,6 +1144,16 @@ DisplayError SDMDisplayBuiltIn::UpdateDisplayId(Display id) {
 DisplayError SDMDisplayBuiltIn::SetPendingRefresh() {
   pending_refresh_ = true;
   return kErrorNone;
+}
+
+void SDMDisplayBuiltIn::TimeoutOnBuiltins() {
+  auto sdm_factory = SDMInterfaceFactoryImpl::GetSDMFactoryInternal();
+  auto concurrency_mgr = sdm_factory->GetConcurrencyMgrInstance();
+  concurrency_mgr->TriggerTimeoutOnBuiltins();
+}
+
+void SDMDisplayBuiltIn::IdleTimeout() {
+  display_intf_->TriggerIdleTimeout();
 }
 
 DisplayError SDMDisplayBuiltIn::SetPanelBrightness(float brightness) {
