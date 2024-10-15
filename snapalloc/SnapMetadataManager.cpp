@@ -1216,7 +1216,7 @@ Error SnapMetadataManager::GetCustomDimensions(SnapHandleInternal *hnd, SnapMeta
     *stride = metadata->crop.right;
     *height = metadata->crop.bottom;
   } else if (metadata->isVendorMetadataSet[GET_VENDOR_METADATA_STATUS_INDEX(
-                 (int64_t)vendor_qti_hardware_display_common_MetadataType::PP_PARAM_INTERLACED)]) {
+                 (int64_t)vendor_qti_hardware_display_common_MetadataType::MD_PP_PARAM_INTERLACED)]) {
     interlaced = metadata->interlaced;
     if (interlaced) {
       AllocData ad;
