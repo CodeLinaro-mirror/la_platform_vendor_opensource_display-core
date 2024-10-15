@@ -978,10 +978,15 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
 
   uint32_t index = current_mode_index_;
   uint32_t sub_mode_index = connector_info_.modes[index].curr_submode_index;
-  hw_panel_info_.split_info.left_split = display_attributes_[index].x_pixels;
+  uint32_t x_pixels = display_attributes_[index].x_pixels;
+  uint32_t num_split = display_attributes_[index].topology_num_split;
+  uint32_t mixer_pair_split = INT_TO_PAIR(num_split);
+  hw_panel_info_.split_info.left_split = x_pixels;
   if (display_attributes_[index].is_device_split) {
-    hw_panel_info_.split_info.left_split = hw_panel_info_.split_info.right_split =
-        display_attributes_[index].x_pixels / 2;
+    // left_split is half of display width when evenly split e.g., 1/2, 2/4, 3/6
+    // left_split is more than half of display width when oddly split e.g., 2/3, 3/5
+    hw_panel_info_.split_info.left_split = (x_pixels * mixer_pair_split) / num_split;
+    hw_panel_info_.split_info.right_split = x_pixels - hw_panel_info_.split_info.left_split;
   }
 
   int value = 0;
