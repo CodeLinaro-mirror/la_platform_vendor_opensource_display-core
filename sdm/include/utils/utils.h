@@ -66,7 +66,7 @@ void ApplyCwbRoiRestrictions(LayerRect &roi, const LayerRect &cwb_full_frame,
                              const int cwb_alignment_factor,
                              LayerBufferFormat format);
 uint32_t GetCwbRequestedMixerCount(CwbConfig *config, uint32_t num_split, uint32_t display_width,
-                                   uint32_t mixer_width);
+                                   uint32_t mixer_width, bool &roi_block_partial);
 const char *GetCompositionName(const LayerComposition &composition);
 
 const char* GetSocName();

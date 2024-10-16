@@ -4962,14 +4962,25 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
     cwb_config.avoid_refresh = !force_refresh_to_process_cwb_;
   }
 
-  uint32_t cwb_mixer_count = GetCwbRequestedMixerCount(
-      &cwb_config, client_ctx_.display_attributes.topology_num_split,
-      client_ctx_.display_attributes.x_pixels, client_ctx_.mixer_attributes.width);
+  bool roi_block_partial = false;
+  uint32_t cwb_mixer_count =
+      GetCwbRequestedMixerCount(&cwb_config, client_ctx_.display_attributes.topology_num_split,
+                                client_ctx_.display_attributes.x_pixels,
+                                client_ctx_.mixer_attributes.width, roi_block_partial);
 
   if (cwb_mixer_count > MAX_MIXERS_FOR_CWB) {
     DLOGW("CWB requested mixer count %d, CWB max allowed mixer count %d for display %d-%d.",
           cwb_mixer_count, MAX_MIXERS_FOR_CWB, display_id_, display_type_);
     return kErrorNotSupported;
+  }
+
+  // TODO(user): remove when partial roi is supported for quad LM
+  if (client_ctx_.mixer_attributes.split_type == kQuadSplit) {
+    if (cwb_mixer_count != MAX_MIXERS_FOR_CWB || roi_block_partial) {
+      DLOGW("Quad Split! CWB requested mixer count %d, roi_block_partial %d for display %d-%d.",
+            cwb_mixer_count, roi_block_partial, display_id_, display_type_);
+      return kErrorNotSupported;
+    }
   }
 
   error = comp_manager_->CaptureCwb(display_comp_ctx_, output_buffer, cwb_config);
