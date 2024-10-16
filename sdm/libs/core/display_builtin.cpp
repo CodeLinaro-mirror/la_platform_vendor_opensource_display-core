@@ -467,6 +467,12 @@ DisplayError DisplayBuiltIn::Deinit() {
       service_manager_intf_ = nullptr;
     }
 
+    if (vm_file_xfer_intf_) {
+      vm_file_xfer_intf_->Deinit();
+      vm_file_xfer_intf_.reset();
+      vm_file_xfer_intf_ = nullptr;
+    }
+
     if (demura_prop_) {
       if (pm_intf_ && pm_intf_.use_count() == 1) {
         GenericPayload dummy;
@@ -4666,11 +4672,7 @@ DisplayError DisplayBuiltIn::ExportDemuraFiles() {
 }
 
 DisplayError DisplayBuiltIn::StartTvmServices() {
-  int enable_anti_aging = 0;
-
-  Debug::Get()->GetProperty(ENABLE_ANTI_AGING, &enable_anti_aging);
-
-  if (!abc_prop_ && !demura_prop_ && !enable_anti_aging) {
+  if (!abc_prop_ && !demura_prop_) {
     return kErrorNone;
   }
 
@@ -4678,12 +4680,16 @@ DisplayError DisplayBuiltIn::StartTvmServices() {
   sleep(5);  // sleep 5 seconds to make sure persist is mounted on TVM
 #endif
 
-  DisplayError error = StartService(kStartVmFileTransferService);
-  if (error) {
-    DLOGE("Failed to start file transfer service, error %d", error);
-    return error;
-  } else {
-    DLOGI("VmFiletransfer service is started successfully");
+  int ret = CreateServiceManager();
+  if (ret) {
+    DLOGE("Failed to create servicemanager, ret %d", ret);
+    return kErrorUndefined;
+  }
+
+  ret = StartVmFileServiceAndExportFiles();
+  if (ret) {
+    DLOGE("Failed to start VmFileTransferService and export files, ret %d", ret);
+    return kErrorUndefined;
   }
 
   if (demuratn_factory_) {
@@ -4699,14 +4705,6 @@ DisplayError DisplayBuiltIn::StartTvmServices() {
     }
   }
 
-  if (demura_prop_) {
-    error = ExportDemuraFiles();
-    if (error) {
-      DLOGE("Failed to export demura files, error %d", error);
-      return error;
-    }
-  }
-
   if (abc_prop_ && abc_tvm_enabled_ && demura_) {
     GenericPayload in;
     int ret = demura_->SetParameter(kDemuraFeatureParamExportFiles, in);
@@ -4716,48 +4714,107 @@ DisplayError DisplayBuiltIn::StartTvmServices() {
     }
   }
 
-  if (enable_anti_aging) {
-    error = StartService(kStartDemuraTnService);
-    if (error) {
-      DLOGE("Failed to start DemuraTn service, error %d", error);
-    } else {
-      DLOGI("DemuraTn service is started successfully");
-    }
-  }
-  return error;
+  return kErrorNone;
 }
 
-DisplayError DisplayBuiltIn::StartService(TvmDispServiceManagerParams service) {
-  if (service_manager_intf_ == nullptr) {
-    if (pf_factory_ == nullptr) {
+int DisplayBuiltIn::CreateServiceManager() {
+  // Create service manager
+  if (!service_manager_intf_) {
+    if (!pf_factory_) {
       DLOGE("Invalid panel feature factory");
-      return kErrorUndefined;
+      return -EINVAL;
     }
 
     service_manager_intf_ = pf_factory_->CreateTvmServiceManager();
     if (!service_manager_intf_) {
       DLOGE("Failed to get Tvm Service Manager intf");
-      return kErrorResources;
+      return -EINVAL;
     }
 
     if (service_manager_intf_->Init() != 0) {
       DLOGE("Failed to init Tvm Service Manager intf");
       service_manager_intf_.reset();
       service_manager_intf_ = nullptr;
-      return kErrorResources;
+      return -EINVAL;
     }
   }
 
-  GenericPayload in;
-  int ret = service_manager_intf_->SetParameter(service, in);
-  if (ret) {
-    DLOGE("Failed to set parameter %d, ret %d", service, ret);
-    return kErrorUndefined;
-  } else {
-    DLOGI("Start service %d", service);
+  // Create factory extn
+  if (!factory_extn_) {
+    if (!extension_lib_) {
+      DLOGE("Invalid lib %s", EXTENSION_LIBRARY_NAME);
+      return -EINVAL;
+    }
+
+    typedef VmFileXferClientFactIntfExtn *(*GetVmFileXferClientFactIntfExtn)();
+    GetVmFileXferClientFactIntfExtn get_vm_file_fact_intf_extn_ptr = nullptr;
+    if (!extension_lib_.Sym(GET_VM_FILE_XFER_CLIENT_FACT_INTF_EXTN,
+                            reinterpret_cast<void **>(&get_vm_file_fact_intf_extn_ptr))) {
+      DLOGE("Unable to load symbols, error = %s", extension_lib_.Error());
+      return -EINVAL;
+    }
+
+    factory_extn_ = get_vm_file_fact_intf_extn_ptr();
+    if (!factory_extn_) {
+      DLOGE("Failed to get VmFileXferClient factory extn");
+      return -EINVAL;
+    }
   }
 
-  return kErrorNone;
+  return 0;
+}
+
+int DisplayBuiltIn::StartVmFileServiceAndExportFiles() {
+  int ret = 0;
+
+  if (!service_manager_intf_) {
+    DLOGE("Invalid service manager");
+    return -EINVAL;
+  }
+
+  // Start VmFileTransferService
+  GenericPayload in;
+  ret = service_manager_intf_->SetParameter(kStartVmFileTransferService, in);
+  if (ret) {
+    DLOGE("Failed to start VmFileTransferService, ret %d", ret);
+    return ret;
+  } else {
+    DLOGI("Started kStartVmFileTransferService");
+  }
+
+  // Export files
+  if (demura_prop_) {
+    DisplayError error = ExportDemuraFiles();
+    if (error) {
+      DLOGE("Failed to export demura files, error %d", error);
+      return -EINVAL;
+    }
+  }
+
+  if (!factory_extn_) {
+    DLOGE("Invalid factory extn");
+    return -EINVAL;
+  }
+
+  // CreateVMFileXferClient
+  vm_file_xfer_intf_ = factory_extn_->CreateVmFileXferClient(
+      static_cast<SdmDisplayCbInterface<TvmServiceCbEvent> *>(this), buffer_allocator_);
+  if (!vm_file_xfer_intf_) {
+    DLOGE("Failed to create VmFileXferClient");
+    return -EINVAL;
+  }
+
+  ret = vm_file_xfer_intf_->Init();
+  if (ret) {
+    DLOGE("Failed to init VmFileXferClient ret %d", ret);
+    vm_file_xfer_intf_.reset();
+    vm_file_xfer_intf_ = nullptr;
+    return ret;
+  } else {
+    DLOGI("Created VmFileXferClient");
+  }
+
+  return ret;
 }
 
 DisplayError DisplayBuiltIn::HandleDemuraScreenRefresh() {
@@ -5091,6 +5148,31 @@ DisplayError DisplayBuiltIn::SetDemuraTnAodHandlerCtrl(void *data) {
 
   DLOGI("Set aod handler ctrl done");
   return kErrorNone;
+}
+
+int DisplayBuiltIn::HandleTvmServiceEvent(const TvmServiceCbEvent &event) {
+  DLOGI("Handle TVM service event %d", event);
+  if (event == kVmFileTransferServiceDead) {
+    if (vm_file_xfer_intf_) {
+      vm_file_xfer_intf_->Deinit();
+      vm_file_xfer_intf_.reset();
+      vm_file_xfer_intf_ = nullptr;
+    }
+
+    int ret = StartVmFileServiceAndExportFiles();
+    if (ret) {
+      DLOGE("Failed to restart VmFileTransferService and export files, ret %d", ret);
+      return ret;
+    }
+  } else {
+    DLOGW("Unsupported event type %d", event);
+  }
+  return 0;
+}
+
+int DisplayBuiltIn::Notify(const TvmServiceCbEvent &event) {
+  std::thread([=] { DisplayBuiltIn::HandleTvmServiceEvent(event); }).detach();
+  return 0;
 }
 
 }  // namespace sdm
