@@ -4976,9 +4976,11 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
 
   // TODO(user): remove when partial roi is supported for quad LM
   if (client_ctx_.mixer_attributes.split_type == kQuadSplit) {
-    if (cwb_mixer_count != MAX_MIXERS_FOR_CWB || roi_block_partial) {
-      DLOGW("Quad Split! CWB requested mixer count %d, roi_block_partial %d for display %d-%d.",
-            cwb_mixer_count, roi_block_partial, display_id_, display_type_);
+    if (cwb_mixer_count != MAX_MIXERS_FOR_CWB || roi_block_partial || cwb_config.pu_as_cwb_roi) {
+      DLOGW(
+          "Quad Split! CWB requested mixer count %d, roi_block_partial %d, pu_as_cwb_roi %d "
+          "for display %d-%d.",
+          cwb_mixer_count, roi_block_partial, cwb_config.pu_as_cwb_roi, display_id_, display_type_);
       return kErrorNotSupported;
     }
   }
