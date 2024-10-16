@@ -46,7 +46,8 @@ class UBWCPolicy {
 
  private:
   ~UBWCPolicy();
-  UBWCPolicy();
+  UBWCPolicy(
+      std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map = {});
   static std::mutex ubwc_policy_mutex_;
 
   static UBWCPolicy *instance_;
