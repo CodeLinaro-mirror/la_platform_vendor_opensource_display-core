@@ -163,6 +163,20 @@ void ApplyCwbRoiRestrictions(LayerRect &roi, const LayerRect &cwb_full_frame,
   }
 }
 
+uint32_t GetCwbRequestedMixerCount(CwbConfig *config, uint32_t num_split, uint32_t display_width,
+                                   uint32_t mixer_width) {
+  uint32_t width_to_check = display_width / num_split;
+
+  if (config->tap_point == CwbTapPoint::kLmTapPoint) {
+    width_to_check = mixer_width / num_split;
+  }
+
+  uint32_t roi_block_beg = UINT32(config->cwb_roi.left) / width_to_check;
+  uint32_t roi_block_end = UINT32(config->cwb_roi.right) / width_to_check;
+  uint32_t roi_block_add = UINT32(config->cwb_roi.right) % width_to_check ? 1 : 0;
+  return roi_block_end - roi_block_beg + roi_block_add;
+}
+
 const char *GetCompositionName(const LayerComposition &composition) {
   switch (composition) {
   case kCompositionGPU:           return "GPU";

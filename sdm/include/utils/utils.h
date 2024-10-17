@@ -29,7 +29,7 @@
 
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
-* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
   SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -65,6 +65,8 @@ void AdjustSize(const int min_size, const int bound_start, const int bound_end, 
 void ApplyCwbRoiRestrictions(LayerRect &roi, const LayerRect &cwb_full_frame,
                              const int cwb_alignment_factor,
                              LayerBufferFormat format);
+uint32_t GetCwbRequestedMixerCount(CwbConfig *config, uint32_t num_split, uint32_t display_width,
+                                   uint32_t mixer_width);
 const char *GetCompositionName(const LayerComposition &composition);
 
 const char* GetSocName();
