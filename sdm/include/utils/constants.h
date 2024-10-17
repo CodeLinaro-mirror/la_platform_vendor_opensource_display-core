@@ -22,6 +22,13 @@
 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+/*
+* ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+*
+* Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
+*/
+
 #ifndef __CONSTANTS_H__
 #define __CONSTANTS_H__
 
@@ -60,6 +67,8 @@
 
 #define BITS_PER_BYTE 8
 #define BITS_TO_BYTES(x) (((x) + (BITS_PER_BYTE - 1)) / (BITS_PER_BYTE))
+
+#define INT_TO_PAIR(x) ((INT(x) + 1) / 2)
 
 // factor value should be in powers of 2(eg: 1, 2, 4, 8)
 template <class T1, class T2>

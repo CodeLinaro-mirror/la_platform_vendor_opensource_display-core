@@ -1017,8 +1017,9 @@ DisplayError DisplayBase::ForceToneMapUpdate (LayerStack *layer_stack) {
       cached_layer.input_buffer.timestamp_data = stack_layer->input_buffer.timestamp_data;
       cached_layer.geometry_changes = stack_layer->geometry_changes;
 
-      hw_config.left_pipe.lut_info.clear();
-      hw_config.right_pipe.lut_info.clear();
+      for (auto count = 0; count < hw_config.hw_pipes.size(); count++) {
+        hw_config.hw_pipes.at(count).lut_info.clear();
+      }
     }
   }
 
@@ -2552,8 +2553,8 @@ std::string DisplayBase::Dump() {
 
       const char *comp_type = GetCompositionName(hw_layer.composition);
       const char *buffer_format = GetFormatString(input_buffer->format);
-      const char *pipe_split[2] = {"Pipe-1", "Pipe-2"};
-      const char *rot_pipe[2] = {"Rot-inl-1", "Rot-inl-2"};
+      const char *pipe_split[4] = {"Pipe-1", "Pipe-2", "Pipe-3", "Pipe-4"};
+      const char *rot_pipe[4] = {"Rot-inl-1", "Rot-inl-2", "Rot-inl-3", "Rot-inl-4"};
       char idx[8];
 
       snprintf(idx, sizeof(idx), "%d", layer_index);
@@ -2604,7 +2605,7 @@ std::string DisplayBase::Dump() {
         continue;
       }
 
-      for (uint32_t count = 0; count < 2; count++) {
+      for (auto count = 0; count < layer_config.hw_pipes.size(); count++) {
         char decimation[16] = {0};
         char flags[16] = {0};
         char z_order[8] = {0};
@@ -2613,11 +2614,7 @@ std::string DisplayBase::Dump() {
         char transfer[8] = {0};
         bool rot = layer_config.use_inline_rot;
 
-        HWPipeInfo &pipe = (count == 0) ? layer_config.left_pipe : layer_config.right_pipe;
-
-        if (!pipe.valid) {
-          continue;
-        }
+        HWPipeInfo &pipe = layer_config.hw_pipes.at(count);
 
         LayerRect src_roi = pipe.src_roi;
         LayerRect &dst_roi = pipe.dst_roi;
