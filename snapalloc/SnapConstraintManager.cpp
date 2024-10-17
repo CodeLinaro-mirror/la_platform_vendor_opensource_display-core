@@ -3,8 +3,6 @@
 
 #include "SnapConstraintManager.h"
 
-#include <log/log.h>
-
 #include <iostream>
 
 #include "GraphicsConstraintProvider.h"
@@ -12,8 +10,6 @@
 #include "SnapTypes.h"
 #include "SnapUtils.h"
 #include "UBWCPolicy.h"
-
-#define DEBUG 0
 
 namespace snapalloc {
 
@@ -71,7 +67,7 @@ bool SnapConstraintManager::CanAllocateZSLForSecureCamera() {
     can_allocate = false;
   }
   inited = true;
-  ALOGI("CanAllocateZSLForSecureCamera: %d", can_allocate);
+  DLOGI("CanAllocateZSLForSecureCamera: %d", can_allocate);
   return can_allocate;
 }
 
@@ -137,8 +133,10 @@ void SnapConstraintManager::GetImplDefinedFormat(
       // If no other usage flags are detected, default the
       // flexible YUV format to NV21_ZSL
       *out_format = vendor_qti_hardware_display_common_PixelFormat::NV21_ZSL;
-      ALOGD_IF(DEBUG,
-               "Falling back to default YUV format - no camera/video specific format defined. Usage %lu", usage);
+      DLOGD_IF(
+          enable_logs,
+          "Falling back to default YUV format - no camera/video specific format defined. Usage %lu",
+          usage);
     }
   }
 }
@@ -183,7 +181,7 @@ Error SnapConstraintManager::GetAllocationData(
   out_ad->uncached = UseUncached(out_desc->format, out_desc->usage, ubwc_enabled);
 
   if (ubwc_enabled) {
-    ALOGD_IF(DEBUG, "IsUBWCAlloc is true");
+    DLOGD_IF(enable_logs, "IsUBWCAlloc is true");
     int ubwc_version = 0;
     for (auto const &cap : cap_map) {
       if (ubwc_version < cap.second.ubwc_caps.version) {
@@ -198,7 +196,7 @@ Error SnapConstraintManager::GetAllocationData(
   } else {
     err = FetchAndMergeConstraints(*out_desc, cap_map, out_layout);
     if (err) {
-      ALOGE("FetchAndMergeConstraints failed with error %d", err);
+      DLOGE("FetchAndMergeConstraints failed with error %d", err);
     } else {
       out_ad->size = out_layout->size_in_bytes;
     }
@@ -246,7 +244,7 @@ Error SnapConstraintManager::ConvertAlignedWidthFromBytesToPixels(
     return Error::NONE;
   }
   if (format_data_map_.find(format) == format_data_map_.end()) {
-    ALOGE("Could not find entry for format %lu", static_cast<uint64_t>(format));
+    DLOGE("Could not find entry for format %lu", static_cast<uint64_t>(format));
     return Error::UNSUPPORTED;
   }
   auto format_data = format_data_map_.at(format);
@@ -262,7 +260,7 @@ Error SnapConstraintManager::ConstraintsToBufferLayout(
     BufferDescriptor desc, BufferConstraints *constraints,
     vendor_qti_hardware_display_common_BufferLayout *layout) {
   if (format_data_map_.find(desc.format) == format_data_map_.end()) {
-    ALOGE("Could not find entry for format %d", static_cast<uint64_t>(desc.format));
+    DLOGE("Could not find entry for format %d", static_cast<uint64_t>(desc.format));
     return Error::UNSUPPORTED;
   }
 
@@ -270,14 +268,14 @@ Error SnapConstraintManager::ConstraintsToBufferLayout(
   layout->bpp = (format_data.bits_per_pixel) / 8;
 
   if ((format_data.planes.size() > QTI_MAX_NUM_PLANES) || !format_data.planes.size()) {
-    ALOGE("%s: Invalid format data plane count %d", __FUNCTION__, format_data.planes.size());
+    DLOGE("%s: Invalid format data plane count %d", __FUNCTION__, format_data.planes.size());
     return Error::BAD_VALUE;
   }
 
   layout->plane_count = format_data.planes.size();
 
   layout->aligned_width_in_bytes = constraints->planes[0].stride.horizontal_stride;
-  ALOGD_IF(DEBUG,
+  DLOGD_IF(enable_logs,
            "layout->aligned_width_in_bytes %d constraints->planes[0].stride.horizontal_stride %d "
            "format_data.planes[0].sample_increment_bits %d in bytes %d",
            layout->aligned_width_in_bytes, constraints->planes[0].stride.horizontal_stride,
@@ -286,7 +284,7 @@ Error SnapConstraintManager::ConstraintsToBufferLayout(
   layout->aligned_height = constraints->planes[0].scanline.scanline;
   layout->size_in_bytes = 0;
 
-  ALOGD_IF(DEBUG,
+  DLOGD_IF(enable_logs,
            "%s: format %d, plane_count %d, aligned_width_in_bytes %d, aligned_height %d plane size "
            "from format data %d",
            __FUNCTION__, desc.format, layout->plane_count, layout->aligned_width_in_bytes,
@@ -295,11 +293,11 @@ Error SnapConstraintManager::ConstraintsToBufferLayout(
   for (int i = 0; i < format_data.planes.size(); i++) {
     // Populate fixed data
 
-    ALOGD_IF(DEBUG, "%s: component count %d", __FUNCTION__,
+    DLOGD_IF(enable_logs, "%s: component count %d", __FUNCTION__,
              format_data.planes[i].components.size());
     layout->planes[i].component_count = format_data.planes[i].components.size();
     for (int j = 0; j < layout->planes[i].component_count; j++) {
-      ALOGD_IF(DEBUG, "%s: component type %d size in bits %d offset in bits %d", __FUNCTION__,
+      DLOGD_IF(enable_logs, "%s: component type %d size in bits %d offset in bits %d", __FUNCTION__,
                format_data.planes[i].components[j].type,
                format_data.planes[i].components[j].size_in_bits,
                format_data.planes[i].components[j].offset_in_bits);
@@ -310,16 +308,17 @@ Error SnapConstraintManager::ConstraintsToBufferLayout(
           format_data.planes[i].components[j].offset_in_bits;
     }
 
-    ALOGD_IF(
-        DEBUG, "%s: sample_increment_bits %d horizontal_subsampling %d vertical_subsampling %d",
-        __FUNCTION__, format_data.planes[i].sample_increment_bits,
-        format_data.planes[i].horizontal_subsampling, format_data.planes[i].vertical_subsampling);
+    DLOGD_IF(enable_logs,
+             "%s: sample_increment_bits %d horizontal_subsampling %d vertical_subsampling %d",
+             __FUNCTION__, format_data.planes[i].sample_increment_bits,
+             format_data.planes[i].horizontal_subsampling,
+             format_data.planes[i].vertical_subsampling);
     layout->planes[i].sample_increment_bits = format_data.planes[i].sample_increment_bits;
     layout->planes[i].horizontal_subsampling = format_data.planes[i].horizontal_subsampling;
     layout->planes[i].vertical_subsampling = format_data.planes[i].vertical_subsampling;
 
     // Populate constraint-based data
-    ALOGD_IF(DEBUG,
+    DLOGD_IF(enable_logs,
              "%s: format %d, i %d constraints->planes[i].stride.horizontal_stride %d "
              "constraints->planes[i].scanline.scanline %d constraints->planes[i].size_align %d",
              __FUNCTION__, desc.format, i, constraints->planes[i].stride.horizontal_stride,
@@ -327,7 +326,7 @@ Error SnapConstraintManager::ConstraintsToBufferLayout(
 
     layout->planes[i].horizontal_stride_in_bytes = constraints->planes[i].stride.horizontal_stride;
     layout->planes[i].scanlines = constraints->planes[i].scanline.scanline;
-    ALOGD_IF(DEBUG,
+    DLOGD_IF(enable_logs,
              "%s: format %d, i %d layout->planes[i].horizontal_stride_in_bytes %d  "
              "layout->planes[i].scanline %d",
              __FUNCTION__, desc.format, i, layout->planes[i].horizontal_stride_in_bytes,
@@ -339,7 +338,7 @@ Error SnapConstraintManager::ConstraintsToBufferLayout(
               constraints->planes[i].size_align);
     layout->planes[i].offset_in_bytes = offset_sum;
     offset_sum += layout->planes[i].size_in_bytes;
-    ALOGD_IF(DEBUG,
+    DLOGD_IF(enable_logs,
              "%s: format %d, layout->planes[i].horizontal_stride_in_bytes %d "
              "layout->planes[i].scanlines %d "
              " constraints->planes[i].size_align %d layout->planes[i].size_in_bytes %d",
@@ -396,7 +395,7 @@ Error SnapConstraintManager::MergeConstraints(std::vector<BufferConstraints> con
 uint8_t SnapConstraintManager::GetBitsPerPixel(
     vendor_qti_hardware_display_common_PixelFormat format) {
   if (format_data_map_.find(format) == format_data_map_.end()) {
-    ALOGE("Could not find entry for format %d", static_cast<uint64_t>(format));
+    DLOGE("Could not find entry for format %d", static_cast<uint64_t>(format));
     return Error::NONE;
   }
 
@@ -408,27 +407,27 @@ Error SnapConstraintManager::AlignmentToAlignedConstraints(BufferDescriptor desc
                                                            BufferConstraints alignment,
                                                            BufferConstraints *aligned) {
   if (format_data_map_.find(desc.format) == format_data_map_.end()) {
-    ALOGE("Could not find entry for format %d", static_cast<uint64_t>(desc.format));
+    DLOGE("Could not find entry for format %d", static_cast<uint64_t>(desc.format));
     return Error::UNSUPPORTED;
   }
 
   auto format_data = format_data_map_.at(desc.format);
-  ALOGD_IF(DEBUG, "alignment.size_align_bytes %d", alignment.size_align_bytes);
+  DLOGD_IF(enable_logs, "alignment.size_align_bytes %d", alignment.size_align_bytes);
   aligned->size_align_bytes = alignment.size_align_bytes;
 
   if (!alignment.planes.empty()) {
-    ALOGD_IF(DEBUG, "alignment.planes.size() %d", alignment.planes.size());
+    DLOGD_IF(enable_logs, "alignment.planes.size() %d", alignment.planes.size());
     for (int i = 0; i < alignment.planes.size(); i++) {
       PlaneConstraints plane;
       plane.components = alignment.planes[i].components;
       plane.alignment_type = ALIGNED_OUTPUT;
 
       // TODO: factor in subsampling from format data here for CbCr
-      ALOGD_IF(DEBUG, "alignment.planes[i].stride.horizontal_stride_align %d",
+      DLOGD_IF(enable_logs, "alignment.planes[i].stride.horizontal_stride_align %d",
                alignment.planes[i].stride.horizontal_stride_align);
-      ALOGD_IF(DEBUG, "alignment.planes[i].scanline.scanline_align %d",
+      DLOGD_IF(enable_logs, "alignment.planes[i].scanline.scanline_align %d",
                alignment.planes[i].scanline.scanline_align);
-      ALOGD_IF(DEBUG, "alignment.planes[i].size_align %d", alignment.planes[i].size_align);
+      DLOGD_IF(enable_logs, "alignment.planes[i].size_align %d", alignment.planes[i].size_align);
 
       // TODO: If default constraint provider returns an aligned output for
       // YV12, move this special handling to default constraint provider
@@ -474,7 +473,7 @@ Error SnapConstraintManager::FetchAndMergeConstraints(
     BufferDescriptor desc, std::map<SnapConstraintProvider *, CapabilitySet> const &providers,
     vendor_qti_hardware_display_common_BufferLayout *out_layout) {
   if (format_data_map_.find(desc.format) == format_data_map_.end()) {
-    ALOGE("Could not find entry for format %d", static_cast<uint64_t>(desc.format));
+    DLOGE("Could not find entry for format %d", static_cast<uint64_t>(desc.format));
     return Error::UNSUPPORTED;
   }
 
@@ -486,50 +485,51 @@ Error SnapConstraintManager::FetchAndMergeConstraints(
     provider->GetConstraints(desc, &provider_constraints);
     int provider_type = provider->GetProviderType();
     if (provider_constraints.planes.empty()) {
-      ALOGD_IF(DEBUG, "Provider type %d has not given alignment data - skipping", provider_type);
+      DLOGD_IF(enable_logs, "Provider type %d has not given alignment data - skipping",
+               provider_type);
       continue;
     }
     if (provider_constraints.planes[0].alignment_type == ALIGNED_OUTPUT) {
-      ALOGD_IF(DEBUG, "Provider type %d has given aligned output", provider_type);
+      DLOGD_IF(enable_logs, "Provider type %d has given aligned output", provider_type);
       ++constraints_provided;
       constraint_sets.push_back(provider_constraints);
     } else if (provider_constraints.planes[0].alignment_type == ALIGNMENT) {
-      ALOGD_IF(DEBUG, "Provider type %d has given alignment values", provider_type);
+      DLOGD_IF(enable_logs, "Provider type %d has given alignment values", provider_type);
 
       // Convert to aligned output
       BufferConstraints aligned_constraints;
-      ALOGD_IF(DEBUG, "calling AlignmentToAlignedConstraints");
+      DLOGD_IF(enable_logs, "calling AlignmentToAlignedConstraints");
 
       int err = AlignmentToAlignedConstraints(desc, provider_constraints, &aligned_constraints);
       if (err) {
-        ALOGE("Failed to convert alignment to aligned constraints - skipping");
+        DLOGW("Failed to convert alignment to aligned constraints - skipping");
       } else {
         ++constraints_provided;
         constraint_sets.push_back(aligned_constraints);
       }
     } else {
-      ALOGE("Alignment type undefined");
+      DLOGE("Alignment type undefined");
     }
   }
 
   // If no device constraint providers or none returned a constraint set, query the default provider
   if (!constraints_provided) {
-    ALOGD_IF(DEBUG, "Query the default provider - no constraints provided");
+    DLOGD_IF(enable_logs, "Query the default provider - no constraints provided");
 
     BufferConstraints default_constraints;
     default_provider_->GetConstraints(desc, &default_constraints);
 
     if (default_constraints.planes.empty()) {
-      ALOGE("Error - no constraint data available");
+      DLOGE("Error - no constraint data available");
       return Error::BAD_VALUE;
     }
 
     // Default provider uses json - need to align values
     BufferConstraints aligned_constraints;
-    ALOGD_IF(DEBUG, "calling AlignmentToAlignedConstraints");
+    DLOGD_IF(enable_logs, "calling AlignmentToAlignedConstraints");
     int err = AlignmentToAlignedConstraints(desc, default_constraints, &aligned_constraints);
     if (err) {
-      ALOGE(
+      DLOGE(
           "Failed to convert alignment to aligned constraints - failing allocatsion due to no "
           "valid constraints");
       return Error::BAD_VALUE;
@@ -546,7 +546,7 @@ Error SnapConstraintManager::FetchAndMergeConstraints(
   if (providers.size() == 1) {
     auto it = providers.begin();
     if (it->first->GetProviderType() == kGraphics) {
-      ALOGD_IF(DEBUG, "getting size and metadata from graphics");
+      DLOGD_IF(enable_logs, "getting size and metadata from graphics");
       GraphicsConstraintProvider *graphics_provider =
           static_cast<GraphicsConstraintProvider *>(it->first);
       vendor_qti_hardware_display_common_GraphicsMetadata graphics_metadata = {};
@@ -559,7 +559,8 @@ Error SnapConstraintManager::FetchAndMergeConstraints(
     }
   }
 
-  ALOGD_IF(DEBUG, "out_layout->size_in_bytes %d at line %d", out_layout->size_in_bytes, __LINE__);
+  DLOGD_IF(enable_logs, "out_layout->size_in_bytes %d at line %d", out_layout->size_in_bytes,
+           __LINE__);
 
   return Error::NONE;
 }

@@ -1,16 +1,13 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "DefaultConstraintProvider.h"
 
 #include <dlfcn.h>
-#include <log/log.h>
 #include <fstream>
 #include <iostream>
 
 #include "SnapConstraintParser.h"
-
-#define DEBUG 0
 
 namespace snapalloc {
 DefaultConstraintProvider *DefaultConstraintProvider::instance_{nullptr};
@@ -39,19 +36,19 @@ int DefaultConstraintProvider::GetCapabilities(BufferDescriptor desc, Capability
   // Default constraint provider is not tied to HW, so it does not have a UBWC version
   out->ubwc_caps.version = 0;
   (void)desc;
-  ALOGD_IF(DEBUG, "DefaultConstraintProvider is enabled");
+  DLOGD_IF(enable_logs, "DefaultConstraintProvider is enabled");
   return 0;
 }
 
 int DefaultConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConstraints *out) {
   if (constraint_set_map_.empty()) {
-    ALOGD_IF(DEBUG, "Default constraint set map is empty");
+    DLOGD_IF(enable_logs, "Default constraint set map is empty");
     return -1;
   }
   if (constraint_set_map_.find(desc.format) != constraint_set_map_.end()) {
     *out = constraint_set_map_.at(desc.format);
   } else {
-    ALOGD_IF(DEBUG, "Default could not find entry for format %lu",
+    DLOGD_IF(enable_logs, "Default could not find entry for format %lu",
              static_cast<uint64_t>(desc.format));
   }
   return 0;

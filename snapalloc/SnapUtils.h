@@ -10,7 +10,6 @@
 
 #ifdef __ANDROID__
 #include <display/media/mmm_color_fmt.h>
-#include <log/log.h>
 #endif
 #include <string>
 #include <unordered_map>
@@ -43,6 +42,7 @@ inline int roundUpToPageSize(int x) {
 #define UINT(exp) static_cast<unsigned int>(exp)
 
 #define PROPERTY_VALUE_MAX 255
+extern bool enable_logs;
 
 template <class Type1, class Type2>
 inline Type1 ALIGN(Type1 x, Type2 align) {

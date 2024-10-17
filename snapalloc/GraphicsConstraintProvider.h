@@ -5,7 +5,6 @@
 #ifndef __GRAPHICS_CONSTRAINT_PROVIDER_H__
 #define __GRAPHICS_CONSTRAINT_PROVIDER_H__
 
-#include <log/log.h>
 #include <map>
 #include <mutex>
 

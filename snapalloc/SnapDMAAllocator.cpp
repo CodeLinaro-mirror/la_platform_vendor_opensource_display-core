@@ -1,11 +1,10 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapDMAAllocator.h"
 
 #include <dlfcn.h>
 #include <fcntl.h>
-#include <log/log.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -14,8 +13,6 @@
 
 #include "SnapTypes.h"
 #include "SnapUtils.h"
-
-#define DEBUG 0
 
 namespace snapalloc {
 
@@ -41,14 +38,14 @@ Error SnapDMAAllocator::AllocBuffer(AllocData *ad) {
   dma_dev_fd_ = buffer_allocator_.Alloc(ad->heap_name, ad->size, flags, ad->align);
 
   if (dma_dev_fd_ < 0) {
-    ALOGE("libdma alloc failed fd %d size %d align %d heap_name %s flags %x", dma_dev_fd_, ad->size,
+    DLOGE("libdma alloc failed fd %d size %d align %d heap_name %s flags %x", dma_dev_fd_, ad->size,
           ad->align, ad->heap_name.c_str(), flags);
     return Error::BAD_VALUE;
   }
 
   ad->fd = dma_dev_fd_;
-  ALOGD_IF(DEBUG, "libdma: Allocated buffer size:%u fd:%d", ad->size, ad->fd);
-  ALOGD_IF(DEBUG, "%s fd size %d", __FUNCTION__,
+  DLOGD_IF(enable_logs, "libdma: Allocated buffer size:%u fd:%d", ad->size, ad->fd);
+  DLOGD_IF(enable_logs, "%s fd size %d", __FUNCTION__,
            static_cast<unsigned int>(lseek(dma_dev_fd_, 0, SEEK_END)));
 
   return Error::NONE;
@@ -58,7 +55,7 @@ Error SnapDMAAllocator::FreeBuffer(void *base, unsigned int size, int fd,
                                    std::string /* shm_path [[maybe_unused]] */) {
   auto err = Error::NONE;
 
-  ALOGD_IF(DEBUG, "libdma: Freeing buffer base:%p size:%u fd:%d", base, size, fd);
+  DLOGD_IF(enable_logs, "libdma: Freeing buffer base:%p size:%u fd:%d", base, size, fd);
 
   if (base) {
     err = UnmapBuffer(base, size);
@@ -71,7 +68,7 @@ Error SnapDMAAllocator::UnmapBuffer(void *base, unsigned int size) {
   auto err = Error::NONE;
   if (munmap(base, size)) {
     err = Error::BAD_VALUE;
-    ALOGE("dma: Failed to unmap memory at %p : %s", base, strerror(errno));
+    DLOGE("dma: Failed to unmap memory at %p : %s", base, strerror(errno));
   }
 
   return err;
@@ -86,9 +83,9 @@ Error SnapDMAAllocator::MapBuffer(void **base, unsigned int size, int fd) {
   *base = addr;
   if (addr == MAP_FAILED) {
     err = Error::BAD_VALUE;
-    ALOGE("dma: Failed to map memory in the client: %s", strerror(errno));
+    DLOGE("dma: Failed to map memory in the client: %s", strerror(errno));
   } else {
-    ALOGD_IF(DEBUG, "dma: Mapped buffer base:%p size:%u fd:%d", addr, size, fd);
+    DLOGD_IF(enable_logs, "dma: Mapped buffer base:%p size:%u fd:%d", addr, size, fd);
   }
 
   return err;
@@ -110,13 +107,13 @@ Error SnapDMAAllocator::CleanBuffer(void * /*base*/, unsigned int /*size*/, int 
       sync.flags = DMA_BUF_SYNC_END | DMA_BUF_SYNC_READ;
       break;
     default:
-      ALOGE("%s: Invalid operation %d", __FUNCTION__, op);
+      DLOGE("%s: Invalid operation %d", __FUNCTION__, op);
       return Error::BAD_VALUE;
   }
 
   if (ioctl(dma_buf_fd, static_cast<int>(DMA_BUF_IOCTL_SYNC), &sync)) {
     err = Error::BAD_VALUE;
-    ALOGE("%s: DMA_BUF_IOCTL_SYNC failed with error - %s", __FUNCTION__, strerror(errno));
+    DLOGE("%s: DMA_BUF_IOCTL_SYNC failed with error - %s", __FUNCTION__, strerror(errno));
     return err;
   }
 
@@ -131,7 +128,7 @@ Error SnapDMAAllocator::SecureMemPerms(AllocData *ad) {
   int ret = 0;
   std::unique_ptr<VmMem> vmmem = VmMem::CreateVmMem();
   if (!vmmem) {
-    ALOGE("Failed to create VmMem");
+    DLOGE("Failed to create VmMem");
     return Error::BAD_VALUE;
   }
   VmPerm vm_perms;
@@ -207,7 +204,7 @@ void SnapDMAAllocator::GetHeapInfo(vendor_qti_hardware_display_common_BufferUsag
   }
   if (usage & vendor_qti_hardware_display_common_BufferUsage::SENSOR_DIRECT_DATA) {
     if (sensor_flag) {
-      ALOGI("gralloc::sns_direct_data with system_heap");
+      DLOGI("gralloc::sns_direct_data with system_heap");
       heap_name = "qcom,system";
     }
   }
@@ -281,7 +278,7 @@ Error SnapDMAAllocator::SetBufferPermission(
   }
   if (!vm_params.empty()) {
     ret = mem_buf_->Export(fd, vm_params, shared, mem_hdl);
-    ALOGI("fd %d mem_hdl %lld ret %d", fd, *mem_hdl, ret);
+    DLOGI("fd %d mem_hdl %lld ret %d", fd, *mem_hdl, ret);
   }
   if (!ret) {
     return Error::NONE;
@@ -300,16 +297,16 @@ void SnapDMAAllocator::InitMemUtils() {
     DestroyMemBuf_ = reinterpret_cast<DestroyMemBufInterface>(
         ::dlsym(mem_utils_lib_, DESTROY_MEMBUF_INTERFACE_NAME));
     if (!CreateMemBuf_ || !DestroyMemBuf_) {
-      ALOGW("Membuf Symbols not resolved");
+      DLOGW("Membuf Symbols not resolved");
       return;
     }
   } else {
-    ALOGW("Unable to load = %s, error = %s", MEMBUF_CLIENT_LIB_NAME, ::dlerror());
+    DLOGW("Unable to load = %s, error = %s", MEMBUF_CLIENT_LIB_NAME, ::dlerror());
     return;
   }
   int err = CreateMemBuf_(&mem_buf_);
   if (err != 0) {
-    ALOGW("GetMemBuf failed!! %d", err);
+    DLOGW("GetMemBuf failed!! %d", err);
     return;
   }
   // check heap availability
@@ -317,8 +314,8 @@ void SnapDMAAllocator::InitMemUtils() {
   movable_heap_system_available_ = heap_list.find("system-movable") != heap_list.end();
   movable_heap_ubwcp_available_ = heap_list.find("ubwcp-movable") != heap_list.end();
 
-  ALOGI("system movable heap is %d ", movable_heap_system_available_);
-  ALOGI("ubwcp movable heap is %d ", movable_heap_ubwcp_available_);
+  DLOGI("system movable heap is %d ", movable_heap_system_available_);
+  DLOGI("ubwcp movable heap is %d ", movable_heap_ubwcp_available_);
 }
 
 void SnapDMAAllocator::DeinitMemUtils() {
@@ -347,12 +344,12 @@ void SnapDMAAllocator::GetCSFVersion() {
 #ifdef TARGET_USES_SMMU_PROXY
   int fd = open(smmu_proxy_node_.c_str(), O_RDONLY);
   if (fd < 0) {
-    ALOGW("Failed to open smmu proxy node = %s, error = %s", smmu_proxy_node_.c_str(),
+    DLOGW("Failed to open smmu proxy node = %s, error = %s", smmu_proxy_node_.c_str(),
           strerror(errno));
     return;
   }
   if (ioctl(fd, QTI_SMMU_PROXY_GET_VERSION_IOCTL, &csf_version_)) {
-    ALOGW("%s: QTI_SMMU_PROXY_GET_VERSION_IOCTL failed with error - %s", __FUNCTION__,
+    DLOGW("%s: QTI_SMMU_PROXY_GET_VERSION_IOCTL failed with error - %s", __FUNCTION__,
           strerror(errno));
     return;
   }

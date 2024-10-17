@@ -1,17 +1,13 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "DisplayConstraintProvider.h"
 
 #include <dlfcn.h>
-#include <log/log.h>
-
 #include <fstream>
 #include <iostream>
 
 #include "SnapConstraintParser.h"
-
-#define DEBUG 0
 
 namespace snapalloc {
 DisplayConstraintProvider *DisplayConstraintProvider::instance_{nullptr};
@@ -45,10 +41,10 @@ int DisplayConstraintProvider::GetCapabilities(BufferDescriptor desc, Capability
   if (desc.usage & vendor_qti_hardware_display_common_BufferUsage::COMPOSER_OVERLAY ||
       desc.usage & vendor_qti_hardware_display_common_BufferUsage::COMPOSER_CLIENT_TARGET ||
       desc.usage & vendor_qti_hardware_display_common_BufferUsage::COMPOSER_CURSOR) {
-    ALOGD_IF(DEBUG, "DisplayConstraintProvider is enabled");
+    DLOGD_IF(enable_logs, "DisplayConstraintProvider is enabled");
     out->enabled = true;
   } else {
-    ALOGD_IF(DEBUG, "DisplayConstraintProvider is not enabled");
+    DLOGD_IF(enable_logs, "DisplayConstraintProvider is not enabled");
     out->enabled = false;
   }
 
@@ -61,7 +57,7 @@ int DisplayConstraintProvider::GetCapabilities(BufferDescriptor desc, Capability
 
 int DisplayConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferConstraints *data) {
   if (format_data_map_.find(desc.format) == format_data_map_.end()) {
-    ALOGE("Could not find entry for format %lu", static_cast<uint64_t>(desc.format));
+    DLOGW("Could not find entry for format %lu", static_cast<uint64_t>(desc.format));
     return -1;
   }
 
@@ -85,7 +81,7 @@ int DisplayConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCon
               pixel_format_modifier),
           false);  // false indicates not ubwc
       if (mmm_color_format < 0) {
-        ALOGE("Failed to get format mapping to use mmm_color_fmt");
+        DLOGW("Failed to get format mapping to use mmm_color_fmt");
         return -1;
       }
       switch (component_type) {
@@ -120,12 +116,12 @@ int DisplayConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCon
 int DisplayConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConstraints *out) {
   (void)out;
 #ifdef __ANDROID__
-  ALOGD_IF(DEBUG, "Using display libs for alignment calculations");
+  DLOGD_IF(enable_logs, "Using display libs for alignment calculations");
   BufferConstraints data;
   int status = 0;
   status = BuildConstraints(desc, &data);
   if (status != Error::NONE) {
-    ALOGW("Error while getting constraints from display libs width %d, height %d, format %d",
+    DLOGW("Error while getting constraints from display libs width %d, height %d, format %d",
           desc.width, desc.height, static_cast<uint64_t>(desc.format));
     return -1;
   }
@@ -133,13 +129,13 @@ int DisplayConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConst
   return 0;
 #endif
   if (constraint_set_map_.empty()) {
-    ALOGE("DisplayConstraintProvider constraint set map is empty");
+    DLOGW("DisplayConstraintProvider constraint set map is empty");
     return -1;
   }
   if (constraint_set_map_.find(desc.format) != constraint_set_map_.end()) {
     *out = constraint_set_map_.at(desc.format);
   } else {
-    ALOGE("DisplayConstraintProvider could not find entry for format %lu",
+    DLOGW("DisplayConstraintProvider could not find entry for format %lu",
           static_cast<uint64_t>(desc.format));
   }
   return 0;
