@@ -478,7 +478,7 @@ Error SnapConstraintManager::AlignmentToAlignedConstraints(BufferDescriptor desc
         } else {
           OVERFLOW_ERR_RETURN(desc.width, (format_data.planes[0].sample_increment_bits / 8));
           plane.stride.horizontal_stride =
-              ALIGN(desc.width * (format_data.planes[0].sample_increment_bits / 8),
+              ALIGN(desc.width * format_data.planes[0].sample_increment_bits / 8,
                     alignment.planes[i].stride.horizontal_stride_align);
         }
         if ((IsYuv(desc.format)) &&
