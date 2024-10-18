@@ -286,6 +286,7 @@ DisplayError SDMDisplayBuiltIn::CommitLayerStack() {
   DisplayError error = SDMDisplay::CommitLayerStack();
 
   if (commit_counter_) {
+    commit_counter_ = false;
     callbacks_->OnRefresh(id_);
   }
 
@@ -1079,7 +1080,7 @@ DisplayError SDMDisplayBuiltIn::SetJitterConfig(uint32_t jitter_type,
 
 DisplayError SDMDisplayBuiltIn::SetDynamicDSIClock() {
   // decrement the counter and set dsi clock when counter hit 0
-  if (!scheduled_dynamic_dsi_clk_ || (commit_counter_ >>= 1)) {
+  if (!scheduled_dynamic_dsi_clk_ || commit_counter_) {
     return kErrorNone;
   }
 
@@ -1108,10 +1109,7 @@ DisplayError SDMDisplayBuiltIn::ScheduleDynamicDSIClock(uint64_t bitclk) {
 
   scheduled_dynamic_dsi_clk_ = bitclk;
 
-  // Set counter to b10
-  // On first commit it will be b01
-  // On second commit it will be b00
-  commit_counter_ = 1 << 1;
+  commit_counter_ = true;
 
   callbacks_->OnRefresh(id_);
 
@@ -1568,7 +1566,8 @@ DisplayError SDMDisplayBuiltIn::CommitOrPrepare(
   prepare_phase_ = false;
 
   // Need a commit call to flush the dsi dynamic clock
-  if (commit_counter_) {
+  if (!(*needs_commit) && commit_counter_) {
+    commit_counter_ = false;
     callbacks_->OnRefresh(id_);
   }
 
