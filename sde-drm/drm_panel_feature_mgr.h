@@ -108,6 +108,7 @@ class DRMPanelFeatureMgr : public DRMPanelFeatureMgrIntf {
   std::map<DRMPanelFeatureID, std::deque<uint32_t>> drm_prop_blob_ids_cache_{};
   std::array<DRMPanelFeatureInfo, kDRMPanelFeatureMax> feature_info_tbl_ {};
   std::map<uint32_t /* obj_id */, DRMPanelFeatureID> apply_in_null_commit_ {};
+  bool enable_ai_scaler_ = false;
 };
 
 }  // namespace sde_drm
