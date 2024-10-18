@@ -1,16 +1,15 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "Debug.h"
 
 #include <cstdarg>
+#include <log/log.h>
 
 namespace snapalloc {
-Debug *Debug::debug_{nullptr};
+
 Debug *Debug::GetInstance() {
-  if (debug_ == nullptr) {
-    debug_ = new Debug();
-  }
+  static Debug *debug_ = new Debug();
   return debug_;
 }
 
@@ -73,12 +72,6 @@ void Debug::Log(sdm::DebugLogType type, const char *fmt, ...) {
     va_start(args, fmt);
     debug_callback_->Log(type, LOG_TAG, fmt, args);
   }
-}
-
-bool Debug::IsDebugLoggingEnabled() {
-  int value = 0;
-  GetProperty(ENABLE_LOGS_PROP, &value);
-  return (value == 1);
 }
 
 }  // namespace snapalloc

@@ -8,7 +8,10 @@
 #include "Rect.h"
 #include "SnapUtils.h"
 
+#include <log/log.h>
 #include <unordered_map>
+
+#define DEBUG 0
 
 namespace snapalloc {
 
@@ -218,7 +221,7 @@ Error SnapMetadataManager::AllocationSizeHelper(SnapMetadata *metadata, SnapHand
     auto err =
         constraint_mgr_->GetAllocationData(*buf_des, &ad, &layout, &out_desc, &out_priv_flags);
     if (err != Error::NONE) {
-      DLOGE("Invalid allocation - unable to get allocation size");
+      ALOGE("Invalid allocation - unable to get allocation size");
       return err;
     }
     *static_cast<uint32_t *>(out_get) = static_cast<uint32_t>(ad.size);
@@ -327,10 +330,10 @@ Error SnapMetadataManager::PlaneLayoutsHelper(SnapMetadata *metadata, SnapHandle
     auto err =
         constraint_mgr_->GetAllocationData(*buf_des, &ad, &layout, &out_desc, &out_priv_flags);
     if (err != Error::NONE) {
-      DLOGE("Invalid allocation - unable to create plane layout");
+      ALOGE("Invalid allocation - unable to create plane layout");
       return err;
     }
-    DLOGD_IF(enable_logs,
+    ALOGD_IF(DEBUG,
              "get plane layout from buffer descriptor - out_desc.format %d - "
              "size %d",
              out_desc.format, layout.size_in_bytes);
@@ -357,7 +360,7 @@ Error SnapMetadataManager::PlaneLayoutsHelper(SnapMetadata *metadata, SnapHandle
                                                     &out_desc, &out_priv_flags);
 
       if (err != Error::NONE) {
-        DLOGE("Invalid allocation - unable to create plane layout");
+        ALOGE("Invalid allocation - unable to create plane layout");
         return err;
       }
 
@@ -610,7 +613,7 @@ Error SnapMetadataManager::AlignedWidthInPixelsHelper(SnapMetadata *metadata,
     auto err =
         constraint_mgr_->GetAllocationData(*buf_des, &ad, &layout, &out_desc, &out_priv_flags);
     if (err != Error::NONE) {
-      DLOGE("Invalid allocation - unable to get allocation size");
+      ALOGE("Invalid allocation - unable to get allocation size");
       return err;
     }
     uint64_t width = layout.aligned_width_in_bytes / layout.bpp;
@@ -636,7 +639,7 @@ Error SnapMetadataManager::AlignedHeightInPixelsHelper(SnapMetadata *metadata,
     auto err =
         constraint_mgr_->GetAllocationData(*buf_des, &ad, &layout, &out_desc, &out_priv_flags);
     if (err != Error::NONE) {
-      DLOGE("Invalid allocation - unable to get allocation size");
+      ALOGE("Invalid allocation - unable to get allocation size");
       return err;
     }
     *static_cast<uint32_t *>(out_get) = layout.aligned_height;
@@ -1037,7 +1040,7 @@ Error SnapMetadataManager::IsCachedHelper(SnapMetadata *metadata, SnapHandleInte
     auto err =
         constraint_mgr_->GetAllocationData(*buf_des, &ad, &layout, &out_desc, &out_priv_flags);
     if (err != Error::NONE) {
-      DLOGE("Invalid allocation - unable to get allocation size");
+      ALOGE("Invalid allocation - unable to get allocation size");
       return err;
     }
     int64_t is_cached = 0;
@@ -1103,13 +1106,13 @@ Error SnapMetadataManager::InitializeMetadata(
       err = Set(hnd, vendor_qti_hardware_display_common_MetadataType::GRAPHICS_METADATA,
                 &graphics_metadata);
       if (err != Error::NONE) {
-        DLOGE("Error initializing graphics metadata - ret val %d", ret);
+        ALOGE("Error initializing graphics metadata - ret val %d", ret);
       }
     } else {
-      DLOGE("Failed to get graphics metadata - retval %d", ret);
+      ALOGE("Failed to get graphics metadata - retval %d", ret);
     }
   } else {
-    DLOGD_IF(enable_logs,
+    ALOGD_IF(DEBUG,
              "Graphics does not support format %d. Skipping initialization of graphics metadata",
              static_cast<uint64_t>(out_desc.format));
   }
@@ -1119,13 +1122,13 @@ Error SnapMetadataManager::InitializeMetadata(
 
   err = ValidateAndMap(hnd);
   if (err != Error::NONE) {
-    DLOGE("%s: ValidateAndMap failed - unable to set name", __FUNCTION__);
+    ALOGE("%s: ValidateAndMap failed - unable to set name", __FUNCTION__);
     return Error::UNSUPPORTED;
   }
 
   SnapMetadata *data = reinterpret_cast<SnapMetadata *>(hnd->base_metadata);
   if (data == nullptr) {
-    DLOGE("%s: Invalid metadata address", __FUNCTION__);
+    ALOGE("%s: Invalid metadata address", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
 
@@ -1174,7 +1177,7 @@ Error SnapMetadataManager::GetRgbDataAddress(SnapHandleInternal *hnd,
   // Get the buffer layout from metadata
   SnapMetadata *data = reinterpret_cast<SnapMetadata *>(hnd->base_metadata);
   if (data == nullptr) {
-    DLOGE("%s: Invalid metadata address", __FUNCTION__);
+    ALOGE("%s: Invalid metadata address", __FUNCTION__);
     return Error::BAD_VALUE;
   }
   unsigned int plane_layout_size = data->buffer_layout.planes[0].size_in_bytes;
@@ -1194,7 +1197,7 @@ int GetDataAddress(SnapHandleInternal *hnd, uint64_t *data_addr) {
   // Get the buffer layout from metadata
   SnapMetadata *data = reinterpret_cast<SnapMetadata *>(hnd->base_metadata);
   if (data == nullptr) {
-    DLOGE("%s: Invalid metadata address", __FUNCTION__);
+    ALOGE("%s: Invalid metadata address", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
 
@@ -1230,7 +1233,7 @@ Error SnapMetadataManager::GetCustomDimensions(SnapHandleInternal *hnd, SnapMeta
       auto err = Error::NONE;
       err = constraint_mgr_->GetAllocationData(desc, &ad, &layout, &out_desc, &out_priv_flags);
       if (err != Error::NONE) {
-        DLOGE("Invalid allocation - unable to get allocation size");
+        ALOGE("Invalid allocation - unable to get allocation size");
         return err;
       }
       *stride = static_cast<int>(layout.aligned_width_in_bytes / layout.bpp);
@@ -1266,7 +1269,7 @@ Error SnapMetadataManager::IsMetadataTypeSettable(
       *out = true;
     }
   } else {
-    DLOGW("Metadata type %d not found in metadatatype traits map", static_cast<int>(type));
+    ALOGW("Metadata type %d not found in metadatatype traits map", static_cast<int>(type));
     return Error::BAD_VALUE;
   }
   return Error::NONE;
@@ -1275,7 +1278,7 @@ Error SnapMetadataManager::IsMetadataTypeSettable(
 Error SnapMetadataManager::Get(SnapHandleInternal *hnd,
                                vendor_qti_hardware_display_common_MetadataType type, void *out) {
   if (!out) {
-    DLOGE("%s: Invalid output parameter", __FUNCTION__);
+    ALOGE("%s: Invalid output parameter", __FUNCTION__);
     return Error::UNSUPPORTED;
   }
 
@@ -1283,7 +1286,7 @@ Error SnapMetadataManager::Get(SnapHandleInternal *hnd,
 
   SnapMetadata *metadata = reinterpret_cast<SnapMetadata *>(hnd->base_metadata);
   if (metadata == nullptr) {
-    DLOGE("%s: Invalid metadata address", __FUNCTION__);
+    ALOGE("%s: Invalid metadata address", __FUNCTION__);
     return ret;
   }
 
@@ -1299,23 +1302,23 @@ Error SnapMetadataManager::Get(SnapHandleInternal *hnd,
 
 Error SnapMetadataManager::ValidateAndMap(SnapHandleInternal *hnd) {
   if (hnd->fd_metadata < 0) {
-    DLOGE("%s: Snap handle has invalid metadata fd : %d", __FUNCTION__, hnd->fd_metadata);
+    ALOGE("%s: Snap handle has invalid metadata fd : %d", __FUNCTION__, hnd->fd_metadata);
     return Error::BAD_BUFFER;
   }
 
   if (!hnd->base_metadata) {
     uint64_t reserved_region_size = hnd->reserved_size;
     uint64_t custom_content_md_reserved_size = hnd->custom_content_md_reserved_size;
-    DLOGD_IF(enable_logs, "from handle - reserved size %lu custom content metadata size %lu",
+    ALOGD_IF(DEBUG, "from handle - reserved size %lu custom content metadata size %lu",
              reserved_region_size, custom_content_md_reserved_size);
     uint64_t size = GetMetaDataSize(reserved_region_size, custom_content_md_reserved_size);
     void *base = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, hnd->fd_metadata, 0);
     if (base == reinterpret_cast<void *>(MAP_FAILED)) {
-      DLOGE("%s: mmap failed - err %s", __FUNCTION__, strerror(errno));
+      ALOGE("%s: mmap failed - err %s", __FUNCTION__, strerror(errno));
       return Error::BAD_BUFFER;
     }
     hnd->base_metadata = (uintptr_t)base;  // NOLINT
-    DLOGD_IF(enable_logs, "Successfully mapped metadata %p", hnd->base_metadata);
+    ALOGD_IF(DEBUG, "Successfully mapped metadata %p", hnd->base_metadata);
   }
   return Error::NONE;
 }
@@ -1332,12 +1335,12 @@ Error SnapMetadataManager::Set(SnapHandleInternal *hnd,
                                vendor_qti_hardware_display_common_MetadataType type, void *in) {
   auto err = ValidateAndMap(const_cast<SnapHandleInternal *>(hnd));
   if (err != 0) {
-    DLOGE("%s: ValidateAndMap failed", __FUNCTION__);
+    ALOGE("%s: ValidateAndMap failed", __FUNCTION__);
     return Error::UNSUPPORTED;
   }
   SnapMetadata *metadata = reinterpret_cast<SnapMetadata *>(hnd->base_metadata);
   if (metadata == nullptr) {
-    DLOGE("%s: Invalid metadata address", __FUNCTION__);
+    ALOGE("%s: Invalid metadata address", __FUNCTION__);
     return Error::UNSUPPORTED;
   }
 
@@ -1358,7 +1361,7 @@ Error SnapMetadataManager::Set(SnapHandleInternal *hnd,
         metadata->video_transcode_stats.stat_len = 0;
         break;
       default:
-        DLOGE("Input is null when setting metadata type %d", type);
+        ALOGE("Input is null when setting metadata type %d", type);
         break;
     }
     return Error::NONE;
@@ -1369,7 +1372,7 @@ Error SnapMetadataManager::Set(SnapHandleInternal *hnd,
     MetadataHelper metadata_helper_func = metadata_helper_function_map[type];
     return ((this->*metadata_helper_func)(metadata, hnd, in, nullptr, nullptr));
   } else {
-    DLOGE("%s Unable to find the metadata type %d", static_cast<int>(type));
+    ALOGE("%s Unable to find the metadata type %d", static_cast<int>(type));
     return Error::UNSUPPORTED;
   }
 }
@@ -1411,7 +1414,7 @@ bool SnapMetadataManager::GetMetadataStateInternal(SnapMetadata *metadata,
 Error SnapMetadataManager::GetMetadataState(SnapHandleInternal *hnd,
                                vendor_qti_hardware_display_common_MetadataType type, bool *out) {
   if (!out) {
-    DLOGE("%s: Invalid output parameter", __FUNCTION__);
+    ALOGE("%s: Invalid output parameter", __FUNCTION__);
     return Error::UNSUPPORTED;
   }
 
@@ -1419,7 +1422,7 @@ Error SnapMetadataManager::GetMetadataState(SnapHandleInternal *hnd,
 
   SnapMetadata *metadata = reinterpret_cast<SnapMetadata *>(hnd->base_metadata);
   if (metadata == nullptr) {
-    DLOGE("%s: Invalid metadata address", __FUNCTION__);
+    ALOGE("%s: Invalid metadata address", __FUNCTION__);
     return ret;
   }
 
@@ -1440,7 +1443,7 @@ Error SnapMetadataManager::GetMetadataState(SnapHandleInternal *hnd,
 Error SnapMetadataManager::GetFromBufferDescriptor(
     BufferDescriptor desc, vendor_qti_hardware_display_common_MetadataType type, void *out) {
   if (!out) {
-    DLOGE("%s: Invalid output parameter", __FUNCTION__);
+    ALOGE("%s: Invalid output parameter", __FUNCTION__);
     return Error::UNSUPPORTED;
   }
   if (metadata_helper_function_map.find(type) != metadata_helper_function_map.end()) {

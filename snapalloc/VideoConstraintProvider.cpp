@@ -1,14 +1,17 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "VideoConstraintProvider.h"
 
 #include <dlfcn.h>
+#include <log/log.h>
 #include <fstream>
 #include <iostream>
 
 #include "SnapConstraintParser.h"
 #include "SnapUtils.h"
+
+#define DEBUG 0
 
 namespace snapalloc {
 VideoConstraintProvider *VideoConstraintProvider::instance_{nullptr};
@@ -46,10 +49,10 @@ int VideoConstraintProvider::GetCapabilities(BufferDescriptor desc, CapabilitySe
       desc.usage & vendor_qti_hardware_display_common_BufferUsage::HW_IMAGE_ENCODER ||
       (pixel_format_modifier == static_cast<uint64_t>(PIXEL_FORMAT_MODIFIER_VENUS) ||
        pixel_format_modifier == static_cast<uint64_t>(PIXEL_FORMAT_MODIFIER_ENCODEABLE))) {
-    DLOGD_IF(enable_logs, "VideoConstraintProvider is enabled");
+    ALOGD_IF(DEBUG, "VideoConstraintProvider is enabled");
     out->enabled = true;
   } else {
-    DLOGD_IF(enable_logs, "VideoConstraintProvider is not enabled");
+    ALOGD_IF(DEBUG, "VideoConstraintProvider is not enabled");
     out->enabled = false;
   }
 
@@ -62,7 +65,7 @@ int VideoConstraintProvider::GetCapabilities(BufferDescriptor desc, CapabilitySe
 
 int VideoConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferConstraints *data) {
   if (format_data_map_.find(desc.format) == format_data_map_.end()) {
-    DLOGW("Could not find entry for format %d", static_cast<uint64_t>(desc.format));
+    ALOGE("Could not find entry for format %d", static_cast<uint64_t>(desc.format));
     return -1;
   }
 
@@ -85,16 +88,16 @@ int VideoConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferConst
       mmm_color_format = mapper.MapPixelFormatWithMmmColorFormat(
           desc.format, desc.usage, pixel_format_modifier, false);  // false indicates not ubwc
       if (mmm_color_format < 0) {
-        DLOGW("Failed to get format mapping to use mmm_color_fmt");
+        ALOGE("Failed to get format mapping to use mmm_color_fmt");
         return -1;
       }
-      DLOGD_IF(enable_logs, "mmm_color_fmt %d", mmm_color_format);
+      ALOGD_IF(DEBUG, "mmm_color_fmt %d", mmm_color_format);
       switch (component_type) {
         case PLANE_LAYOUT_COMPONENT_TYPE_Y:
           plane_layout.stride.horizontal_stride = mapper.GetYStride(mmm_color_format, desc.width);
           plane_layout.scanline.scanline = mapper.GetYScanlines(mmm_color_format, desc.height);
-          DLOGD_IF(
-              enable_logs,
+          ALOGD_IF(
+              DEBUG,
               "Y plane plane_layout.stride.horizontal_stride %d  plane_layout.scanline.scanline %d",
               plane_layout.stride.horizontal_stride, plane_layout.scanline.scanline);
           plane_layout.size_align = 1;
@@ -111,7 +114,7 @@ int VideoConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferConst
         case PLANE_LAYOUT_COMPONENT_TYPE_CR:
           plane_layout.stride.horizontal_stride = mapper.GetUVStride(mmm_color_format, desc.width);
           plane_layout.scanline.scanline = mapper.GetUVScanlines(mmm_color_format, desc.height);
-          DLOGD_IF(enable_logs,
+          ALOGD_IF(DEBUG,
                    "CB/CR plane plane_layout.stride.horizontal_stride %d  "
                    "plane_layout.scanline.scanline %d",
                    plane_layout.stride.horizontal_stride, plane_layout.scanline.scanline);
@@ -133,7 +136,7 @@ int VideoConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConstra
   int status = 0;
   status = BuildConstraints(desc, &data);
   if (status != Error::NONE) {
-    DLOGW("Error while getting constraints from video libs width %d, height %d, format %d",
+    ALOGW("Error while getting constraints from video libs width %d, height %d, format %d",
           desc.width, desc.height, static_cast<uint64_t>(desc.format));
     return -1;
   }
@@ -142,13 +145,13 @@ int VideoConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConstra
 #endif
 
   if (constraint_set_map_.empty()) {
-    DLOGW("VideoConstraintProvider constraint set map is empty");
+    ALOGE("VideoConstraintProvider constraint set map is empty");
     return -1;
   }
   if (constraint_set_map_.find(desc.format) != constraint_set_map_.end()) {
     *out = constraint_set_map_.at(desc.format);
   } else {
-    DLOGW("VideoConstraintProvider could not find entry for format %lu",
+    ALOGE("VideoConstraintProvider could not find entry for format %lu",
           static_cast<uint64_t>(desc.format));
   }
   return 0;

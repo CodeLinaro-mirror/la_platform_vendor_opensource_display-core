@@ -6,6 +6,7 @@
 
 #include "SnapTypes.h"
 
+#include <log/log.h>
 #include <unistd.h>
 #include <memory>
 
@@ -87,7 +88,7 @@ class SnapHandleInternal : public SnapHandle {
 
   static int validate(SnapHandle *h) {
     if (!h || h->version != sizeof(SnapHandle) || h->num_ints != NumInts() || h->num_fds != kNumFds) {
-      DLOGE("Invalid SnapHandleInternal (at %p): ver(%d/%zu) ints(%d/%d) fds(%d/%d)", h,
+      ALOGE("Invalid SnapHandleInternal (at %p): ver(%d/%zu) ints(%d/%d) fds(%d/%d)", h,
             h ? h->version : -1, sizeof(SnapHandle), h ? h->num_ints : -1, NumInts(),
             h ? h->num_fds : -1, kNumFds);
       return -1;

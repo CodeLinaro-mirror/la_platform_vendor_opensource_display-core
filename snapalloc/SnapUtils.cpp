@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapUtils.h"
@@ -170,7 +170,7 @@ bool IsUbwcSupported(vendor_qti_hardware_display_common_PixelFormat format) {
       return true;
     }
   } else {
-    DLOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
+    ALOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
   }
   return false;
 }
@@ -182,7 +182,7 @@ bool IsTileRendered(vendor_qti_hardware_display_common_PixelFormat format) {
       return true;
     }
   } else {
-    DLOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
+    ALOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
   }
   return false;
 }
@@ -194,7 +194,7 @@ bool IsAstc(vendor_qti_hardware_display_common_PixelFormat format) {
       return true;
     }
   } else {
-    DLOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
+    ALOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
   }
   return false;
 }
@@ -206,7 +206,7 @@ bool IsRgb(vendor_qti_hardware_display_common_PixelFormat format) {
       return true;
     }
   } else {
-    DLOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
+    ALOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
   }
   return false;
 }
@@ -218,7 +218,7 @@ bool IsYuv(vendor_qti_hardware_display_common_PixelFormat format) {
       return true;
     }
   } else {
-    DLOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
+    ALOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
   }
   return false;
 }
@@ -230,7 +230,7 @@ bool IsGpuDepthStencil(vendor_qti_hardware_display_common_PixelFormat format) {
       return true;
     }
   } else {
-    DLOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
+    ALOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
   }
   return false;
 }
@@ -241,7 +241,7 @@ bool CheckWidthConstraints(
   if (format_traits != format_traits_map.end()) {
     if (format_traits->second.width_even) {
       if (width & 1) {
-        DLOGE("Width is odd for format %lu", static_cast<uint64_t>(format));
+        ALOGE("Width is odd for format %lu", static_cast<uint64_t>(format));
         return false;
       } else {
         return true;
@@ -250,7 +250,8 @@ bool CheckWidthConstraints(
       return true;
     }
   } else {
-    DLOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
+    ALOGW("Format %lu not found in format traits map",
+          static_cast<uint64_t>(format));
   }
   return false;
 }
@@ -261,7 +262,7 @@ bool CheckHeightConstraints(
   if (format_traits != format_traits_map.end()) {
     if (format_traits->second.width_even) {
       if (height & 1) {
-        DLOGE("Height is odd for format %lu", static_cast<uint64_t>(format));
+        ALOGE("Height is odd for format %lu", static_cast<uint64_t>(format));
         return false;
       } else {
         return true;
@@ -270,7 +271,8 @@ bool CheckHeightConstraints(
       return true;
     }
   } else {
-    DLOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
+    ALOGW("Format %lu not found in format traits map",
+          static_cast<uint64_t>(format));
   }
   return false;
 }

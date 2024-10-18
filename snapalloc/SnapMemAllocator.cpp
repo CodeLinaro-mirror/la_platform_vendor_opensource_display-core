@@ -1,8 +1,11 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapMemAllocator.h"
+#include <log/log.h>
 #include <iostream>
+
+#define DEBUG 0
 
 namespace snapalloc {
 
@@ -33,7 +36,7 @@ Error SnapMemAllocator::AllocateMem(AllocData *alloc_data,
   }
 
   if (!alloc_data->size) {
-    DLOGE("Failed to allocate buffer with size 0");
+    ALOGE("Failed to allocate buffer with size 0");
     return Error::BAD_VALUE;
   }
 
@@ -45,7 +48,7 @@ Error SnapMemAllocator::AllocateMem(AllocData *alloc_data,
   ret = alloc_intf_->AllocBuffer(alloc_data);
 
   if (ret < 0) {
-    DLOGE("Failed to allocate buffer - heap name: %s, flags 0x%x ret %d ",
+    ALOGE("Failed to allocate buffer - heap name: %s, flags 0x%x ret %d ",
           alloc_data->heap_name.c_str(), alloc_data->flags, ret);
     return Error::BAD_VALUE;
   }
@@ -55,7 +58,7 @@ Error SnapMemAllocator::AllocateMem(AllocData *alloc_data,
   }
 
   if (err) {
-    DLOGE("Failed to modify secure use permissions - heap name: %s, flags 0x%x err %d",
+    ALOGE("Failed to modify secure use permissions - heap name: %s, flags 0x%x err %d",
           alloc_data->heap_name.c_str(), alloc_data->flags, err);
   }
 
@@ -68,7 +71,7 @@ Error SnapMemAllocator::FreeBuffer(void *base, unsigned int size, int fd, std::s
   if (!alloc_intf_) {
     return Error::NO_RESOURCES;
   }
-  DLOGD_IF(enable_logs, "Freeing buffer base:%p size:%u fd:%d", base, size, fd);
+  ALOGD_IF(DEBUG, "Freeing buffer base:%p size:%u fd:%d", base, size, fd);
   if (alloc_intf_) {
     return alloc_intf_->FreeBuffer(base, size, fd, std::move(buffer_path));
   }
@@ -108,7 +111,7 @@ int SnapMemAllocator::ImportBuffer(int fd) {
   if (alloc_intf_) {
     return alloc_intf_->ImportBuffer(fd);
   }
-  DLOGE("ISnapMemAllocBackend is not available");
+  ALOGE("ISnapMemAllocBackend is not available");
   return -1;
 }
 
