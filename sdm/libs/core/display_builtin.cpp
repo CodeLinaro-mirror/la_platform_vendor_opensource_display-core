@@ -1229,8 +1229,8 @@ DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
   }
 
   if (demura_allowed_ && demuratn_allowed_ && demuratn_factory_) {
-    demuratn_permanent_disabled_ = GetDemuraTnUserCtrl();
-    if (!demuratn_permanent_disabled_) {
+    demuratn_user_disabled_ = GetDemuraTnUserCtrl();
+    if (!demuratn_user_disabled_) {
       error = SetupDemuraTn();
       if (error != kErrorNone) {
         DLOGW("Failed to setup DemuraTn, Error = %d", error);
@@ -1486,7 +1486,7 @@ DisplayError DisplayBuiltIn::PostCommit() {
   }
   dpps_info_.Init(this, client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
 
-  if (demuratn_ && !demuratn_permanent_disabled_)
+  if (demuratn_ && !demuratn_user_disabled_)
     EnableDemuraTn(true);
 
   HandleQsyncPostCommit();
@@ -4710,13 +4710,13 @@ DisplayError DisplayBuiltIn::SetDemuraTnUserCtrl(void *data) {
   }
 
   bool user_ctrl = *(reinterpret_cast<uint32_t *>(data)) ? true : false;
-  if (!user_ctrl) {
-    ret = EnableDemuraTn(user_ctrl);
+  if (demuratn_user_disabled_ == false) {
+    ret = EnableDemuraTn(false);
     if (ret != kErrorNone) {
       return ret;
     }
   }
-  demuratn_permanent_disabled_ = user_ctrl;
+  demuratn_user_disabled_ = true;
 
   int error = UpdateDemuraTnUserCtrl(user_ctrl);
   if (error) {
