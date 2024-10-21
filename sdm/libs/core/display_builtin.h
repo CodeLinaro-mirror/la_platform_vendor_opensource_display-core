@@ -395,7 +395,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   int demura_current_idx_ = -1;
   const std::string kDemuraTnUserCtrlFile = "/mnt/vendor/persist/display/demuratn_user_ctrl";
   std::shared_ptr<DemuraTnCleanupIntf> demuratn_cleanup_intf_;
-  bool demuratn_permanent_disabled_ = false;
+  bool demuratn_user_disabled_ = false;
   bool abc_enabled_ = false;
   bool abc_prop_ = false;
   bool enable_dpps_dyn_fps_ = false;

@@ -1155,6 +1155,14 @@ DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
     return kErrorNone;
   }
 
+  // If DemuraTn license is present only, need to query the unity config from
+  // parserManager during Demura license validate permission.
+  error = SendPanelIdToParserManager();
+  if (error) {
+    DLOGE("Failed to setup parser manager, error %d", error);
+    return error;
+  }
+
   std::shared_ptr<FeatureLicenseIntf> feat_license_intf =
       feature_license_factory_->CreateFeatureLicenseIntf();
   if (!feat_license_intf) {
@@ -1188,9 +1196,9 @@ DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
   ret = feat_license_intf->ProcessOps(kValidatePermission, demura_pl, &out_pl);
   if (ret) {
     DLOGE("Failed to get the license permission for Demura. Error:%d", ret);
-    return kErrorUndefined;
+  } else {
+    demura_allowed_ = *allowed;
   }
-  demura_allowed_ = *allowed;
 
   AntiAgingValidatePermissionInput *aa_input = nullptr;
   ret = aa_pl.CreatePayload<AntiAgingValidatePermissionInput>(aa_input);
@@ -1203,9 +1211,9 @@ DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
   ret = feat_license_intf->ProcessOps(kValidatePermission, aa_pl, &out_pl);
   if (ret) {
     DLOGE("Failed to get the license permission for Anti-aging. Error:%d", ret);
-    return kErrorUndefined;
+  } else {
+    demuratn_allowed_ = *allowed;
   }
-  demuratn_allowed_ = *allowed;
 #endif
 
   DLOGI("Demura enable allowed %d, Anti-aging enable allowed %d", demura_allowed_,
@@ -1221,8 +1229,8 @@ DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
   }
 
   if (demura_allowed_ && demuratn_allowed_ && demuratn_factory_) {
-    demuratn_permanent_disabled_ = GetDemuraTnUserCtrl();
-    if (!demuratn_permanent_disabled_) {
+    demuratn_user_disabled_ = GetDemuraTnUserCtrl();
+    if (!demuratn_user_disabled_) {
       error = SetupDemuraTn();
       if (error != kErrorNone) {
         DLOGW("Failed to setup DemuraTn, Error = %d", error);
@@ -1234,11 +1242,7 @@ DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
 }
 
 DisplayError DisplayBuiltIn::SetupDemuraT0() {
-  DisplayError error = SendPanelIdToParserManager();
-  if (error) {
-    DLOGE("Failed to setup parser manager, error %d", error);
-    return error;
-  }
+  DisplayError error = kErrorNone;
 
   error = SetupDemura();
   if (error != kErrorNone) {
@@ -1482,7 +1486,7 @@ DisplayError DisplayBuiltIn::PostCommit() {
   }
   dpps_info_.Init(this, client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
 
-  if (demuratn_ && !demuratn_permanent_disabled_)
+  if (demuratn_ && !demuratn_user_disabled_)
     EnableDemuraTn(true);
 
   HandleQsyncPostCommit();
@@ -3840,6 +3844,11 @@ DisplayError DisplayBuiltIn::SetDemuraState(int state) {
 
   if (!demura_intended_ && state) {
     if (demura_allowed_) {
+      error = SendPanelIdToParserManager();
+      if (error) {
+        DLOGE("Failed to setup parser manager, error %d", error);
+        return error;
+      }
       DLOGI("Start Demura feature now");
       if ((error = SetupDemuraT0()) != kErrorNone) {
         DLOGE("Failed to enable Demura dynamically, error = %d", error);
@@ -4701,13 +4710,13 @@ DisplayError DisplayBuiltIn::SetDemuraTnUserCtrl(void *data) {
   }
 
   bool user_ctrl = *(reinterpret_cast<uint32_t *>(data)) ? true : false;
-  if (!user_ctrl) {
-    ret = EnableDemuraTn(user_ctrl);
+  if (demuratn_user_disabled_ == false) {
+    ret = EnableDemuraTn(false);
     if (ret != kErrorNone) {
       return ret;
     }
   }
-  demuratn_permanent_disabled_ = user_ctrl;
+  demuratn_user_disabled_ = true;
 
   int error = UpdateDemuraTnUserCtrl(user_ctrl);
   if (error) {
