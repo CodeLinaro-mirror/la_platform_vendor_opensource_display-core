@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #ifndef __SNAP_DMA_ALLOCATOR_H__
@@ -74,7 +74,6 @@ class SnapDMAAllocator : public ISnapMemAllocBackend {
   CreateMemBufInterface CreateMemBuf_ = nullptr;
   DestroyMemBufInterface DestroyMemBuf_ = nullptr;
   bool movable_heap_system_available_ = false;
-  bool movable_heap_ubwcp_available_ = false;
 };
 
 }  // namespace snapalloc

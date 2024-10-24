@@ -312,10 +312,8 @@ void SnapDMAAllocator::InitMemUtils() {
   // check heap availability
   auto heap_list = buffer_allocator_.GetDmabufHeapList();
   movable_heap_system_available_ = heap_list.find("system-movable") != heap_list.end();
-  movable_heap_ubwcp_available_ = heap_list.find("ubwcp-movable") != heap_list.end();
 
   DLOGI("system movable heap is %d ", movable_heap_system_available_);
-  DLOGI("ubwcp movable heap is %d ", movable_heap_ubwcp_available_);
 }
 
 void SnapDMAAllocator::DeinitMemUtils() {
