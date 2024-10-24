@@ -360,7 +360,7 @@ Error SnapAllocCore::ValidateBufferSize(SnapHandle *hnd, BufferDescriptor desc) 
   }
 
   auto fd_size = static_cast<int>(lseek(buf->fd, 0, SEEK_END));
-  if (fd_size != ad.size) {
+  if (fd_size > ad.size) {
     ALOGE("%s: FD size %d does not match expected allocation size %d, buf->size %d", __FUNCTION__,
           fd_size, ad.size, buf->size);
     return Error::BAD_VALUE;
