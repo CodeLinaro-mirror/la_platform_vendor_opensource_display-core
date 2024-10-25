@@ -4508,6 +4508,12 @@ DisplayError DisplayBuiltIn::SetPanelFeatureConfig(int32_t type, void *data) {
     case kTypeQueryDemuraTnInfo:
       ret = QueryDemuraTnInfo(data);
       break;
+    case kTypeDemuraTnBatchId:
+      ret = SetDemuraTnBatchId(data);
+      break;
+    case kTypeDemuraTnAodHandlerCtrl:
+      ret = SetDemuraTnAodHandlerCtrl(data);
+      break;
     default:
       DLOGE("Invalid type %d", type);
       ret = kErrorParameters;
@@ -4848,6 +4854,33 @@ DisplayError DisplayBuiltIn::TriggerDemuraOemPlugIn(void *data) {
   return kErrorNone;
 }
 
+DisplayError DisplayBuiltIn::SetDemuraTnBatchId(void *data) {
+  int ret = 0;
+  GenericPayload payload = {};
+  uint32_t *batch_id = nullptr;
+
+  if (!data || !demuratn_) {
+    DLOGE("Data %pK demuratn_ %pK", data, demuratn_.get());
+    return kErrorUndefined;
+  }
+
+  ret = payload.CreatePayload<uint32_t>(batch_id);
+  if (ret) {
+    DLOGE("Failed to create the payload, ret %d", ret);
+    return kErrorUndefined;
+  }
+  *batch_id = *(reinterpret_cast<uint32_t *>(data));
+
+  ret = demuratn_->SetParameter(kDemuraTnCoreUvmParamBatchId, payload);
+  if (ret) {
+    DLOGE("Set batch id failed ret %d", ret);
+    return kErrorUndefined;
+  }
+
+  DLOGI("Set batch id %d success", *batch_id);
+  return kErrorNone;
+}
+
 DisplayError DisplayBuiltIn::ReloadDemuraCalibFiles(void *data) {
   (void)data;
   int ret = 0;
@@ -4930,6 +4963,25 @@ DisplayError DisplayBuiltIn::QueryDemuraTnInfo(void *data) {
   }
 
   DLOGI("Query demuraTn infomation done");
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetDemuraTnAodHandlerCtrl(void *data) {
+  (void)data;
+
+  if (!demuratn_ || !demuratn_enabled_) {
+    DLOGE("Demuratn_ %pK demuratn_enabled_ %d", demuratn_.get(), demuratn_enabled_);
+    return kErrorUndefined;
+  }
+
+  GenericPayload payload = {};
+  int ret = demuratn_->SetParameter(kDemuraTnCoreUvmParamAodHandlerCtrl, payload);
+  if (ret) {
+    DLOGE("Set aod handler ctrl failed ret %d", ret);
+    return kErrorUndefined;
+  }
+
+  DLOGI("Set aod handler ctrl done");
   return kErrorNone;
 }
 
