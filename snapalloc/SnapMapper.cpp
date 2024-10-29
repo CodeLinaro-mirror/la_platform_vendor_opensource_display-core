@@ -61,6 +61,10 @@ Error SnapMapper::Lock(const SnapHandle &in_handle,
                                &address);
   base_addr->addressPointer = address;
 
+  if (in_fence.fence_fd > 0) {
+    close(in_fence.fence_fd);
+  }
+
   return err;
 }
 
