@@ -1730,14 +1730,6 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
     }
   }
 
-  // Drop commits for mirrored display, if CWB is enabled and mirroring source display is
-  // already down.
-  if (layer_stack->output_buffer && display_type_ != kVirtual && mirror_src_display_id_ != -1 &&
-      !comp_manager_->IsActiveDisplay(mirror_src_display_id_)) {
-    validated_ = false;
-    return kErrorPermission;
-  }
-
   // Allow commit as pending doze/pending_power_on is handled as a part of draw cycle
   if (!active_ && (pending_power_state_ == kPowerStateNone)) {
     validated_ = false;
