@@ -238,6 +238,17 @@ void HWScaleDRM::SetScalerV2(const HWScaleData &scale_data, sde_drm_scaler_v2 *s
       det_enhance->adjust_b[i] = scale_data.detail_enhance.adjust_b[i];
       det_enhance->adjust_c[i] = scale_data.detail_enhance.adjust_c[i];
     }
+
+#ifdef SDE_DRM_QSEED7
+    scaler->adaptive_de_en = scale_data.detail_enhance.adaptive_de_en;
+    scaler->strength_slope = scale_data.detail_enhance.ade_strength_slope;
+    scaler->strength_const = scale_data.detail_enhance.ade_strength_const;
+    scaler->strength_coeff_tl = scale_data.detail_enhance.ade_strength_coeff_tl;
+    scaler->strength_coeff_th = scale_data.detail_enhance.ade_strength_coeff_th;
+    scaler->halo_suppress_coeff = scale_data.detail_enhance.halo_suppress_coeff;
+    scaler->polarity_en = scale_data.detail_enhance.polarity_en;
+    scaler->edge_bleed_sup_en = scale_data.detail_enhance.edge_bleed_sup_en;
+#endif
   }
 
 #ifdef SDE_DRM_INLINE_PREDOWNSCALE
