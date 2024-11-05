@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -66,10 +66,6 @@ DisplayError HWInfoDefault::GetMaxDisplaysSupported(const SDMDisplayType type, i
 
 DisplayError HWInfoDefault::GetRequiredDemuraFetchResourceCount(
     std::map<uint32_t, uint8_t> *required_demura_fetch_cnt) {
-  return kErrorNotSupported;
-}
-
-DisplayError HWInfoDefault::GetDemuraPanelIds(std::vector<uint64_t> *panel_ids) {
   return kErrorNotSupported;
 }
 

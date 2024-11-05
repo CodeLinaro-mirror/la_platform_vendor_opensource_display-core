@@ -27,7 +27,7 @@
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -56,8 +56,7 @@ class HWInfoInterface {
   virtual DisplayError GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) = 0;
   virtual DisplayError GetMaxDisplaysSupported(SDMDisplayType type, int32_t *max_displays) = 0;
   virtual DisplayError GetRequiredDemuraFetchResourceCount(
-                       std::map<uint32_t, uint8_t> *required_demura_fetch_cnt) = 0;
-  virtual DisplayError GetDemuraPanelIds(std::vector<uint64_t> *panel_ids) = 0;
+      std::map<uint32_t, uint8_t> *required_demura_fetch_cnt) = 0;
   virtual DisplayError GetPanelBootParamString(std::string *panel_boot_param_string) = 0;
   virtual uint32_t GetMaxMixerCount() = 0;
   virtual uint32_t GetCoreId() = 0;

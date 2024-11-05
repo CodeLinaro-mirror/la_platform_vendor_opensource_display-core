@@ -625,11 +625,7 @@ int SDMDisplayBuilder::HandlePluggableDisplays(bool delay_hotplug) {
       pending_hotplug_event_ = kHotPlugEvent;
 
       if (active_builtin_disp_id < kNumDisplays) {
-        if (delay_hotplug) {
-          cb_->WaitForCommitDone(active_builtin_disp_id, kClientTrustedUI);
-        } else {
-          callbacks_->OnRefresh(active_builtin_disp_id);
-        }
+        callbacks_->OnRefresh(active_builtin_disp_id);
       }
 
       status = 0;
@@ -647,9 +643,6 @@ int SDMDisplayBuilder::HandlePluggableDisplays(bool delay_hotplug) {
   }
 
   pending_hotplug_event_ = kHotPlugNone;
-  if (active_builtin_disp_id < kNumDisplays && delay_hotplug) {
-    cb_->WaitForCommitDone(active_builtin_disp_id, kClientTrustedUI);
-  }
 
   DLOGI("Handling hotplug... Done.");
   return 0;
@@ -665,6 +658,7 @@ void SDMDisplayBuilder::HandlePluggableDisplaysAsync(
     Fence::Wait(retire_fence);
   }
 
+  pending_hotplug_event_ = kHotPlugProcessing;
   std::thread(&SDMDisplayBuilder::HandlePluggableDisplays, this, true).detach();
 }
 
@@ -762,6 +756,10 @@ int SDMDisplayBuilder::HandleConnectedDisplays(HWDisplaysInfo *displays_info,
         DLOGW("Pluggable display creation failed/aborted. Error %d '%s'.", err,
               strerror(abs(err)));
         status = err;
+
+        if (err == kErrorDeviceRemoved) {
+          status = -ENODEV;
+        }
         // Attempt creating remaining pluggable displays.
         break;
       }

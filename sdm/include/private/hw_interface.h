@@ -92,7 +92,7 @@ class HWEventHandler {
   virtual void MMRMEvent(uint32_t clk) = 0;
   virtual void HandlePowerEvent() = 0;
   virtual void HandleVmReleaseEvent() = 0;
-  virtual void GetDRMDisplayToken(sde_drm::DRMDisplayToken *token) = 0;
+  virtual void GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) = 0;
   virtual bool IsPrimaryDisplay() = 0;
   virtual DisplayError GetPanelBrightnessBasePath(std::string *base_path) = 0;
 
@@ -173,10 +173,11 @@ class HWInterface {
   virtual void HandleCwbTeardown(bool sync_teardown) = 0;
   virtual void SetDestScalarData(const HWLayersInfo &hw_layer_info) = 0;
   virtual void GetDRMDisplayToken(sde_drm::DRMDisplayToken *token) const = 0;
-  virtual bool IsAVRStepSupported(uint32_t config_index) = 0;
+  virtual uint32_t GetAVRStep(uint32_t config_index) = 0;
   virtual DisplayError NotifyExpectedPresent(uint64_t expected_present_time,
                                              uint32_t frame_interval_ns) = 0;
   virtual bool IsVRRSupported() = 0;
+  virtual void DisplayEarlyWakeUp() = 0;
 
  protected:
   virtual ~HWInterface() { }

@@ -31,27 +31,45 @@ inline int roundUpToPageSize(int x) {
   return (x + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
 }
 
-#define OVERFLOW(x, y)                                                         \
-  (sizeof(x) == 4) ? (((y) != 0) && ((x) > ((~0U) / (y))))                     \
-                   : (((y) != 0) && ((x) > ((~0ULL) / (y))))
+enum OverflowType { ADD = 0, MUL };
 
-#define OVERFLOW_ERR_RETURN(x, y)                                              \
-  if (OVERFLOW(x, y))                                                          \
-  return Error::BAD_VALUE
+#define OVERFLOW_MUL(x, y)                                                               \
+  (sizeof(x) == 4) ? (((y) != 0) && ((x) > (std::numeric_limits<int32_t>::max() / (y)))) \
+                   : (((y) != 0) && ((x) > (std::numeric_limits<int64_t>::max() / (y))))
+
+#define OVERFLOW_ADD(x, y)                                                              \
+  (sizeof(x) == 4) ? (((y) > 0) && ((x) > (std::numeric_limits<int32_t>::max() - (y)))) \
+                   : (((y) > 0) && ((x) > (std::numeric_limits<int64_t>::max() - (y))))
+
+#define OVERFLOW_ERR_RETURN(x, y, type)                       \
+  {                                                           \
+    if (type == OverflowType::ADD) {                          \
+      if (OVERFLOW_ADD(x, y)) {                               \
+        DLOGE("Addition overflow detected. Exiting..");       \
+        return Error::BAD_VALUE;                              \
+      }                                                       \
+    } else if (type == OverflowType::MUL) {                   \
+      if (OVERFLOW_MUL(x, y)) {                               \
+        DLOGE("Multiplication overflow detected. Exiting.."); \
+        return Error::BAD_VALUE;                              \
+      }                                                       \
+    }                                                         \
+  }
 
 #define UINT(exp) static_cast<unsigned int>(exp)
 
 #define PROPERTY_VALUE_MAX 255
 extern bool enable_logs;
 
-template <class Type1, class Type2>
-inline Type1 ALIGN(Type1 x, Type2 align) {
-  Type1 max_val = std::numeric_limits<Type1>::max();
-  if (x > (max_val - (Type1)align)) {
-    return x;
+inline int ALIGN(int operand, int alignment) {
+  int max_val = std::numeric_limits<int>::max();
+  if (operand > (max_val - (int)alignment)) {
+    return operand;
   }
 
-  return (Type1)((x + (Type1)align - 1) & ~((Type1)align - 1));
+  int remainder = (operand % alignment);
+
+  return (0 == remainder) ? operand : operand - remainder + alignment;
 }
 
 uint64_t GetPixelFormatModifier(BufferDescriptor desc);

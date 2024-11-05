@@ -114,7 +114,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   virtual DisplayError SetAlternateDisplayConfig(uint32_t *alt_config);
   virtual DisplayError UpdateTransferTime(uint32_t transfer_time);
   void SetDestScalarData(const HWLayersInfo &hw_layer_info);
-  virtual bool IsAVRStepSupported(uint32_t config_index);
+  virtual uint32_t GetAVRStep(uint32_t config_index);
   virtual bool IsVRRSupported();
 
  private:
@@ -134,7 +134,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   void InitAIScaler();
   bool IsCACEnabled(const HWLayersInfo *hw_layers_info);
   DisplayError UpdateLoopBackConnector();
-  DisplayError ConfigureLoopbackCAC(const HWLayersInfo *hw_layers_info);
+  DisplayError ConfigureLoopbackCAC(const bool cac_enabled);
 
   struct DestScalarCache {
     SDEScaler scalar_data = {};

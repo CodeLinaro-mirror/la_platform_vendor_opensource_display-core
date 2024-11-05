@@ -121,8 +121,18 @@ DisplayError DisplayPluggable::Init() {
   GetScanSupport();
   underscan_supported_ = (scan_support_ == kScanAlwaysUnderscanned) || (scan_support_ == kScanBoth);
 
-  event_list_ = {HWEvent::VSYNC, HWEvent::EXIT, HWEvent::CEC_READ_MESSAGE,
-                 HWEvent::HW_RECOVERY, HWEvent::POWER_EVENT};
+  std::vector<HWEvent> events = {HWEvent::VSYNC, HWEvent::EXIT, HWEvent::CEC_READ_MESSAGE,
+                                 HWEvent::HW_RECOVERY, HWEvent::POWER_EVENT};
+  std::bitset<8> core_id_map = display_id_info_.GetCoreIdMap();
+  for (int i = 0; i < core_id_map.size(); i++) {
+    if (!core_id_map[i]) {
+      continue;
+    }
+
+    event_list_[i] = events;
+    primary_core_id_ = i;
+    break;
+  }
 
   error = HWEventsInterface::Create(display_id_info_, kPluggable, this, event_list_,
                                     &hw_events_intf_);
@@ -132,6 +142,7 @@ DisplayError DisplayPluggable::Init() {
     DLOGE("Failed to create hardware events interface. Error = %d for display %d-%d", error,
           display_id_, display_type_);
   }
+  master_hw_events_intf_ = hw_events_intf_[primary_core_id_];
 
   InitializeColorModes();
 
@@ -519,8 +530,8 @@ void DisplayPluggable::HandlePowerEvent() {
 void DisplayPluggable::HandleVmReleaseEvent() {
 }
 
-void DisplayPluggable::GetDRMDisplayToken(sde_drm::DRMDisplayToken *token) {
-  dpu_core_mux_->GetDRMDisplayToken(token);
+void DisplayPluggable::GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) {
+  dpu_core_mux_->GetDRMDisplayToken(core_id, token);
 }
 
 bool DisplayPluggable::IsPrimaryDisplay() {

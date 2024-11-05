@@ -61,15 +61,24 @@ void GraphicsConstraintProvider::Init(
   } else {
     parser->ParseFormats(&format_data_map_);
   }
+
+  gfx_ubwc_disable_ = Debug::GetInstance()->IsUBWCDisabled();
 }
 
 static bool AdrenoAlignmentRequired(vendor_qti_hardware_display_common_BufferUsage usage,
                                     vendor_qti_hardware_display_common_PixelFormat format) {
   if ((usage & vendor_qti_hardware_display_common_BufferUsage::GPU_TEXTURE) ||
       (usage & vendor_qti_hardware_display_common_BufferUsage::GPU_RENDER_TARGET)) {
-    // It is mandatory to use adreno alignment requirements for these formats
-    // when GPU_TEXTURE or GPU_RENDER_TARGET bits are set
-    if (format == YV12 || format == YCBCR_422_I) {
+    if (format == YV12) {
+      if ((usage & vendor_qti_hardware_display_common_BufferUsage::QTI_PRIVATE_VIDEO_HW) &&
+          ((usage & vendor_qti_hardware_display_common_BufferUsage::VIDEO_ENCODER) ||
+           (usage & vendor_qti_hardware_display_common_BufferUsage::VIDEO_DECODER) ||
+           !CpuCanAccess(usage))) {
+        return true;
+      }
+    }
+
+    if (format == YCBCR_422_I) {
       return true;
     }
   }
@@ -79,6 +88,13 @@ static bool AdrenoAlignmentRequired(vendor_qti_hardware_display_common_BufferUsa
 int GraphicsConstraintProvider::GetInitialMetadata(
     BufferDescriptor desc, vendor_qti_hardware_display_common_GraphicsMetadata *graphics_metadata,
     bool is_ubwc_enabled) {
+  // Due to a plane alignment calculation delta for metadata blob for YV12,
+  // do not initialize graphics metadata blob
+  // TODO: remove once support is added from adreno API
+  if (desc.format == YV12) {
+    return Error::UNSUPPORTED;
+  }
+
   uint64_t pixel_format_modifier = GetPixelFormatModifier(desc);
   auto adreno_format = GetGpuPixelFormat(
       desc.format,
@@ -251,7 +267,8 @@ int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCo
       // This returns aligned width in pixels
       AlignUnCompressedRGB(desc.width, desc.height, format, tile_enabled, pixel_format_modifier,
                            &aligned_w, &aligned_h);
-      OVERFLOW_ERR_RETURN(static_cast<uint64_t>(aligned_w), (format_data.bits_per_pixel / 8.0f));
+      OVERFLOW_ERR_RETURN(static_cast<uint64_t>(aligned_w), (format_data.bits_per_pixel / 8.0f),
+                          OverflowType::MUL);
       plane_layout.stride.horizontal_stride =
           static_cast<uint64_t>(aligned_w) * (format_data.bits_per_pixel / 8.0f);
       plane_layout.scanline.scanline = static_cast<uint64_t>(aligned_h);
@@ -281,8 +298,20 @@ int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCo
                            pixel_format_modifier));
       if (LINK_adreno_compute_fmt_aligned_width_and_height &&
           gpu_format != ADRENO_PIXELFORMAT_UNKNOWN) {
+        int input_width = desc.width;
+        int input_height = desc.height;
+        if ((desc.format == vendor_qti_hardware_display_common_PixelFormat::YV12) &&
+            ((plane.components[0].type == PLANE_LAYOUT_COMPONENT_TYPE_CB) ||
+             (plane.components[0].type == PLANE_LAYOUT_COMPONENT_TYPE_CR))) {
+          // Input width and height need to be adjusted for subsampling
+          // for the chroma planes for YV12,
+          // as the API does not differentiate based on the plane
+          input_width /= 2;
+          input_height /= 2;
+        }
+
         LINK_adreno_compute_fmt_aligned_width_and_height(
-            desc.width, desc.height, format_data.planes.size(), gpu_format, 1 /*num_samples*/,
+            input_width, input_height, format_data.planes.size(), gpu_format, 1 /*num_samples*/,
             tile_mode, raster_mode, padding_threshold, (int *)&aligned_w, (int *)&aligned_h);
 
         plane_layout.stride.horizontal_stride =

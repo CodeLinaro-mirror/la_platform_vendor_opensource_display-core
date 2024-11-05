@@ -735,40 +735,39 @@ DisplayError ConcurrencyMgr::Hotplug(Display display, bool state) {
   return kErrorNone;
 }
 
-void ConcurrencyMgr::RegisterCompositorCallback(SDMCompositorCbIntf *cb, bool enable) {
-  SCOPE_LOCK(client_lock_);
-  callbacks_.RegisterCallback(cb, enable);
+void ConcurrencyMgr::GetPendingHotplug(vector<Display> &pending_hotplugs) {
+  for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_BUILTIN_2)) {
+    SCOPE_LOCK(locker_[map_info.client_id]);
 
-  // Detect if client died and now is back
-  vector<Display> pending_hotplugs;
-
-  if (enable && client_connected_) {
-    for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_BUILTIN_2)) {
-      SCOPE_LOCK(locker_[map_info.client_id]);
-
-      if (sdm_display_[map_info.client_id]) {
-        pending_hotplugs.push_back(static_cast<Display>(map_info.client_id));
-      }
-    }
-
-    for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_EXTERNAL)) {
-      SCOPE_LOCK(locker_[map_info.client_id]);
-
-      if (sdm_display_[map_info.client_id]) {
-        pending_hotplugs.push_back(static_cast<Display>(map_info.client_id));
-      }
+    if (sdm_display_[map_info.client_id]) {
+      pending_hotplugs.push_back(static_cast<Display>(map_info.client_id));
     }
   }
 
+  for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_EXTERNAL)) {
+    SCOPE_LOCK(locker_[map_info.client_id]);
+
+    if (sdm_display_[map_info.client_id]) {
+      pending_hotplugs.push_back(static_cast<Display>(map_info.client_id));
+    }
+  }
+}
+
+void ConcurrencyMgr::RegisterCompositorCallback(SDMCompositorCbIntf *cb, bool enable) {
+  SCOPE_LOCK(client_lock_);
+  callbacks_.RegisterCallback(cb, enable);
+  vector<Display> pending_hotplugs;
+
   client_connected_ = enable;
   if (enable) {
+    GetPendingHotplug(pending_hotplugs);
+
     if (sdm_display_[SDM_DISPLAY_PRIMARY]) {
       DLOGI("Hotplugging primary...");
       Hotplug(SDM_DISPLAY_PRIMARY, true);
     }
 
-    // Create displays since they should now have their final display indices
-    // set.
+    // Create displays since they should now have their final display indices set.
     DLOGI("Handling built-in displays...");
     {
       SCOPE_LOCK(primary_display_lock_);
@@ -790,22 +789,22 @@ void ConcurrencyMgr::RegisterCompositorCallback(SDMCompositorCbIntf *cb, bool en
       }
     }
 
-    // If previously registered, call hotplug for all connected displays to
-    // refresh
-    if (client_connected_) {
-      std::vector<Display> updated_pending_hotplugs;
-      for (auto client_id : pending_hotplugs) {
-        SCOPE_LOCK(locker_[client_id]);
-        // check if the display is unregistered
-        if (sdm_display_[client_id]) {
-          updated_pending_hotplugs.push_back(client_id);
-        }
+    // Call hotplug for all connected displays to refresh
+    // This is needed for cases where -
+    // 1. client has died and is now back (client_connected_ will remain true)
+    // 2. client is unregistered and then registered (client_connected_ will be false)
+    // pending_hotplugs will not have valid displays for other cases
+    std::vector<Display> updated_pending_hotplugs;
+    for (auto client_id : pending_hotplugs) {
+      SCOPE_LOCK(locker_[client_id]);
+      // check if the display is unregistered
+      if (sdm_display_[client_id]) {
+        updated_pending_hotplugs.push_back(client_id);
       }
-      for (auto client_id : updated_pending_hotplugs) {
-        DLOGI("Re-hotplug display connected: client id = %d",
-              UINT32(client_id));
-        Hotplug(client_id, true);
-      }
+    }
+    for (auto client_id : updated_pending_hotplugs) {
+      DLOGI("Re-hotplug display connected: client id = %d", UINT32(client_id));
+      Hotplug(client_id, true);
     }
   }
 
@@ -1193,8 +1192,10 @@ void ConcurrencyMgr::Refresh(uint64_t display) {
 void ConcurrencyMgr::CompositorSync(CompositorSyncType sync_type) {
   if (sync_type == CompositorSyncTypeAcquire) {
     command_seq_mutex_.lock();
+    tui_mutex_.lock();
   } else {
     command_seq_mutex_.unlock();
+    tui_mutex_.unlock();
   }
 }
 
@@ -1203,6 +1204,7 @@ void ConcurrencyMgr::PerformDisplayPowerReset() {
 
   // Wait until all commands are flushed.
   std::lock_guard<std::mutex> lock(command_seq_mutex_);
+  std::lock_guard<std::mutex> tui_lock(tui_mutex_);
 
   // Acquire lock on all displays.
   for (Display display = SDM_DISPLAY_PRIMARY; display < kNumDisplays;
@@ -1265,7 +1267,9 @@ void ConcurrencyMgr::PerformDisplayPowerReset() {
     locker_[display].Unlock();
   }
 
-  Refresh(vsync_source);
+  if (vsync_source != kNumDisplays && sdm_display_[vsync_source]) {
+    Refresh(vsync_source);
+  }
 }
 
 void ConcurrencyMgr::DisplayPowerReset() {
@@ -1873,12 +1877,10 @@ DisplayError ConcurrencyMgr::WaitForCommitDone(Display display, int client_id) {
     retire_fence_[display] = nullptr;
     if (sdm_display_[display]) {
       uint32_t config = 0;
-      sdm_display_[display]->GetActiveDisplayConfig(false, &config);
       DisplayConfigVariableInfo display_attributes = {};
-      sdm_display_[display]->GetDisplayAttributesForConfig(config,
-                                                           &display_attributes);
-      timeout_ms =
-          kNumDrawCycles * (display_attributes.vsync_period_ns / kDenomNstoMs);
+      sdm_display_[display]->GetCachedActiveConfig(false, &config);
+      sdm_display_[display]->GetDisplayAttributes(config, &display_attributes);
+      timeout_ms = (kNumDrawCycles * (display_attributes.vsync_period_ns / kDenomNstoMs)) + 100;
       DLOGI("timeout in ms %d", timeout_ms);
     }
   }
@@ -1938,7 +1940,6 @@ DisplayError ConcurrencyMgr::TeardownConcurrentWriteback(Display display) {
 
     if (disp) {
       disp->TeardownConcurrentWriteback();
-      WaitForCommitDone(display, kClientTeardownCWB);
     }
   }
 
@@ -2040,6 +2041,7 @@ DisplayError ConcurrencyMgr::CreateVirtualDisplay(uint32_t width,
                                                   Display *out_display_id) {
   // Wait until all commands are flushed.
   std::lock_guard<std::mutex> sdm_lock(command_seq_mutex_);
+  std::lock_guard<std::mutex> tui_lock(tui_mutex_);
 
   return disp_->CreateVirtualDisplay(width, height, format, out_display_id);
 }
@@ -2047,6 +2049,7 @@ DisplayError ConcurrencyMgr::CreateVirtualDisplay(uint32_t width,
 DisplayError ConcurrencyMgr::DestroyVirtualDisplay(Display client_id) {
   // Wait until all commands are flushed.
   std::lock_guard<std::mutex> sdm_lock(command_seq_mutex_);
+  std::lock_guard<std::mutex> tui_lock(tui_mutex_);
 
   return disp_->DestroyVirtualDisplay(client_id);
 }
@@ -2131,7 +2134,7 @@ DisplayError ConcurrencyMgr::ControlPartialUpdate(uint64_t disp_id,
 
   // Todo(user): Unlock it before sending events to client. It may cause
   // deadlocks in future. Wait until partial update control is complete
-  auto error = WaitForCommitDone(SDM_DISPLAY_PRIMARY, kClientPartialUpdate);
+  auto error = WaitForCommitDone(GetDisplayIndex(disp_id), kClientPartialUpdate);
   if (error != kErrorNone) {
     DLOGW("%s Partial update failed with error %d",
           enable ? "Enable" : "Disable", error);
@@ -2389,7 +2392,7 @@ DisplayError ConcurrencyMgr::SetDSIClk(uint64_t disp_id, uint64_t bit_clk) {
     return kErrorResources;
   }
 
-  return sdm_display_[disp_id]->SetDynamicDSIClock(bit_clk);
+  return sdm_display_[disp_id]->ScheduleDynamicDSIClock(bit_clk);
 }
 
 DisplayError ConcurrencyMgr::SetQsyncMode(uint64_t disp_id, QSyncMode mode) {

@@ -27,9 +27,7 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
@@ -91,7 +89,8 @@ public:
  virtual DisplayError SetDisplayDppsAdROI(uint32_t h_start, uint32_t h_end, uint32_t v_start,
                                           uint32_t v_end, uint32_t factor_in, uint32_t factor_out);
  virtual DisplayError SetJitterConfig(uint32_t jitter_type, float value, uint32_t time);
- virtual DisplayError SetDynamicDSIClock(uint64_t bitclk);
+ virtual DisplayError SetDynamicDSIClock();
+ virtual DisplayError ScheduleDynamicDSIClock(uint64_t bitclk);
  virtual DisplayError GetDynamicDSIClock(uint64_t *bitclk);
  virtual DisplayError GetSupportedDSIClock(std::vector<uint64_t> *bitclk_rates);
  virtual DisplayError UpdateDisplayId(Display id);
@@ -222,6 +221,9 @@ private:
 
  // Nominal VSync multiplier for Notify EPT heads-up
  const int32_t notify_ept_heads_up_config_ = 2;
+
+ // Commit counter for dynamic dsi clock
+ uint32_t commit_counter_ = 0;
 };
 
 } // namespace sdm

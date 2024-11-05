@@ -565,6 +565,8 @@ struct HWPanelInfo {
   bool dpu_ctl_op_sync = false;        // Supports multi-core DPU Interface Sync
   HWDMSType dms_type = kDMSVIDDisabled;  // DMS type
   bool ssip_enabled = false;           // SSIP features supported
+  bool has_ai_scaler = false;          // AI Scaler feature is enabled
+  bool vhm_support = false;            // Video Hybrid Mode support
 
   bool operator !=(const HWPanelInfo &panel_info) {
     return ((port != panel_info.port) || (mode != panel_info.mode) ||
@@ -588,7 +590,10 @@ struct HWPanelInfo {
             (panel_mode_caps != panel_info.panel_mode_caps) ||
             (qsync_support != panel_info.qsync_support) ||
             (dyn_bitclk_support != panel_info.dyn_bitclk_support) ||
-            (bitclk_rates != panel_info.bitclk_rates) || (ssip_enabled != panel_info.ssip_enabled));
+            (bitclk_rates != panel_info.bitclk_rates) ||
+            (ssip_enabled != panel_info.ssip_enabled) ||
+            (has_ai_scaler != panel_info.has_ai_scaler) ||
+            (vhm_support != panel_info.vhm_support));
   }
 
   bool operator ==(const HWPanelInfo &panel_info) {
@@ -780,12 +785,19 @@ struct HWScaleData {
   uint32_t cac_re_asym_phase_step_v = 0;
 };
 
+enum DSMergeMode {
+  kDestScalerSinglePipe,
+  kDestScalerDualPipe,
+  kDestScalerQuadPipe,
+};
+
 struct HWDestScaleInfo {
   uint32_t mixer_width = 0;
   uint32_t mixer_height = 0;
   bool scale_update = false;
   HWScaleData scale_data = {};
   LayerRect panel_roi = {};
+  DSMergeMode mixer_merge_mode = kDestScalerSinglePipe;
 };
 
 typedef std::map<uint32_t, HWDestScaleInfo *> DestScaleInfoMap;
@@ -962,6 +974,7 @@ enum UpdateType {
   kUpdateLuts,       // Indicates TM only Strategy execution, which can update SSPP color features.
   kUpdateFBObject,   // Indicates that the FrameBuffer Object has been updated.
   kChangeCwbConfig,  // Indicates either CWB buffer attached/detached to stack or size changed.
+  kHalSelfRefresh,   // Indicates that it is HAL Self-Refresh Commit.
   kUpdateMax,
 };
 
@@ -1024,6 +1037,7 @@ enum SelfRefreshState {
 
 struct SprOverfetchLines {
   uint32_t top = 0;  // Over fetch lines for SPR pu on Top
+  uint32_t bottom = 0;  // Over fetch lines for SPR pu at bottom
 };
 
 struct CommonStackInfo {
@@ -1079,6 +1093,7 @@ struct LayerStackInfo {
   RCLayersInfo rc_layers_info = {};
   CommonStackInfo common_info = {};
   bool enable_cac = false;  // This field hints to enable CAC
+  bool enable_anamorphic_fov = false;  // This field hints to enable anamorphic foveation
   CacConfig cac_config = {};
   Handle comp_stack = nullptr;
   SelfRefreshState self_refresh_state = kSelfRefreshNone;
@@ -1124,6 +1139,7 @@ struct HWLayersInfo {
   bool iwe_enabled = false;
   HWDNSCInfo dnsc_cfg = {};
   SelfRefreshState self_refresh_state = kSelfRefreshNone;
+  BufferInfo dummy_loopback_cac_info = {};
 };
 
 struct DispLayerStack {
