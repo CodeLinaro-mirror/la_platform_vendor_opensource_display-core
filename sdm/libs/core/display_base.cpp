@@ -2089,6 +2089,7 @@ DisplayError DisplayBase::GetConfig(uint32_t index, DisplayConfigVariableInfo *v
 DisplayError DisplayBase::GetConfig(DisplayConfigFixedInfo *fixed_info) {
   ClientLock lock(disp_mutex_);
   fixed_info->is_cmdmode = (client_ctx_.hw_panel_info.mode == kModeCommand);
+  fixed_info->vhm_support = client_ctx_.hw_panel_info.vhm_support;
   bool hdr_supported = true;
   bool has_concurrent_writeback = true;
 
