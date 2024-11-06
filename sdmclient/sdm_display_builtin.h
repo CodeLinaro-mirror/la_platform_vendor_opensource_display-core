@@ -223,7 +223,7 @@ private:
  const int32_t notify_ept_heads_up_config_ = 2;
 
  // Commit counter for dynamic dsi clock
- uint32_t commit_counter_ = 0;
+ bool commit_counter_ = false;
 };
 
 } // namespace sdm
