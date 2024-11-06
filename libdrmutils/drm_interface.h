@@ -802,6 +802,7 @@ enum struct CacVersion {
 
 /* DDR Version */
 enum struct DDRVersion {
+  kDDRVersionNone,
   kDDRVersion4,
   kDDRVersion5,
   kDDRVersion5x,
@@ -864,7 +865,7 @@ struct DRMCrtcInfo {
   bool has_noise_layer = false;
   uint32_t dsc_block_count = 0;
   CacVersion cac_version = CacVersion::NONE;
-  DDRVersion ddr_version = DDRVersion::kDDRVersion5;
+  DDRVersion ddr_version = DDRVersion::kDDRVersionNone;
   bool has_cesta = false;
   uint32_t ai_scaler_count = 0;
 };
