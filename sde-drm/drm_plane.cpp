@@ -860,7 +860,7 @@ void DRMPlane::ParseProperties() {
       PopulateUcscGcMode(info);
     }
 
-    if (prop_enum == DRMProperty::ALPHA) {
+    if ((prop_enum == DRMProperty::ALPHA) && info->values) {
       alpha_range_.first = info->values[0];
       alpha_range_.second = info->values[1];
     }

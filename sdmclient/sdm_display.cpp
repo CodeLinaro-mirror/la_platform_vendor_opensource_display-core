@@ -541,6 +541,10 @@ SDMDisplay::SDMDisplay(CoreInterface *core_intf, BufferAllocator *buffer_allocat
 
   auto sdm_factory = SDMInterfaceFactoryImpl::GetSDMFactoryInternal();
   layer_builder_ = sdm_factory->GetLayerBuilderInternal();
+  if (layer_builder_ == nullptr) {
+    DLOGE("Layer Builder is NULL");
+    return;
+  }
   layer_builder_->Init(buffer_allocator, id);
 
   auto error = layer_builder_->GetSDMLayerStack(id, &sdm_layer_stack_);

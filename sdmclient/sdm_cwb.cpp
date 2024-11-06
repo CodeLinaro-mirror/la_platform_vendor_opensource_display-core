@@ -187,6 +187,11 @@ void SDMConcurrentWriteBack::ProcessCWBStatus(int dpy_index) {
       }
 
       cwb_node = session_map.queue.front();
+      if (cwb_node == nullptr) {
+        DLOGW("Spurious nullptr");
+        session_map.queue.pop_front();
+        continue;
+      }
       if (!cwb_node->request_completed) {
         // Need to continue to recheck until node specific client call
         // completes.
