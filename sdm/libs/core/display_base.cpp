@@ -4508,7 +4508,6 @@ DisplayError DisplayBase::SetHWDetailedEnhancerConfig(void *params) {
 #endif
 
       if (de_tuning_cfg_data->params.flags & kDeTuningFlagSharpFactor) {
-        de_data.override_flags |= kOverrideDESharpen1;
         de_data.sharp_factor = de_tuning_cfg_data->params.sharp_factor;
       }
 
