@@ -992,7 +992,7 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
 
   bool enable_abc = false;
   if (Debug::GetProperty(ENABLE_ABC, &value) == kErrorNone) {
-    enable_abc = (value == 1);
+    enable_abc = (value > 0);
   }
 
   bool enable_ssrc = false;

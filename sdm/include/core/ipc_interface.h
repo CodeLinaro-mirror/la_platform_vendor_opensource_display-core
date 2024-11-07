@@ -1,9 +1,7 @@
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification, are permitted
+
+ *Redistribution and use in source and binary forms, with or without modification, are permitted
  * provided that the following conditions are met:
  *    * Redistributions of source code must retain the above copyright notice, this list of
  *      conditions and the following disclaimer.
@@ -22,6 +20,12 @@
  * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #ifndef __IPC_INTERFACE_H__
@@ -71,6 +75,7 @@ struct IPCDisplayConfigParams {
   bool smart_panel = false;       //!< If the display config has smart panel.
   uint32_t mixer_width = 0;
   uint32_t mixer_height = 0;
+  std::string abc_mode = "";  //!< Current ABC mode.
 };
 
 struct DemuraPaths {

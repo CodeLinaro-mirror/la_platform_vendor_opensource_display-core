@@ -399,6 +399,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   std::shared_ptr<DemuraTnCleanupIntf> demuratn_cleanup_intf_;
   bool demuratn_user_disabled_ = false;
   bool abc_enabled_ = false;
+  bool abc_tvm_enabled_ = false;
   bool abc_prop_ = false;
   bool enable_dpps_dyn_fps_ = false;
   HWDisplayMode last_panel_mode_ = kModeDefault;
