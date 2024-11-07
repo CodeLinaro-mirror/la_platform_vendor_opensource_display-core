@@ -357,6 +357,7 @@ enum HWQseedStepVersion {
   kQseed3litev8,
   kQseed3litev9,
   kQseed3litev10,
+  kQseed3litev11,
 };
 
 struct HWDestScalarInfo {
@@ -462,7 +463,7 @@ struct HWResourceInfo {
   CompRatioMap comp_ratio_rt_map;
   CompRatioMap comp_ratio_nrt_map;
   uint32_t cache_size = 0;  // cache size in bytes
-  HWQseedStepVersion pipe_qseed3_version = kQseed3v2;  // only valid when has_qseed3=true
+  HWQseedStepVersion pipe_qseed3_version = kQseed3litev11;  // only valid when has_qseed3=true
   uint32_t min_prefill_lines = 0;
   InlineRotationInfo inline_rot_info = {};
   std::bitset<32> src_tone_map = 0;  //!< Stores the bit mask of src tone map capability
@@ -1078,6 +1079,7 @@ struct LayerStackInfo {
 
   bool stitch_present = false;  // Indicates there is stitch layer or not
   bool demura_present = false;  // Indicates there is demura layer or not
+  bool udc_present = false;  // Indicates there is udc layer or not
   bool cwb_present = false;  // Indicates there is cwb layer or not
   bool lower_fps = false;  // This field hints to lower the fps in case of idle fallback
   bool notify_idle = false;

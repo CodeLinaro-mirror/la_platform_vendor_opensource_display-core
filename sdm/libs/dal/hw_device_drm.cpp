@@ -992,7 +992,7 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
 
   bool enable_abc = false;
   if (Debug::GetProperty(ENABLE_ABC, &value) == kErrorNone) {
-    enable_abc = (value == 1);
+    enable_abc = (value > 0);
   }
 
   bool enable_ssrc = false;
@@ -2514,6 +2514,40 @@ void HWDeviceDRM::SelectCscType(const LayerBuffer &input_buffer, DRMCscType *typ
     }
   }
 
+  if (SelectCscTypeWithMatrixCoEfficients(input_buffer, type) != kErrorNone) {
+    SelectCscTypeWithColorPrimaries(input_buffer, type);
+  }
+}
+
+DisplayError HWDeviceDRM::SelectCscTypeWithMatrixCoEfficients(const LayerBuffer &input_buffer,
+                                                              sde_drm::DRMCscType *type) {
+  switch (input_buffer.matrixCoefficients) {
+    case QtiMatrixCoEff_BT601_6_625:
+    case QtiMatrixCoEff_BT601_6_525:
+      *type = ((input_buffer.dataspace.range == QtiRange_Full) ? DRMCscType::kCscYuv2Rgb601FR
+                                                               : DRMCscType::kCscYuv2Rgb601L);
+      break;
+    case QtiMatrixCoEff_BT709_5:
+      *type = ((input_buffer.dataspace.range == QtiRange_Full) ? DRMCscType::kCscYuv2Rgb709FR
+                                                               : DRMCscType::kCscYuv2Rgb709L);
+      break;
+    case QtiMatrixCoEff_BT2020:
+    case QtiMatrixCoEff_BT2020Constant:
+      *type = ((input_buffer.dataspace.range == QtiRange_Full) ? DRMCscType::kCscYuv2Rgb2020FR
+                                                               : DRMCscType::kCscYuv2Rgb2020L);
+      break;
+    case QtiMatrixCoEff_DCIP3:
+      *type = ((input_buffer.dataspace.range == QtiRange_Full) ? DRMCscType::kCscYuv2RgbDCIP3FR
+                                                               : DRMCscType::kCscTypeMax);
+      break;
+    default:
+      return kErrorNotSupported;
+  }
+  return kErrorNone;
+}
+
+void HWDeviceDRM::SelectCscTypeWithColorPrimaries(const LayerBuffer &input_buffer,
+                                                  sde_drm::DRMCscType *type) {
   switch (input_buffer.dataspace.colorPrimaries) {
     case QtiColorPrimaries_BT601_6_525:
     case QtiColorPrimaries_BT601_6_625:

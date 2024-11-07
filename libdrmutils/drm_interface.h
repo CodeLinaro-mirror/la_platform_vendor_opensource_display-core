@@ -776,6 +776,7 @@ enum struct QSEEDStepVersion {
   V3LITE_V8,
   V3LITE_V9,
   V3LITE_V10,
+  V3LITE_V11,
 };
 
 enum struct SmartDMARevision {
@@ -1229,6 +1230,7 @@ enum DRMPanelFeatureID {
   kDRMPanelFeatureAIScalerCfg,
   kDRMPanelFeatureAiqeMdnie,
   kDRMPanelFeatureAiqeMdnieArt,
+  kDRMPanelFeatureAiqeMdnieIPC,
   kDRMPanelFeatureAiqeCopr,
   kDRMPanelFeatureABC,
   kDRMPanelFeatureDemuraBacklight,

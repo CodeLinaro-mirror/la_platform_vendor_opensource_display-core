@@ -59,6 +59,7 @@ enum PanelFeaturePropertyID {
   kPanelFeatureAIScalerCfg,
   kPanelFeatureAiqeMdnie,
   kPanelFeatureAiqeMdnieArt,
+  kPanelFeatureAiqeMdnieIPC,
   kPanelFeatureAiqeCopr,
   kPanelFeatureABCCfg,
   kPanelFeatureDemuraBacklight,

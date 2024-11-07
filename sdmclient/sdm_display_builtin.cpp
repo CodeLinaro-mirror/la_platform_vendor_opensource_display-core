@@ -286,6 +286,7 @@ DisplayError SDMDisplayBuiltIn::CommitLayerStack() {
   DisplayError error = SDMDisplay::CommitLayerStack();
 
   if (commit_counter_) {
+    commit_counter_ = false;
     callbacks_->OnRefresh(id_);
   }
 
@@ -872,7 +873,6 @@ DisplayError SDMDisplayBuiltIn::SetHWDetailedEnhancerConfig(void *params) {
           de_tuning_cfg_data->params.de_lpf_l);
 #endif
       if (de_tuning_cfg_data->params.flags & kDeTuningFlagSharpFactor) {
-        de_data.override_flags |= kOverrideDESharpen1;
         de_data.sharp_factor = de_tuning_cfg_data->params.sharp_factor;
       }
 
@@ -1079,7 +1079,7 @@ DisplayError SDMDisplayBuiltIn::SetJitterConfig(uint32_t jitter_type,
 
 DisplayError SDMDisplayBuiltIn::SetDynamicDSIClock() {
   // decrement the counter and set dsi clock when counter hit 0
-  if (!scheduled_dynamic_dsi_clk_ || (commit_counter_ >>= 1)) {
+  if (!scheduled_dynamic_dsi_clk_ || commit_counter_) {
     return kErrorNone;
   }
 
@@ -1108,10 +1108,7 @@ DisplayError SDMDisplayBuiltIn::ScheduleDynamicDSIClock(uint64_t bitclk) {
 
   scheduled_dynamic_dsi_clk_ = bitclk;
 
-  // Set counter to b10
-  // On first commit it will be b01
-  // On second commit it will be b00
-  commit_counter_ = 1 << 1;
+  commit_counter_ = true;
 
   callbacks_->OnRefresh(id_);
 
@@ -1568,7 +1565,8 @@ DisplayError SDMDisplayBuiltIn::CommitOrPrepare(
   prepare_phase_ = false;
 
   // Need a commit call to flush the dsi dynamic clock
-  if (commit_counter_) {
+  if (!(*needs_commit) && commit_counter_) {
+    commit_counter_ = false;
     callbacks_->OnRefresh(id_);
   }
 
@@ -1743,7 +1741,7 @@ DisplayError SDMDisplayBuiltIn::SetABCMode(string mode_name) {
   DisplayError error = display_intf_->SetABCMode(mode_name);
 
   if (error != kErrorNone) {
-    DLOGE("Failed to Reconfig ABC feature, error = %d", error);
+    DLOGE("Failed to set ABC mode %s, error = %d", mode_name.c_str(), error);
     return kErrorParameters;
   }
 

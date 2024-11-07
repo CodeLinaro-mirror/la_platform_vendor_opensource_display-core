@@ -183,6 +183,14 @@ int IPCImpl::SetParameter(IPCParams param, const GenericPayload &in) {
                                        : kDisplayTypeSecondary1;
       cmd_disp_configs.mixer_width = disp_configs->mixer_width;
       cmd_disp_configs.mixer_height = disp_configs->mixer_height;
+
+      if ((!disp_configs->abc_mode.empty()) &&
+          (disp_configs->abc_mode.size() < ABC_MODE_SIZE_MAX)) {
+        strlcpy(cmd_disp_configs.abc_mode, disp_configs->abc_mode.c_str(),
+                sizeof(disp_configs->abc_mode));
+        DLOGI("Send display config %s to SVM", cmd_disp_configs.abc_mode);
+      }
+
       DLOGI("Send display configs: h_total %d v_total %d, fps %d, %s panel, "
             "disp_type %d to SVM",
             cmd_disp_configs.h_total, cmd_disp_configs.v_total,
