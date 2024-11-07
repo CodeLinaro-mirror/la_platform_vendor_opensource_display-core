@@ -1032,7 +1032,7 @@ DisplayError DisplayBase::ForceToneMapUpdate (LayerStack *layer_stack) {
 
 void DisplayBase::EnableLlccDuringAodMode(LayerStack *layer_stack) {
   if ((!disable_llcc_during_aod_) && ((state_ == kStateDoze) || (state_ == kStateDozeSuspend)) &&
-      (client_ctx_.hw_panel_info.mode == kModeVideo)) {
+      ((client_ctx_.hw_panel_info.mode == kModeVideo) && !client_ctx_.hw_panel_info.vhm_support)) {
     // Set CACHE_STATE property as part of Doze/Doze-suspend commit or subsequent commits
     // with video mode panel.
     disp_layer_stack_->stack_info.self_refresh_state = kSelfRefreshReadAlloc;
