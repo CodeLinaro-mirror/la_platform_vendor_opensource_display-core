@@ -1230,6 +1230,7 @@ enum DRMPanelFeatureID {
   kDRMPanelFeatureAIScalerCfg,
   kDRMPanelFeatureAiqeMdnie,
   kDRMPanelFeatureAiqeMdnieArt,
+  kDRMPanelFeatureAiqeMdnieIPC,
   kDRMPanelFeatureAiqeCopr,
   kDRMPanelFeatureABC,
   kDRMPanelFeatureDemuraBacklight,
