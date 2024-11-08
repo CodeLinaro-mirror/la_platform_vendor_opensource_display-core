@@ -41,6 +41,7 @@
 #include <utils/locker.h>
 #include <utils/sys.h>
 #include <utils/multi_core_instantiator.h>
+#include <private/demuratn_validator_intf.h>
 
 #include <memory>
 #include <vector>
@@ -124,6 +125,7 @@ class CoreImpl : public CoreInterface {
   DisplayError HandleNullDisplay();
   DisplayError ReserveDemuraResources(std::map<uint32_t, uint8_t> required_demura_fetch_cnt);
   DisplayError ReserveABCResources(std::map<uint32_t, uint8_t> required_abc_fetch_cnt);
+  DisplayError ValidateAndCleanupDemuraFiles();
 
   Locker locker_;
   BufferAllocator *buffer_allocator_ = NULL;
@@ -147,6 +149,7 @@ class CoreImpl : public CoreInterface {
   std::vector<uint32_t> demura_display_ids_;
   bool enable_null_display_ = false;
   std::bitset<8> core_ids_ = std::bitset<8>(0xFF);
+  std::shared_ptr<DemuraTnValidatorIntf> demuratn_validator_intf_;
 };
 
 }  // namespace sdm
