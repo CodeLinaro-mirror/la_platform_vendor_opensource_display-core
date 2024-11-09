@@ -263,8 +263,8 @@ typedef uint32_t Config;
 typedef int64_t LayerId;
 typedef int64_t nsecs_t;
 
-static const int kNumBuiltIn = 4;
-static const int kNumPluggable = 4;
+static const int kNumBuiltIn = 16;
+static const int kNumPluggable = 16;
 static const int kNumVirtual = 4;
 // Add 1 primary display which can be either a builtin or pluggable.
 // Async powermode update requires dummy displays.
