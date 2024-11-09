@@ -204,6 +204,12 @@ DisplayError CoreImpl::Deinit() {
   ReleaseDemuraResources();
   if (pm_intf_)
     pm_intf_->Deinit();
+
+  if (demuratn_validator_intf_ && demuratn_validator_intf_.use_count() == 1) {
+    demuratn_validator_intf_->Deinit();
+    demuratn_validator_intf_.reset();
+    demuratn_validator_intf_ = nullptr;
+  }
   // Clear color manager, stc lib
   ColorManagerProxy::Deinit();
 
@@ -774,6 +780,13 @@ DisplayError CoreImpl::ReserveDemuraPipeResources() {
     }
 
     panel_feature_factory_intf_ = get_factory_f_ptr();
+    if (!panel_feature_factory_intf_) {
+      DLOGE("Failed to get panel feature factory intf");
+      return kErrorResources;
+    }
+
+    ValidateAndCleanupDemuraFiles();
+
     pm_intf_ = panel_feature_factory_intf_->CreateDemuraParserManager(ipc_intf_, buffer_allocator_);
     if (!pm_intf_) {
       DLOGE("Failed to get Parser Manager intf");
@@ -788,6 +801,34 @@ DisplayError CoreImpl::ReserveDemuraPipeResources() {
 
   reserve_done_ = true;
   return err;
+}
+
+DisplayError CoreImpl::ValidateAndCleanupDemuraFiles() {
+  if (!panel_feature_factory_intf_) {
+    DLOGE("Failed to get panel feature factory intf");
+    return kErrorResources;
+  }
+
+  demuratn_validator_intf_ = panel_feature_factory_intf_->CreateDemuraTnValidatorIntf();
+  if (!demuratn_validator_intf_) {
+    DLOGW("Failed to create DemuraTnValidatorIntf");
+    return kErrorResources;
+  }
+  int ret = demuratn_validator_intf_->Init();
+  if (ret) {
+    DLOGW("Failed to init DemuraTnValidatorIntf, ret %d", ret);
+    demuratn_validator_intf_.reset();
+    return kErrorResources;
+  }
+
+  GenericPayload input_payload;
+  ret = demuratn_validator_intf_->SetParameter(kDemuraTnValidatorCleanupFiles, input_payload);
+  if (ret) {
+    DLOGW("Failed to Set DemuraTnValidatorCleanupFiles, ret %d", ret);
+    return kErrorResources;
+  }
+
+  return kErrorNone;
 }
 
 // LCOV_EXCL_START

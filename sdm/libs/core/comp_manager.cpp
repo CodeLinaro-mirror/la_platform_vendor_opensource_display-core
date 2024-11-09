@@ -396,7 +396,10 @@ DisplayError CompManager::PrePrepare(Handle display_ctx, DispLayerStack *disp_la
   std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
   DisplayCompositionContext *display_comp_ctx =
                              reinterpret_cast<DisplayCompositionContext *>(display_ctx);
-
+  if (resource_intf_ == nullptr) {
+    DLOGE("Resouce interface is null");
+    return kErrorUndefined;
+  }
   if (display_comp_ctx->idle_fallback) {
     display_comp_ctx->constraints.idle_timeout = true;
   }
@@ -406,9 +409,7 @@ DisplayError CompManager::PrePrepare(Handle display_ctx, DispLayerStack *disp_la
 
   StrategyConstraints *constraints = &display_comp_ctx->constraints;
   Handle &display_resource_ctx = display_comp_ctx->display_resource_ctx;
-  if (resource_intf_) {
-    resource_intf_->UpdateWBstatus(display_resource_ctx, &constraints->feedback);
-  }
+  resource_intf_->UpdateWBstatus(display_resource_ctx, &constraints->feedback);
 
   DisplayError error = display_comp_ctx->strategy->Start(disp_layer_stack,
                                                          &display_comp_ctx->max_strategies,

@@ -45,6 +45,7 @@
 #include "demura_intf.h"
 #include "demura_parser_manager_intf.h"
 #include "tvm_service_manager_intf.h"
+#include "demuratn_validator_intf.h"
 
 namespace sdm {
 
@@ -71,6 +72,7 @@ class PanelFeatureFactoryIntf {
                      BufferAllocator *buffer_allocator,
                      std::shared_ptr<SPRIntf> spr) = 0;
   virtual std::shared_ptr<TvmDispServiceManagerIntf> CreateTvmServiceManager() = 0;
+  virtual std::shared_ptr<DemuraTnValidatorIntf> CreateDemuraTnValidatorIntf() = 0;
 };
 
 }  // namespace sdm
