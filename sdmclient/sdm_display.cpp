@@ -2080,8 +2080,19 @@ void SDMDisplay::DumpInputBuffers() {
       } else if (layer->composition == kCompositionGPUTarget) {
         DLOGI("Skipping dumping target layer. dump_gpu_target : %d",
               dump_gpu_target);
-        break; // Skip dumping GPU Target layer.
+        continue;  // Skip dumping GPU Target layer.
       }
+    }
+
+    if (layer->composition == kCompositionDemura) {
+      display_intf_->DumpDemuraSurface(dir_path, dump_input_frame_index_);
+      continue;
+    }
+
+    if (layer->composition != kCompositionSDE && layer->composition != kCompositionGPU &&
+        layer->composition != kCompositionGPUTarget) {
+      DLOGI("Skip dumping the layer, composition type : %d", layer->composition);
+      continue;  // Skip to dump i.e. stitch layers, noise layer, cursor layer, ...
     }
 
     SnapHandle *handle = (SnapHandle *)layer->input_buffer.buffer_id;
@@ -2173,13 +2184,6 @@ void SDMDisplay::DumpInputBuffers() {
         DLOGI("Frame Metadata Dump %s: is %s", dump_file_name,
               result ? "Successful" : "Failed");
       }
-    }
-
-    if (layer->composition ==
-        kCompositionGPUTarget) { // Skip dumping the layers that follow
-      // follow GPU Target layer in layers list (i.e. stitch layers, noise
-      // layer, demura layer).
-      break;
     }
   }
   dump_input_frame_count_--;
