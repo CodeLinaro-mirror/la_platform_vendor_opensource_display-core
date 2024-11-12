@@ -23,7 +23,7 @@
 */
 
 /*
-* ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 *
 * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
@@ -393,6 +393,7 @@ enum CacVersion {
 };
 
 enum DDRVersion {
+  kDDRVersionNone,
   kDDRVersion4,
   kDDRVersion5,
   kDDRVersion5x,
@@ -488,7 +489,7 @@ struct HWResourceInfo {
   uint32_t dsc_block_count = 0;
   uint32_t core_id = 0;
   CacVersion cac_version = kCacVersionNone;
-  DDRVersion ddr_version = kDDRVersion5;
+  DDRVersion ddr_version = kDDRVersionNone;
   bool has_cesta = false;
   uint32_t hw_ai_scaler_count = 0;
 };
