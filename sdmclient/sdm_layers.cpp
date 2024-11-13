@@ -56,6 +56,10 @@ std::atomic<LayerId> SDMLayer::next_id_(1);
 Error GetMetadata(const SnapHandle *handle, MetadataType type, void *out,
                   std::shared_ptr<ISnapMapper> snapmapper_) {
   bool metadata_set = false;
+  if (!snapmapper_) {
+    DLOGE("SnapMapper is not initialized.. Exiting");
+    return Error::BAD_VALUE;
+  }
 
   snapmapper_->GetMetadataState(*handle, type, &metadata_set);
   if (!metadata_set) {
@@ -65,6 +69,10 @@ Error GetMetadata(const SnapHandle *handle, MetadataType type, void *out,
 }
 
 Error SetCSC(const SnapHandle *handle, ColorMetadata *color_metadata, std::shared_ptr<ISnapMapper> snapmapper_) {
+  if (!snapmapper_) {
+    DLOGE("SnapMapper is not initialized.. Exiting");
+    return Error::BAD_VALUE;
+  }
   snapmapper_->GetMetadata(*handle, MetadataType::DATASPACE, &color_metadata->dataspace);
   snapmapper_->GetMetadata(*handle, MetadataType::MATRIX_COEFFICIENTS, &color_metadata->matrixCoefficients);
   snapmapper_->GetMetadata(*handle, MetadataType::MASTERING_DISPLAY, &color_metadata->masteringDisplayInfo);
@@ -153,6 +161,11 @@ DisplayError SDMLayer::SetLayerBuffer(const SnapHandle *handle,
     } else {
       return kErrorNone;
     }
+  }
+
+  if (!snapmapper_) {
+    DLOGE("SnapMapper is not initialized.. Exiting");
+    return kErrorParameters;
   }
 
   int fd;
@@ -693,6 +706,10 @@ void SDMLayer::GetUBWCStatsFromMetaData(UBWCStats *cr_stats, UbwcCrStatsVector *
 }
 
 DisplayError SDMLayer::SetMetaData(const SnapHandle *handle, Layer *layer) {
+  if (!snapmapper_) {
+    DLOGE("SnapMapper is not initialized.. Exiting");
+    return kErrorParameters;
+  }
   LayerBuffer *layer_buffer = &layer->input_buffer;
 
   std::string name = "";
