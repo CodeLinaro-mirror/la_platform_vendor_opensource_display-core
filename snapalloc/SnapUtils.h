@@ -202,7 +202,8 @@ class MmmColorFormatMapper {
             return mmm_color_fmts::MMM_COLOR_FMT_NV124R_UBWC;
           }
           return mmm_color_fmts::MMM_COLOR_FMT_NV12_UBWC;
-        } else if (usage & vendor_qti_hardware_display_common_BufferUsage::HW_IMAGE_ENCODER) {
+        } else if (usage & vendor_qti_hardware_display_common_BufferUsage::HW_IMAGE_ENCODER ||
+                   (modifier == PIXEL_FORMAT_MODIFIER_HEIF)) {
           return mmm_color_fmts::MMM_COLOR_FMT_NV12_512;
         } else if ((modifier == PIXEL_FORMAT_MODIFIER_UBWC_FLEX) ||
                    (modifier == PIXEL_FORMAT_MODIFIER_UBWC_FLEX_2_BATCH) ||
