@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapUtils.h"
@@ -27,7 +27,8 @@ bool CpuCanAccess(vendor_qti_hardware_display_common_BufferUsage usage) {
 
 // TODO: read this from formats.json
 
-static std::unordered_map<vendor_qti_hardware_display_common_PixelFormat, FormatTraits>
+[[clang::no_destroy]] static std::unordered_map<vendor_qti_hardware_display_common_PixelFormat,
+                                                FormatTraits>
     format_traits_map{
         // {{Format},{rgb,yuv,tile rendered, gpu depth stencil, astc,
         // ubwc_supported, width_even, height_even}}
@@ -170,7 +171,7 @@ bool IsUbwcSupported(vendor_qti_hardware_display_common_PixelFormat format) {
       return true;
     }
   } else {
-    ALOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
+    DLOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
   }
   return false;
 }
@@ -182,7 +183,7 @@ bool IsTileRendered(vendor_qti_hardware_display_common_PixelFormat format) {
       return true;
     }
   } else {
-    ALOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
+    DLOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
   }
   return false;
 }
@@ -194,7 +195,7 @@ bool IsAstc(vendor_qti_hardware_display_common_PixelFormat format) {
       return true;
     }
   } else {
-    ALOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
+    DLOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
   }
   return false;
 }
@@ -206,7 +207,7 @@ bool IsRgb(vendor_qti_hardware_display_common_PixelFormat format) {
       return true;
     }
   } else {
-    ALOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
+    DLOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
   }
   return false;
 }
@@ -218,7 +219,7 @@ bool IsYuv(vendor_qti_hardware_display_common_PixelFormat format) {
       return true;
     }
   } else {
-    ALOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
+    DLOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
   }
   return false;
 }
@@ -230,7 +231,7 @@ bool IsGpuDepthStencil(vendor_qti_hardware_display_common_PixelFormat format) {
       return true;
     }
   } else {
-    ALOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
+    DLOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
   }
   return false;
 }
@@ -241,7 +242,7 @@ bool CheckWidthConstraints(
   if (format_traits != format_traits_map.end()) {
     if (format_traits->second.width_even) {
       if (width & 1) {
-        ALOGE("Width is odd for format %lu", static_cast<uint64_t>(format));
+        DLOGE("Width is odd for format %lu", static_cast<uint64_t>(format));
         return false;
       } else {
         return true;
@@ -250,8 +251,7 @@ bool CheckWidthConstraints(
       return true;
     }
   } else {
-    ALOGW("Format %lu not found in format traits map",
-          static_cast<uint64_t>(format));
+    DLOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
   }
   return false;
 }
@@ -262,7 +262,7 @@ bool CheckHeightConstraints(
   if (format_traits != format_traits_map.end()) {
     if (format_traits->second.width_even) {
       if (height & 1) {
-        ALOGE("Height is odd for format %lu", static_cast<uint64_t>(format));
+        DLOGE("Height is odd for format %lu", static_cast<uint64_t>(format));
         return false;
       } else {
         return true;
@@ -271,8 +271,7 @@ bool CheckHeightConstraints(
       return true;
     }
   } else {
-    ALOGW("Format %lu not found in format traits map",
-          static_cast<uint64_t>(format));
+    DLOGW("Format %lu not found in format traits map", static_cast<uint64_t>(format));
   }
   return false;
 }

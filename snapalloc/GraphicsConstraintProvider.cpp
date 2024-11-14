@@ -4,8 +4,6 @@
 #include "GraphicsConstraintProvider.h"
 
 #include <dlfcn.h>
-
-#include <log/log.h>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
@@ -13,8 +11,6 @@
 #include "SnapConstraintParser.h"
 #include "SnapUtils.h"
 #include "UBWCPolicy.h"
-
-#define DEBUG 0
 
 namespace snapalloc {
 GraphicsConstraintProvider *GraphicsConstraintProvider::instance_{nullptr};
@@ -36,7 +32,7 @@ void GraphicsConstraintProvider::Init(
   lib_ = ::dlopen("libadreno_utils.so", RTLD_NOW);
   SnapConstraintParser *parser = SnapConstraintParser::GetInstance();
   if (lib_) {
-    ALOGI("Graphics lib is available");
+    DLOGI("Graphics lib is available");
     *reinterpret_cast<void **>(&LINK_adreno_compute_aligned_width_and_height) =
         ::dlsym(lib_, "compute_aligned_width_and_height");
     *reinterpret_cast<void **>(&LINK_adreno_compute_fmt_aligned_width_and_height) =
@@ -56,7 +52,7 @@ void GraphicsConstraintProvider::Init(
     *reinterpret_cast<void **>(&LINK_adreno_get_aligned_gpu_buffer_size) =
         ::dlsym(lib_, "adreno_get_aligned_gpu_buffer_size");
   } else {
-    ALOGW("Graphics lib is not available - read json file");
+    DLOGW("Graphics lib is not available - read json file");
     // change to shared pointer
     parser->ParseAlignments("/vendor/etc/display/graphics_alignments.json", &constraint_set_map_);
   }
@@ -69,6 +65,26 @@ void GraphicsConstraintProvider::Init(
   gfx_ubwc_disable_ = debug_instance->IsUBWCDisabled();
 }
 
+static bool AdrenoAlignmentRequired(vendor_qti_hardware_display_common_BufferUsage usage,
+                                    vendor_qti_hardware_display_common_PixelFormat format) {
+  if ((usage & vendor_qti_hardware_display_common_BufferUsage::GPU_TEXTURE) ||
+      (usage & vendor_qti_hardware_display_common_BufferUsage::GPU_RENDER_TARGET)) {
+    if (format == YV12) {
+      if ((usage & vendor_qti_hardware_display_common_BufferUsage::QTI_PRIVATE_VIDEO_HW) &&
+          ((usage & vendor_qti_hardware_display_common_BufferUsage::VIDEO_ENCODER) ||
+           (usage & vendor_qti_hardware_display_common_BufferUsage::VIDEO_DECODER) ||
+           !CpuCanAccess(usage))) {
+        return true;
+      }
+    }
+
+    if (format == YCBCR_422_I) {
+      return true;
+    }
+  }
+  return false;
+}
+
 int GraphicsConstraintProvider::GetInitialMetadata(
     BufferDescriptor desc, vendor_qti_hardware_display_common_GraphicsMetadata *graphics_metadata,
     bool is_ubwc_enabled) {
@@ -78,6 +94,7 @@ int GraphicsConstraintProvider::GetInitialMetadata(
       static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(pixel_format_modifier));
 
   uint64_t usage = desc.usage;
+  int plane_count = 1;
 
   // TODO: Move this check to UBWCPolicy::IsUBWCAlloc
   bool ubwc_enabled_gfx = is_ubwc_enabled;
@@ -103,15 +120,20 @@ int GraphicsConstraintProvider::GetInitialMetadata(
     tile_mode = true;
   }
 
+  if (AdrenoAlignmentRequired(desc.usage, desc.format)) {
+    FormatData format_data = format_data_map_.at(desc.format);
+    plane_count = format_data.planes.size();
+  }
+
   // Call adreno api for populating metadata blob
   // Layer count is for 2D/Cubemap arrays and depth is used for 3D slice
   // Using depth to pass layer_count here
-  int ret = AdrenoInitMemoryLayout(graphics_metadata->data, desc.width, desc.height,
-                                   desc.layerCount, /* depth */
-                                   adreno_format, 1, tile_mode, static_cast<uint64_t>(usage), 1);
+  int ret = AdrenoInitMemoryLayout(
+      graphics_metadata->data, desc.width, desc.height, desc.layerCount, /* depth */
+      adreno_format, 1, tile_mode, static_cast<uint64_t>(usage), plane_count);
 
   if (ret != 0) {
-    ALOGW("%s Graphics metadata init failed - ret val %d", __FUNCTION__, ret);
+    DLOGW("%s Graphics metadata init failed - ret val %d", __FUNCTION__, ret);
     return Error::BAD_DESCRIPTOR;
   }
 
@@ -145,15 +167,24 @@ ADRENOPIXELFORMAT GraphicsConstraintProvider::GetGpuPixelFormat(
   if (snap_to_adreno_pixel_format_.find(snap_desc) != snap_to_adreno_pixel_format_.end()) {
     format = snap_to_adreno_pixel_format_.at(snap_desc);
   } else {
-    ALOGE("%s: No map for format: 0x%x", __FUNCTION__, snap_format);
+    DLOGE("%s: No map for format: 0x%x", __FUNCTION__, snap_format);
   }
   return format;
 }
 
 int GraphicsConstraintProvider::GetCapabilities(BufferDescriptor desc, CapabilitySet *out) {
   out->ubwc_caps.version = 0;
+
+  // Add an early check for YUV formats where adreno alignments are required
+  // to prevent disabling graphics constraint provider for remaining YUV formats
+  if (AdrenoAlignmentRequired(desc.usage, desc.format)) {
+    out->enabled = true;
+    return 0;
+  }
+
   if (IsYuv(desc.format)) {
     out->enabled = false;
+    DLOGD_IF(enable_logs, "GraphicsConstraintProvider enabled: %d", out->enabled);
     return 0;
   }
 
@@ -161,6 +192,7 @@ int GraphicsConstraintProvider::GetCapabilities(BufferDescriptor desc, Capabilit
        desc.usage & vendor_qti_hardware_display_common_BufferUsage::CAMERA_OUTPUT) ||
       desc.usage & vendor_qti_hardware_display_common_BufferUsage::QTI_PRIVATE_SECURE_DISPLAY) {
     out->enabled = false;
+    DLOGD_IF(enable_logs, "GraphicsConstraintProvider enabled: %d", out->enabled);
     return 0;
   }
 
@@ -184,10 +216,7 @@ int GraphicsConstraintProvider::GetCapabilities(BufferDescriptor desc, Capabilit
       out->enabled = false;
     }
   }
-
-  ALOGD_IF(DEBUG, (out->enabled == true
-                       ? "GraphicsConstraintProvider is enabled"
-                       : "GraphicsConstraintProvider is not enabled"));
+  DLOGD_IF(enable_logs, "GraphicsConstraintProvider enabled: %d", out->enabled);
   return 0;
 }
 
@@ -196,7 +225,7 @@ int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCo
   int format = static_cast<uint64_t>(snap_format);
   uint64_t pixel_format_modifier = GetPixelFormatModifier(desc);
   if (format_data_map_.find(snap_format) == format_data_map_.end()) {
-    ALOGE("%s: could not find entry for format %lu", __FUNCTION__, static_cast<uint64_t>(format));
+    DLOGE("%s: could not find entry for format %lu", __FUNCTION__, static_cast<uint64_t>(format));
     return -1;
   }
 
@@ -214,7 +243,7 @@ int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCo
     tile_enabled = IsTileRendered(snap_format);
     unsigned int aligned_w, aligned_h = 0;
     if (format_data.bits_per_pixel % 8 != 0)
-      ALOGW("Bpp is float: %f", static_cast<float>(format_data.bits_per_pixel) / 8.0f);
+      DLOGW("Bpp is float: %f", static_cast<float>(format_data.bits_per_pixel) / 8.0f);
 
     if (IsRgb(snap_format) && IsAstc(snap_format)) {
       plane_layout.stride.horizontal_stride = desc.width;
@@ -236,7 +265,7 @@ int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCo
           static_cast<uint64_t>(aligned_w) * (format_data.bits_per_pixel / 8.0f);
       plane_layout.scanline.scanline = static_cast<uint64_t>(aligned_h);
     } else if (IsGpuDepthStencil(snap_format)) {
-      ALOGD_IF(DEBUG, "Querying graphics for GpuDepthStencil case");
+      DLOGD_IF(enable_logs, "Querying graphics for GpuDepthStencil case");
       // Depth formats are not supported by graphics when CPU bits are set
       if (CpuCanAccess(desc.usage)) {
         return Error::UNSUPPORTED;
@@ -249,6 +278,44 @@ int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCo
       plane_layout.stride.horizontal_stride =
           static_cast<uint64_t>(aligned_w) * (format_data.bits_per_pixel / 8.0f);
       plane_layout.scanline.scanline = static_cast<uint64_t>(aligned_h);
+    } else if (AdrenoAlignmentRequired(desc.usage, desc.format)) {
+      aligned_h = 0;
+      aligned_w = 0;
+      surface_tile_mode_t tile_mode = static_cast<surface_tile_mode_t>(tile_enabled);
+      surface_rastermode_t raster_mode =
+          SURFACE_RASTER_MODE_UNKNOWN;  // Adreno unknown raster mode.
+      int padding_threshold = 512;      // Threshold for padding surfaces.
+      ADRENOPIXELFORMAT gpu_format = GetGpuPixelFormat(
+          desc.format, static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
+                           pixel_format_modifier));
+      if (LINK_adreno_compute_fmt_aligned_width_and_height &&
+          gpu_format != ADRENO_PIXELFORMAT_UNKNOWN) {
+        int input_width = desc.width;
+        int input_height = desc.height;
+        if ((desc.format == vendor_qti_hardware_display_common_PixelFormat::YV12) &&
+            ((plane.components[0].type == PLANE_LAYOUT_COMPONENT_TYPE_CB) ||
+             (plane.components[0].type == PLANE_LAYOUT_COMPONENT_TYPE_CR))) {
+          // Input width and height need to be adjusted for subsampling
+          // for the chroma planes for YV12,
+          // as the API does not differentiate based on the plane
+          input_width /= 2;
+          input_height /= 2;
+        }
+
+        LINK_adreno_compute_fmt_aligned_width_and_height(
+            input_width, input_height, format_data.planes.size(), gpu_format, 1 /*num_samples*/,
+            tile_mode, raster_mode, padding_threshold, (int *)&aligned_w, (int *)&aligned_h);
+
+        plane_layout.stride.horizontal_stride =
+            static_cast<uint64_t>(aligned_w) * floor(format_data.bits_per_pixel / 8.0f);
+        plane_layout.scanline.scanline = static_cast<uint64_t>(aligned_h);
+      } else {
+        DLOGW(
+            "Not able to call LINK_adreno_compute_fmt_aligned_width_and_height - snap format %d "
+            "graphics format %d",
+            desc.format, gpu_format);
+        return Error::UNSUPPORTED;
+      }
     }
     for (auto const &component : plane.components) {
       vendor_qti_hardware_display_common_PlaneLayoutComponentType component_type = component.type;
@@ -263,12 +330,12 @@ int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCo
 int GraphicsConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConstraints *out) {
 #ifdef __ANDROID__
   if (lib_ != nullptr && AdrenoSizeAPIAvaliable()) {
-    ALOGI("Using graphics libs for alignment calculations");
+    DLOGI("Using graphics libs for alignment calculations");
     BufferConstraints data;
     int status = 0;
     status = BuildConstraints(desc, &data);
     if (status != Error::NONE) {
-      ALOGW("Error while getting constraints from graphics libs");
+      DLOGW("Error while getting constraints from graphics libs");
       return status;
     }
     *out = data;
@@ -276,13 +343,13 @@ int GraphicsConstraintProvider::GetConstraints(BufferDescriptor desc, BufferCons
   }
 #endif
   if (constraint_set_map_.empty()) {
-    ALOGE("Graphics constraint set map is empty");
+    DLOGE("Graphics constraint set map is empty");
     return -1;
   }
   if (constraint_set_map_.find(desc.format) != constraint_set_map_.end()) {
     *out = constraint_set_map_.at(desc.format);
   } else {
-    ALOGE("Graphics could not find entry for format %d", static_cast<uint64_t>(desc.format));
+    DLOGE("Graphics could not find entry for format %d", static_cast<uint64_t>(desc.format));
     return -1;
   }
   return 0;
@@ -356,9 +423,9 @@ void GraphicsConstraintProvider::AlignUnCompressedRGB(int width, int height, int
     int surface_tile_height = 1;  // Linear surface
     *aligned_w = UINT(LINK_adreno_compute_padding(width, bpp, surface_tile_height, raster_mode,
                                                   padding_threshold));
-    ALOGW("%s: Warning!! Old GFX API is used to calculate stride", __FUNCTION__);
+    DLOGW("%s: Warning!! Old GFX API is used to calculate stride", __FUNCTION__);
   } else {
-    ALOGW(
+    DLOGW(
         "%s: Warning!! Symbols compute_surface_padding and "
         "compute_fmt_aligned_width_and_height and "
         "compute_aligned_width_and_height not found",
@@ -383,7 +450,7 @@ void GraphicsConstraintProvider::AlignCompressedRGB(int width, int height, int f
   } else {
     *aligned_w = (unsigned int)ALIGN(width, 32);
     *aligned_h = (unsigned int)ALIGN(height, 32);
-    ALOGW("%s: Warning!! compute_compressedfmt_aligned_width_and_height not found", __FUNCTION__);
+    DLOGW("%s: Warning!! compute_compressedfmt_aligned_width_and_height not found", __FUNCTION__);
   }
 }
 
@@ -406,7 +473,7 @@ void GraphicsConstraintProvider::AlignGpuDepthStencilFormat(int width, int heigh
         tile_mode, raster_mode, padding_threshold, reinterpret_cast<int *>(aligned_w),
         reinterpret_cast<int *>(aligned_h));
   } else {
-    ALOGW("%s: Warning!! compute_fmt_aligned_width_and_height not found", __FUNCTION__);
+    DLOGW("%s: Warning!! compute_fmt_aligned_width_and_height not found", __FUNCTION__);
   }
 }
 

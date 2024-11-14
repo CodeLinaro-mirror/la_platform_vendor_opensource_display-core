@@ -104,37 +104,6 @@
                         }
                     ]
                 }
-            },
-            {
-                "format" : "MULTIPLANAR",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
-                                {
-                                    "component_type" : "Y"
-                                }
-                            ],
-                            "horiz_stride_align_bytes" : 64,
-                            "scanline_align" : 64,
-                            "size_align_bytes" : 4096
-                        },
-                        {
-                            "components": [
-                                {
-                                    "component_type" : "CR"
-                                },
-                                {
-                                    "component_type" : "CB"
-                                }
-                            ],
-                            "horiz_stride_align_bytes" : 64,
-                            "scanline_align" : 64,
-                            "size_align_bytes" : 4096
-                        }
-                    ]
-                }
             }
         ]
     }

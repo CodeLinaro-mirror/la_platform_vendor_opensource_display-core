@@ -1,10 +1,8 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #ifndef __CAMERA_CONSTRAINT_PROVIDER_H__
 #define __CAMERA_CONSTRAINT_PROVIDER_H__
-
-#include <log/log.h>
 
 #include <map>
 #include <mutex>
@@ -49,6 +47,7 @@ typedef enum : unsigned int {
   CAMERA_PIXEL_FORMAT_RAW10 = 0x25,                      // Opaque RAW10 bit format
   CAMERA_PIXEL_FORMAT_RAW12 = 0x26,                      // Opaque RAW12 bit format
   CAMERA_PIXEL_FORMAT_RAW14 = 0x144,                     // Opaque RAW14 bit format
+  CAMERA_PIXEL_FORMAT_RAW8 = 0x00000123,                 // Opaque RAW8 bit format
 } CamxPixelFormat;
 
 // Camera Result Codes
@@ -237,7 +236,10 @@ class CameraConstraintProvider : public SnapConstraintProvider {
            CAMERA_PIXEL_FORMAT_RAW12},
           {{.format = vendor_qti_hardware_display_common_PixelFormat::RAW14,
             .modifier = PIXEL_FORMAT_MODIFIER_NONE},
-           CAMERA_PIXEL_FORMAT_RAW14}};
+           CAMERA_PIXEL_FORMAT_RAW14},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::RAW8,
+            .modifier = PIXEL_FORMAT_MODIFIER_NONE},
+           CAMERA_PIXEL_FORMAT_RAW8}};
 };
 }  // namespace snapalloc
 

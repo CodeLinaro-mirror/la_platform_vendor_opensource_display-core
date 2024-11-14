@@ -147,7 +147,7 @@ uint32_t SnapHandleInternal::getViewInfo() {
       }
       break;
     default:
-      ALOGE("Unsupported view info handle of N %d", getN());
+      DLOGE("Unsupported view info handle of N %d", getN());
       viewInfo = (this)->view();
       break;
   }
@@ -166,7 +166,7 @@ std::vector<SnapHandleInternal::FdPair> SnapHandleInternal::getFds() {
       fd_pairs.emplace_back(static_cast<SnapHandleData<2> *>(this)->getFdPair(1));
       break;
     default:
-      ALOGE("Unsupported meta handle of N %d", getN());
+      DLOGE("Unsupported meta handle of N %d", getN());
       fd_pairs.emplace_back(static_cast<SnapHandleData<1> *>(this)->getFdPair(0));
       break;
   }
@@ -177,7 +177,7 @@ SnapHandleInternal *SnapHandleInternal::CreateViewHandle(uint32_t view) {
   int N = getN();
 
   if (N > 2) {
-    ALOGE("Unsupported meta handle of N %d", N);
+    DLOGE("Unsupported meta handle of N %d", N);
     return nullptr;
   }
 
@@ -190,12 +190,12 @@ SnapHandleInternal *SnapHandleInternal::CreateViewHandle(uint32_t view) {
       view_index = 1;
       break;
     default:
-      ALOGE("Unsupported view mask %d", view);
+      DLOGE("Unsupported view mask %d", view);
       return nullptr;
   }
 
   if (view_index >= N) {
-    ALOGE("Meta Handle doesn't contain the requested view %d", view);
+    DLOGE("Meta Handle doesn't contain the requested view %d", view);
     return nullptr;
   }
 
@@ -217,7 +217,7 @@ SnapHandleInternal *SnapHandleInternal::CreateViewHandle(uint32_t view) {
           static_cast<SnapHandleData<2> *>(this)->getProperties(view_index);
       break;
     default:
-      ALOGE("Unsupported Meta Handle");
+      DLOGE("Unsupported Meta Handle");
       free(view_handle);
       return nullptr;
   }
@@ -237,7 +237,7 @@ SnapHandleInternal::FdPair &SnapHandleInternal::currentFdPair() {
       return static_cast<SnapHandleData<2> *>(this)->getFdPair(0);
     default:
       // trespass
-      ALOGE("Unsupported meta handle of N %d", getN());
+      DLOGE("Unsupported meta handle of N %d", getN());
       return static_cast<SnapHandleData<1> *>(this)->getFdPair(0);
   }
 }
@@ -250,14 +250,14 @@ SnapHandleInternal::SnapHandleProperties &SnapHandleInternal::currentProperties(
       return static_cast<SnapHandleData<2> *>(this)->getProperties(0);
     default:
       // trespass
-      ALOGE("Unsupported meta handle of N %d", getN());
+      DLOGE("Unsupported meta handle of N %d", getN());
       return static_cast<SnapHandleData<1> *>(this)->getProperties(0);
   }
 }
 
 int SnapHandleInternal::validate(SnapHandle *h) {
   if (!h) {
-    ALOGE("null SnapHandleInternal");
+    DLOGE("null SnapHandleInternal");
     return -1;
   }
 
@@ -267,7 +267,7 @@ int SnapHandleInternal::validate(SnapHandle *h) {
   if (n == 1) {
     if (ih->num_fds != SnapHandleData<1>::getExpectedNumFds() ||
         ih->num_ints != SnapHandleData<1>::getExpectedNumInts()) {
-      ALOGE(
+      DLOGE(
           "Invalid SnapHandleInternal (at %p): ver(%d) N(%d) Expected ints: (%d) Actual ints:(%d) "
           "Expected fds: (%d) Actual fds:(%d) ",
           h, h->version, n, SnapHandleData<1>::getExpectedNumInts(), h->num_ints,
@@ -277,7 +277,7 @@ int SnapHandleInternal::validate(SnapHandle *h) {
   } else if (n == 2) {
     if (ih->num_fds != SnapHandleData<2>::getExpectedNumFds() ||
         ih->num_ints != SnapHandleData<2>::getExpectedNumInts()) {
-      ALOGE(
+      DLOGE(
           "Invalid SnapHandleInternal (at %p): ver(%d) N(%d) Expected ints: (%d) Actual ints:(%d) "
           "Expected fds: (%d) Actual fds:(%d) ",
           h, h->version, n, SnapHandleData<2>::getExpectedNumInts(), h->num_ints,
@@ -285,7 +285,7 @@ int SnapHandleInternal::validate(SnapHandle *h) {
       return -1;
     }
   } else {
-    ALOGE("Invalid SnapHandleInternal (at %p): ver(%d) N(%d) ints(%d) fds(%d)", h, h->version, n,
+    DLOGE("Invalid SnapHandleInternal (at %p): ver(%d) N(%d) ints(%d) fds(%d)", h, h->version, n,
           h->num_ints, h->num_fds);
     return -1;
   }

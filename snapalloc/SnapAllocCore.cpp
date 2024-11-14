@@ -1,7 +1,6 @@
 // Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
-#include <log/log.h>
 #include <unistd.h>
 #include <utils/CallStack.h>
 #include <iostream>
@@ -11,7 +10,8 @@
 #include "SnapHandleInternal.h"
 #include "SnapTypes.h"
 #include "SnapUtils.h"
-#define DEBUG 0
+
+bool enable_logs = false;
 
 namespace snapalloc {
 
@@ -25,6 +25,7 @@ SnapAllocCore::SnapAllocCore() : next_id_(0) {
   constraint_mgr_ = SnapConstraintManager::GetInstance();
   metadata_mgr_ = SnapMetadataManager::GetInstance();
   mem_alloc_intf_ = SnapMemAllocator::GetInstance();
+  enable_logs = Debug::GetInstance()->IsDebugLoggingEnabled();
 }
 
 SnapAllocCore *SnapAllocCore::GetInstance() {
@@ -41,7 +42,7 @@ Error SnapAllocCore::AllocateBuffer(AllocData *ad, AllocData *m_data,
                                     BufferDescriptor *out_desc, bool test_alloc) {
   auto err = mem_alloc_intf_->AllocateMem(ad, out_desc->usage, out_desc->format);
   if (err != Error::NONE) {
-    ALOGE("Failed to allocate memory for format %d usage %d", out_desc->format, out_desc->usage);
+    DLOGE("Failed to allocate memory for format %d usage %d", out_desc->format, out_desc->usage);
     return err;
   }
 
@@ -53,7 +54,7 @@ Error SnapAllocCore::AllocateBuffer(AllocData *ad, AllocData *m_data,
       m_data, static_cast<vendor_qti_hardware_display_common_BufferUsage>(0),
       static_cast<vendor_qti_hardware_display_common_PixelFormat>(0));
   if (err != Error::NONE) {
-    ALOGE("Failed to allocate metadata memory");
+    DLOGE("Failed to allocate metadata memory");
     return err;
   }
 
@@ -73,12 +74,12 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
     int out_priv_flags = 0;
     auto err = constraint_mgr_->GetAllocationData(desc, &ad, &layout, &out_desc, &out_priv_flags);
     if (err != Error::NONE) {
-      ALOGE("Constraint manager failed to get allocation data - err %d", err);
+      DLOGE("Constraint manager failed to get allocation data - err %d", err);
       return err;
     }
 
     if (ad.size == 0) {
-      ALOGE("Allocation size is 0");
+      DLOGE("Allocation size is 0");
       return Error::UNSUPPORTED;
     }
 
@@ -118,7 +119,7 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
     }
 
     if (hnd == nullptr) {
-      ALOGE("%s:: Invalid Handle", __FUNCTION__);
+      DLOGE("%s:: Invalid Handle", __FUNCTION__);
       return Error::BAD_BUFFER;
     }
 
@@ -127,7 +128,7 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
 
     err = metadata_mgr_->InitializeMetadata(hnd, desc, out_desc, ad, &layout);
     if (err != Error::NONE) {
-      ALOGE("Failed to initialize metadata for hnd %lu", hnd->id());
+      DLOGE("Failed to initialize metadata for hnd %lu", hnd->id());
     }
 
     handles->emplace_back(hnd);
@@ -166,17 +167,17 @@ Error SnapAllocCore::FreeBuffer(SnapHandleInternal *snap_hnd) {
   // TODO: Off-target tests - passing in buffer path string for shm unlink
   if (mem_alloc_intf_->FreeBuffer(reinterpret_cast<void *>(snap_hnd->base()), snap_hnd->size(),
                                   snap_hnd->fd(), "") != 0) {
-    ALOGE("Unable to free buf base");
+    DLOGE("Unable to free buf base");
     return Error::BAD_BUFFER;
   }
 
   if (mem_alloc_intf_->FreeBuffer(reinterpret_cast<void *>(snap_hnd->base_metadata()), meta_size,
                                   snap_hnd->fd_metadata(), "") != 0) {
-    ALOGE("Unable to free buf metadata");
+    DLOGE("Unable to free buf metadata");
     return Error::BAD_BUFFER;
   }
 
-  ALOGD_IF(DEBUG, "Freed buffer fd %d fd_metadata %d", snap_hnd->fd(),
+  DLOGD_IF(enable_logs, "Freed buffer fd %d fd_metadata %d", snap_hnd->fd(),
            snap_hnd->fd_metadata());
   snap_hnd->closeFds();
 
@@ -190,19 +191,19 @@ Error SnapAllocCore::Retain(SnapHandle *hnd) {
   auto buf = GetBufferFromHandleLocked(hnd);
   if (buf != nullptr) {
     buf->IncRef();
-    ALOGD_IF(DEBUG, "%s: line %d buf %p id %lu increased ref count to %d", __FUNCTION__,
+    DLOGD_IF(enable_logs, "%s: line %d buf %p id %lu increased ref count to %d", __FUNCTION__,
              __LINE__, buf, buf->id(), buf->GetRefCount());
   } else {
     err = ImportHandleLocked(hnd);
-    ALOGD_IF(DEBUG, "%s: line %d: handles_map_ size %d", __FUNCTION__, __LINE__,
+    DLOGD_IF(enable_logs, "%s: line %d: handles_map_ size %d", __FUNCTION__, __LINE__,
              handles_map_.size());
   }
-  ALOGD_IF(DEBUG, "===============");
+  DLOGD_IF(enable_logs, "===============");
 
   for (auto &entry : handles_map_) {
-    ALOGD_IF(DEBUG, "SnapAllocCore::Retain: handles_map: buf->id() %lu", entry.second->id());
+    DLOGD_IF(enable_logs, "SnapAllocCore::Retain: handles_map: buf->id() %lu", entry.second->id());
   }
-  ALOGD_IF(DEBUG, "===============");
+  DLOGD_IF(enable_logs, "===============");
   return err;
 }
 
@@ -216,7 +217,7 @@ Error SnapAllocCore::RetainViewBuffer(SnapHandle *meta_hnd, uint32_t view,
   std::lock_guard<std::mutex> lock(buffer_lock_);
   auto buf = GetBufferFromHandleLocked(meta_hnd);
   if (buf == nullptr) {
-    ALOGE("Retain MetaHandle before retaining auxillary view buffer");
+    DLOGE("Retain MetaHandle before retaining auxillary view buffer");
     return Error::UNSUPPORTED;
   }
 
@@ -227,15 +228,15 @@ Error SnapAllocCore::RetainViewBuffer(SnapHandle *meta_hnd, uint32_t view,
   }
 
   err = ImportHandleLocked(view_handle);
-  ALOGD("%s: line %d: handles_map_ size %d", __FUNCTION__, __LINE__,
+  DLOGD("%s: line %d: handles_map_ size %d", __FUNCTION__, __LINE__,
            handles_map_.size());
 
-  ALOGD("===============");
+  DLOGD("===============");
 
   for (auto &entry : handles_map_) {
-    ALOGD("SnapAllocCore::Retain: handles_map: buf->id %lu", entry.second->id());
+    DLOGD("SnapAllocCore::Retain: handles_map: buf->id %lu", entry.second->id());
   }
-  ALOGD("===============");
+  DLOGD("===============");
   *out_view_handle = view_handle;
   return err;
 }
@@ -247,16 +248,16 @@ Error SnapAllocCore::Release(SnapHandle *hnd) {
   std::lock_guard<std::mutex> lock(buffer_lock_);
   SnapHandleInternal *snap_hnd_cast = static_cast<SnapHandleInternal *>(hnd);
   auto buf = GetBufferFromHandleLocked(hnd);
-  ALOGD_IF(DEBUG, "line %d snap_hnd_cast id %lu ref count %d vs buf ref count %d", __LINE__,
+  DLOGD_IF(enable_logs, "line %d snap_hnd_cast id %lu ref count %d vs buf ref count %d", __LINE__,
            snap_hnd_cast->id(), snap_hnd_cast->GetRefCount(), buf->GetRefCount());
 
   if (buf == nullptr) {
-    ALOGE("Could not find handle: %p", hnd);
+    DLOGE("Could not find handle: %p", hnd);
     return Error::BAD_BUFFER;
   }
 
   if (buf->DecRef()) {
-    ALOGD_IF(DEBUG, "line %d snap_hnd_cast id %lu ref count %d vs buf ref count %d", __LINE__,
+    DLOGD_IF(enable_logs, "line %d snap_hnd_cast id %lu ref count %d vs buf ref count %d", __LINE__,
              snap_hnd_cast->id(), snap_hnd_cast->GetRefCount(), buf->GetRefCount());
 
     // TODO: buffer dump support
@@ -265,14 +266,14 @@ Error SnapAllocCore::Release(SnapHandle *hnd) {
     }*/
     if (FreeBuffer(buf) == Error::NONE) {
       handles_map_.erase(hnd);
-      ALOGD_IF(DEBUG, "%s: line %d: handles_map_ size after freeing  %d", __FUNCTION__, __LINE__,
-               handles_map_.size());
+      DLOGD_IF(enable_logs, "%s: line %d: handles_map_ size after freeing  %d", __FUNCTION__,
+               __LINE__, handles_map_.size());
     } else {
-      ALOGE("Failed to free buffer %p", buf);
+      DLOGE("Failed to free buffer %p", buf);
       return Error::BAD_BUFFER;
     }
   } else {
-    ALOGD_IF(DEBUG, "Not freeing - ref count > 0; fd %d metadata_fd %d", buf->fd(),
+    DLOGD_IF(enable_logs, "Not freeing - ref count > 0; fd %d metadata_fd %d", buf->fd(),
              buf->fd_metadata());
     return Error::BUF_NOT_FREED;
   }
@@ -286,17 +287,17 @@ Error SnapAllocCore::Lock(SnapHandle *hnd, vendor_qti_hardware_display_common_Bu
   std::lock_guard<std::mutex> lock(buffer_lock_);
   // If buffer is not meant for CPU return err
   if (!CpuCanAccess(usage)) {
-    ALOGE("Lock failed - CPU can't access");
+    DLOGE("Lock failed - CPU can't access");
     return Error::BAD_VALUE;
   }
 
   auto buf = GetBufferFromHandleLocked(hnd);
 
   if (buf == nullptr) {
-    ALOGE("Lock failed - no valid SnapHandleInternal");
+    DLOGE("Lock failed - no valid SnapHandleInternal");
     return Error::BAD_BUFFER;
   }
-  ALOGD_IF(DEBUG,
+  DLOGD_IF(enable_logs,
            "SnapAllocCore lock format %d usage %lu uwidth %d uheight %d, access region right %d "
            "bottom %d",
            buf->format(), buf->usage(), buf->unaligned_width(), buf->unaligned_height(),
@@ -327,7 +328,7 @@ Error SnapAllocCore::Lock(SnapHandle *hnd, vendor_qti_hardware_display_common_Bu
 
   if (err == Error::NONE) {
     *base_addr = buf->base();
-    ALOGD_IF(DEBUG, "SnapAllocCore::lock buf->base %lu", buf->base());
+    DLOGD_IF(enable_logs, "SnapAllocCore::lock buf->base %lu", buf->base());
 
     // Mark the buffer to be flushed after CPU write.
     if (CpuCanWrite(usage)) {
@@ -345,7 +346,7 @@ Error SnapAllocCore::Unlock(SnapHandle *hnd) {
 
   auto buf = GetBufferFromHandleLocked(hnd);
   if (buf == nullptr || buf->lock_count() <= 0) {
-    ALOGW("%s: A bad or an already unlocked buffer.", __FUNCTION__);
+    DLOGW("%s: A bad or an already unlocked buffer.", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
 
@@ -378,7 +379,7 @@ Error SnapAllocCore::MapBuffer(SnapHandleInternal *hnd) {
   hnd->base() = 0;
   if (mem_alloc_intf_->MapBuffer(reinterpret_cast<void **>(&hnd->base()), hnd->size(), hnd->fd())
       != 0) {
-    ALOGE("Failed to map buffer");
+    DLOGE("Failed to map buffer");
     return Error::BAD_BUFFER;
   }
   return Error::NONE;
@@ -406,13 +407,13 @@ Error SnapAllocCore::ValidateBufferSize(SnapHandle *hnd, BufferDescriptor desc) 
       out_desc.format, layout.aligned_width_in_bytes, &aligned_width_in_pixels);
 
   if (OVERFLOW(aligned_width_in_pixels, layout.aligned_height)) {
-    ALOGE("%s: Allocatiom size overflow", __FUNCTION__);
+    DLOGE("%s: Allocatiom size overflow", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
 
   auto fd_size = static_cast<int>(lseek(buf->fd(), 0, SEEK_END));
   if (fd_size != ad.size) {
-    ALOGE("%s: FD size %d does not match expected allocation size %d, buf->size %d", __FUNCTION__,
+    DLOGE("%s: FD size %d does not match expected allocation size %d, buf->size %d", __FUNCTION__,
           fd_size, ad.size, buf->size());
     return Error::BAD_VALUE;
   }
@@ -425,7 +426,7 @@ Error SnapAllocCore::FlushLockedBuffer(SnapHandle *hnd) {
 
   auto buf = GetBufferFromHandleLocked(hnd);
   if (buf == nullptr || buf->lock_count() <= 0) {
-    ALOGW("%s: A bad or an unlocked buffer.", __FUNCTION__);
+    DLOGW("%s: A bad or an unlocked buffer.", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
   if (mem_alloc_intf_->CleanBuffer(reinterpret_cast<void *>(buf->base()), buf->size(), CACHE_CLEAN,
@@ -442,7 +443,7 @@ Error SnapAllocCore::RereadLockedBuffer(SnapHandle *hnd) {
 
   auto buf = GetBufferFromHandleLocked(hnd);
   if (buf == nullptr || buf->lock_count() <= 0) {
-    ALOGW("%s: A bad or an unlocked buffer.", __FUNCTION__);
+    DLOGW("%s: A bad or an unlocked buffer.", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
   if (mem_alloc_intf_->CleanBuffer(reinterpret_cast<void *>(buf->base()), buf->size(),
@@ -455,33 +456,33 @@ Error SnapAllocCore::RereadLockedBuffer(SnapHandle *hnd) {
 
 Error SnapAllocCore::ImportHandleLocked(SnapHandle *hnd) {
   if (SnapHandleInternal::validate(hnd) != 0) {
-    ALOGE("ImportHandleLocked: Invalid handle: %p", hnd);
+    DLOGE("ImportHandleLocked: Invalid handle: %p", hnd);
     return Error::BAD_BUFFER;
   }
   if (hnd == nullptr) {
-    ALOGE("Invalid SnapHandle");
+    DLOGE("Invalid SnapHandle");
     return Error::BAD_BUFFER;
   }
 
   SnapHandleInternal *snap_hnd = static_cast<SnapHandleInternal *>(hnd);
 
-  ALOGD_IF(DEBUG,
+  DLOGD_IF(enable_logs,
            "id %lu aligned width %d aligned height %d, input width %d  input height %d "
            "format out %d size %d, usage %lu",
            snap_hnd->id(), snap_hnd->aligned_width_in_bytes(), snap_hnd->aligned_height(),
            snap_hnd->unaligned_width(), snap_hnd->unaligned_height(), snap_hnd->format(),
            snap_hnd->size(), snap_hnd->usage());
 
-  ALOGD_IF(DEBUG, "Importing handle with id %lu", snap_hnd->id());
+  DLOGD_IF(enable_logs, "Importing handle with id %lu", snap_hnd->id());
   if (mem_alloc_intf_->ImportBuffer(snap_hnd->fd()) < 0) {
-    ALOGE("Failed to import buffer: hnd: %p, fd:%d, id:%lu", snap_hnd, snap_hnd->fd(),
+    DLOGE("Failed to import buffer: hnd: %p, fd:%d, id:%lu", snap_hnd, snap_hnd->fd(),
           snap_hnd->id());
     FreeBuffer(snap_hnd);
     return Error::BAD_BUFFER;
   }
 
   if (mem_alloc_intf_->ImportBuffer(snap_hnd->fd_metadata()) < 0) {
-    ALOGE("Failed to import metadata buffer: hnd: %p, fd:%d, id:%lu", snap_hnd,
+    DLOGE("Failed to import metadata buffer: hnd: %p, fd:%d, id:%lu", snap_hnd,
           snap_hnd->fd_metadata(), snap_hnd->id());
     FreeBuffer(snap_hnd);
     return Error::BAD_BUFFER;
@@ -492,9 +493,9 @@ Error SnapAllocCore::ImportHandleLocked(SnapHandle *hnd) {
   snap_hnd->base_metadata() = 0;
   snap_hnd->ResetRefCount();
   snap_hnd->IncRef();
-  ALOGD_IF(DEBUG, "snap_hnd ref count in ImportHandleLocked %d", snap_hnd->GetRefCount());
+  DLOGD_IF(enable_logs, "snap_hnd ref count in ImportHandleLocked %d", snap_hnd->GetRefCount());
   if (metadata_mgr_->ValidateAndMap(snap_hnd)) {
-    ALOGE("Failed to map metadata: hnd: %p, fd:%d, id:%lu", snap_hnd, snap_hnd->fd(),
+    DLOGE("Failed to map metadata: hnd: %p, fd:%d, id:%lu", snap_hnd, snap_hnd->fd(),
           snap_hnd->id());
     FreeBuffer(snap_hnd);
     return Error::BAD_BUFFER;
@@ -532,29 +533,25 @@ void SnapAllocCore::RegisterHandleLocked(SnapHandle *public_hnd, SnapHandleInter
 Error SnapAllocCore::IsSupported(BufferDescriptor desc, bool *is_supported) {
   std::vector<SnapHandleInternal *> handles;
   auto err = Allocate(desc, 1, &handles, true);
-  if (err == Error::NONE) {
-    *is_supported = true;
-    return err;
-  }
-  *is_supported = false;
-  return err;
+  *is_supported = (err == Error::NONE) ? true : false;
+  return Error::NONE;
 }
 
 Error SnapAllocCore::GetMetadata(SnapHandle *hnd,
                                  vendor_qti_hardware_display_common_MetadataType type, void *out) {
   std::lock_guard<std::mutex> buffer_lock(buffer_lock_);
   if (!hnd) {
-    ALOGE("%s: Invalid handle", __FUNCTION__);
+    DLOGE("%s: Invalid handle", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
   auto buf = GetBufferFromHandleLocked(hnd);
   if (buf == nullptr) {
-    ALOGE("%s: Unable to get locked buffer", __FUNCTION__);
+    DLOGE("%s: Unable to get locked buffer", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
   auto err = metadata_mgr_->ValidateAndMap(buf);
   if (err != 0) {
-    ALOGE("%s: ValidateAndMap failed", __FUNCTION__);
+    DLOGE("%s: ValidateAndMap failed", __FUNCTION__);
     return Error::UNSUPPORTED;
   }
   return metadata_mgr_->Get(buf, type, out);
@@ -564,17 +561,17 @@ Error SnapAllocCore::SetMetadata(SnapHandle *hnd,
                                  vendor_qti_hardware_display_common_MetadataType type, void *in) {
   std::lock_guard<std::mutex> buffer_lock(buffer_lock_);
   if (!hnd) {
-    ALOGE("%s: Invalid handle", __FUNCTION__);
+    DLOGE("%s: Invalid handle", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
   auto buf = GetBufferFromHandleLocked(hnd);
   if (buf == nullptr) {
-    ALOGE("%s: Unable to get locked buffer", __FUNCTION__);
+    DLOGE("%s: Unable to get locked buffer", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
   auto err = metadata_mgr_->ValidateAndMap(buf);
   if (err != 0) {
-    ALOGE("%s: ValidateAndMap failed", __FUNCTION__);
+    DLOGE("%s: ValidateAndMap failed", __FUNCTION__);
     return Error::UNSUPPORTED;
   }
 
@@ -601,17 +598,17 @@ Error SnapAllocCore::GetMetadataState(SnapHandle *hnd,
                                  vendor_qti_hardware_display_common_MetadataType type, bool *out) {
   std::lock_guard<std::mutex> buffer_lock(buffer_lock_);
   if (!hnd) {
-    ALOGE("%s: Invalid handle", __FUNCTION__);
+    DLOGE("%s: Invalid handle", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
   auto buf = GetBufferFromHandleLocked(hnd);
   if (buf == nullptr) {
-    ALOGE("%s: Unable to get locked buffer", __FUNCTION__);
+    DLOGE("%s: Unable to get locked buffer", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
   auto err = metadata_mgr_->ValidateAndMap(buf);
   if (err != 0) {
-    ALOGE("%s: ValidateAndMap failed", __FUNCTION__);
+    DLOGE("%s: ValidateAndMap failed", __FUNCTION__);
     return Error::UNSUPPORTED;
   }
   return metadata_mgr_->GetMetadataState(buf, type, out);

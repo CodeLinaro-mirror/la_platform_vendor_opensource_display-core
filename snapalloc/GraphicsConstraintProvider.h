@@ -4,7 +4,6 @@
 #ifndef __GRAPHICS_CONSTRAINT_PROVIDER_H__
 #define __GRAPHICS_CONSTRAINT_PROVIDER_H__
 
-#include <log/log.h>
 #include <map>
 #include <mutex>
 
@@ -90,6 +89,7 @@ typedef enum {
   ADRENO_PIXELFORMAT_R5G5B5A1 = 611,  //  RGBA version of B5G5R5A1
   ADRENO_PIXELFORMAT_R4G4B4A4 = 612,  //  RGBA version of B4G4R4A4
   ADRENO_PIXELFORMAT_UYVY = 614,      //  YUV 4:2:2 packed progressive (1 plane)
+  ADRENO_PIXELFORMAT_YV12 = 616,
   ADRENO_PIXELFORMAT_NV21 = 619,
   ADRENO_PIXELFORMAT_Y8U8V8A8 = 620,  // YUV 4:4:4 packed (1 plane)
   ADRENO_PIXELFORMAT_Y8 = 625,        //  Single 8-bit luma only channel YUV format
@@ -374,7 +374,14 @@ class GraphicsConstraintProvider : public SnapConstraintProvider {
                 COMPRESSED_SRGB8_ALPHA8_ASTC_12x12_KHR,
             .modifier = PIXEL_FORMAT_MODIFIER_NONE},
            ADRENO_PIXELFORMAT_ASTC_12X12_SRGB},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YV12,
+            .modifier = PIXEL_FORMAT_MODIFIER_NONE},
+           ADRENO_PIXELFORMAT_YV12},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_422_I,
+            .modifier = PIXEL_FORMAT_MODIFIER_NONE},
+           ADRENO_PIXELFORMAT_YUY2},
       };
+
 };
 }  // namespace snapalloc
 

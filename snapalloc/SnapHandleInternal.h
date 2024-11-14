@@ -6,7 +6,6 @@
 
 #include "SnapTypes.h"
 
-#include <log/log.h>
 #include <unistd.h>
 #include <memory>
 
