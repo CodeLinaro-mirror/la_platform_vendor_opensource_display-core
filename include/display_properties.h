@@ -266,6 +266,8 @@
 #define FORCE_LM_TO_FB_CONFIG                DISPLAY_PROP("force_lm_to_fb_config")
 #define ENABLE_HAL_SELF_REFRESH              DISPLAY_PROP("enable_hal_self_refresh")
 #define HAL_REFRESH_HEADROOM                 DISPLAY_PROP("hal_refresh_headroom")
+#define BUILTIN_MIRRORING                    DISPLAY_PROP("builtin_mirroring")
+#define BUILTIN_PRESENTATION                 DISPLAY_PROP("builtin_presentation")
 
 // Enable AI Scaler
 #define ENABLE_AI_SCALER_PROP                DISPLAY_PROP("enable_ai_scaler")

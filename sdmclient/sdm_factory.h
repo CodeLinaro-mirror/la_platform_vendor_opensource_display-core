@@ -26,9 +26,9 @@ public:
  // to get access to layer stacks
  static SDMInterfaceFactoryImpl *GetSDMFactoryInternal();
  std::shared_ptr<SDMLayerBuilder> GetLayerBuilderInternal() { return layer_builder_; }
+ std::shared_ptr<ConcurrencyMgr> GetConcurrencyMgrInstance();
 
 private:
- std::shared_ptr<ConcurrencyMgr> GetConcurrencyMgrInstance();
  std::shared_ptr<SDMLayerBuilder> GetLayerBuilderInstance();
 
  std::shared_ptr<ConcurrencyMgr> concurrency_mgr_;

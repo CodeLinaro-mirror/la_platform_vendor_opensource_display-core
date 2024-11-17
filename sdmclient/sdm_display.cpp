@@ -1878,7 +1878,7 @@ DisplayError SDMDisplay::CommitOrPrepare(bool validate_only,
   if (exit_validate) {
     validate_done_ = true;
     client_target_3_1_set_ = false;
-    return kErrorNone;
+    return PostPrepareLayerStack(out_num_types, out_num_requests);
   }
 
   layer_stack_.validate_only = validate_only;

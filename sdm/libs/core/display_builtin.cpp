@@ -1952,6 +1952,17 @@ void DisplayBuiltIn::IdleTimeout() {
   event_handler_->Refresh();
 }
 
+void DisplayBuiltIn::TriggerIdleTimeout() {
+  DTRACE_SCOPED();
+  if (handle_idle_timeout_ || !is_mirror_mode_active_) {
+    return;
+  }
+  ClientLock lock(disp_mutex_);
+  trigger_idle_timeout_ = true;
+  DLOGI_IF(kTagDisplay, "Unlock Commit Thread to perform idle-timeout ...");
+  lock.NotifyWorker();
+}
+
 void DisplayBuiltIn::PingPongTimeout() {
   ClientLock lock(disp_mutex_);
   dpu_core_mux_->DumpDebugData();

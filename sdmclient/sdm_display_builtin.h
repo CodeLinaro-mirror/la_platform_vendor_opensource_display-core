@@ -117,6 +117,8 @@ public:
      int32_t samples_size[NUM_HISTOGRAM_COLOR_COMPONENTS],
      uint64_t *samples[NUM_HISTOGRAM_COLOR_COMPONENTS]);
  void Dump(std::ostringstream *os) override;
+ void TimeoutOnBuiltins() override;
+ void IdleTimeout() override;
  virtual DisplayError SetPowerMode(SDMPowerMode mode, bool teardown);
  virtual bool IsDisplayIdle();
  virtual bool HasReadBackBufferSupport();

@@ -698,6 +698,19 @@ void ConcurrencyMgr::HandlePendingRefresh() {
   pending_refresh_.reset();
 }
 
+void ConcurrencyMgr::TriggerTimeoutOnBuiltins() {
+  DTRACE_SCOPED();
+  for (uint64_t i = 0; i < kNumDisplays; i++) {
+    auto &display = sdm_display_[i];
+    if (!display || pending_power_mode_[i] ||
+        (display->GetDisplayClass() != DISPLAY_CLASS_BUILTIN) ||
+        (display->GetCurrentPowerMode() != SDMPowerMode::POWER_MODE_ON)) {
+      continue;
+    }
+    display->IdleTimeout();
+  }
+}
+
 void ConcurrencyMgr::SendHotplug(Display display, bool state) {
   callbacks_.OnHotplug(display, state);
 }

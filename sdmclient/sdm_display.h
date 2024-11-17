@@ -528,6 +528,8 @@ public:
     return kErrorNotSupported;
   }
   DisplayError GetCachedActiveConfig(bool get_real_config, Config *config);
+  virtual void TimeoutOnBuiltins(){};
+  virtual void IdleTimeout(){};
 
  protected:
   static uint32_t throttling_refresh_rate_;

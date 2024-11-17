@@ -404,6 +404,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   DisplayError HandleNoiseLayer(LayerStack *layer_stack);
   void PrepareForAsyncTransition();
   virtual void IdleTimeout() {}
+  virtual void TriggerIdleTimeout() {}
   std::chrono::system_clock::time_point WaitUntil();
   virtual void Abort();
   DisplayError DisableDestinationScalar();
@@ -474,6 +475,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   QSyncMode qsync_mode_ = kQSyncModeNone;
   std::bitset<kUpdateAVRFlagMax> needs_avr_update_ = {};
   bool force_lm_to_fb_config_ = false;
+  bool trigger_idle_timeout_ = false;
 
   static Locker display_power_reset_lock_;
   static bool display_power_reset_pending_;
@@ -526,6 +528,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   std::mutex sr_ref_count_mutex_;
   bool enable_hal_self_refresh_ = false;
   int hal_refresh_headroom_ = 4;  // In msec
+  bool is_mirror_mode_active_ = false;
 
  private:
   // Max tolerable power-state-change wait-times in milliseconds.
