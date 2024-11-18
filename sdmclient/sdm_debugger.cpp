@@ -219,6 +219,18 @@ void SDMDebugHandler::DebugQos(bool enable, int verbose_level) {
   DebugHandler::SetLogMask(debug_handler_.log_mask_);
 }
 
+void SDMDebugHandler::DebugDemura(bool enable, int verbose_level) {
+  if (enable) {
+    debug_handler_.log_mask_[kTagDemura] = 1;
+    debug_handler_.verbose_level_ = verbose_level;
+  } else {
+    debug_handler_.log_mask_[kTagDemura] = 0;
+    debug_handler_.verbose_level_ = 0;
+  }
+
+  DebugHandler::SetLogMask(debug_handler_.log_mask_);
+}
+
 void SDMDebugHandler::Error(const char *fmt, ...) {
   std::va_list args;
   va_start(args, fmt);

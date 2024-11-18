@@ -72,6 +72,7 @@ public:
   static int GetIdleTimeoutMs();
   static void DebugIWE(bool enable, int verbose_level);
   static void DebugWbUsage(bool enable, int verbose_level);
+  static void DebugDemura(bool enable, int verbose_level);
 
   virtual void Error(const char *fmt, ...)
       __attribute__((format(printf, 2, 3)));

@@ -26,6 +26,13 @@
 * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+/*
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the
+ * following license:
+ *
+ * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __DEBUG_HANDLER_H__
 #define __DEBUG_HANDLER_H__
@@ -35,10 +42,14 @@
 #define DLOG(method, format, ...) \
   display::DebugHandler::Get()->method(__CLASS__ "::%s: " format, __FUNCTION__, ##__VA_ARGS__)
 
+#ifdef LINUX_COMPILE
+#define DLOG_IF(tag, method, format, ...) DLOG(method, format, ##__VA_ARGS__);
+#else
 #define DLOG_IF(tag, method, format, ...) \
   if (display::DebugHandler::GetLogMask()[tag]) { \
     DLOG(method, format, ##__VA_ARGS__); \
   }
+#endif
 
 #define DLOGE_IF(tag, format, ...) DLOG_IF(tag, Error, format, ##__VA_ARGS__)
 #define DLOGW_IF(tag, format, ...) DLOG_IF(tag, Warning, format, ##__VA_ARGS__)
