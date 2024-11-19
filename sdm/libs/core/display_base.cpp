@@ -5002,10 +5002,11 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
   }
 
   bool roi_block_partial = false;
-  uint32_t cwb_mixer_count =
-      GetCwbRequestedMixerCount(&cwb_config, client_ctx_.display_attributes.topology_num_split,
-                                client_ctx_.display_attributes.x_pixels,
-                                client_ctx_.mixer_attributes.width, roi_block_partial);
+  // CWB considers fb width instead of mixer width at LM tap-point when values don't match
+  uint32_t cwb_mixer_count = GetCwbRequestedMixerCount(
+      &cwb_config, client_ctx_.display_attributes.topology_num_split,
+      client_ctx_.display_attributes.x_pixels, client_ctx_.fb_config.x_pixels /* mixer_width */,
+      roi_block_partial);
 
   if (cwb_mixer_count > MAX_MIXERS_FOR_CWB) {
     DLOGW("CWB requested mixer count %d, CWB max allowed mixer count %d for display %d-%d.",
