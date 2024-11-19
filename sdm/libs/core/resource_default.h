@@ -203,11 +203,13 @@ class ResourceDefault : public ResourceInterface {
   DisplayError SetDecimationFactor(HWPipeInfo *pipe);
   void SplitRect(const LayerRect &src_rect, const LayerRect &dst_rect, LayerRect *src_left,
                 LayerRect *dst_left, LayerRect *src_right, LayerRect *dst_right);
-  DisplayError AlignPipeConfig(const Layer *layer, HWPipeInfo *left_pipe,
-                               HWPipeInfo *right_pipe);
+  DisplayError AlignPipeConfig(const Layer *layer, vector<HWPipeInfo> *hw_pipes);
   void ResourceStateLog(void);
   DisplayError CalculateDecimation(float downscale, uint8_t *decimation);
   DisplayError GetScaleLutConfig(HWScaleLutInfo *lut_info);
+  void GetLayerMixerRect(const HWMixerAttributes &mixer_attributes, LayerRect *mixer,
+                         uint32_t num_split, uint32_t index, bool mixer_pair);
+
   DisplayClientContext client_ctx_;
   DisplayDeviceContext device_ctx_;
   vector<HWResourceInfo> hw_res_info_;

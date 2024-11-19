@@ -978,10 +978,15 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
 
   uint32_t index = current_mode_index_;
   uint32_t sub_mode_index = connector_info_.modes[index].curr_submode_index;
-  hw_panel_info_.split_info.left_split = display_attributes_[index].x_pixels;
+  uint32_t x_pixels = display_attributes_[index].x_pixels;
+  uint32_t num_split = display_attributes_[index].topology_num_split;
+  uint32_t mixer_pair_split = INT_TO_PAIR(num_split);
+  hw_panel_info_.split_info.left_split = x_pixels;
   if (display_attributes_[index].is_device_split) {
-    hw_panel_info_.split_info.left_split = hw_panel_info_.split_info.right_split =
-        display_attributes_[index].x_pixels / 2;
+    // left_split is half of display width when evenly split e.g., 1/2, 2/4, 3/6
+    // left_split is more than half of display width when oddly split e.g., 2/3, 3/5
+    hw_panel_info_.split_info.left_split = (x_pixels * mixer_pair_split) / num_split;
+    hw_panel_info_.split_info.right_split = x_pixels - hw_panel_info_.split_info.left_split;
   }
 
   int value = 0;
@@ -1713,20 +1718,16 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
   for (uint32_t i = 0; i < hw_layer_count; i++) {
     Layer &layer = hw_layers_info->hw_layers.at(i);
     LayerBuffer *input_buffer = &layer.input_buffer;
-    HWPipeInfo *left_pipe = &hw_layers_info->config[i].left_pipe;
-    HWPipeInfo *right_pipe = &hw_layers_info->config[i].right_pipe;
     HWLayerConfig &layer_config = hw_layers_info->config[i];
     HWRotatorSession *hw_rotator_session = &layer_config.hw_rotator_session;
 
     std::vector<HWPipeInfo *> pipe_info_vec;
-    if (left_pipe->valid) {
-      pipe_info_vec.push_back(left_pipe);
+    for (auto j = 0; j < layer_config.hw_pipes.size(); j++) {
+      pipe_info_vec.push_back(&layer_config.hw_pipes.at(j));
     }
-    if (right_pipe->valid) {
-      pipe_info_vec.push_back(right_pipe);
-    }
-    for (int j = 0; j < hw_layers_info->config[i].tunnel_pipes.size(); j++) {
-      pipe_info_vec.push_back(&hw_layers_info->config[i].tunnel_pipes[j]);
+
+    for (auto j = 0; j < layer_config.tunnel_pipes.size(); j++) {
+      pipe_info_vec.push_back(&layer_config.tunnel_pipes.at(j));
     }
 
     if (hw_layers_info->config[i].use_solidfill_stage) {
@@ -1740,7 +1741,7 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
       continue;
     }
 
-    for (uint32_t count = 0; count < pipe_info_vec.size(); count++) {
+    for (auto count = 0; count < pipe_info_vec.size(); count++) {
       HWPipeInfo *pipe_info = pipe_info_vec[count];
       HWRotateInfo *hw_rotate_info = (count <= 1) ?
                                      &hw_rotator_session->hw_rotate_info[count] : NULL;
@@ -1752,7 +1753,7 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
       std::vector<uint32_t> fb_id = {};
       registry_.GetFbId(&layer, input_buffer->handle_id, &fb_id);
 
-      if (pipe_info->valid && fb_id[pipe_info->cac_color]) {
+      if (fb_id[pipe_info->cac_color]) {
         uint32_t pipe_id = pipe_info->pipe_id;
 
         if (update_config) {
@@ -3470,17 +3471,10 @@ void HWDeviceDRM::DumpHWLayers(HWLayersInfo *hw_layers_info) {
             solid_fill_info.bit_depth, solid_fill_info.red, solid_fill_info.green,
             solid_fill_info.blue, solid_fill_info.alpha);
     }
-    for (uint32_t count = 0; count < 2; count++) {
-      HWPipeInfo &left_pipe = hw_config.left_pipe;
-      HWPipeInfo &right_pipe = hw_config.right_pipe;
-      HWPipeInfo &pipe_info = (count == 0) ? left_pipe : right_pipe;
-      HWScaleData &scale_data = pipe_info.scale_data;
-      if (!pipe_info.valid) {
-        continue;
-      }
-      std::string pipe = (count == 0) ? "left_pipe" : "right_pipe";
-      DLOGI("pipe = %s, pipe_id = %d, z_order = %d, flags = 0x%X",
-           pipe.c_str(), pipe_info.pipe_id, pipe_info.z_order, pipe_info.flags);
+    for (auto count = 0; count < hw_config.hw_pipes.size(); count++) {
+      HWPipeInfo &pipe_info = hw_config.hw_pipes.at(count);
+      DLOGI("pipe = %d, pipe_id = %d, z_order = %d, flags = 0x%X", (count + 1), pipe_info.pipe_id,
+            pipe_info.z_order, pipe_info.flags);
       DLOGI("src_rect: x = %d, y = %d, w = %d, h = %d", INT(pipe_info.src_roi.left),
             INT(pipe_info.src_roi.top), INT(pipe_info.src_roi.right - pipe_info.src_roi.left),
             INT(pipe_info.src_roi.bottom - pipe_info.src_roi.top));
@@ -3490,6 +3484,8 @@ void HWDeviceDRM::DumpHWLayers(HWLayersInfo *hw_layers_info) {
       DLOGI("excl_rect: left = %d, top = %d, right = %d, bottom = %d",
             INT(pipe_info.excl_rect.left), INT(pipe_info.excl_rect.top),
             INT(pipe_info.excl_rect.right), INT(pipe_info.excl_rect.bottom));
+
+      HWScaleData &scale_data = pipe_info.scale_data;
       if (scale_data.enable.scale) {
       DLOGI("HWScaleData enable flags: scale = %s, direction_detection = %s, detail_enhance = %s,"
             " dyn_exp_disable = %s, dir45_detection = %s, corner_detection = %s",
