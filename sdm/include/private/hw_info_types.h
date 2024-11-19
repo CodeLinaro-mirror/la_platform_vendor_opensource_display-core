@@ -74,6 +74,9 @@ const int kMaxSDELayers = 16;   // Maximum number of layers that can be handled 
 
 #define MAX_SPLIT_COUNT             4
 #define AI_SCALER_PARAM_LEN         485
+// TODO(user): modify to allow 4 mixers for CWB when support is added
+#define MAX_MIXERS_FOR_CWB          2
+#define MAX_MIXERS_FOR_DEMURA       2
 
 enum HWDeviceType {
   kDeviceBuiltIn,
