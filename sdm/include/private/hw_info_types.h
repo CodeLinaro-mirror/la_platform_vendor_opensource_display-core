@@ -72,8 +72,11 @@ const int kMaxSDELayers = 16;   // Maximum number of layers that can be handled 
 #define UCSC_CSC_CFG0_PARAM_LEN     FP16_CSC_CFG0_PARAM_LEN
 #define UCSC_CSC_CFG1_PARAM_LEN     FP16_CSC_CFG1_PARAM_LEN
 
-#define MAX_SPLIT_COUNT             2
+#define MAX_SPLIT_COUNT             4
 #define AI_SCALER_PARAM_LEN         485
+// TODO(user): modify to allow 4 mixers for CWB when support is added
+#define MAX_MIXERS_FOR_CWB          2
+#define MAX_MIXERS_FOR_DEMURA       2
 
 enum HWDeviceType {
   kDeviceBuiltIn,
@@ -914,11 +917,10 @@ struct NoiseLayerConfig {
 };
 
 struct HWLayerConfig {
-  HWPipeInfo left_pipe {};           // pipe for left side of output
-  HWPipeInfo right_pipe {};          // pipe for right side of output
+  std::vector<HWPipeInfo> hw_pipes {};        // list of valid pipes for output
   std::vector<HWPipeInfo> tunnel_pipes = {};  // pipe info for tunnel pipes
   HWRotatorSession hw_rotator_session {};
-  bool use_inline_rot = false;             // keep track of which layers inline rotation
+  bool use_inline_rot = false;                // keep track of which layers inline rotation
   HWSolidfillStage hw_solidfill_stage {};
   float compression = 1.0f;
   bool use_solidfill_stage = false;

@@ -1026,8 +1026,9 @@ DisplayError DisplayBase::ForceToneMapUpdate (LayerStack *layer_stack) {
       cached_layer.input_buffer.timestamp_data = stack_layer->input_buffer.timestamp_data;
       cached_layer.geometry_changes = stack_layer->geometry_changes;
 
-      hw_config.left_pipe.lut_info.clear();
-      hw_config.right_pipe.lut_info.clear();
+      for (auto count = 0; count < hw_config.hw_pipes.size(); count++) {
+        hw_config.hw_pipes.at(count).lut_info.clear();
+      }
     }
   }
 
@@ -2583,8 +2584,8 @@ std::string DisplayBase::Dump() {
 
       const char *comp_type = GetCompositionName(hw_layer.composition);
       const char *buffer_format = GetFormatString(input_buffer->format);
-      const char *pipe_split[2] = {"Pipe-1", "Pipe-2"};
-      const char *rot_pipe[2] = {"Rot-inl-1", "Rot-inl-2"};
+      const char *pipe_split[4] = {"Pipe-1", "Pipe-2", "Pipe-3", "Pipe-4"};
+      const char *rot_pipe[4] = {"Rot-inl-1", "Rot-inl-2", "Rot-inl-3", "Rot-inl-4"};
       char idx[8];
 
       snprintf(idx, sizeof(idx), "%d", layer_index);
@@ -2635,7 +2636,7 @@ std::string DisplayBase::Dump() {
         continue;
       }
 
-      for (uint32_t count = 0; count < 2; count++) {
+      for (auto count = 0; count < layer_config.hw_pipes.size(); count++) {
         char decimation[16] = {0};
         char flags[16] = {0};
         char z_order[8] = {0};
@@ -2644,11 +2645,7 @@ std::string DisplayBase::Dump() {
         char transfer[8] = {0};
         bool rot = layer_config.use_inline_rot;
 
-        HWPipeInfo &pipe = (count == 0) ? layer_config.left_pipe : layer_config.right_pipe;
-
-        if (!pipe.valid) {
-          continue;
-        }
+        HWPipeInfo &pipe = layer_config.hw_pipes.at(count);
 
         LayerRect src_roi = pipe.src_roi;
         LayerRect &dst_roi = pipe.dst_roi;
@@ -4965,11 +4962,6 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
     return kErrorNotSupported;
   }
 
-  if (client_ctx_.mixer_attributes.split_type == kQuadSplit) {
-    DLOGW("CWB doesn't support Quad Split for display %d-%d.", display_id_, display_type_);
-    return kErrorNotSupported;
-  }
-
   DisplayError error = kErrorNone;
   CwbConfig cwb_config = config;
 
@@ -5007,6 +4999,30 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
 
   if (!enable_client_control_cwb_refresh_) {
     cwb_config.avoid_refresh = !force_refresh_to_process_cwb_;
+  }
+
+  bool roi_block_partial = false;
+  // CWB considers fb width instead of mixer width at LM tap-point when values don't match
+  uint32_t cwb_mixer_count = GetCwbRequestedMixerCount(
+      &cwb_config, client_ctx_.display_attributes.topology_num_split,
+      client_ctx_.display_attributes.x_pixels, client_ctx_.fb_config.x_pixels /* mixer_width */,
+      roi_block_partial);
+
+  if (cwb_mixer_count > MAX_MIXERS_FOR_CWB) {
+    DLOGW("CWB requested mixer count %d, CWB max allowed mixer count %d for display %d-%d.",
+          cwb_mixer_count, MAX_MIXERS_FOR_CWB, display_id_, display_type_);
+    return kErrorNotSupported;
+  }
+
+  // TODO(user): remove when partial roi is supported for quad LM
+  if (client_ctx_.mixer_attributes.split_type == kQuadSplit) {
+    if (cwb_mixer_count != MAX_MIXERS_FOR_CWB || roi_block_partial || cwb_config.pu_as_cwb_roi) {
+      DLOGW(
+          "Quad Split! CWB requested mixer count %d, roi_block_partial %d, pu_as_cwb_roi %d "
+          "for display %d-%d.",
+          cwb_mixer_count, roi_block_partial, cwb_config.pu_as_cwb_roi, display_id_, display_type_);
+      return kErrorNotSupported;
+    }
   }
 
   error = comp_manager_->CaptureCwb(display_comp_ctx_, output_buffer, cwb_config);
