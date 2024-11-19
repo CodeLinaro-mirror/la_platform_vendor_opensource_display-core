@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapUtils.h"
@@ -246,4 +246,30 @@ bool IsCameraCustomFormat(SnapPixelFormat format, SnapPixelFormatModifier modifi
     return true;
   }
   return false;
+}
+int GetBatchSize(vendor_qti_hardware_display_common_PixelFormatModifier modifier) {
+  int batchsize = 1;
+  switch (modifier) {
+    case PIXEL_FORMAT_MODIFIER_LINEAR_FLEX:
+      batchsize = 1;
+      break;
+    case PIXEL_FORMAT_MODIFIER_FLEX_2_BATCH:
+    case PIXEL_FORMAT_MODIFIER_UBWC_FLEX_2_BATCH:
+      batchsize = 2;
+      break;
+    case PIXEL_FORMAT_MODIFIER_FLEX_4_BATCH:
+    case PIXEL_FORMAT_MODIFIER_UBWC_FLEX_4_BATCH:
+      batchsize = 4;
+      break;
+    case PIXEL_FORMAT_MODIFIER_FLEX_8_BATCH:
+    case PIXEL_FORMAT_MODIFIER_UBWC_FLEX_8_BATCH:
+      batchsize = 8;
+      break;
+    case PIXEL_FORMAT_MODIFIER_UBWC_FLEX:
+      batchsize = 16;
+      break;
+    default:
+      break;
+    }
+  return batchsize;
 }
