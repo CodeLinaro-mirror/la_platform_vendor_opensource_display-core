@@ -63,7 +63,7 @@ bool SnapConstraintManager::CanAllocateZSLForSecureCamera() {
   }
   std::string secure_preview_buffer_format_prop;
   debug_->IsSecurePreviewBufferFormatEnabled(&secure_preview_buffer_format_prop);
-  if (!(secure_preview_buffer_format_prop.compare("420_sp") == 0)) {
+  if (secure_preview_buffer_format_prop.compare("420_sp") == 0) {
     can_allocate = false;
   }
   inited = true;
@@ -262,6 +262,7 @@ Error SnapConstraintManager::GetAllocationData(
   auto align = GetDataAlignment(out_desc->format, out_desc->usage, pixel_format_modifier);
   OVERFLOW_ERR_RETURN(ALIGN(out_ad->size, align), out_desc->layerCount, OverflowType::MUL);
   out_ad->size = ALIGN(out_ad->size, align) * out_desc->layerCount;
+  out_layout->size_in_bytes = out_ad->size;
 
   return err;
 }

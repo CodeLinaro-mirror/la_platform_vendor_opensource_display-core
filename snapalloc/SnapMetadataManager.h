@@ -207,6 +207,9 @@ class SnapMetadataManager {
   Error DynamicMetadataHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
                               void *in_set = nullptr, void *out_get = nullptr,
                               BufferDescriptor *buf_des = nullptr);
+  Error SMPTE2094_10Helper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                           void *in_set = nullptr, void *out_get = nullptr,
+                           BufferDescriptor *buf_des = nullptr);
   Error MatrixCoefficientsHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
                                  void *in_set = nullptr, void *out_get = nullptr,
                                  BufferDescriptor *buf_des = nullptr);
@@ -452,6 +455,7 @@ class SnapMetadataManager {
           {MASTERING_DISPLAY, &SnapMetadataManager::MasteringDisplayHelper},
           {CONTENT_LIGHT_LEVEL, &SnapMetadataManager::ContentLightLevelHelper},
           {DYNAMIC_METADATA, &SnapMetadataManager::DynamicMetadataHelper},
+          {SMPTE2094_10, &SnapMetadataManager::SMPTE2094_10Helper},
           {MATRIX_COEFFICIENTS, &SnapMetadataManager::MatrixCoefficientsHelper},
           {COLOR_REMAPPING_INFO, &SnapMetadataManager::ColorRemappingInfoHelper},
           {BASE_ADDRESS, &SnapMetadataManager::BaseAddressHelper},
@@ -521,6 +525,7 @@ class SnapMetadataManager {
           {MASTERING_DISPLAY, {true}},
           {CONTENT_LIGHT_LEVEL, {true}},
           {DYNAMIC_METADATA, {true}},
+          {SMPTE2094_10, {true}},
           {MATRIX_COEFFICIENTS, {true}},
           {COLOR_REMAPPING_INFO, {true}},
           {BASE_ADDRESS, {false}},
