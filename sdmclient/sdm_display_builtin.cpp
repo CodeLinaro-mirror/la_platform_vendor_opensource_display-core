@@ -28,7 +28,7 @@
  */
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <stdarg.h>
@@ -876,6 +876,18 @@ DisplayError SDMDisplayBuiltIn::SetHWDetailedEnhancerConfig(void *params) {
           de_tuning_cfg_data->params.de_lpf_m,
           de_tuning_cfg_data->params.de_lpf_l);
 #endif
+#ifdef DISP_DE_VER_3005
+      DLOGV_IF(kTagQDCM,
+               "sharpen_level1 %d, sharpen_level2 %d, filter_config %d, "
+               "polarity_en %d, halo suppress factor %d, detail suppress factor %d, "
+               "optimization mode %d",
+               de_tuning_cfg_data->params.sharpen_level1, de_tuning_cfg_data->params.sharpen_level2,
+               de_tuning_cfg_data->params.filter_config, de_tuning_cfg_data->params.polarity_en,
+               de_tuning_cfg_data->params.halo_suppression_factor,
+               de_tuning_cfg_data->params.detail_suppression_factor,
+               de_tuning_cfg_data->params.optimization_mode);
+#endif
+
       if (de_tuning_cfg_data->params.flags & kDeTuningFlagSharpFactor) {
         de_data.sharp_factor = de_tuning_cfg_data->params.sharp_factor;
       }
@@ -916,6 +928,11 @@ DisplayError SDMDisplayBuiltIn::SetHWDetailedEnhancerConfig(void *params) {
         case kDeContentQualHigh:
           de_data.quality_level = kContentQualityHigh;
           break;
+#ifdef DISP_DE_VER_3005
+        case kDeContentQualExtreme:
+          de_data.quality_level = kContentQualityExtreme;
+          break;
+#endif
         case kDeContentQualUnknown:
         default:
           de_data.quality_level = kContentQualityUnknown;
@@ -947,6 +964,67 @@ DisplayError SDMDisplayBuiltIn::SetHWDetailedEnhancerConfig(void *params) {
         de_data.de_lpf_h = de_tuning_cfg_data->params.de_lpf_h;
         de_data.de_lpf_m = de_tuning_cfg_data->params.de_lpf_m;
         de_data.de_lpf_l = de_tuning_cfg_data->params.de_lpf_l;
+      }
+#endif
+#ifdef DISP_DE_VER_3005
+      if (de_tuning_cfg_data->params.flags & kDeTuningFlagSharpenLevel1) {
+        de_data.override_flags |= kOverrideDESharpen1;
+        de_data.sharpen_level1 = de_tuning_cfg_data->params.sharpen_level1;
+      }
+
+      if (de_tuning_cfg_data->params.flags & kDeTuningFlagSharpenLevel2) {
+        de_data.override_flags |= kOverrideDESharpen2;
+        de_data.sharpen_level2 = de_tuning_cfg_data->params.sharpen_level2;
+      }
+
+      if (de_tuning_cfg_data->params.flags & kDeTuningFlagPolarityEn) {
+        de_data.override_flags |= kOverrideDEPolarityEn;
+        de_data.polarity_en = de_tuning_cfg_data->params.polarity_en;
+      }
+
+      de_data.halo_suppression_factor = de_tuning_cfg_data->params.halo_suppression_factor;
+      de_data.detail_suppression_factor = de_tuning_cfg_data->params.detail_suppression_factor;
+
+      if (de_tuning_cfg_data->params.flags & kDeTuningFlagFilterConfig) {
+        de_data.override_flags |= kOverrideDEFilterConfig;
+        switch (de_tuning_cfg_data->params.filter_config) {
+          case kDeFilterEdgeDirected:
+            de_data.filter_config = kFilterEdgeDirected;
+            break;
+          case kDeFilterCircular:
+            de_data.filter_config = kFilterCircular;
+            break;
+          case kDeFilterSeparable:
+            de_data.filter_config = kFilterSeparable;
+            break;
+          case kDeFilterBilinear:
+            de_data.filter_config = kFilterBilinear;
+            break;
+          default:
+            de_data.filter_config = kFilterMax;
+            de_data.override_flags &= ~kOverrideDEFilterConfig;
+            break;
+        }
+      }
+      switch (de_tuning_cfg_data->params.optimization_mode) {
+        case kDeOptimizationQuality:
+          de_data.optimization_mode = kOptimizationQuality;
+          break;
+        case kDeOptimizationBalanced:
+          de_data.optimization_mode = kOptimizationBalanced;
+          break;
+        case kDeOptimizationPower:
+          de_data.optimization_mode = kOptimizationPower;
+          break;
+        case kDeOptimizationBalancedHigh:
+          de_data.optimization_mode = kOptimizationBalancedHigh;
+          break;
+        case kDeOptimizationBalancedLow:
+          de_data.optimization_mode = kOptimizationBalancedLow;
+          break;
+        default:
+          de_data.optimization_mode = kOptimizationQuality;
+          break;
       }
 #endif
     }
