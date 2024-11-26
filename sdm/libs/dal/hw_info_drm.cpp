@@ -676,6 +676,16 @@ void HWInfoDRM::PopulateSupportedFmts(HWSubBlockType sub_blk_type,
 
     fmts_map.insert(make_pair(sub_blk_type, sdm_formats));
   }
+
+  if (info.cac_mode.test(sde_drm::CAC_MODE_UNPACK_BIT) ||
+      info.cac_mode.test(sde_drm::CAC_MODE_LOOPBACK_UNPACK_BIT)) {
+    vector<LayerBufferFormat> cac_sdm_formats;
+    for (auto &fmts : info.cac_formats_supported) {
+      GetSDMFormat(fmts.first, fmts.second, &cac_sdm_formats);
+    }
+
+    hw_resource->cac_supported_formats = std::move(cac_sdm_formats);
+  }
 }
 
 void HWInfoDRM::PopulateSupportedInlineFmts(const sde_drm::DRMPlaneTypeInfo &info,

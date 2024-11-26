@@ -493,6 +493,7 @@ struct HWResourceInfo {
   uint32_t core_id = 0;
   CacVersion cac_version = kCacVersionNone;
   DDRVersion ddr_version = kDDRVersionNone;
+  std::vector<LayerBufferFormat> cac_supported_formats;
   bool has_cesta = false;
   uint32_t hw_ai_scaler_count = 0;
 };

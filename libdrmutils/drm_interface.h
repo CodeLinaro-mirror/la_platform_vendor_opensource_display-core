@@ -934,6 +934,7 @@ struct DRMPlaneTypeInfo {
   uint32_t master_plane_id;
   // FourCC format enum and modifier
   std::vector<std::pair<uint32_t, uint64_t>> formats_supported;
+  std::vector<std::pair<uint32_t, uint64_t>> cac_formats_supported;
   uint32_t max_linewidth;
   uint32_t max_scaler_linewidth;
   uint32_t max_rotation_linewidth; // inline rotation limitation

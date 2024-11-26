@@ -732,6 +732,7 @@ void DRMPlane::GetTypeInfo(const PropertyMap &prop_map) {
 
   string line = {};
   string pixel_formats = "pixel_formats=";
+  string cac_supported_formats = "cac_supported_formats=";
   string max_linewidth = "max_linewidth=";
   string max_upscale = "max_upscale=";
   string max_downscale = "max_downscale=";
@@ -761,6 +762,10 @@ void DRMPlane::GetTypeInfo(const PropertyMap &prop_map) {
       vector<pair<uint32_t, uint64_t>> formats_supported;
       ParseFormats(line.erase(0, pixel_formats.length()), &formats_supported);
       info->formats_supported = std::move(formats_supported);
+    } else if (line.find(cac_supported_formats) != string::npos) {
+      vector<pair<uint32_t, uint64_t>> cac_formats_supported;
+      ParseFormats(line.erase(0, cac_supported_formats.length()), &cac_formats_supported);
+      info->cac_formats_supported = std::move(cac_formats_supported);
     } else if (line.find(max_linewidth) != string::npos) {
       info->max_linewidth = std::stoi(line.erase(0, max_linewidth.length()));
     } else if (line.find(max_upscale) != string::npos) {
@@ -794,17 +799,16 @@ void DRMPlane::GetTypeInfo(const PropertyMap &prop_map) {
         true_inline_dwnscale_rt_denominator.length()));
     } else if (line.find(true_inline_max_height) != string::npos) {
       info->max_rotation_linewidth = std::stoi(line.erase(0, true_inline_max_height.length()));
-    }  else if (line.find(pipe_idx) != string::npos) {
+    } else if (line.find(pipe_idx) != string::npos) {
       info->pipe_idx = std::stoi(line.erase(0, pipe_idx.length()));
-    }  else if (line.find(demura_block) != string::npos) {
+    } else if (line.find(demura_block) != string::npos) {
       info->demura_block_capability = std::stoi(line.erase(0, demura_block.length()));
-    }  else if (line.find(cac_mode) != string::npos) {
+    } else if (line.find(cac_mode) != string::npos) {
       // Assign first four bits of cac mode to bitset
       info->cac_mode = 0xF & std::stoi(line.erase(0, cac_mode.length()));
-    }  else if (line.find(cac_parent_rect) != string::npos) {
+    } else if (line.find(cac_parent_rect) != string::npos) {
       info->cac_parent_rect = std::stoi(line.erase(0, cac_parent_rect.length()));
     }
-
   }
 
 // TODO(user): Get max_scaler_linewidth and non_scaler_linewidth from driver
