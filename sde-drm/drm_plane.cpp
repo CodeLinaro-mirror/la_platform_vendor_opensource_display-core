@@ -326,17 +326,16 @@ static InlineRotationVersion PopulateInlineRotationVersion(uint32_t ver) {
 
 static QSEEDStepVersion PopulateQseedStepVersion(uint32_t hw_ver) {
   switch (hw_ver) {
-    case 0x1003: return QSEEDStepVersion::V3;
-    case 0x1004: return QSEEDStepVersion::V4;
-    case 0x2004: return QSEEDStepVersion::V3LITE_V4;
     case 0x3000: return QSEEDStepVersion::V3LITE_V5;
     case 0x3001: return QSEEDStepVersion::V3LITE_V7;
     case 0x3002: return QSEEDStepVersion::V3LITE_V8;
     case 0x3003: return QSEEDStepVersion::V3LITE_V9;
     case 0x3004:
       return QSEEDStepVersion::V3LITE_V10;
-    // default value. also corresponds to (hw_ver == 0x1002)
-    default: return QSEEDStepVersion::V2;
+    case 0x3005:
+    // update default value to newest available version
+    default:
+      return QSEEDStepVersion::V3LITE_V11;
   }
 }
 
@@ -721,8 +720,8 @@ void DRMPlane::GetTypeInfo(const PropertyMap &prop_map) {
   if (info->type == DRMPlaneType::CURSOR) {
     info->max_linewidth = 128;
   }
-  // TODO(user): change default to V2 once we start getting V3 via capabilities blob
-  info->qseed3_version = QSEEDStepVersion::V3;
+
+  info->qseed3_version = QSEEDStepVersion::V3LITE_V11;
   info->has_excl_rect = has_excl_rect_;
 
   // We may have multiple lines with each one dedicated for something specific
@@ -810,8 +809,7 @@ void DRMPlane::GetTypeInfo(const PropertyMap &prop_map) {
 
 // TODO(user): Get max_scaler_linewidth and non_scaler_linewidth from driver
 // max_linewidth can be smaller than 2560 for few target, so make sure to assign the minimum of both
-  info->max_scaler_linewidth = (info->qseed3_version < QSEEDStepVersion::V4) ? info->max_linewidth :
-                               std::min((uint32_t)MAX_SCALER_LINEWIDTH, info->max_linewidth);
+  info->max_scaler_linewidth = std::min((uint32_t)MAX_SCALER_LINEWIDTH, info->max_linewidth);
 
   drmModeFreePropertyBlob(blob);
   delete[] fmt_str;
@@ -862,7 +860,7 @@ void DRMPlane::ParseProperties() {
       PopulateUcscGcMode(info);
     }
 
-    if (prop_enum == DRMProperty::ALPHA) {
+    if ((prop_enum == DRMProperty::ALPHA) && info->values) {
       alpha_range_.first = info->values[0];
       alpha_range_.second = info->values[1];
     }

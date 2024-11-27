@@ -347,8 +347,17 @@ DisplayError DisplayBase::Init() {
       }
     }
   }
+  prop = 0;
+  if (Debug::Get()->GetProperty(ENABLE_ASYNC_POWER_OFF_WAIT, &prop) == kErrorNone) {
+    enable_async_power_off_wait_ = (prop == 1);
+  }
 
   Debug::GetIdleTimeoutMs(&idle_active_ms_, &inactive_ms);
+
+  is_mirror_mode_active_ = Debug::IsMirrorModeActive();
+  if (is_mirror_mode_active_) {
+    DLOGI("Mirror mode active for %d-%d", display_id_, display_type_);
+  }
 
   xr_variant_ = IsXRVariant();
 
@@ -1017,8 +1026,9 @@ DisplayError DisplayBase::ForceToneMapUpdate (LayerStack *layer_stack) {
       cached_layer.input_buffer.timestamp_data = stack_layer->input_buffer.timestamp_data;
       cached_layer.geometry_changes = stack_layer->geometry_changes;
 
-      hw_config.left_pipe.lut_info.clear();
-      hw_config.right_pipe.lut_info.clear();
+      for (auto count = 0; count < hw_config.hw_pipes.size(); count++) {
+        hw_config.hw_pipes.at(count).lut_info.clear();
+      }
     }
   }
 
@@ -1032,7 +1042,7 @@ DisplayError DisplayBase::ForceToneMapUpdate (LayerStack *layer_stack) {
 
 void DisplayBase::EnableLlccDuringAodMode(LayerStack *layer_stack) {
   if ((!disable_llcc_during_aod_) && ((state_ == kStateDoze) || (state_ == kStateDozeSuspend)) &&
-      (client_ctx_.hw_panel_info.mode == kModeVideo)) {
+      ((client_ctx_.hw_panel_info.mode == kModeVideo) && !client_ctx_.hw_panel_info.vhm_support)) {
     // Set CACHE_STATE property as part of Doze/Doze-suspend commit or subsequent commits
     // with video mode panel.
     disp_layer_stack_->stack_info.self_refresh_state = kSelfRefreshReadAlloc;
@@ -1662,6 +1672,9 @@ void DisplayBase::CommitThread() {
         idle_hint_set_ = true;
       } else {
         IdleTimeout();
+        if (display_type_ == kBuiltIn && is_mirror_mode_active_) {
+          event_handler_->TimeoutOnBuiltins();
+        }
       }
 
       RefreshOnIdleTimeoutForCwb(false);
@@ -1671,6 +1684,12 @@ void DisplayBase::CommitThread() {
     if (disp_mutex_.worker_exit) {
       DLOGI("Terminate commit thread.");
       break;
+    }
+
+    if (trigger_idle_timeout_) {
+      IdleTimeout();
+      trigger_idle_timeout_ = false;
+      continue;
     }
 
     if (commit_phase_) {
@@ -2313,21 +2332,39 @@ DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
       return kErrorParameters;
   }
 
+  bool performing_async_poweroff_wait = false;
   if ((pending_power_state_ == kPowerStateNone) && !first_cycle_) {
     CacheRetireFence();
-    SyncPoints sync = {};
-    sync.retire_fence = retire_fence_;
-    WaitForCompletion(&sync);
+    if (enable_async_power_off_wait_ && state == kStateOff) {
+      performing_async_poweroff_wait = true;
+      std::thread(&DisplayBase::WaitForCompletionAsync, this, retire_fence_, sync_points).detach();
+    } else {
+      SyncPoints sync = {};
+      sync.retire_fence = retire_fence_;
+      WaitForCompletion(&sync);
+    }
   }
 
-  error = ReconfigureDisplay();
-  if (error != kErrorNone) {
-    return error;
+  if (!performing_async_poweroff_wait) {
+    error = PostSetDisplayState(state, active, sync_points);
+    if (error != kErrorNone) {
+      return error;
+    }
   }
 
-  DisablePartialUpdateOneFrameInternal();
+  if (release_fence) {
+    *release_fence = sync_points.release_fence;
+  }
 
+  return error;
+}
+
+DisplayError DisplayBase::PostSetDisplayState(DisplayState state, bool active,
+                                              SyncPoints sync_points) {
+  DTRACE_SCOPED();
+  auto error = ReconfigureDisplay();
   if (error == kErrorNone) {
+    DisablePartialUpdateOneFrameInternal();
     if (pending_power_state_ == kPowerStateNone) {
       active_ = active;
       state_ = state;
@@ -2341,14 +2378,9 @@ DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
       }
     }
     comp_manager_->SetDisplayState(display_comp_ctx_, state, sync_points);
+    DLOGI("active %d-%d state %d-%d pending_power_state_ %d", active, active_, state, state_,
+          pending_power_state_);
   }
-  DLOGI("active %d-%d state %d-%d pending_power_state_ %d", active, active_, state, state_,
-        pending_power_state_);
-
-  if (release_fence) {
-    *release_fence = sync_points.release_fence;
-  }
-
   return error;
 }
 
@@ -2552,8 +2584,8 @@ std::string DisplayBase::Dump() {
 
       const char *comp_type = GetCompositionName(hw_layer.composition);
       const char *buffer_format = GetFormatString(input_buffer->format);
-      const char *pipe_split[2] = {"Pipe-1", "Pipe-2"};
-      const char *rot_pipe[2] = {"Rot-inl-1", "Rot-inl-2"};
+      const char *pipe_split[4] = {"Pipe-1", "Pipe-2", "Pipe-3", "Pipe-4"};
+      const char *rot_pipe[4] = {"Rot-inl-1", "Rot-inl-2", "Rot-inl-3", "Rot-inl-4"};
       char idx[8];
 
       snprintf(idx, sizeof(idx), "%d", layer_index);
@@ -2604,7 +2636,7 @@ std::string DisplayBase::Dump() {
         continue;
       }
 
-      for (uint32_t count = 0; count < 2; count++) {
+      for (auto count = 0; count < layer_config.hw_pipes.size(); count++) {
         char decimation[16] = {0};
         char flags[16] = {0};
         char z_order[8] = {0};
@@ -2613,11 +2645,7 @@ std::string DisplayBase::Dump() {
         char transfer[8] = {0};
         bool rot = layer_config.use_inline_rot;
 
-        HWPipeInfo &pipe = (count == 0) ? layer_config.left_pipe : layer_config.right_pipe;
-
-        if (!pipe.valid) {
-          continue;
-        }
+        HWPipeInfo &pipe = layer_config.hw_pipes.at(count);
 
         LayerRect src_roi = pipe.src_roi;
         LayerRect &dst_roi = pipe.dst_roi;
@@ -4445,6 +4473,15 @@ void DisplayBase::MMRMEvent(uint32_t clk) {
   event_handler_->Refresh();
 }
 
+void DisplayBase::WaitForCompletionAsync(shared_ptr<Fence> retire_fence, SyncPoints sync_points) {
+  ClientLock lock(disp_mutex_);
+  DTRACE_SCOPED();
+  SyncPoints sync = {};
+  sync.retire_fence = retire_fence;
+  WaitForCompletion(&sync);
+  PostSetDisplayState(DisplayState::kStateOff, false, sync_points);
+}
+
 void DisplayBase::WaitForCompletion(SyncPoints *sync_points) {
   DTRACE_SCOPED();
   // For displays in unified draw, wait on cached retire fence in steady state.
@@ -4508,7 +4545,6 @@ DisplayError DisplayBase::SetHWDetailedEnhancerConfig(void *params) {
 #endif
 
       if (de_tuning_cfg_data->params.flags & kDeTuningFlagSharpFactor) {
-        de_data.override_flags |= kOverrideDESharpen1;
         de_data.sharp_factor = de_tuning_cfg_data->params.sharp_factor;
       }
 
@@ -4926,11 +4962,6 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
     return kErrorNotSupported;
   }
 
-  if (client_ctx_.mixer_attributes.split_type == kQuadSplit) {
-    DLOGW("CWB doesn't support Quad Split for display %d-%d.", display_id_, display_type_);
-    return kErrorNotSupported;
-  }
-
   DisplayError error = kErrorNone;
   CwbConfig cwb_config = config;
 
@@ -4968,6 +4999,30 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
 
   if (!enable_client_control_cwb_refresh_) {
     cwb_config.avoid_refresh = !force_refresh_to_process_cwb_;
+  }
+
+  bool roi_block_partial = false;
+  // CWB considers fb width instead of mixer width at LM tap-point when values don't match
+  uint32_t cwb_mixer_count = GetCwbRequestedMixerCount(
+      &cwb_config, client_ctx_.display_attributes.topology_num_split,
+      client_ctx_.display_attributes.x_pixels, client_ctx_.fb_config.x_pixels /* mixer_width */,
+      roi_block_partial);
+
+  if (cwb_mixer_count > MAX_MIXERS_FOR_CWB) {
+    DLOGW("CWB requested mixer count %d, CWB max allowed mixer count %d for display %d-%d.",
+          cwb_mixer_count, MAX_MIXERS_FOR_CWB, display_id_, display_type_);
+    return kErrorNotSupported;
+  }
+
+  // TODO(user): remove when partial roi is supported for quad LM
+  if (client_ctx_.mixer_attributes.split_type == kQuadSplit) {
+    if (cwb_mixer_count != MAX_MIXERS_FOR_CWB || roi_block_partial || cwb_config.pu_as_cwb_roi) {
+      DLOGW(
+          "Quad Split! CWB requested mixer count %d, roi_block_partial %d, pu_as_cwb_roi %d "
+          "for display %d-%d.",
+          cwb_mixer_count, roi_block_partial, cwb_config.pu_as_cwb_roi, display_id_, display_type_);
+      return kErrorNotSupported;
+    }
   }
 
   error = comp_manager_->CaptureCwb(display_comp_ctx_, output_buffer, cwb_config);

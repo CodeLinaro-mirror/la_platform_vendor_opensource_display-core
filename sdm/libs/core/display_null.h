@@ -68,6 +68,7 @@ class DisplayNull : public DisplayInterface {
   virtual bool IsPrimaryDisplay() { return true; }
   virtual bool IsUnderscanSupported() { return true; }
   virtual void SetIdleTimeoutMs(uint32_t active_ms, uint32_t inactive_ms) {}
+  virtual void TriggerIdleTimeout() {}
   virtual DisplayError GetDisplayIdentificationData(uint8_t *out_port, uint32_t *out_data_size,
                                                     uint8_t *out_data);
   virtual bool CheckResourceState(bool *res_exhausted) { return false; }
@@ -190,6 +191,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(EnableCopr(bool en))
   MAKE_NO_OP(GetCoprStats(std::vector<int> *stats))
   MAKE_NO_OP(GetScalerCount(uint32_t *scaler_count));
+  MAKE_NO_OP(DumpDemuraSurface(const char *dir_path, uint32_t frame_index))
 
  protected:
   DisplayConfigVariableInfo default_variable_config_ = {};

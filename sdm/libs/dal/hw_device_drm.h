@@ -247,6 +247,9 @@ class HWDeviceDRM : public HWInterface {
   void SetBlending(const LayerBlending &source, sde_drm::DRMBlendType *target);
   void SetSrcConfig(const LayerBuffer &input_buffer, const HWRotatorMode &mode, uint32_t *config);
   void SelectCscType(const LayerBuffer &input_buffer, sde_drm::DRMCscType *type);
+  DisplayError SelectCscTypeWithMatrixCoEfficients(const LayerBuffer &input_buffer,
+                                                   sde_drm::DRMCscType *type);
+  void SelectCscTypeWithColorPrimaries(const LayerBuffer &input_buffer, sde_drm::DRMCscType *type);
   void SelectFp16Config(const LayerBuffer &input_buffer, int *igc_en, int *unmult_en,
                         sde_drm::DRMFp16CscType *csc_type, drm_msm_fp16_gc *gc,
                         LayerBlending blend);

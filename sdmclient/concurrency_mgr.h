@@ -501,6 +501,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                                  std::vector<int32_t> *out_configs);
   DisplayError GetVsyncPeriod(Display disp, uint32_t *vsync_period);
   void Refresh(uint64_t display);
+  void TriggerTimeoutOnBuiltins();
 
   DisplayError GetDisplayVsyncPeriod(Display display,
                                      VsyncPeriodNanos *out_vsync_period);

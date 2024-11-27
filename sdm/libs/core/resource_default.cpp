@@ -295,67 +295,54 @@ DisplayError ResourceDefault::Prepare(Handle display_ctx, DispLayerStack *disp_l
       }
     }
 
-    uint32_t left_index = num_pipe;
-    uint32_t right_index = num_pipe;
-    bool need_scale = false;
-
     struct HWLayerConfig &layer_config = disp_layer_stack->info[j].config[0];
-
-    HWPipeInfo *left_pipe = &layer_config.left_pipe;
-    HWPipeInfo *right_pipe = &layer_config.right_pipe;
-
-    // left pipe is needed
-    if (left_pipe->valid) {
-      need_scale = IsScalingNeeded(left_pipe);
-      left_index = GetPipe(hw_block_type, need_scale);
-      if (left_index >= num_pipe) {
-        DLOGV_IF(kTagResources, "Get left pipe failed: hw_block_type = %d, need_scale = %d",
-                 hw_block_type, need_scale);
+    vector<uint32_t> index_tot;
+    uint32_t num_pipes = layer_config.hw_pipes.size();
+    for (auto count = 0; count < num_pipes; count++) {
+      HWPipeInfo &pipe = layer_config.hw_pipes.at(count);
+      bool need_scale = IsScalingNeeded(&pipe);
+      uint32_t index = GetPipe(hw_block_type, need_scale);
+      if (index >= num_pipe) {
+        DLOGV_IF(kTagResources, "Get pipe %d failed: hw_block_type = %d, need_scale = %d",
+                 (count + 1), hw_block_type, need_scale);
         ResourceStateLog();
         goto CleanupOnError;
       }
-    }
 
-    error = SetDecimationFactor(left_pipe);
-    if (error != kErrorNone) {
-      goto CleanupOnError;
-    }
-
-    if (!right_pipe->valid) {
-      // assign single pipe
-      if (left_index < num_pipe) {
-        left_pipe->pipe_id = src_pipes->at(left_index).mdss_pipe_id;
+      error = SetDecimationFactor(&pipe);
+      if (error != kErrorNone) {
+        goto CleanupOnError;
       }
-      DLOGV_IF(kTagResources, "1 pipe acquired for FB layer, left_pipe = %x", left_pipe->pipe_id);
-      continue;
+
+      index_tot.push_back(index);
     }
 
-    need_scale = IsScalingNeeded(right_pipe);
+    for (auto count = 0; count < num_pipes; count += 2) {
+      HWPipeInfo &pipe = layer_config.hw_pipes.at(count);
+      uint32_t index = index_tot.at(count);
+      if (count == num_pipes - 1) {
+        pipe.pipe_id = src_pipes->at(index).mdss_pipe_id;
+        break;
+      }
 
-    right_index = GetPipe(hw_block_type, need_scale);
-    if (right_index >= num_pipe) {
-      DLOGV_IF(kTagResources, "Get right pipe failed: hw_block_type = %d, need_scale = %d",
-               hw_block_type, need_scale);
-      ResourceStateLog();
-      goto CleanupOnError;
+      HWPipeInfo &pipe_next = layer_config.hw_pipes.at(count + 1);
+      uint32_t index_next = index_tot.at(count + 1);
+
+      if (src_pipes->at(index_next).priority < src_pipes->at(index).priority) {
+        // Pipe priority is checked against each LM-pair
+        // Each pair of pipes gets split either 1. 2 pipes in LM-pair or 2. 1 pipe each in LM-pair
+        // This allows us to swap each pair safely and maintain pipe priority
+        std::swap(index, index_next);
+      }
+      pipe.pipe_id = src_pipes->at(index).mdss_pipe_id;
+      pipe_next.pipe_id = src_pipes->at(index_next).mdss_pipe_id;
     }
 
-    if (src_pipes->at(right_index).priority < src_pipes->at(left_index).priority) {
-      // Swap pipe based on priority
-      std::swap(left_index, right_index);
+    DLOGV_IF(kTagResources, "%d pipes acquired for FB layer", num_pipes);
+    for (auto count = 0; count < num_pipes; count++) {
+      HWPipeInfo &pipe = layer_config.hw_pipes.at(count);
+      DLOGV_IF(kTagResources, "pipe %d = %x", (count + 1), pipe.pipe_id);
     }
-
-    // assign dual pipes
-    left_pipe->pipe_id = src_pipes->at(left_index).mdss_pipe_id;
-    right_pipe->pipe_id = src_pipes->at(right_index).mdss_pipe_id;
-
-    error = SetDecimationFactor(right_pipe);
-    if (error != kErrorNone) {
-      goto CleanupOnError;
-    }
-
-    DLOGV_IF(kTagResources, "2 pipes acquired for FB layer, left_pipe = %x, right_pipe = %x",
-             left_pipe->pipe_id,  right_pipe->pipe_id);
   }
   return kErrorNone;
 
@@ -529,80 +516,85 @@ void ResourceDefault::ResourceStateLog() {
 }
 
 DisplayError ResourceDefault::SrcSplitConfig(DisplayResourceContext *display_resource_ctx,
-                                        const LayerRect &src_rect, const LayerRect &dst_rect,
-                                        HWLayerConfig *layer_config) {
-  HWPipeInfo *left_pipe = &layer_config->left_pipe;
-  HWPipeInfo *right_pipe = &layer_config->right_pipe;
-  uint32_t max_pipe_width = hw_res_info_[core_id_].max_pipe_width;
-  uint32_t src_width = (uint32_t)(src_rect.right - src_rect.left);
-  uint32_t dst_width = (uint32_t)(dst_rect.right - dst_rect.left);
+                                             const LayerRect &src_rect, const LayerRect &dst_rect,
+                                             HWLayerConfig *layer_config) {
+  uint32_t num_split = display_resource_ctx->display_attributes.topology_num_split;
+  LayerRect mixer_rect = {};
 
-  if (src_width != dst_width) {
-    max_pipe_width =  hw_res_info_[core_id_].max_scaler_pipe_width;
+  for (auto count = 0; count < num_split; count += 2) {
+    GetLayerMixerRect(display_resource_ctx->mixer_attributes, &mixer_rect, num_split, count,
+                      true /* mixer_pair */);
+    LayerRect src_copy = src_rect;
+    LayerRect dst_copy = dst_rect;
+
+    if (dst_rect.left >= mixer_rect.left && dst_rect.right <= mixer_rect.right) {
+      break;
+    } else if ((dst_rect.left < mixer_rect.left && dst_rect.right > mixer_rect.left) ||
+               (dst_rect.left < mixer_rect.right && dst_rect.right > mixer_rect.right)) {
+      // split at LM-pair boundary
+      CalculateCropRects(mixer_rect, &src_copy, &dst_copy);
+      HWPipeInfo pipe = {};
+      pipe.src_roi = src_copy;
+      pipe.dst_roi = dst_copy;
+      pipe.valid = true;
+      layer_config->hw_pipes.push_back(pipe);
+    }
   }
 
-  // Layer cannot qualify for SrcSplit if source or destination width exceeds max pipe width.
-  if ((src_width > max_pipe_width) || (dst_width > max_pipe_width)) {
-    SplitRect(src_rect, dst_rect, &left_pipe->src_roi, &left_pipe->dst_roi, &right_pipe->src_roi,
-              &right_pipe->dst_roi);
-    left_pipe->valid = true;
-    right_pipe->valid = true;
-  } else {
-    left_pipe->src_roi = src_rect;
-    left_pipe->dst_roi = dst_rect;
-    left_pipe->valid = true;
-    *right_pipe = {};
+  if (!layer_config->hw_pipes.size()) {
+    uint32_t max_pipe_width = hw_res_info_.at(core_id_).max_pipe_width;
+    uint32_t src_width = (uint32_t)(src_rect.right - src_rect.left);
+    uint32_t dst_width = (uint32_t)(dst_rect.right - dst_rect.left);
+    HWPipeInfo pipe1 = {};
+    HWPipeInfo pipe2 = {};
+
+    if (src_width != dst_width) {
+      max_pipe_width = hw_res_info_.at(core_id_).max_scaler_pipe_width;
+    }
+
+    // Layer cannot qualify for SrcSplit if source or destination width exceeds max pipe width.
+    if ((src_width > max_pipe_width) || (dst_width > max_pipe_width)) {
+      SplitRect(src_rect, dst_rect, &pipe1.src_roi, &pipe1.dst_roi, &pipe2.src_roi, &pipe2.dst_roi);
+      pipe1.valid = true;
+      pipe2.valid = true;
+      layer_config->hw_pipes.push_back(pipe1);
+      layer_config->hw_pipes.push_back(pipe2);
+    } else {
+      pipe1.src_roi = src_rect;
+      pipe1.dst_roi = dst_rect;
+      pipe1.valid = true;
+      layer_config->hw_pipes.push_back(pipe1);
+    }
   }
 
   return kErrorNone;
 }
 
 DisplayError ResourceDefault::DisplaySplitConfig(DisplayResourceContext *display_resource_ctx,
-                                            const LayerRect &src_rect, const LayerRect &dst_rect,
-                                            HWLayerConfig *layer_config) {
-  HWMixerAttributes &mixer_attributes = display_resource_ctx->mixer_attributes;
+                                                 const LayerRect &src_rect,
+                                                 const LayerRect &dst_rect,
+                                                 HWLayerConfig *layer_config) {
+  uint32_t num_split = display_resource_ctx->display_attributes.topology_num_split;
+  LayerRect mixer_rect = {};
 
-  // for display split case
-  HWPipeInfo *left_pipe = &layer_config->left_pipe;
-  HWPipeInfo *right_pipe = &layer_config->right_pipe;
-  LayerRect scissor_left, scissor_right, dst_left, crop_left, crop_right, dst_right;
+  for (auto count = 0; count < num_split; count++) {
+    GetLayerMixerRect(display_resource_ctx->mixer_attributes, &mixer_rect, num_split, count,
+                      false /* mixer_pair */);
+    LayerRect src_copy = src_rect;
+    LayerRect dst_copy = dst_rect;
 
-  scissor_left.right = FLOAT(mixer_attributes.split_left);
-  scissor_left.bottom = FLOAT(mixer_attributes.height);
-
-  scissor_right.left = FLOAT(mixer_attributes.split_left);
-  scissor_right.top = 0.0f;
-  scissor_right.right = FLOAT(mixer_attributes.width);
-  scissor_right.bottom = FLOAT(mixer_attributes.height);
-
-  crop_left = src_rect;
-  dst_left = dst_rect;
-  crop_right = crop_left;
-  dst_right = dst_left;
-
-  bool crop_left_valid = CalculateCropRects(scissor_left, &crop_left, &dst_left);
-  bool crop_right_valid = false;
-
-  if (IsValid(scissor_right)) {
-    crop_right_valid = CalculateCropRects(scissor_right, &crop_right, &dst_right);
-  }
-
-  // Reset left_pipe and right_pipe to invalid by default
-  *left_pipe = {};
-  *right_pipe = {};
-
-  if (crop_left_valid) {
-    // assign left pipe
-    left_pipe->src_roi = crop_left;
-    left_pipe->dst_roi = dst_left;
-    left_pipe->valid = true;
-  }
-
-  // assign right pipe if needed
-  if (crop_right_valid) {
-    right_pipe->src_roi = crop_right;
-    right_pipe->dst_roi = dst_right;
-    right_pipe->valid = true;
+    if (dst_rect.left >= mixer_rect.left && dst_rect.right <= mixer_rect.right) {
+      break;
+    } else if ((dst_rect.left < mixer_rect.left && dst_rect.right > mixer_rect.left) ||
+               (dst_rect.left < mixer_rect.right && dst_rect.right > mixer_rect.right)) {
+      // split at LM boundary
+      CalculateCropRects(mixer_rect, &src_copy, &dst_copy);
+      HWPipeInfo pipe = {};
+      pipe.src_roi = src_copy;
+      pipe.dst_roi = dst_copy;
+      pipe.valid = true;
+      layer_config->hw_pipes.push_back(pipe);
+    }
   }
 
   return kErrorNone;
@@ -621,8 +613,7 @@ DisplayError ResourceDefault::Config(DisplayResourceContext *display_resource_ct
     }
 
     struct HWLayerConfig *layer_config = &disp_layer_stack->info[j].config[0];
-    HWPipeInfo &left_pipe = layer_config->left_pipe;
-    HWPipeInfo &right_pipe = layer_config->right_pipe;
+    layer_config->hw_pipes.clear();
 
     LayerRect src_rect = layer.src_rect;
     LayerRect dst_rect = layer.dst_rect;
@@ -649,25 +640,23 @@ DisplayError ResourceDefault::Config(DisplayResourceContext *display_resource_ct
       return error;
     }
 
-    error = AlignPipeConfig(&layer, &left_pipe, &right_pipe);
+    error = AlignPipeConfig(&layer, &layer_config->hw_pipes);
     if (error != kErrorNone) {
       return error;
     }
 
-    // set z_order, left_pipe should always be valid
-    left_pipe.z_order = 0;
-
     DLOGV_IF(kTagResources, "==== FB layer Config ====");
+
     Log(kTagResources, "input layer src_rect", layer.src_rect);
     Log(kTagResources, "input layer dst_rect", layer.dst_rect);
     Log(kTagResources, "cropped src_rect", src_rect);
     Log(kTagResources, "cropped dst_rect", dst_rect);
-    Log(kTagResources, "left pipe src", layer_config->left_pipe.src_roi);
-    Log(kTagResources, "left pipe dst", layer_config->left_pipe.dst_roi);
-    if (right_pipe.valid) {
-      right_pipe.z_order = 0;
-      Log(kTagResources, "right pipe src", layer_config->right_pipe.src_roi);
-      Log(kTagResources, "right pipe dst", layer_config->right_pipe.dst_roi);
+    for (auto count = 0; count < layer_config->hw_pipes.size(); count++) {
+      HWPipeInfo &hw_pipe = layer_config->hw_pipes.at(count);
+      hw_pipe.z_order = 0;
+      DLOGV_IF(kTagResources, "pipe %d ", (count + 1));
+      Log(kTagResources, "src", hw_pipe.src_roi);
+      Log(kTagResources, "dst", hw_pipe.dst_roi);
     }
   }
 
@@ -883,7 +872,7 @@ DisplayError ResourceDefault::ValidateUpScaling(float scale_x, float scale_y) {
 }
 
 DisplayError ResourceDefault::GetScaleFactor(const LayerRect &crop, const LayerRect &dst,
-                                        float *scale_x, float *scale_y) {
+                                             float *scale_x, float *scale_y) {
   float crop_width = crop.right - crop.left;
   float crop_height = crop.bottom - crop.top;
   float dst_width = dst.right - dst.left;
@@ -922,8 +911,8 @@ DisplayError ResourceDefault::SetDecimationFactor(HWPipeInfo *pipe) {
 }
 
 void ResourceDefault::SplitRect(const LayerRect &src_rect, const LayerRect &dst_rect,
-                           LayerRect *src_left, LayerRect *dst_left, LayerRect *src_right,
-                           LayerRect *dst_right) {
+                                LayerRect *src_left, LayerRect *dst_left, LayerRect *src_right,
+                                LayerRect *dst_right) {
   // Split rectangle horizontally and evenly into two.
   float src_width = src_rect.right - src_rect.left;
   float dst_width = dst_rect.right - dst_rect.left;
@@ -952,30 +941,29 @@ void ResourceDefault::SplitRect(const LayerRect &src_rect, const LayerRect &dst_
   dst_right->right = dst_rect.right;
 }
 
-DisplayError ResourceDefault::AlignPipeConfig(const Layer *layer, HWPipeInfo *left_pipe,
-                                              HWPipeInfo *right_pipe) {
+DisplayError ResourceDefault::AlignPipeConfig(const Layer *layer, vector<HWPipeInfo> *hw_pipes) {
   DisplayError error = kErrorNone;
-  if (!left_pipe->valid) {
-    DLOGE_IF(kTagResources, "left_pipe should not be invalid");
+  uint32_t num_pipes = hw_pipes->size();
+  if (!num_pipes) {
+    DLOGE_IF(kTagResources, "at least one pipe should be valid");
     return kErrorNotSupported;
   }
 
-  error = ValidatePipeParams(left_pipe, layer->input_buffer.format);
-  if (error != kErrorNone) {
-    goto PipeConfigExit;
+  for (auto count = 0; count < num_pipes; count++) {
+    HWPipeInfo &pipe = hw_pipes->at(count);
+    error = ValidatePipeParams(&pipe, layer->input_buffer.format);
+    if (error != kErrorNone) {
+      DLOGV_IF(kTagResources, "AlignPipeConfig failed");
+      break;
+    }
+
+    if (count != num_pipes - 1) {
+      HWPipeInfo &pipe_next = hw_pipes->at(count + 1);
+      pipe_next.src_roi.left = pipe.src_roi.right;
+      pipe_next.dst_roi.left = pipe.dst_roi.right;
+    }
   }
 
-  if (right_pipe->valid) {
-    // Make sure the  left and right ROI are conjunct
-    right_pipe->src_roi.left = left_pipe->src_roi.right;
-    right_pipe->dst_roi.left = left_pipe->dst_roi.right;
-    error = ValidatePipeParams(right_pipe, layer->input_buffer.format);
-  }
-
-PipeConfigExit:
-  if (error != kErrorNone) {
-    DLOGV_IF(kTagResources, "AlignPipeConfig failed");
-  }
   return error;
 }
 
@@ -1020,6 +1008,16 @@ DisplayError ResourceDefault::SetDetailEnhancerData(Handle display_ctx,
 
 DisplayError ResourceDefault::UpdateSyncHandle(Handle display_ctx, const SyncPoints &sync_points) {
   return kErrorNotSupported;
+}
+
+void ResourceDefault::GetLayerMixerRect(const HWMixerAttributes &mixer_attributes, LayerRect *mixer,
+                                        uint32_t num_split, uint32_t index, bool mixer_pair) {
+  float single_mixer_width = FLOAT(mixer_attributes.width) / num_split;
+  mixer->left = index * single_mixer_width;
+  mixer->top = 0.0f;
+  mixer->right = mixer_pair && (index != (num_split - 1)) ? ((index + 2) * single_mixer_width)
+                                                          : ((index + 1) * single_mixer_width);
+  mixer->bottom = FLOAT(mixer_attributes.height);
 }
 
 }  // namespace sdm

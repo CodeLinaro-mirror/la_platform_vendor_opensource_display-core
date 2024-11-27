@@ -14,9 +14,10 @@ namespace snapalloc {
 UBWCPolicy *UBWCPolicy::instance_{nullptr};
 std::mutex UBWCPolicy::ubwc_policy_mutex_;
 
-UBWCPolicy::UBWCPolicy() {
+UBWCPolicy::UBWCPolicy(
+    std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map) {
   constraint_parser_ = SnapConstraintParser::GetInstance();
-  graphics_provider_ = GraphicsConstraintProvider::GetInstance();
+  graphics_provider_ = GraphicsConstraintProvider::GetInstance(format_data_map);
   debug_ = Debug::GetInstance();
 }
 
@@ -25,7 +26,7 @@ UBWCPolicy *UBWCPolicy::GetInstance(
   std::lock_guard<std::mutex> lock(ubwc_policy_mutex_);
 
   if (instance_ == nullptr) {
-    instance_ = new UBWCPolicy();
+    instance_ = new UBWCPolicy(format_data_map);
     instance_->Init(format_data_map);
   }
   return instance_;

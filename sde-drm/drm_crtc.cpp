@@ -28,7 +28,7 @@
 */
 
 /*
-* ​​​​​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 *
 * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
@@ -619,6 +619,8 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
         crtc_info_.ddr_version = DDRVersion::kDDRVersion5;
       } else if(string(line, ddr_version.length()) == "DDR5X") {
         crtc_info_.ddr_version = DDRVersion::kDDRVersion5x;
+      } else {
+        crtc_info_.ddr_version = DDRVersion::kDDRVersionNone;
       }
     } else if (line.find(ai_scaler_count) != string::npos) {
       crtc_info_.ai_scaler_count = std::stoi(string(line, ai_scaler_count.length()));

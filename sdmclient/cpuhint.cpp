@@ -157,21 +157,14 @@ int CPUHint::ReqHintRelease() {
 int CPUHint::ReqHint(PerfHintThreadType type, int tid) {
   std::lock_guard<std::mutex> lock(tid_lock_);
 
-  std::thread worker(
-      [this](uint32_t tid, PerfHintThreadType type) {
-        int ret = fn_perf_hint_(kHintPassPid, nullptr, tid, type);
-        if (ret == kPassPidSuccess) {
-          DLOGV_IF(kTagCpuHint, "Successfully sent SDM's tid:%d", tid);
-          return 0;
-        } else {
-          DLOGW("Failed to send SDM's tid:%d", tid);
-          return -1;
-        }
-      },
-      tid, type);
-
-  worker.detach();
-  return 0;
+  int ret = fn_perf_hint_(kHintPassPid, nullptr, tid, type);
+  if (ret == kPassPidSuccess) {
+    DLOGV_IF(kTagCpuHint, "Successfully sent SDM's tid:%d", tid);
+    return 0;
+  } else {
+    DLOGW("Failed to send SDM's tid:%d", tid);
+    return -1;
+  }
 }
 
 void CPUHint::ReqEvent(int event) {

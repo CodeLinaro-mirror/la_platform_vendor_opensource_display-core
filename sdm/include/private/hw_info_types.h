@@ -23,7 +23,7 @@
 */
 
 /*
-* ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 *
 * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
@@ -72,8 +72,11 @@ const int kMaxSDELayers = 16;   // Maximum number of layers that can be handled 
 #define UCSC_CSC_CFG0_PARAM_LEN     FP16_CSC_CFG0_PARAM_LEN
 #define UCSC_CSC_CFG1_PARAM_LEN     FP16_CSC_CFG1_PARAM_LEN
 
-#define MAX_SPLIT_COUNT             2
+#define MAX_SPLIT_COUNT             4
 #define AI_SCALER_PARAM_LEN         485
+// TODO(user): modify to allow 4 mixers for CWB when support is added
+#define MAX_MIXERS_FOR_CWB          2
+#define MAX_MIXERS_FOR_DEMURA       2
 
 enum HWDeviceType {
   kDeviceBuiltIn,
@@ -357,6 +360,7 @@ enum HWQseedStepVersion {
   kQseed3litev8,
   kQseed3litev9,
   kQseed3litev10,
+  kQseed3litev11,
 };
 
 struct HWDestScalarInfo {
@@ -392,6 +396,7 @@ enum CacVersion {
 };
 
 enum DDRVersion {
+  kDDRVersionNone,
   kDDRVersion4,
   kDDRVersion5,
   kDDRVersion5x,
@@ -462,7 +467,7 @@ struct HWResourceInfo {
   CompRatioMap comp_ratio_rt_map;
   CompRatioMap comp_ratio_nrt_map;
   uint32_t cache_size = 0;  // cache size in bytes
-  HWQseedStepVersion pipe_qseed3_version = kQseed3v2;  // only valid when has_qseed3=true
+  HWQseedStepVersion pipe_qseed3_version = kQseed3litev11;  // only valid when has_qseed3=true
   uint32_t min_prefill_lines = 0;
   InlineRotationInfo inline_rot_info = {};
   std::bitset<32> src_tone_map = 0;  //!< Stores the bit mask of src tone map capability
@@ -487,7 +492,7 @@ struct HWResourceInfo {
   uint32_t dsc_block_count = 0;
   uint32_t core_id = 0;
   CacVersion cac_version = kCacVersionNone;
-  DDRVersion ddr_version = kDDRVersion5;
+  DDRVersion ddr_version = kDDRVersionNone;
   bool has_cesta = false;
   uint32_t hw_ai_scaler_count = 0;
 };
@@ -912,11 +917,10 @@ struct NoiseLayerConfig {
 };
 
 struct HWLayerConfig {
-  HWPipeInfo left_pipe {};           // pipe for left side of output
-  HWPipeInfo right_pipe {};          // pipe for right side of output
+  std::vector<HWPipeInfo> hw_pipes {};        // list of valid pipes for output
   std::vector<HWPipeInfo> tunnel_pipes = {};  // pipe info for tunnel pipes
   HWRotatorSession hw_rotator_session {};
-  bool use_inline_rot = false;             // keep track of which layers inline rotation
+  bool use_inline_rot = false;                // keep track of which layers inline rotation
   HWSolidfillStage hw_solidfill_stage {};
   float compression = 1.0f;
   bool use_solidfill_stage = false;
@@ -1078,6 +1082,7 @@ struct LayerStackInfo {
 
   bool stitch_present = false;  // Indicates there is stitch layer or not
   bool demura_present = false;  // Indicates there is demura layer or not
+  bool udc_present = false;  // Indicates there is udc layer or not
   bool cwb_present = false;  // Indicates there is cwb layer or not
   bool lower_fps = false;  // This field hints to lower the fps in case of idle fallback
   bool notify_idle = false;

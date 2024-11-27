@@ -149,6 +149,7 @@ void DRMPanelFeatureMgr::Init(int fd, drmModeRes* res) {
   drm_property_map_[kDRMPanelFeatureAIScalerCfg] = DRMProperty::AI_SCALER_CFG_V1;
   drm_property_map_[kDRMPanelFeatureAiqeMdnie] = DRMProperty::SDE_DSPP_AIQE_MDNIE_V1;
   drm_property_map_[kDRMPanelFeatureAiqeMdnieArt] = DRMProperty::SDE_DSPP_AIQE_MDNIE_ART_V1;
+  drm_property_map_[kDRMPanelFeatureAiqeMdnieIPC] = DRMProperty::SDE_DSPP_AIQE_MDNIE_IPC_V1;
   drm_property_map_[kDRMPanelFeatureAiqeCopr] = DRMProperty::SDE_DSPP_AIQE_COPR_V1;
   drm_property_map_[kDRMPanelFeatureABC] = DRMProperty::AIQE_ABC_V1;
   drm_property_map_[kDRMPanelFeatureDemuraBacklight] = DRMProperty::DEMURA_BACKLIGHT_V1;
@@ -171,6 +172,7 @@ void DRMPanelFeatureMgr::Init(int fd, drmModeRes* res) {
   drm_prop_type_map_[kDRMPanelFeatureAIScalerCfg] = DRMPropType::kPropBlob;
   drm_prop_type_map_[kDRMPanelFeatureAiqeMdnie] = DRMPropType::kPropRange;
   drm_prop_type_map_[kDRMPanelFeatureAiqeMdnieArt] = DRMPropType::kPropRange;
+  drm_prop_type_map_[kDRMPanelFeatureAiqeMdnieIPC] = DRMPropType::kPropRange;
   drm_prop_type_map_[kDRMPanelFeatureAiqeCopr] = DRMPropType::kPropRange;
   drm_prop_type_map_[kDRMPanelFeatureABC] = DRMPropType::kPropRange;
   drm_prop_type_map_[kDRMPanelFeatureDemuraBacklight] = DRMPropType::kPropRange;
@@ -226,6 +228,8 @@ void DRMPanelFeatureMgr::Init(int fd, drmModeRes* res) {
       kDRMPanelFeatureAiqeMdnie, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, sizeof(uint64_t), 0};
   feature_info_tbl_[kDRMPanelFeatureAiqeMdnieArt] = DRMPanelFeatureInfo{
       kDRMPanelFeatureAiqeMdnieArt, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, sizeof(uint64_t), 0};
+  feature_info_tbl_[kDRMPanelFeatureAiqeMdnieIPC] = DRMPanelFeatureInfo{
+      kDRMPanelFeatureAiqeMdnieIPC, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, sizeof(uint64_t), 0};
   feature_info_tbl_[kDRMPanelFeatureAiqeCopr] = DRMPanelFeatureInfo{
       kDRMPanelFeatureAiqeCopr, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, sizeof(uint64_t), 0};
   feature_info_tbl_[kDRMPanelFeatureABC] =
@@ -236,6 +240,10 @@ void DRMPanelFeatureMgr::Init(int fd, drmModeRes* res) {
   int value = 0;
   sdm::Debug::Get()->GetProperty(ENABLE_AI_SCALER_PROP, &value);
   enable_ai_scaler_ = (value > 0);
+
+  value = 0;
+  sdm::Debug::Get()->GetProperty(ENABLE_ABC, &value);
+  enable_abc_ = (value > 0);
 }
 
 void DRMPanelFeatureMgr::Deinit() {
@@ -622,10 +630,10 @@ void DRMPanelFeatureMgr::ResetPanelFeatures(drmModeAtomicReq *req,
   info.prop_id = kDRMPanelFeatureDemuraInit;
   ApplyDirtyFeature(req, token, info);
 
-#ifndef TRUSTED_VM
-  info.prop_id = kDRMPanelFeatureABC;
-  ApplyDirtyFeature(req, token, info);
-#endif
+  if (enable_abc_) {
+    info.prop_id = kDRMPanelFeatureABC;
+    ApplyDirtyFeature(req, token, info);
+  }
 
   if (enable_ai_scaler_) {
     info.prop_id = kDRMPanelFeatureAIScalerCfg;

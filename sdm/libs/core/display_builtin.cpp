@@ -339,7 +339,13 @@ DisplayError DisplayBuiltIn::Init() {
 
     int enable_abc = 0;
     Debug::Get()->GetProperty(ENABLE_ABC, &enable_abc);
-    abc_prop_ = enable_abc;
+    abc_prop_ = (enable_abc > 0);
+
+    abc_tvm_enabled_ = (enable_abc == 2);
+
+#ifdef TRUSTED_VM
+    abc_prop_ = abc_tvm_enabled_;
+#endif
 
     Debug::Get()->GetProperty(ENABLE_DEMURA, &demura_prop_);
     if (demura_prop_) {  // Create parser manager for demura
@@ -904,6 +910,49 @@ DisplayError DisplayBuiltIn::SetupDemuraLayer() {
   return kErrorNone;
 }
 
+DisplayError DisplayBuiltIn::DumpDemuraSurface(const char *dir_path, uint32_t frame_index) {
+  ClientLock lock(disp_mutex_);
+
+  if (demura_layer_.empty()) {
+    DLOGI("No demura layer present");
+    return kErrorNone;
+  }
+
+  for (int i = 0; i < demura_layer_.size(); i++) {
+    if (demura_layer_[i].input_buffer.planes[0].fd > 0 && demura_layer_[i].input_buffer.size) {
+      void *mapped_buffer = mmap(NULL, demura_layer_[i].input_buffer.size, PROT_READ | PROT_WRITE,
+                                 MAP_SHARED, demura_layer_[i].input_buffer.planes[0].fd, 0);
+      if (mapped_buffer == MAP_FAILED) {
+        DLOGE("mmap failed with err %s", strerror(errno));
+        return kErrorUndefined;
+      }
+
+      if (!mapped_buffer) {
+        DLOGE("mapped buffer is empty");
+        return kErrorUndefined;
+      }
+
+      char dump_file_name[PATH_MAX];
+      snprintf(dump_file_name, sizeof(dump_file_name),
+               "%s/input_layer_demura%d_%dx%d_%s_frame%d.raw", dir_path, i, hfc_buffer_width_,
+               hfc_buffer_height_, GetFormatString(demura_layer_[i].input_buffer.format),
+               frame_index);
+
+      FILE *fp = fopen(dump_file_name, "w+");
+      size_t result = 0;
+      if (fp) {
+        result = fwrite(mapped_buffer, demura_layer_[i].input_buffer.size, 1, fp);
+        fclose(fp);
+      }
+
+      DLOGI("Frame Dump %s: is %s", dump_file_name, result ? "Successful" : "Failed");
+      munmap(mapped_buffer, demura_layer_[i].input_buffer.size);
+    }
+  }
+
+  return kErrorNone;
+}
+
 DisplayError DisplayBuiltIn::SetupABCLayer() {
   int ret = 0;
   GenericPayload pl;
@@ -925,8 +974,10 @@ DisplayError DisplayBuiltIn::SetupABCLayer() {
       continue;
     Layer demura_layer = {};
     demura_layer.input_buffer.size = corrdata->surfaces[buf_idx].alloc_buffer_info.size;
+#ifndef TRUSTED_VM
     demura_layer.input_buffer.buffer_id = corrdata->surfaces[buf_idx].alloc_buffer_info.id;
     demura_layer.input_buffer.handle_id = corrdata->surfaces[buf_idx].alloc_buffer_info.id;
+#endif
     demura_layer.input_buffer.format = corrdata->surfaces[buf_idx].alloc_buffer_info.format;
     demura_layer.input_buffer.width = corrdata->surfaces[buf_idx].alloc_buffer_info.aligned_width;
     demura_layer.input_buffer.unaligned_width =
@@ -994,7 +1045,7 @@ void DisplayBuiltIn::PreCommit(LayerStack *layer_stack) {
 
 DisplayError DisplayBuiltIn::SetupABCFeature() {
   DemuraInputConfig input_cfg;
-  input_cfg.secure_session = false;  // TODO(user): Integrate with secure solution
+  input_cfg.secure_session = false;
   std::string brightness_base;
   hw_intf_->GetPanelBrightnessBasePath(&brightness_base);
   input_cfg.brightness_path = brightness_base + "brightness";
@@ -1010,7 +1061,7 @@ DisplayError DisplayBuiltIn::SetupABCFeature() {
   }
 
 #ifdef TRUSTED_VM
-  // TBD: TUI path
+  input_cfg.secure_session = true;
 #endif
   input_cfg.panel_id = panel_id_;
   input_cfg.panel_width = client_ctx_.display_attributes.x_pixels;
@@ -1901,6 +1952,17 @@ void DisplayBuiltIn::IdleTimeout() {
   event_handler_->Refresh();
 }
 
+void DisplayBuiltIn::TriggerIdleTimeout() {
+  DTRACE_SCOPED();
+  if (handle_idle_timeout_ || !is_mirror_mode_active_) {
+    return;
+  }
+  ClientLock lock(disp_mutex_);
+  trigger_idle_timeout_ = true;
+  DLOGI_IF(kTagDisplay, "Unlock Commit Thread to perform idle-timeout ...");
+  lock.NotifyWorker();
+}
+
 void DisplayBuiltIn::PingPongTimeout() {
   ClientLock lock(disp_mutex_);
   dpu_core_mux_->DumpDebugData();
@@ -2424,8 +2486,8 @@ std::string DisplayBuiltIn::Dump() {
 
       const char *comp_type = GetCompositionName(hw_layer.composition);
       const char *buffer_format = GetFormatString(input_buffer->format);
-      const char *pipe_split[2] = { "Pipe-1", "Pipe-2" };
-      const char *rot_pipe[2] = { "Rot-inl-1", "Rot-inl-2" };
+      const char *pipe_split[4] = {"Pipe-1", "Pipe-2", "Pipe-3", "Pipe-4"};
+      const char *rot_pipe[4] = {"Rot-inl-1", "Rot-inl-2", "Rot-inl-3", "Rot-inl-4"};
       char idx[8];
 
       snprintf(idx, sizeof(idx), "%d", layer_index);
@@ -2478,7 +2540,7 @@ std::string DisplayBuiltIn::Dump() {
         continue;
       }
 
-      for (uint32_t count = 0; count < 2; count++) {
+      for (auto count = 0; count < layer_config.hw_pipes.size(); count++) {
         char decimation[16] = { 0 };
         char flags[16] = { 0 };
         char z_order[8] = { 0 };
@@ -2487,7 +2549,7 @@ std::string DisplayBuiltIn::Dump() {
         char transfer[8] = { 0 };
         bool rot = layer_config.use_inline_rot;
 
-        HWPipeInfo &pipe = (count == 0) ? layer_config.left_pipe : layer_config.right_pipe;
+        HWPipeInfo &pipe = layer_config.hw_pipes.at(count);
 
         if (!pipe.valid) {
           continue;
@@ -2962,6 +3024,7 @@ DisplayError DisplayBuiltIn::BuildLayerStackStats(LayerStack *layer_stack) {
       DLOGD_IF(kTagDisplay, "Display %d-%d shall request Demura in this frame", display_id_,
                display_type_);
     } else if (layer->composition == kCompositionDemura) {
+      stack_info.udc_present = true;
       DLOGV_IF(kTagDisplay, "Adding Aiqe ABC feature - UDC layer");
     } else if (layer->flags.is_noise) {
       stack_info.common_info.flags.noise_present = true;
@@ -3263,6 +3326,26 @@ void DisplayBuiltIn::SendDisplayConfigs() {
     disp_configs->is_primary = IsPrimaryDisplayLocked();
     disp_configs->mixer_width = client_ctx_.mixer_attributes.width;
     disp_configs->mixer_height = client_ctx_.mixer_attributes.height;
+
+    if (abc_prop_ && demura_) {
+      GenericPayload in_payload;
+      DemuraFeatureParamConfigIdx<std::string> *config_mode_name = nullptr;
+      int rc = in_payload.CreatePayload(config_mode_name);
+      if (rc != 0) {
+        DLOGE("Failed to create payload for config_mode_name, error = %d", rc);
+        return;
+      }
+
+      int error = demura_->GetParameter(kDemuraFeatureParamGetMode, &in_payload);
+      if (error) {
+        DLOGE("Failed to get reconfig, error %d", ret);
+        return;
+      }
+
+      disp_configs->abc_mode = config_mode_name->modeinfo;
+      DLOGI("current_abc_mode = %s", disp_configs->abc_mode.c_str());
+    }
+
     if ((ret = ipc_intf_->SetParameter(kIpcParamDisplayConfigs, in))) {
       DLOGW("Failed to send display config, error = %d", ret);
     }
@@ -3406,7 +3489,8 @@ DisplayError DisplayBuiltIn::HandleSecureEvent(SecureEvent secure_event, bool *n
     return error;
   }
 
-  if (secure_event == kTUITransitionEnd && demura_intended_ && demura_dynamic_enabled_) {
+  if (secure_event == kTUITransitionEnd &&
+      ((demura_intended_ && demura_dynamic_enabled_) || abc_enabled_)) {
     // enable demura after TUI transition end
     SetDemuraIntfStatus(true, demura_current_idx_);
     comp_manager_->SetDemuraStatusForDisplay(display_id_, true);
@@ -4359,6 +4443,11 @@ DisplayError DisplayBuiltIn::SetVRRState(bool state) {
 }
 
 DisplayError DisplayBuiltIn::SetABCState(bool state) {
+  if (!demura_) {
+    DLOGI("ABC feature intf is not available");
+    return kErrorUndefined;
+  }
+
   DLOGV("Setting the ABC State to %d", state);
 
   int ret = 0;
@@ -4401,6 +4490,11 @@ DisplayError DisplayBuiltIn::SetABCState(bool state) {
 }
 
 DisplayError DisplayBuiltIn::SetABCReconfig() {
+  if (!demura_) {
+    DLOGI("ABC feature intf is not available");
+    return kErrorUndefined;
+  }
+
   if (!comp_manager_->GetDemuraStatusForDisplay(display_id_)) {
     return kErrorUndefined;
   }
@@ -4432,6 +4526,11 @@ DisplayError DisplayBuiltIn::SetABCReconfig() {
 }
 
 DisplayError DisplayBuiltIn::SetABCMode(const string &mode_name) {
+  if (!demura_) {
+    DLOGI("ABC feature intf is not available");
+    return kErrorUndefined;
+  }
+
   if (mode_name.empty()) {
     DLOGI("mode name is empty");
     return kErrorUndefined;
@@ -4605,6 +4704,15 @@ DisplayError DisplayBuiltIn::StartTvmServices() {
     if (error) {
       DLOGE("Failed to export demura files, error %d", error);
       return error;
+    }
+  }
+
+  if (abc_prop_ && abc_tvm_enabled_ && demura_) {
+    GenericPayload in;
+    int ret = demura_->SetParameter(kDemuraFeatureParamExportFiles, in);
+    if (ret != 0) {
+      DLOGW("Failed to export ABC files");
+      return kErrorUndefined;
     }
   }
 

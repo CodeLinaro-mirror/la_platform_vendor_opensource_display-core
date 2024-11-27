@@ -776,6 +776,7 @@ enum struct QSEEDStepVersion {
   V3LITE_V8,
   V3LITE_V9,
   V3LITE_V10,
+  V3LITE_V11,
 };
 
 enum struct SmartDMARevision {
@@ -801,6 +802,7 @@ enum struct CacVersion {
 
 /* DDR Version */
 enum struct DDRVersion {
+  kDDRVersionNone,
   kDDRVersion4,
   kDDRVersion5,
   kDDRVersion5x,
@@ -863,7 +865,7 @@ struct DRMCrtcInfo {
   bool has_noise_layer = false;
   uint32_t dsc_block_count = 0;
   CacVersion cac_version = CacVersion::NONE;
-  DDRVersion ddr_version = DDRVersion::kDDRVersion5;
+  DDRVersion ddr_version = DDRVersion::kDDRVersionNone;
   bool has_cesta = false;
   uint32_t ai_scaler_count = 0;
 };
@@ -1229,6 +1231,7 @@ enum DRMPanelFeatureID {
   kDRMPanelFeatureAIScalerCfg,
   kDRMPanelFeatureAiqeMdnie,
   kDRMPanelFeatureAiqeMdnieArt,
+  kDRMPanelFeatureAiqeMdnieIPC,
   kDRMPanelFeatureAiqeCopr,
   kDRMPanelFeatureABC,
   kDRMPanelFeatureDemuraBacklight,

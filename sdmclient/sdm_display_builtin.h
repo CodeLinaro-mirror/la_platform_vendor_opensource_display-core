@@ -117,6 +117,8 @@ public:
      int32_t samples_size[NUM_HISTOGRAM_COLOR_COMPONENTS],
      uint64_t *samples[NUM_HISTOGRAM_COLOR_COMPONENTS]);
  void Dump(std::ostringstream *os) override;
+ void TimeoutOnBuiltins() override;
+ void IdleTimeout() override;
  virtual DisplayError SetPowerMode(SDMPowerMode mode, bool teardown);
  virtual bool IsDisplayIdle();
  virtual bool HasReadBackBufferSupport();
@@ -223,7 +225,7 @@ private:
  const int32_t notify_ept_heads_up_config_ = 2;
 
  // Commit counter for dynamic dsi clock
- uint32_t commit_counter_ = 0;
+ bool commit_counter_ = false;
 };
 
 } // namespace sdm

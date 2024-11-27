@@ -30,7 +30,7 @@
 */
 
 /*
-* ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 *
 * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
@@ -105,19 +105,6 @@ namespace sdm {
 static HWQseedStepVersion GetQseedStepVersion(sde_drm::QSEEDStepVersion drm_version) {
   HWQseedStepVersion sdm_version;
   switch (drm_version) {
-    case sde_drm::QSEEDStepVersion::V2:
-    default:
-      sdm_version = kQseed3v2;
-      break;
-    case sde_drm::QSEEDStepVersion::V3:
-      sdm_version = kQseed3v3;
-      break;
-    case sde_drm::QSEEDStepVersion::V4:
-      sdm_version = kQseed3v4;
-      break;
-    case sde_drm::QSEEDStepVersion::V3LITE_V4:
-      sdm_version = kQseed3litev4;
-      break;
     case sde_drm::QSEEDStepVersion::V3LITE_V5:
       sdm_version = kQseed3litev5;
       break;
@@ -131,6 +118,9 @@ static HWQseedStepVersion GetQseedStepVersion(sde_drm::QSEEDStepVersion drm_vers
       sdm_version = kQseed3litev9;
     case sde_drm::QSEEDStepVersion::V3LITE_V10:
       sdm_version = kQseed3litev10;
+    case sde_drm::QSEEDStepVersion::V3LITE_V11:
+    default:
+      sdm_version = kQseed3litev11;
       break;
   }
   return sdm_version;
@@ -400,6 +390,8 @@ void HWInfoDRM::GetSystemInfo(HWResourceInfo *hw_resource) {
     hw_resource->ddr_version = kDDRVersion5;
   } else if (info.ddr_version == sde_drm::DDRVersion::kDDRVersion5x) {
     hw_resource->ddr_version = kDDRVersion5x;
+  } else {
+    hw_resource->ddr_version = kDDRVersionNone;
   }
 
   for (int index = 0; index < kBwModeMax; index++) {
@@ -514,6 +506,9 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
           hw_resource->max_pipe_width_dma = pipe_obj.second.max_linewidth;
           PopulateSupportedFmts(kHWDMAPipe, pipe_obj.second, hw_resource);
           PopulatePipeBWCaps(pipe_obj.second, hw_resource);
+          if (!hw_resource->num_vig_pipe) {
+            PopulatePipeCaps(pipe_obj.second, hw_resource);
+          }
         }
         hw_resource->num_dma_pipe++;
         break;

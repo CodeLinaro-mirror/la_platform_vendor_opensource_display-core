@@ -53,6 +53,7 @@ class Debug {
   static int GetProperty(const char *property_name, char *value);
   static int GetProperty(const char *property_name, int *value);
   static void DumpCodeCoverage();
+  static bool IsMirrorModeActive();
 };
 
 }  // namespace sdm

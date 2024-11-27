@@ -311,6 +311,9 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError GetCoprStats(std::vector<int> *stats) { return kErrorNotSupported; }
   virtual DisplayError GetScalerCount(uint32_t *scaler_count) { return kErrorNotSupported; }
   void HandleSelfRefresh();
+  virtual DisplayError DumpDemuraSurface(const char *dir_path, uint32_t frame_index) {
+    return kErrorNotSupported;
+  }
 
  protected:
   struct DisplayMutex {
@@ -401,6 +404,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   DisplayError HandleNoiseLayer(LayerStack *layer_stack);
   void PrepareForAsyncTransition();
   virtual void IdleTimeout() {}
+  virtual void TriggerIdleTimeout() {}
   std::chrono::system_clock::time_point WaitUntil();
   virtual void Abort();
   DisplayError DisableDestinationScalar();
@@ -471,6 +475,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   QSyncMode qsync_mode_ = kQSyncModeNone;
   std::bitset<kUpdateAVRFlagMax> needs_avr_update_ = {};
   bool force_lm_to_fb_config_ = false;
+  bool trigger_idle_timeout_ = false;
 
   static Locker display_power_reset_lock_;
   static bool display_power_reset_pending_;
@@ -523,6 +528,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   std::mutex sr_ref_count_mutex_;
   bool enable_hal_self_refresh_ = false;
   int hal_refresh_headroom_ = 4;  // In msec
+  bool is_mirror_mode_active_ = false;
 
  private:
   // Max tolerable power-state-change wait-times in milliseconds.
@@ -537,6 +543,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   DisplayError GetNoisePluginParams(LayerStack *layer_stack);
   DisplayError InsertNoiseLayer(LayerStack *layer_stack);
   void WaitForCompletion(SyncPoints *sync_points);
+  void WaitForCompletionAsync(shared_ptr<Fence> retire_fence, SyncPoints sync_points);
+  DisplayError PostSetDisplayState(DisplayState state, bool active, SyncPoints sync_points);
   DisplayError PerformHwCommit(std::map<uint32_t, HWLayersInfo> &hw_layers_info);
   void CacheRetireFence();
   void CacheFrameBuffer();
@@ -575,6 +583,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool enable_cwb_cpu_boosting_ = false;
   bool force_refresh_to_process_cwb_ = false;
   bool enable_client_control_cwb_refresh_ = false;
+  bool enable_async_power_off_wait_ = false;
   std::vector<Layer> border_layers_;
   bool windowed_display_ = false;
   LayerRect window_rect_ = {};

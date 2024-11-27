@@ -541,6 +541,10 @@ SDMDisplay::SDMDisplay(CoreInterface *core_intf, BufferAllocator *buffer_allocat
 
   auto sdm_factory = SDMInterfaceFactoryImpl::GetSDMFactoryInternal();
   layer_builder_ = sdm_factory->GetLayerBuilderInternal();
+  if (layer_builder_ == nullptr) {
+    DLOGE("Layer Builder is NULL");
+    return;
+  }
   layer_builder_->Init(buffer_allocator, id);
 
   auto error = layer_builder_->GetSDMLayerStack(id, &sdm_layer_stack_);
@@ -1874,7 +1878,7 @@ DisplayError SDMDisplay::CommitOrPrepare(bool validate_only,
   if (exit_validate) {
     validate_done_ = true;
     client_target_3_1_set_ = false;
-    return kErrorNone;
+    return PostPrepareLayerStack(out_num_types, out_num_requests);
   }
 
   layer_stack_.validate_only = validate_only;
@@ -2076,8 +2080,19 @@ void SDMDisplay::DumpInputBuffers() {
       } else if (layer->composition == kCompositionGPUTarget) {
         DLOGI("Skipping dumping target layer. dump_gpu_target : %d",
               dump_gpu_target);
-        break; // Skip dumping GPU Target layer.
+        continue;  // Skip dumping GPU Target layer.
       }
+    }
+
+    if (layer->composition == kCompositionDemura) {
+      display_intf_->DumpDemuraSurface(dir_path, dump_input_frame_index_);
+      continue;
+    }
+
+    if (layer->composition != kCompositionSDE && layer->composition != kCompositionGPU &&
+        layer->composition != kCompositionGPUTarget) {
+      DLOGI("Skip dumping the layer, composition type : %d", layer->composition);
+      continue;  // Skip to dump i.e. stitch layers, noise layer, cursor layer, ...
     }
 
     SnapHandle *handle = (SnapHandle *)layer->input_buffer.buffer_id;
@@ -2169,13 +2184,6 @@ void SDMDisplay::DumpInputBuffers() {
         DLOGI("Frame Metadata Dump %s: is %s", dump_file_name,
               result ? "Successful" : "Failed");
       }
-    }
-
-    if (layer->composition ==
-        kCompositionGPUTarget) { // Skip dumping the layers that follow
-      // follow GPU Target layer in layers list (i.e. stitch layers, noise
-      // layer, demura layer).
-      break;
     }
   }
   dump_input_frame_count_--;
