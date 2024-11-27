@@ -954,7 +954,6 @@ DisplayError SDMDisplayBuiltIn::SetHWDetailedEnhancerConfig(void *params) {
     if (err) {
       DLOGW("SetDetailEnhancerConfig failed. err = %d", err);
     }
-    de_tuning_cfg_data->cfg_pending = false;
   }
   return err;
 }
