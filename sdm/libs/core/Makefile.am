@@ -1,4 +1,4 @@
-HEADER_PATH := ${WORKSPACE}/display/vendor/qcom/opensource/display-core/sdm/include
+HEADER_PATH := ../../../sdm/include
 
 c_sources = core_interface.cpp \
             core_impl.cpp \
