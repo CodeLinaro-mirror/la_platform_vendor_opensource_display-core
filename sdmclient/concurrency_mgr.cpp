@@ -589,7 +589,8 @@ ConcurrencyMgr::GetReleaseFences(Display display, uint32_t *out_num_elements,
 DisplayError ConcurrencyMgr::getDisplayDecorationSupport(Display display,
                                                          uint32_t *format,
                                                          uint32_t *alpha) {
-  if (disable_get_screen_decorator_support_) {
+  bool gpu_hw_available = core_intf_->IsGPUHWAvailable();
+  if (disable_get_screen_decorator_support_ || !gpu_hw_available) {
     return kErrorNotSupported;
   }
 

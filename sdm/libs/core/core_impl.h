@@ -113,6 +113,7 @@ class CoreImpl : public CoreInterface {
   virtual bool IsRotatorSupportedFormat(LayerBufferFormat format);
   virtual DisplayError ReserveDemuraPipeResources();
   virtual DisplayError RequestVirtualDisplayId(int32_t *vdisp_id);
+  virtual bool IsGPUHWAvailable();
 #ifdef PROFILE_COVERAGE_DATA
   virtual DisplayError DumpCodeCoverage();
 #endif

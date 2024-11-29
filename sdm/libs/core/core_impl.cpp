@@ -971,4 +971,8 @@ DisplayError CoreImpl::DumpCodeCoverage() {
 }
 #endif
 
+bool CoreImpl::IsGPUHWAvailable() {
+  return comp_mgr_.IsGPUHWAvailable();
+}
+
 }  // namespace sdm

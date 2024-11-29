@@ -1196,6 +1196,8 @@ DisplayError SDMDisplay::getDisplayDecorationSupport(uint32_t *format,
                                                      uint32_t *alpha) {
   // ScreenDecoration layers supported even if RC HW is disabled since its
   // coming from framework and is independent of RC HW support.
+  *format = static_cast<uint32_t>(SDMPixelFormat::PIXEL_FORMAT_R_8);
+  *alpha = static_cast<uint32_t>(SDMAlphaInterpretation::COVERAGE);
 
   return kErrorNone;
 }
