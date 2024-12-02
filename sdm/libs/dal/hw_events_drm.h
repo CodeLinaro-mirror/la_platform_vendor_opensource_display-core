@@ -76,9 +76,11 @@ class HWEventsDRM : public HWEventsInterface {
   static void *DisplayEventThread(void *context);
   static void VSyncHandlerCallback(int fd, unsigned int sequence, unsigned int tv_sec,
                                    unsigned int tv_usec, void *data);
-
+  static void PFlipHandlerCallback(int fd, unsigned int sequence, unsigned int tv_sec,
+                                   unsigned int tv_usec, void *data);
   void *DisplayEventHandler();
   void HandleVSync(char *data);
+  void HandlePageFlip(char *data);
   void HandleCECMessage(char *data);
   void HandleThreadExit(char *data) {}
   void HandleThermal(char *data) {}
@@ -98,6 +100,8 @@ class HWEventsDRM : public HWEventsInterface {
   DisplayError InitializePollFd();
   void CloseFds();
   DisplayError RegisterVSync();
+  DisplayError RequestPageFlip(uint32_t crtc_id, uint32_t fb_id,
+                               uint32_t flags,   void *userdata);
   DisplayError RegisterPanelDead(bool enable);
   DisplayError RegisterIdlePowerCollapse(bool enable);
   DisplayError RegisterHwRecovery(bool enable);

@@ -213,7 +213,7 @@ DisplayError HWEventsDRM::SetEventParser() {
   for (auto &event_data : event_data_list_) {
     switch (event_data.event_type) {
       case HWEvent::VSYNC:
-        event_data.event_parser = &HWEventsDRM::HandleVSync;
+        event_data.event_parser = &HWEventsDRM::HandlePageFlip;
         break;
       case HWEvent::CEC_READ_MESSAGE:
         event_data.event_parser = &HWEventsDRM::HandleCECMessage;
@@ -585,6 +585,13 @@ DisplayError HWEventsDRM::RegisterVSync() {
   return kErrorNone;
 }
 
+DisplayError HWEventsDRM::RequestPageFlip(uint32_t crtc_id,
+                                          uint32_t fb_id,
+                                          uint32_t flags,
+                                          void *userdata) {
+  return kErrorNone;
+}
+
 DisplayError HWEventsDRM::RegisterPanelDead(bool enable) {
   if (panel_dead_index_ == UINT32_MAX) {
     DLOGI("panel dead is not supported event");
@@ -804,6 +811,18 @@ void HWEventsDRM::HandleVSync(char *data) {
   }
 }
 
+void HWEventsDRM::HandlePageFlip(char *data) {
+  if (poll_fds_[vsync_index_].revents & (POLLIN | POLLPRI)) {
+    drmEventContext event = {};
+    event.version = DRM_EVENT_CONTEXT_VERSION;
+    event.page_flip_handler = &HWEventsDRM::PFlipHandlerCallback;
+    int error = drmHandleEvent(poll_fds_[vsync_index_].fd, &event);
+    if (error != 0) {
+      DLOGE("drmHandleEvent failed: %i", error);
+    }
+  }
+}
+
 void HWEventsDRM::HandlePanelDead(char *data) {
   char event_data[kMaxStringLength] = {0};
   int32_t size;
@@ -852,6 +871,13 @@ void HWEventsDRM::VSyncHandlerCallback(int fd, unsigned int sequence, unsigned i
   int64_t timestamp = (int64_t)(tv_sec)*1000000000 + (int64_t)(tv_usec)*1000;
   DTRACE_SCOPED();
   ev_data->event_handler_->VSync(timestamp);
+}
+
+void HWEventsDRM::PFlipHandlerCallback(int fd, unsigned int sequence, unsigned int tv_sec,
+                                       unsigned int tv_usec, void *data) {
+
+  HWEventsDRM *pThis = reinterpret_cast<HWEventsDRM *>(data);
+  pThis->event_handler_->PFlip(fd, sequence, tv_sec, tv_usec, data);
 }
 
 void HWEventsDRM::HandleCECMessage(char *data) {

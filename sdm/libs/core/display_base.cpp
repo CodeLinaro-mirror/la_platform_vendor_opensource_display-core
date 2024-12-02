@@ -3105,7 +3105,7 @@ DisplayError DisplayBase::SetVSyncStateLocked(bool enable) {
       error = master_hw_events_intf_->SetEventState(HWEvent::VSYNC, enable);
     }
     if (error == kErrorNone) {
-      vsync_enable_ = enable;
+      vsync_enable_ = pflip_enable_ = enable;
     } else {
       vsync_enable_pending_ = true;
     }

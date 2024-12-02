@@ -276,7 +276,11 @@ DisplayError DisplayBuiltIn::Init() {
     dpu_core_mux_->Destroy();
     DLOGE("Failed to create hardware events interface on. Error = %d", error);
   }
+
   master_hw_events_intf_ = hw_events_intf_[primary_core_id_];
+
+  if (master_hw_events_intf_)
+    hw_intf_->SetPageFlipState(true, (void *)master_hw_events_intf_);
 
   // For CAC loopback case where CAC pipes are after DS blocks, These pipes take input w.r.t.
   // full panel resolution. In case of DS / Anamorphic compression usecase with cac loopback,
@@ -1875,6 +1879,18 @@ void DisplayBuiltIn::SetVsyncStatus(bool enable) {
     master_hw_events_intf_->SetEventState(HWEvent::VSYNC, false);
   }
   DTRACE_END();
+}
+
+DisplayError DisplayBuiltIn::PFlip(int fd,
+                                unsigned int sequence,
+                                unsigned int tv_sec,
+                                unsigned int tv_usec,
+                                void *data) {
+  if (pflip_enable_) {
+    event_handler_->PFlip(fd, sequence, tv_sec, tv_usec, data);
+  }
+
+  return kErrorNone;
 }
 
 void DisplayBuiltIn::IdleTimeout() {

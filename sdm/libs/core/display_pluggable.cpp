@@ -142,7 +142,11 @@ DisplayError DisplayPluggable::Init() {
     DLOGE("Failed to create hardware events interface. Error = %d for display %d-%d", error,
           display_id_, display_type_);
   }
+
   master_hw_events_intf_ = hw_events_intf_[primary_core_id_];
+
+  if (master_hw_events_intf_)
+    hw_intf_->SetPageFlipState(true, (void *)master_hw_events_intf_);
 
   InitializeColorModes();
 
@@ -292,6 +296,18 @@ DisplayError DisplayPluggable::VSync(int64_t timestamp) {
     DisplayEventVSync vsync;
     vsync.timestamp = timestamp;
     event_handler_->VSync(vsync);
+  }
+
+  return kErrorNone;
+}
+
+DisplayError DisplayPluggable::PFlip(int fd,
+                                unsigned int sequence,
+                                unsigned int tv_sec,
+                                unsigned int tv_usec,
+                                void *data) {
+  if (pflip_enable_) {
+    event_handler_->PFlip(fd, sequence, tv_sec, tv_usec, data);
   }
 
   return kErrorNone;

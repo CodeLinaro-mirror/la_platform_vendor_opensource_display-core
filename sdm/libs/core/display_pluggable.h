@@ -72,6 +72,9 @@ class DisplayPluggable : public DisplayBase, HWEventHandler {
 
   // Implement the HWEventHandlers
   DisplayError VSync(int64_t timestamp) override;
+  DisplayError PFlip(int fd, unsigned int sequence,
+                             unsigned int tv_sec, unsigned int tv_usec,
+                             void *data) override;
   DisplayError Blank(bool blank) override { return kErrorNone; }
   void CECMessage(char *message) override;
   void IdlePowerCollapse() override {}

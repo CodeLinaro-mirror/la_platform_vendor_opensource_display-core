@@ -2317,7 +2317,7 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
     usleep(UINT32((elapse_timestamp - current_time) / 1000));
   }
 
-  int ret = drm_atomic_intf_->Commit(sync_commit, false /* retain_planes*/);
+  int ret = drm_atomic_intf_->Commit(sync_commit, false /* retain_planes*/, pflip_user_data_);
   shared_ptr<Fence> release_fence = Fence::Create(INT(release_fence_fd), "release");
   shared_ptr<Fence> retire_fence = Fence::Create(INT(retire_fence_fd), "retire");
   if (ret) {
@@ -2692,6 +2692,11 @@ DisplayError HWDeviceDRM::SetPPFeature(PPFeatureInfo *feature) {
 
 DisplayError HWDeviceDRM::SetVSyncState(bool enable) {
   return kErrorNotSupported;
+}
+
+void HWDeviceDRM::SetPageFlipState(bool enable, void *user_data) {
+  enable_pflip_event_ = enable;
+  pflip_user_data_ = user_data;
 }
 
 void HWDeviceDRM::SetIdleTimeoutMs(uint32_t timeout_ms) {
@@ -3294,7 +3299,7 @@ DisplayError HWDeviceDRM::NullCommit(bool synchronous, bool retain_planes) {
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_FLUSH_SYNC_EN, token_.crtc_id, 0);
   }
 
-  int ret = drm_atomic_intf_->Commit(synchronous , retain_planes);
+  int ret = drm_atomic_intf_->Commit(synchronous , retain_planes, pflip_user_data_);
   if (ret) {
     DLOGE("failed with error %d, crtc=%u", ret, token_.crtc_id);
     return kErrorHardware;
