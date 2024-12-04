@@ -532,16 +532,8 @@ void DRMPlaneManager::DumpAll() {
 
 void DRMPlaneManager::GetPlanesInfo(DRMPlanesInfo *info) {
   lock_guard<mutex> lock(lock_);
-  int count = 0;
   for (auto &plane : plane_pool_) {
-    auto plane_info = plane.second->GetPlaneTypeInfo();
-    if (count < 2) {
-      DLOGI("WA: Add plane_info.pipe_idx %d count %d", plane_info.pipe_idx, count);
-      info->push_back(std::make_pair(plane.first, plane.second->GetPlaneTypeInfo()));
-      count++;
-    } else {
-      DLOGI("WA: Don't include plane_info.pipe_idx %d count %d", plane_info.pipe_idx, count);
-    }
+    info->push_back(std::make_pair(plane.first, plane.second->GetPlaneTypeInfo()));
   }
 }
 
