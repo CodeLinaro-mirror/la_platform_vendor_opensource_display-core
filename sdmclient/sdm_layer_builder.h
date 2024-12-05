@@ -78,6 +78,7 @@ public:
 
 private:
   SDMLayer *GetSDMLayer(uint64_t display_id, int64_t layer_id);
+  DisplayError DestroyLayerLocked(uint64_t display_id, int64_t layer_id);
 
   template <typename... Args>
   DisplayError CallLayerFunction(uint64_t display, int64_t layer_id,
