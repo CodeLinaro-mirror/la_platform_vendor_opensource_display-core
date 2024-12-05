@@ -493,7 +493,9 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
         continue;
       }
     }
-
+    if (hw_resource->cac_version != kCacVersionNone) {
+      PopulateCacSupportedFormat(pipe_obj.second, hw_resource);
+    }
     // TODO(user): Move pipe caps to pipe_caps structure per pipe. Set default for now.
     // currently copying values to hw_resource!
     HWPipeCaps pipe_caps;
@@ -663,6 +665,24 @@ void HWInfoDRM::PopulatePipeBWCaps(const sde_drm::DRMPlaneTypeInfo &info,
   }
 }
 
+void HWInfoDRM::PopulateCacSupportedFormat(const sde_drm::DRMPlaneTypeInfo &info,
+                                           HWResourceInfo *hw_resource) {
+  if (hw_resource->cac_supported_formats.size()) {
+    return;
+  }
+  if (!info.cac_mode.test(sde_drm::CAC_MODE_UNPACK_BIT) &&
+      !info.cac_mode.test(sde_drm::CAC_MODE_LOOPBACK_UNPACK_BIT)) {
+    return;
+  }
+
+  vector<LayerBufferFormat> cac_sdm_formats;
+  for (auto &fmts : info.cac_formats_supported) {
+    GetSDMFormat(fmts.first, fmts.second, &cac_sdm_formats);
+  }
+
+  hw_resource->cac_supported_formats = std::move(cac_sdm_formats);
+}
+
 void HWInfoDRM::PopulateSupportedFmts(HWSubBlockType sub_blk_type,
                                       const sde_drm::DRMPlaneTypeInfo &info,
                                       HWResourceInfo *hw_resource) {
@@ -675,16 +695,6 @@ void HWInfoDRM::PopulateSupportedFmts(HWSubBlockType sub_blk_type,
     }
 
     fmts_map.insert(make_pair(sub_blk_type, sdm_formats));
-  }
-
-  if (info.cac_mode.test(sde_drm::CAC_MODE_UNPACK_BIT) ||
-      info.cac_mode.test(sde_drm::CAC_MODE_LOOPBACK_UNPACK_BIT)) {
-    vector<LayerBufferFormat> cac_sdm_formats;
-    for (auto &fmts : info.cac_formats_supported) {
-      GetSDMFormat(fmts.first, fmts.second, &cac_sdm_formats);
-    }
-
-    hw_resource->cac_supported_formats = std::move(cac_sdm_formats);
   }
 }
 
