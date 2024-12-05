@@ -3472,7 +3472,7 @@ bool DisplayBase::NeedsMixerReconfiguration(LayerStack *layer_stack, uint32_t *n
     LayerRect dst_domain = {0.0f, 0.0f, FLOAT(*new_mixer_width), FLOAT(*new_mixer_height)};
 
     MapRect(fb_rect, dst_domain, layer->dst_rect, &layer_dst_rect);
-    if (NeedsDownScale(layer->src_rect, layer_dst_rect, needs_rotation)) {
+    if ((!enable_ai_scaler_) && NeedsDownScale(layer->src_rect, layer_dst_rect, needs_rotation)) {
       *new_mixer_width = display_width;
       *new_mixer_height = display_height;
     }
