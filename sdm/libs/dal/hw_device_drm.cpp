@@ -2696,7 +2696,7 @@ DisplayError HWDeviceDRM::SetPPFeature(PPFeatureInfo *feature) {
     return kErrorNone;
   } else if (drm_id.at(0) == DRMPPFeatureID::kFeatureDither) {
     drm_mgr_intf_->GetCrtcInfo(token_.crtc_id, &crtc_info);
-    if (crtc_info.has_spr)
+    if (crtc_info.has_spr_dither)
       drm_id.at(0) = DRMPPFeatureID::kFeatureSprDither;
   }
 
