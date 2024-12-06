@@ -39,6 +39,8 @@
 #include <utils/rect.h>
 #include <stdint.h>
 #include <cstring>
+#include <mutex>
+#include <set>
 
 namespace sdm {
 
@@ -49,6 +51,40 @@ constexpr size_t get_page_size() {
   return 65536;
 #endif
 }
+
+class IdManager {
+ public:
+  IdManager() {}
+  ~IdManager() {
+    std::lock_guard<std::mutex> lock(id_mutex_);
+    active_ids_.clear();
+  }
+  uint64_t CreateId(uint64_t new_id = 0) {
+    std::lock_guard<std::mutex> lock(id_mutex_);
+    uint64_t id = (!new_id) ? (1 + GetMaxId()) : new_id;
+    active_ids_.insert(id);
+    return id;
+  }
+  void DestroyId(uint64_t id) {
+    std::lock_guard<std::mutex> lock(id_mutex_);
+    active_ids_.erase(id);
+  }
+  bool IsIdExisting(uint64_t id) {
+    std::lock_guard<std::mutex> lock(id_mutex_);
+    return !(active_ids_.empty() || (*(active_ids_.rbegin()) < id) ||
+             active_ids_.find(id) == active_ids_.end());
+  }
+  uint64_t GetNextPossibleId() {
+    std::lock_guard<std::mutex> lock(id_mutex_);
+    return 1 + GetMaxId();
+  }
+
+ private:
+  inline uint64_t GetMaxId() { return (active_ids_.empty() ? 0 : *(active_ids_.rbegin())); }
+
+  std::mutex id_mutex_;
+  std::set<uint64_t> active_ids_;
+};
 
 float gcd(float a, float b);
 float lcm(float a, float b);

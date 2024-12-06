@@ -51,7 +51,7 @@ namespace sdm {
 
 using UBWCVersion = vendor_qti_hardware_display_common_UBWCVersion;
 
-std::atomic<LayerId> SDMLayer::next_id_(1);
+IdManager SDMLayer::id_mgr_;
 
 Error GetMetadata(const SnapHandle *handle, MetadataType type, void *out,
                   std::shared_ptr<ISnapMapper> snapmapper_) {
@@ -114,8 +114,10 @@ static bool IsSdrDimmingDisabled() {
 
 // Layer operations
 SDMLayer::SDMLayer(Display display_id, BufferAllocator *buf_allocator)
-    : id_(next_id_++), display_id_(display_id),
-      buffer_allocator_(buf_allocator) {
+    : SDMLayer(display_id, id_mgr_.GetNextPossibleId(), buf_allocator) {}
+
+SDMLayer::SDMLayer(Display display_id, LayerId layer_id, BufferAllocator *buf_allocator)
+    : display_id_(display_id), id_(id_mgr_.CreateId(layer_id)), buffer_allocator_(buf_allocator) {
   layer_ = new Layer();
   geometry_changes_ |= kAdded;
 
@@ -147,6 +149,7 @@ SDMLayer::~SDMLayer() {
     }
     delete layer_;
   }
+  id_mgr_.DestroyId(id_);
 }
 
 DisplayError SDMLayer::SetLayerBuffer(const SnapHandle *handle,

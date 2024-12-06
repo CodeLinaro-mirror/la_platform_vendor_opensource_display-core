@@ -108,7 +108,8 @@ bool IsBT2020(const QtiColorPrimaries &color_primary);
 bool IsBT2020(const QtiColorPrimaries &color_primary);
 
 class SDMLayer {
-public:
+ public:
+  explicit SDMLayer(Display display_id, LayerId layer_id, BufferAllocator *buf_allocator);
   explicit SDMLayer(Display display_id, BufferAllocator *buf_allocator);
   ~SDMLayer();
   uint32_t GetZ() const { return z_; }
@@ -181,8 +182,9 @@ public:
   void IgnoreSdrHistogramMetadata(bool disable) {
     ignore_sdr_histogram_md_ = disable;
   }
+  static bool IsLayerIdExisting(LayerId id) { return id_mgr_.IsIdExisting(id); }
 
-private:
+ private:
   std::shared_ptr<ISnapMapper> snapmapper_;
   Layer *layer_ = nullptr;
   SDMLayerTypes type_ = kLayerUnknown;
@@ -190,7 +192,7 @@ private:
   const LayerId id_;
   std::string name_;
   const Display display_id_;
-  static std::atomic<LayerId> next_id_;
+  static IdManager id_mgr_;
   shared_ptr<Fence> release_fence_;
   BufferAllocator *buffer_allocator_ = NULL;
   int32_t dataspace_ = 0;
