@@ -3557,7 +3557,15 @@ DisplayError DisplayBase::SetDetailEnhancerData(const DisplayDetailEnhancerData 
   validated_ = false;
   DisplayError error = comp_manager_->SetDetailEnhancerData(display_comp_ctx_, de_data);
   if (error != kErrorNone) {
+    if (color_mgr_) {
+      color_mgr_->SetDETuningCFGpending(false);
+    }
+
     return error;
+  }
+
+  if (color_mgr_) {
+    color_mgr_->SetDETuningCFGpending(false);
   }
 
   return kErrorNone;
