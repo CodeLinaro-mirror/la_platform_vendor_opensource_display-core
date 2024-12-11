@@ -330,6 +330,14 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
       *drm_format_modifier =
           DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_LOSSY_8_5;
       break;
+    case kFormatYCbCr422P210:
+      *drm_format = DRM_FORMAT_P210;
+      *drm_format_modifier = DRM_FORMAT_MOD_QCOM_DX;
+      break;
+    case kFormatYCbCr422P210Ubwc:
+      *drm_format = DRM_FORMAT_P210;
+      *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_DX;
+      break;
     default:
       DLOGW("Unsupported format %s", GetFormatString(format));
   }

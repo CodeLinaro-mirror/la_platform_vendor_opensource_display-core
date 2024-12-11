@@ -219,6 +219,12 @@ class MmmColorFormatMapper {
       case vendor_qti_hardware_display_common_PixelFormat::TP10: {
         return mmm_color_fmts::MMM_COLOR_FMT_NV12_BPP10_UBWC;
       }
+      case vendor_qti_hardware_display_common_PixelFormat::YCBCR_P210: {
+        if (ubwc_enabled) {
+          return mmm_color_fmts::MMM_COLOR_FMT_P210_UBWC;
+        }
+        return mmm_color_fmts::MMM_COLOR_FMT_P210;
+      }
       default:
         return -1;
     }

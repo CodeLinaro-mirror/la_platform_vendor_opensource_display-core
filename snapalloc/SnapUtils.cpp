@@ -162,6 +162,8 @@ bool CpuCanAccess(vendor_qti_hardware_display_common_BufferUsage usage) {
          {true, false, false, false, false, false, false, false}},
         {{vendor_qti_hardware_display_common_PixelFormat::Y16},
          {false, true, false, false, false, false, false, false}},
+        {{vendor_qti_hardware_display_common_PixelFormat::YCBCR_P210},
+         {false, true, false, false, false, true, false, false}},
     };
 
 bool IsUbwcSupported(vendor_qti_hardware_display_common_PixelFormat format) {

@@ -52,6 +52,7 @@ static std::unordered_map<std::string, vendor_qti_hardware_display_common_PixelF
         {"DEPTH_32F_STENCIL_8", DEPTH_32F_STENCIL_8},
         {"STENCIL_8", STENCIL_8},
         {"YCBCR_P010", YCBCR_P010},
+        {"YCBCR_P210", YCBCR_P210},
         {"HSV_888", HSV_888},
         {"R_8", R_8},
         /*{"R_16_UINT", R_16_UINT},

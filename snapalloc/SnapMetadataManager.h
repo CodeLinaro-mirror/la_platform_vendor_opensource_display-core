@@ -369,6 +369,14 @@ class SnapMetadataManager {
            {.drm_format = DRM_FORMAT_NV12,
             .drm_modifier =
                 static_cast<int>(DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_DX)}},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_P210,
+            .compression_type = COMPRESSION_NONE},
+           {.drm_format = DRM_FORMAT_P210, .drm_modifier = DRM_FORMAT_MOD_QCOM_DX}},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_P210,
+            .compression_type = QTI_COMPRESSION_UBWC},
+           {.drm_format = DRM_FORMAT_P210,
+            .drm_modifier =
+                static_cast<int>(DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_DX)}},
           {{.format = vendor_qti_hardware_display_common_PixelFormat::TP10,
             .compression_type = QTI_COMPRESSION_UBWC},
            {.drm_format = DRM_FORMAT_NV12,
