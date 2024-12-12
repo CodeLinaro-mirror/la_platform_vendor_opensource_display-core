@@ -1934,7 +1934,7 @@ void DisplayBuiltIn::SetVsyncStatus(bool enable) {
   DTRACE_END();
 }
 
-void DisplayBuiltIn::IdleTimeout() {
+bool DisplayBuiltIn::IdleTimeout() {
   DTRACE_SCOPED();
   if (pending_cycles_for_poms_setup_ > 0) {
     pending_cycles_for_poms_setup_ = 0;
@@ -1942,11 +1942,11 @@ void DisplayBuiltIn::IdleTimeout() {
   }
 
   if ((state_ == kStateOff) || avr_step_enabled_) {
-    return;
+    return false;
   }
 
   if (pending_commit_) {
-    return;
+    return false;
   }
 
   handle_idle_timeout_ = true;
@@ -1956,6 +1956,7 @@ void DisplayBuiltIn::IdleTimeout() {
 
   validated_ = false;
   event_handler_->Refresh();
+  return true;
 }
 
 void DisplayBuiltIn::TriggerIdleTimeout() {

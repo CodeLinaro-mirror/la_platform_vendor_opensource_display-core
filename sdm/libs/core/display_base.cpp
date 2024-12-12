@@ -1671,8 +1671,8 @@ void DisplayBase::CommitThread() {
         event_handler_->HandleEvent(kPostIdleTimeout);
         idle_hint_set_ = true;
       } else {
-        IdleTimeout();
-        if (display_type_ == kBuiltIn && is_mirror_mode_active_) {
+        bool idle_timeout_configured = IdleTimeout();
+        if (display_type_ == kBuiltIn && is_mirror_mode_active_ && idle_timeout_configured) {
           event_handler_->TimeoutOnBuiltins();
         }
       }

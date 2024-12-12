@@ -403,7 +403,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   DisplayError NoiseInit();
   DisplayError HandleNoiseLayer(LayerStack *layer_stack);
   void PrepareForAsyncTransition();
-  virtual void IdleTimeout() {}
+  virtual bool IdleTimeout() { return false; }
   virtual void TriggerIdleTimeout() {}
   std::chrono::system_clock::time_point WaitUntil();
   virtual void Abort();
