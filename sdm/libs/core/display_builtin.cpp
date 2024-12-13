@@ -1988,6 +1988,7 @@ void DisplayBuiltIn::IdlePowerCollapse() {
 }
 
 DisplayError DisplayBuiltIn::ClearLUTs() {
+  ClientLock lock(disp_mutex_);
   validated_ = false;
   comp_manager_->ProcessIdlePowerCollapse(display_comp_ctx_);
   return kErrorNone;
