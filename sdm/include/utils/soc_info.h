@@ -8,7 +8,13 @@
 
 #define kAnorakSocId 549
 #define kAnorakSocName "anorak"
-#define kSunSocId 618
+#define kSunSocId1 618
+#define kSunSocId2 639
+#define kTunaSocId1 655
+#define kTunaSocId2 681
+#define kTunaSocId3 694
+#define kKeraSocId1 659
+#define kKeraSocId2 686
 #define kSunSocName "sun"
 #define kNiobeSocId1 629
 #define kNiobeSocId2 652
