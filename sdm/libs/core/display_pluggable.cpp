@@ -148,8 +148,10 @@ DisplayError DisplayPluggable::Init() {
   if (master_hw_events_intf_)
     hw_intf_->SetPageFlipState(true, (void *)master_hw_events_intf_);
 
-  InitializeColorModes();
-
+  // if qdcm colormodes are not enabled, initialize colormodes by using panel info(EOTF).
+  if (enable_qdcm_colormodes_on_external_ != 1) {
+    InitializeColorModes();
+  }
   current_refresh_rate_ = client_ctx_.hw_panel_info.max_fps;
 
   return error;
@@ -429,6 +431,9 @@ static PrimariesTransfer GetBlendSpaceFromAttributes(const std::string &color_ga
 }
 
 DisplayError DisplayPluggable::SetColorMode(const std::string &color_mode) {
+  if (enable_qdcm_colormodes_on_external_ == 1) {
+    return DisplayBase::SetColorMode(color_mode);
+  }
   auto current_color_attr_ = color_mode_attr_map_.find(color_mode);
   if (current_color_attr_ == color_mode_attr_map_.end()) {
     DLOGE("Failed to get the color mode for display %d-%d = %s", display_id_,
@@ -469,6 +474,10 @@ DisplayError DisplayPluggable::SetColorMode(const std::string &color_mode) {
 
 DisplayError DisplayPluggable::GetColorModeCount(uint32_t *mode_count) {
   ClientLock lock(disp_mutex_);
+  if (enable_qdcm_colormodes_on_external_ == 1) {
+    return DisplayBase::GetColorModeCount(mode_count);
+  }
+
   if (!mode_count) {
     return kErrorParameters;
   }
@@ -482,6 +491,10 @@ DisplayError DisplayPluggable::GetColorModeCount(uint32_t *mode_count) {
 DisplayError DisplayPluggable::GetColorModes(uint32_t *mode_count,
                                              std::vector<std::string> *color_modes) {
   ClientLock lock(disp_mutex_);
+  if (enable_qdcm_colormodes_on_external_ == 1) {
+    return DisplayBase::GetColorModes(mode_count, color_modes);
+  }
+
   if (!mode_count || !color_modes) {
     return kErrorParameters;
   }
@@ -496,6 +509,10 @@ DisplayError DisplayPluggable::GetColorModes(uint32_t *mode_count,
 
 DisplayError DisplayPluggable::GetColorModeAttr(const std::string &color_mode, AttrVal *attr) {
   ClientLock lock(disp_mutex_);
+  if (enable_qdcm_colormodes_on_external_ == 1) {
+    return DisplayBase::GetColorModeAttr(color_mode, attr);
+  }
+
   if (!attr) {
     return kErrorParameters;
   }

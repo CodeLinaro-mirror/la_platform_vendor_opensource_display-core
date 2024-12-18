@@ -472,6 +472,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   QSyncMode qsync_mode_ = kQSyncModeNone;
   std::bitset<kUpdateAVRFlagMax> needs_avr_update_ = {};
   bool force_lm_to_fb_config_ = false;
+  bool trigger_idle_timeout_ = false;
+  int enable_qdcm_colormodes_on_external_ = 0;
 
   static Locker display_power_reset_lock_;
   static bool display_power_reset_pending_;

@@ -187,7 +187,6 @@ DisplayError DisplayBase::Init() {
 
   auto max_mixer_stages = num_blending_stages;
   int property_value = Debug::GetMaxPipesPerMixer(display_type_);
-
   uint32_t active_index = 0;
   int drop_vsync = 0;
   int hw_recovery_threshold = 1;
@@ -241,8 +240,12 @@ DisplayError DisplayBase::Init() {
     }
   }
 
+  Debug::GetProperty(ENABLE_QDCM_COLORMODES_ON_EXTERNAL, &enable_qdcm_colormodes_on_external_);
   // ColorManager supported for built-in display.
-  if (kBuiltIn == display_type_) {
+  // ColorManager also supported for pluggable display if ENABLE_QDCM_COLORMODES_ON_EXTERNAL
+  // vendor property is set.
+  if ((kBuiltIn == display_type_) ||
+      ((kPluggable == display_type_) && (enable_qdcm_colormodes_on_external_ == 1))) {
     DppsControlInterface *dpps_intf = comp_manager_->GetDppsControlIntf();
     ColorMgrFactoryIntf *color_mgr_factory;
 
