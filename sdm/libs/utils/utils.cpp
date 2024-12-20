@@ -211,7 +211,13 @@ const char* GetSocName() {
   switch (soc_id_num) {
     case kAnorakSocId:
       return kAnorakSocName;
-    case kSunSocId:
+    case kSunSocId1:
+    case kSunSocId2:
+    case kTunaSocId1:
+    case kTunaSocId2:
+    case kTunaSocId3:
+    case kKeraSocId1:
+    case kKeraSocId2:
       return kSunSocName;
     case kNiobeSocId1:
     case kNiobeSocId2:
