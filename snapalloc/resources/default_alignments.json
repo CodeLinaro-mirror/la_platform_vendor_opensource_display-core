@@ -472,6 +472,24 @@
                 }
             },
             {
+                "format" : "RAW14",
+                "constraints" : {
+                    "size_align_bytes" : 4096,
+                    "planes" : [
+                        {
+                            "components": [
+                                {
+                                    "component_type" : "RAW"
+                                }
+                            ],
+                            "horiz_stride_align_bytes" : 112,
+                            "scanline_align" : 1,
+                            "size_align_bytes" : 1
+                        }
+                    ]
+                }
+            },
+            {
                 "format" : "YV12",
                 "constraints" : {
                     "size_align_bytes" : 4096,
@@ -483,7 +501,7 @@
                                 }
                             ],
                             "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 2,
+                            "scanline_align" : 1,
                             "size_align_bytes" : 1
                         },
                         {
@@ -493,7 +511,7 @@
                                 }
                             ],
                             "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 2,
+                            "scanline_align" : 1,
                             "size_align_bytes" : 1
                         },
                         {
@@ -503,7 +521,7 @@
                                 }
                             ],
                             "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 2,
+                            "scanline_align" : 1,
                             "size_align_bytes" : 1
                         }
                     ]

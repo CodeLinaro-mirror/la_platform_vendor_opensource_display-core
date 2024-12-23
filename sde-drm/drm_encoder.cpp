@@ -30,7 +30,7 @@
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -185,6 +185,7 @@ int DRMEncoderManager::Reserve(const std::set<uint32_t> &possible_encoders, DRMD
                                                      (1 << 4) : (1 << 5));
         token->hw_port = token->hw_port | core_id_mask;
         ret = 0;
+        free(name);
         break;
       }
     }

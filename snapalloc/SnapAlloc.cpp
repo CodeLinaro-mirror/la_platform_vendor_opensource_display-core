@@ -24,7 +24,7 @@ Error SnapAlloc::Allocate(const BufferDescriptor &in_descriptor, int in_count,
   }
 
   if (!handles.empty()) {
-    allocation_result->stride = handles[0]->aligned_width_in_pixels;
+    allocation_result->stride = handles[0]->aligned_width_in_pixels();
   }
 
   allocation_result->handles.reserve(in_count);
@@ -38,11 +38,7 @@ Error SnapAlloc::Allocate(const BufferDescriptor &in_descriptor, int in_count,
 };
 
 Error SnapAlloc::IsSupported(const BufferDescriptor &in_descriptor, bool *is_supported) {
-  auto err = snap_alloc_core_->IsSupported(in_descriptor, is_supported);
-  if (err != Error::NONE) {
-    DLOGW("Descriptor not supported - err %d", err);
-  }
-  return err;
+  return snap_alloc_core_->IsSupported(in_descriptor, is_supported);
 };
 
 extern "C" {

@@ -129,6 +129,7 @@ class SDMDisplayBuilder {
   enum HotPlugEvent {
     kHotPlugNone,
     kHotPlugEvent,
+    kHotPlugProcessing,
   };
 
   static Locker hdr_locker_[kNumDisplays];

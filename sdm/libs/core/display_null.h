@@ -28,9 +28,7 @@
  */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following
- * license:
- *
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
@@ -64,6 +62,9 @@ class DisplayNull : public DisplayInterface {
   virtual DisplayError GetActiveConfig(uint32_t *config);
   virtual DisplayError GetNumVariableInfoConfigs(uint32_t *count);
   virtual DisplayError Prepare(LayerStack *layer_stack);
+  virtual DisplayError ValidateExtendedDisplayResolutions(
+      std::vector<std::pair<uint32_t, uint32_t>> ext_disp_res,
+      std::vector<std::pair<uint32_t, uint32_t>> *fin_disp_res);
   virtual bool IsPrimaryDisplay() { return true; }
   virtual bool IsUnderscanSupported() { return true; }
   virtual void SetIdleTimeoutMs(uint32_t active_ms, uint32_t inactive_ms) {}
@@ -110,7 +111,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(DisablePartialUpdateOneFrame())
   MAKE_NO_OP(SetDisplayMode(uint32_t))
   MAKE_NO_OP(SetBppMode(uint32_t))
-  MAKE_NO_OP(SetPanelBrightness(float))
+  MAKE_NO_OP(SetPanelBrightness(float, bool))
   MAKE_NO_OP(CachePanelBrightness(int))
   MAKE_NO_OP(OnMinHdcpEncryptionLevelChange(uint32_t))
   MAKE_NO_OP(ColorSVCRequestRoute(const PPDisplayAPIPayload &, PPDisplayAPIPayload *,
@@ -188,6 +189,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(SetPanelFeatureConfig(int32_t, void *));
   MAKE_NO_OP(EnableCopr(bool en))
   MAKE_NO_OP(GetCoprStats(std::vector<int> *stats))
+  MAKE_NO_OP(GetScalerCount(uint32_t *scaler_count));
 
  protected:
   DisplayConfigVariableInfo default_variable_config_ = {};

@@ -101,7 +101,7 @@ class DPUCoreMux {
   virtual DisplayError GetQsyncFps(uint32_t *qsync_fps) = 0;
   virtual DisplayError CancelDeferredPowerMode() = 0;
   virtual void GetHWInterface(HWInterface **intf) = 0;
-  virtual void GetDRMDisplayToken(sde_drm::DRMDisplayToken *token) const = 0;
+  virtual void GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) const = 0;
   virtual DisplayError SetPPConfig(void *payload, size_t size) = 0;
   virtual DisplayError GetFbConfig(uint32_t width, uint32_t height,
                                    DisplayDeviceContext *device_ctx,

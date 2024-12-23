@@ -103,7 +103,7 @@ DisplayError SDMDisplayVirtual::DumpVDSBuffer() {
         return kErrorParameters;
       }
       uint32_t width, height, alloc_size = 0;
-      int32_t format = 0;
+      int32_t format = 0, flag = 0;
       int64_t compression_type, is_ubwc;
       snapmapper_->GetMetadata(*output_handle, MetadataType::STRIDE, &width);
       snapmapper_->GetMetadata(*output_handle, MetadataType::ALIGNED_HEIGHT_IN_PIXELS, &height);
@@ -114,8 +114,9 @@ DisplayError SDMDisplayVirtual::DumpVDSBuffer() {
 
       buffer_info.buffer_config.width = width;
       buffer_info.buffer_config.height = height;
+      flag = INT32(is_ubwc ? MetadataType::IS_UBWC : 0);
       buffer_info.buffer_config.format =
-          buffer_allocator_->GetSDMFormat(format, is_ubwc, compression_type);
+          buffer_allocator_->GetSDMFormat(format, flag, compression_type);
       buffer_info.alloc_buffer_info.aligned_width = width;
       buffer_info.alloc_buffer_info.aligned_height = height;
       buffer_info.alloc_buffer_info.size = alloc_size;

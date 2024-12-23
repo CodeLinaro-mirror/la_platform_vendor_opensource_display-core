@@ -29,38 +29,8 @@
 
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted (subject to the limitations in the
-* disclaimer below) provided that the following conditions are met:
-*
-*    * Redistributions of source code must retain the above copyright
-*      notice, this list of conditions and the following disclaimer.
-*
-*    * Redistributions in binary form must reproduce the above
-*      copyright notice, this list of conditions and the following
-*      disclaimer in the documentation and/or other materials provided
-*      with the distribution.
-*
-*    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
-*      contributors may be used to endorse or promote products derived
-*      from this software without specific prior written permission.
-*
-* NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
-* GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
-* HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
-* WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-* IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
-* GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-* INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
-* IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-* OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-* IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
 /*
@@ -170,7 +140,8 @@ int DRMAtomicReq::Perform(DRMOps opcode, uint32_t obj_id, ...) {
     case DRMOps::CRTC_SET_VM_REQ_STATE:
     case DRMOps::CRTC_RESET_CACHE:
     case DRMOps::CRTC_SET_NOISELAYER_CONFIG:
-    case DRMOps::CRTC_SET_UBWC_CLK: {
+    case DRMOps::CRTC_SET_UBWC_CLK:
+    case DRMOps::CRTC_SET_FLUSH_SYNC_EN: {
       drm_mgr_->GetCrtcMgr()->Perform(opcode, obj_id, drm_atomic_req_, args);
     } break;
     case DRMOps::CONNECTOR_SET_CRTC:
@@ -254,7 +225,7 @@ int DRMAtomicReq::Validate() {
   return ret;
 }
 
-int DRMAtomicReq::Commit(bool synchronous, bool retain_planes) {
+int DRMAtomicReq::Commit(bool synchronous, bool retain_planes, void *user_data) {
   DTRACE_SCOPED();
   if (retain_planes) {
     // It is not enough to simply avoid calling UnsetUnusedPlanes, since state transitons have to
@@ -270,7 +241,10 @@ int DRMAtomicReq::Commit(bool synchronous, bool retain_planes) {
     flags |= DRM_MODE_ATOMIC_NONBLOCK;
   }
 
-  int ret = drmModeAtomicCommit(fd_, drm_atomic_req_, flags, nullptr);
+  if (user_data)
+    flags |= DRM_MODE_PAGE_FLIP_EVENT;
+
+  int ret = drmModeAtomicCommit(fd_, drm_atomic_req_, flags, user_data);
   if (ret) {
     DRM_LOGE("drmModeAtomicCommit failed with error %d (%s). crtc=%u", errno, strerror(errno), token_.crtc_id);
   }

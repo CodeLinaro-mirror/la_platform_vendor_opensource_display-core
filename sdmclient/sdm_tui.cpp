@@ -207,7 +207,8 @@ DisplayError SDMTrustedUI::TUITransitionStart(int disp_id) {
   }
 
   {
-    SEQUENCE_WAIT_SCOPE_LOCK(locker_[target_display]);
+    std::lock_guard<std::mutex> tui_lock(cb_->tui_mutex_);
+    SCOPE_LOCK(locker_[target_display]);
 
     // disable idle time out for video mode
     auto display = cb_->GetDisplayFromClientId(target_display);
@@ -327,8 +328,7 @@ DisplayError SDMTrustedUI::TUITransitionEndLocked(int disp_id) {
   // Add check for internal state for bailing out (needs_refresh to false)
   if (needs_refresh) {
     DLOGI("Waiting for device unassign");
-    DisplayError ret =
-        cb_->WaitForCommitDoneAsync(target_display, kClientTrustedUI);
+    DisplayError ret = cb_->WaitForCommitDone(target_display, kClientTrustedUI);
     if (ret != 0) {
       if (ret != kErrorTimeOut) {
         DLOGE("Device unassign failed with error %d", ret);
@@ -392,11 +392,12 @@ DisplayError SDMTrustedUI::TUITransitionUnPrepare(int disp_id) {
       trigger_refresh |= needs_refresh;
     }
   }
+
+  disp_->HandlePluggableDisplaysAsync();
+
   if (trigger_refresh) {
     cb_->Refresh(target_display);
   }
-
-  disp_->HandlePluggableDisplaysAsync();
 
   // Reset tui session state variable.
   DLOGI("End of TUI session on display %d", disp_id);

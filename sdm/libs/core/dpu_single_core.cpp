@@ -22,7 +22,9 @@ DisplayError DPUSingleCore::Init() {
   core_id_ = it->first;
   DisplayError error = HWInterface::Create(display_id_.GetConnId(core_id_), type_, it->second,
                                            buffer_allocator_, &hw_intf_);
-  if (error != kErrorNone) {
+  if (error == kErrorDeviceRemoved) {
+    DLOGW("HW Interface create failed - device removed");
+  } else if (error != kErrorNone) {
     DLOGE("HW interface create failed");
   }
 
@@ -353,7 +355,7 @@ void DPUSingleCore::GetHWInterface(HWInterface **intf) {
   *intf = hw_intf_;
 }
 
-void DPUSingleCore::GetDRMDisplayToken(sde_drm::DRMDisplayToken *token) const {
+void DPUSingleCore::GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) const {
   hw_intf_->GetDRMDisplayToken(token);
 }
 

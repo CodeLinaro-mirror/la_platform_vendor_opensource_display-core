@@ -274,7 +274,7 @@ DisplayError HWTVDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   }
 
   ClearSolidfillStages();
-  int ret = drm_atomic_intf_->Commit(true /* synchronous */, false /* retain_planes*/);
+  int ret = drm_atomic_intf_->Commit(true /* synchronous */, false /* retain_planes*/, pflip_user_data_);
   if (ret) {
     DLOGE("%s failed with error %d", __FUNCTION__, ret);
     return kErrorHardware;

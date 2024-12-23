@@ -81,6 +81,9 @@ enum HWFeature {
 class HWEventHandler {
  public:
   virtual DisplayError VSync(int64_t timestamp) = 0;
+  virtual DisplayError PFlip(int fd, unsigned int sequence,
+                             unsigned int tv_sec, unsigned int tv_usec,
+                             void *data) = 0;
   virtual DisplayError Blank(bool blank) = 0;
   virtual void CECMessage(char *message) = 0;
   virtual void IdlePowerCollapse() = 0;
@@ -92,7 +95,7 @@ class HWEventHandler {
   virtual void MMRMEvent(uint32_t clk) = 0;
   virtual void HandlePowerEvent() = 0;
   virtual void HandleVmReleaseEvent() = 0;
-  virtual void GetDRMDisplayToken(sde_drm::DRMDisplayToken *token) = 0;
+  virtual void GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) = 0;
   virtual bool IsPrimaryDisplay() = 0;
   virtual DisplayError GetPanelBrightnessBasePath(std::string *base_path) = 0;
 
@@ -129,6 +132,7 @@ class HWInterface {
   virtual DisplayError GetPPFeaturesVersion(PPFeatureVersion *vers) = 0;
   virtual DisplayError SetPPFeature(PPFeatureInfo *feature) = 0;
   virtual DisplayError SetVSyncState(bool enable) = 0;
+  virtual void SetPageFlipState(bool enable, void *user_data) = 0;
   virtual void SetIdleTimeoutMs(uint32_t timeout_ms) = 0;
   virtual DisplayError SetDisplayMode(const HWDisplayMode hw_display_mode) = 0;
   virtual DisplayError SetBppMode(uint32_t bpp) = 0;
@@ -173,10 +177,11 @@ class HWInterface {
   virtual void HandleCwbTeardown(bool sync_teardown) = 0;
   virtual void SetDestScalarData(const HWLayersInfo &hw_layer_info) = 0;
   virtual void GetDRMDisplayToken(sde_drm::DRMDisplayToken *token) const = 0;
-  virtual bool IsAVRStepSupported(uint32_t config_index) = 0;
+  virtual uint32_t GetAVRStep(uint32_t config_index) = 0;
   virtual DisplayError NotifyExpectedPresent(uint64_t expected_present_time,
                                              uint32_t frame_interval_ns) = 0;
   virtual bool IsVRRSupported() = 0;
+  virtual void DisplayEarlyWakeUp() = 0;
 
  protected:
   virtual ~HWInterface() { }

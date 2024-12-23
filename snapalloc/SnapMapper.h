@@ -35,6 +35,8 @@ class SnapMapper : public ISnapMapper {
   Error DumpBuffers() override;
   Error ListSupportedMetadataTypes() override;
   Error GetMetadataState(const SnapHandle &in_handle, vendor_qti_hardware_display_common_MetadataType type, bool *out) override;
+  Error RetainViewBuffer(const SnapHandle &in_meta_handle, uint32_t view,
+                         SnapHandle **out_view_handle) override;
 
  private:
   void WaitFenceFd(int fence_fd);

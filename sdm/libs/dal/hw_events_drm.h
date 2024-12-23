@@ -29,7 +29,7 @@
 
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
-* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
   SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -57,7 +57,7 @@ using std::vector;
 
 class HWEventsDRM : public HWEventsInterface {
  public:
-  virtual DisplayError Init(DisplayId display_id, SDMDisplayType display_type,
+  virtual DisplayError Init(DisplayId display_id, uint32_t core_id, SDMDisplayType display_type,
                             HWEventHandler *event_handler, const vector<HWEvent> &event_list);
   virtual DisplayError Deinit();
   virtual DisplayError SetEventState(HWEvent event, bool enable, void *aux = nullptr);
@@ -76,9 +76,11 @@ class HWEventsDRM : public HWEventsInterface {
   static void *DisplayEventThread(void *context);
   static void VSyncHandlerCallback(int fd, unsigned int sequence, unsigned int tv_sec,
                                    unsigned int tv_usec, void *data);
-
+  static void PFlipHandlerCallback(int fd, unsigned int sequence, unsigned int tv_sec,
+                                   unsigned int tv_usec, void *data);
   void *DisplayEventHandler();
   void HandleVSync(char *data);
+  void HandlePageFlip(char *data);
   void HandleCECMessage(char *data);
   void HandleThreadExit(char *data) {}
   void HandleThermal(char *data) {}
@@ -98,6 +100,8 @@ class HWEventsDRM : public HWEventsInterface {
   DisplayError InitializePollFd();
   void CloseFds();
   DisplayError RegisterVSync();
+  DisplayError RequestPageFlip(uint32_t crtc_id, uint32_t fb_id,
+                               uint32_t flags,   void *userdata);
   DisplayError RegisterPanelDead(bool enable);
   DisplayError RegisterIdlePowerCollapse(bool enable);
   DisplayError RegisterHwRecovery(bool enable);
@@ -134,7 +138,7 @@ class HWEventsDRM : public HWEventsInterface {
   uint32_t power_event_index_ = UINT32_MAX;
   uint32_t vm_release_event_index_ = UINT32_MAX;
   std::bitset<HW_EVENT_MAX> registered_hw_events_ = {};
-  std::bitset<8> core_id_map_ = 0;
+  uint32_t core_id_ = 0;
   char path_[64];
 };
 

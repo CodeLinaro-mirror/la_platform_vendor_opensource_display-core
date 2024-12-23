@@ -27,9 +27,7 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
@@ -282,8 +280,16 @@ DisplayError SDMDisplayBuiltIn::PreValidateDisplay(bool *exit_validate) {
 }
 
 DisplayError SDMDisplayBuiltIn::CommitLayerStack() {
+  SetDynamicDSIClock();
+
   skip_commit_ = CanSkipCommit();
-  return SDMDisplay::CommitLayerStack();
+  DisplayError error = SDMDisplay::CommitLayerStack();
+
+  if (commit_counter_) {
+    callbacks_->OnRefresh(id_);
+  }
+
+  return error;
 }
 
 bool SDMDisplayBuiltIn::CanSkipCommit() {
@@ -703,8 +709,7 @@ DisplayError SDMDisplayBuiltIn::GetActiveSecureSession(
       secure_sessions->set(kSecureDisplay);
     }
   }
-  if (secure_event_ == kTUITransitionStart ||
-      secure_event_ == kTUITransitionPrepare) {
+  if (secure_event_ != kSecureEventMax) {
     secure_sessions->set(kSecureTUI);
   }
   return kErrorNone;
@@ -1072,13 +1077,41 @@ DisplayError SDMDisplayBuiltIn::SetJitterConfig(uint32_t jitter_type,
   return kErrorNone;
 }
 
-DisplayError SDMDisplayBuiltIn::SetDynamicDSIClock(uint64_t bitclk) {
-  DisablePartialUpdateOneFrame();
-  DisplayError error = display_intf_->SetDynamicDSIClock(bitclk);
-  if (error != kErrorNone) {
-    DLOGE(" failed: Clk: %" PRIu64 " Error: %d", bitclk, error);
-    return error;
+DisplayError SDMDisplayBuiltIn::SetDynamicDSIClock() {
+  // decrement the counter and set dsi clock when counter hit 0
+  if (!scheduled_dynamic_dsi_clk_ || (commit_counter_ >>= 1)) {
+    return kErrorNone;
   }
+
+  DTRACE_SCOPED();
+
+  DisplayError error = display_intf_->SetDynamicDSIClock(scheduled_dynamic_dsi_clk_);
+  if (error != kErrorNone) {
+    DLOGE(" failed: Clk: %" PRIu64 " Error: %d", scheduled_dynamic_dsi_clk_, error);
+  }
+
+  scheduled_dynamic_dsi_clk_ = 0;
+  ControlIdlePowerCollapse(true, false);
+
+  return error;
+}
+
+DisplayError SDMDisplayBuiltIn::ScheduleDynamicDSIClock(uint64_t bitclk) {
+  if (scheduled_dynamic_dsi_clk_) {
+    return kErrorPermission;
+  }
+
+  DTRACE_SCOPED();
+
+  DisablePartialUpdateOneFrame();
+  ControlIdlePowerCollapse(false, false);
+
+  scheduled_dynamic_dsi_clk_ = bitclk;
+
+  // Set counter to b10
+  // On first commit it will be b01
+  // On second commit it will be b00
+  commit_counter_ = 1 << 1;
 
   callbacks_->OnRefresh(id_);
 
@@ -1385,7 +1418,7 @@ bool SDMDisplayBuiltIn::NeedsLargeCompPerfHint() {
     return false;
   }
 
-  if (active_refresh_rate_ < 120) {
+  if (active_refresh_rate_ < 90) {
     return false;
   }
 
@@ -1520,6 +1553,9 @@ DisplayError SDMDisplayBuiltIn::CommitOrPrepare(
     uint32_t *out_num_types, uint32_t *out_num_requests, bool *needs_commit) {
   DTRACE_SCOPED();
 
+  SetDynamicDSIClock();
+
+  prepare_phase_ = true;
   auto status = SDMDisplay::CommitOrPrepare(validate_only, out_retire_fence,
                                             out_num_types, out_num_requests,
                                             needs_commit);
@@ -1527,6 +1563,13 @@ DisplayError SDMDisplayBuiltIn::CommitOrPrepare(
   if (perf_hint_large_comp_cycle_) {
     bool needs_hint = NeedsLargeCompPerfHint();
     HandleLargeCompositionHint(!needs_hint);
+  }
+
+  prepare_phase_ = false;
+
+  // Need a commit call to flush the dsi dynamic clock
+  if (commit_counter_) {
+    callbacks_->OnRefresh(id_);
   }
 
   return status;

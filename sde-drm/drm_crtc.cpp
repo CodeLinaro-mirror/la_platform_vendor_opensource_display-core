@@ -518,7 +518,8 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
     } else if (line.find(max_bandwidth_high) != string::npos) {
       crtc_info_.max_bandwidth_high = std::stoull(string(line, max_bandwidth_high.length()));
     } else if (line.find(max_mdp_clk) != string::npos) {
-      crtc_info_.max_sde_clk = std::stoi(string(line, max_mdp_clk.length()));
+      //the max_mdp_clk maybe bigger than int32_max, but it's in uint32_max
+      crtc_info_.max_sde_clk = static_cast<uint32_t>(std::stoll(string(line, max_mdp_clk.length())));
     } else if (line.find(core_clk_ff) != string::npos) {
       crtc_info_.clk_fudge_factor = std::stof(string(line, core_clk_ff.length()));
     } else if (line.find(comp_ratio_rt) != string::npos) {
@@ -930,6 +931,17 @@ void DRMCrtc::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       uint32_t ubwc_clk = va_arg(args, uint32_t);
       AddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::UBWC_CLK),
                   ubwc_clk, true /* cache */, tmp_prop_val_map_);
+    }; break;
+
+    case DRMOps::CRTC_SET_FLUSH_SYNC_EN: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::FLUSH_SYNC_EN)) {
+        return;
+      }
+
+      uint32_t flush_sync_en = va_arg(args, uint32_t);
+      AddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::FLUSH_SYNC_EN), flush_sync_en,
+                  true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("CRTC %d: Set flush_sync_en %d", obj_id, flush_sync_en);
     }; break;
 
     default:

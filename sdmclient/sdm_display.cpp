@@ -647,6 +647,17 @@ bool SDMDisplay::IsPanelConfig(uint32_t x, uint32_t y) {
   return false;
 }
 
+bool SDMDisplay::NeedsSDMExtendedResolution() {
+  uint32_t scaler_count = 0;
+  DisplayError error = display_intf_->GetScalerCount(&scaler_count);
+  if ((error != kErrorNone) && (error != kErrorNotSupported)) {
+    DLOGE("Getting AI/Dest Scaler count failed. Error = %d", error);
+    return false;
+  }
+
+  return (scaler_count ? true : false);
+}
+
 void SDMDisplay::PopulateSDMExtendedDisplayResolution() {
   // Extended display resolutions are calculated w.r.t. highest supported resolution only.
   uint32_t highest_res_config_index = 0;
@@ -672,9 +683,12 @@ void SDMDisplay::PopulateSDMExtendedDisplayResolution() {
     return;
   }
 
-  if (extended_display_resolutions.size() == 0) {
+  std::vector<std::pair<uint32_t, uint32_t>> final_extended_display_resolutions = {};
+  if (display_intf_->ValidateExtendedDisplayResolutions(extended_display_resolutions,
+                                                        &final_extended_display_resolutions)) {
     return;
   }
+  extended_display_resolutions = final_extended_display_resolutions;
 
   uint32_t config_index = variable_config_map_.size();
   for (uint32_t res_index = 0; res_index < extended_display_resolutions.size(); res_index++) {
@@ -728,7 +742,9 @@ void SDMDisplay::UpdateConfigs() {
     }
   }
 
-  PopulateSDMExtendedDisplayResolution();
+  if (NeedsSDMExtendedResolution()) {
+    PopulateSDMExtendedDisplayResolution();
+  }
 
   // Update num config count.
   num_configs_ = UINT32(variable_config_map_.size());
@@ -967,6 +983,7 @@ void SDMDisplay::BuildLayerStack() {
   layer_stack_.flags.advance_fb_present = client_target_3_1_set_;
   // Append client target to the layer stack
   Layer *sdm_client_target = client_target_->GetSDMLayer();
+  sdm_client_target->request.flags = {};
   sdm_client_target->layer_id = client_target_->GetId();
   sdm_client_target->geometry_changes = client_target_->GetGeometryChanges();
   sdm_client_target->flags.updating = IsLayerUpdating(client_target_);
@@ -1949,8 +1966,6 @@ SDMDisplay::PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence) {
     layer_buffer->acquire_fence = nullptr;
   }
 
-  client_target_->GetSDMLayer()->request.flags = {};
-
   layer_stack_.flags.geometry_changed = false;
   sdm_layer_stack_->geometry_changes_ = GeometryChanges::kNone;
   geometry_changes_ = GeometryChanges::kNone;
@@ -1964,9 +1979,7 @@ SDMDisplay::PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence) {
     display_paused_ = true;
     display_pause_pending_ = false;
   }
-  if (secure_event_ == kTUITransitionEnd ||
-      secure_event_ == kSecureDisplayEnd ||
-      secure_event_ == kTUITransitionUnPrepare) {
+  if (secure_event_ == kSecureDisplayEnd || secure_event_ == kTUITransitionUnPrepare) {
     secure_event_ = kSecureEventMax;
   }
 
@@ -3154,7 +3167,7 @@ void SDMDisplay::SubmitActiveConfigChange(
       return;
     }
 
-    rr_refresh_time = pending_refresh_rate_config_;
+    rr_refresh_time = pending_refresh_rate_refresh_time_;
     rr_applied_time = pending_refresh_rate_applied_time_;
     pending_refresh_rate_config_ = UINT_MAX;
     pending_refresh_rate_refresh_time_ = INT64_MAX;
@@ -3353,6 +3366,7 @@ DisplayError SDMDisplay::PostHandleSecureEvent(SecureEvent secure_event) {
   if (err == kErrorNone) {
     if (secure_event == kTUITransitionEnd ||
         secure_event == kTUITransitionUnPrepare) {
+      secure_event_ = kSecureEventMax;
       return kErrorNone;
     }
     DLOGV("Set secure_event to %d", secure_event);
@@ -3887,6 +3901,11 @@ DisplayError SDMDisplay::HandleQsyncState(const QsyncEventData &qsync_data) {
   event_handler_->PerformQsyncCallback(id_, qsync_data.enabled,
                                        qsync_data.refresh_rate,
                                        qsync_data.qsync_refresh_rate);
+  return kErrorNone;
+}
+
+DisplayError SDMDisplay::IsPreparePhase(bool *prepare_phase) {
+  *prepare_phase = prepare_phase_;
   return kErrorNone;
 }
 

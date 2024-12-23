@@ -69,6 +69,7 @@
 #include <map>
 #include <string>
 #include <utility>
+#include <bitset>
 #include <vector>
 #include <array>
 #include <set>
@@ -463,6 +464,12 @@ enum struct DRMOps {
    *       uin32_t - ubwc_clk
    */
   CRTC_SET_UBWC_CLK,
+  /*
+   * Op: Enables/disables flush sync between the DPU cores
+   * Args: uint32_t CRTC ID
+   *       uin32_t - flush sync state
+   */
+  CRTC_SET_FLUSH_SYNC_EN,
   /*
    * Op: Returns retire fence for this commit. Should be called after Commit()
    * on DRMAtomicReqInterface. Arg: uint32_t - Connector ID int * - Pointer to
@@ -914,6 +921,13 @@ enum struct DRMCacMode {
   CAC_MODE_LOOPBACK_FETCH = 0x8,
 };
 
+enum DRMCacModeBits {
+  CAC_MODE_UNPACK_BIT,
+  CAC_MODE_FETCH_BIT,
+  CAC_MODE_LOOPBACK_UNPACK_BIT,
+  CAC_MODE_LOOPBACK_FETCH_BIT,
+};
+
 struct DRMPlaneTypeInfo {
   DRMPlaneType type;
   uint32_t master_plane_id;
@@ -943,8 +957,10 @@ struct DRMPlaneTypeInfo {
   bool block_sec_ui = false;
   int32_t pipe_idx = -1;
   int32_t demura_block_capability = -1;
-  DRMCacMode cac_mode = DRMCacMode::CAC_MODE_DISABLED;
+  std::bitset<4> cac_mode;
   int32_t cac_parent_rect = -1;
+  // Allow all planes to be usable on all displays by default
+  std::bitset<32> hw_block_mask = std::bitset<32>().set();
 };
 
 // All DRM Planes as map<Plane_id , plane_type_info> listed from highest to lowest priority
@@ -1020,8 +1036,9 @@ struct DRMModeInfo {
   std::vector<DRMSubModeInfo> sub_modes;
   uint32_t qsync_min_fps;
   uint32_t curr_bpp_mode;
-  uint32_t avr_step_fps;
+  uint32_t avr_step_fps = 0;
   uint32_t early_ept_timeout;
+  bool vhm_support = false;
 };
 
 /* Per Connector Info*/
@@ -1415,9 +1432,10 @@ class DRMAtomicReqInterface {
    * [input]: synchronous: Determines if the call should block until a h/w flip
    * [input]: retain_planes: Retains already staged planes. Useful when not explicitly programming
    *          planes but still need the previously staged ones to not be unstaged
+   * [input]: user_data: call back object
    * [return]: Error code if the API fails, 0 on success.
    */
-  virtual int Commit(bool synchronous, bool retain_planes) = 0;
+  virtual int Commit(bool synchronous, bool retain_planes, void *user_data) = 0;
 
   /*
    * Validate the params set via Perform().

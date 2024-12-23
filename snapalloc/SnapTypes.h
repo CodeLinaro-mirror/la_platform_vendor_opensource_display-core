@@ -44,7 +44,7 @@
 #include <VideoHistogramMetadata.h>
 #include <VideoTimestampInfo.h>
 #include <VideoTranscodeStatsMetadata.h>
-
+#include <QtiViews.h>
 #include <unordered_map>
 
 using vendor::qti::hardware::display::snapalloc::AllocationResult;

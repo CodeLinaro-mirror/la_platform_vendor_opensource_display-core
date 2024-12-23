@@ -147,15 +147,19 @@ static InlineRotationVersion GetInRotVersion(sde_drm::InlineRotationVersion drm_
   }
 }
 
-static HWPipeCacMode GetCacMode(sde_drm::DRMCacMode cac_mode) {
-  switch (cac_mode) {
-    case sde_drm::DRMCacMode::CAC_MODE_UNPACK:
-      return kModeUnpack;
-    case sde_drm::DRMCacMode::CAC_MODE_FETCH:
-      return kModeFetch;
-    default:
-      return kModeDisabled;
+static HWPipeCacMode GetCacMode(std::bitset<4> cac_mode, CacVersion cac_version) {
+  HWPipeCacMode pipe_cac_mode = kModeDisabled;
+  if (cac_version == kCacVersion2) {
+    pipe_cac_mode = cac_mode.test(sde_drm::CAC_MODE_UNPACK_BIT)  ? kModeUnpack
+                    : cac_mode.test(sde_drm::CAC_MODE_FETCH_BIT) ? kModeFetch
+                                                                 : kModeDisabled;
+  } else if (cac_version == kCacVersionLoopback) {
+    pipe_cac_mode = cac_mode.test(sde_drm::CAC_MODE_LOOPBACK_UNPACK_BIT) ? kModeLoopbackUnpack
+                    : cac_mode.test(sde_drm::CAC_MODE_FETCH_BIT)         ? kModeLoopbackFetch
+                                                                         : kModeDisabled;
   }
+
+  return pipe_cac_mode;
 }
 
 DisplayError HWInfoDRM::Init() {
@@ -260,7 +264,7 @@ DisplayError HWInfoDRM::GetHWResourceInfo(HWResourceInfo *hw_resource) {
   hw_resource->has_qseed3 = false;
   hw_resource->has_concurrent_writeback = false;
 
-  hw_resource->hw_version = SDEVERSION(4, 0, 1);
+  hw_resource->hw_version = SDEVERSION(10, 0, 0);
 
   // TODO(user): Deprecate
   hw_resource->max_mixer_width = 2560;
@@ -407,7 +411,8 @@ void HWInfoDRM::GetSystemInfo(HWResourceInfo *hw_resource) {
   }
 
   hw_resource->max_sde_clk = info.max_sde_clk;
-  hw_resource->hw_version = info.hw_version;
+  printf("---info hwversion %d\n", info.hw_version);
+  hw_resource->hw_version = SDEVERSION(10, 0, 0);//info.hw_version;
 
   std::vector<LayerBufferFormat> sdm_format;
   for (auto &it : info.comp_ratio_rt_map) {
@@ -546,14 +551,15 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
     }
     pipe_caps.master_pipe_id = pipe_obj.second.master_plane_id;
     pipe_caps.block_sec_ui = pipe_obj.second.block_sec_ui;
-    DLOGI("Adding %s Pipe : Id %d, master_pipe_id : Id %d block_sec_ui: %d",
+    pipe_caps.hw_block_mask = pipe_obj.second.hw_block_mask;
+    DLOGI("Adding %s Pipe : Id %d, master_pipe_id : Id %d block_sec_ui: %d hw_block_mask: 0x%x",
           name.c_str(), pipe_obj.first, pipe_obj.second.master_plane_id,
-          pipe_obj.second.block_sec_ui);
+          pipe_obj.second.block_sec_ui, pipe_obj.second.hw_block_mask.to_ulong());
     pipe_caps.inverse_pma = pipe_obj.second.inverse_pma;
     pipe_caps.dgm_csc_version = pipe_obj.second.dgm_csc_version;
     pipe_caps.pipe_idx = pipe_obj.second.pipe_idx;
     pipe_caps.demura_block_capability = pipe_obj.second.demura_block_capability;
-    pipe_caps.cac_mode = GetCacMode(pipe_obj.second.cac_mode);
+    pipe_caps.cac_mode = GetCacMode(pipe_obj.second.cac_mode, hw_resource->cac_version);
     pipe_caps.cac_parent_id = pipe_obj.second.cac_parent_rect;
     // disable src tonemap feature if its disabled using property.
     if (!disable_src_tonemap) {
@@ -1169,31 +1175,6 @@ DisplayError HWInfoDRM::GetRequiredDemuraFetchResourceCount(
       } else {
         ++it;
       }
-    }
-  }
-
-  return kErrorNone;
-}
-
-DisplayError HWInfoDRM::GetDemuraPanelIds(std::vector<uint64_t> *panel_ids) {
-  if (!panel_ids) {
-    return kErrorResources;
-  }
-  int primary_off = 0;
-  int secondary_off = 0;
-  Debug::Get()->GetProperty(DISABLE_DEMURA_PRIMARY, &primary_off);
-  Debug::Get()->GetProperty(DISABLE_DEMURA_SECONDARY, &secondary_off);
-
-  sde_drm::DRMConnectorsInfo conn_infos;
-  drm_mgr_intf_->GetConnectorsInfo(&conn_infos);
-  for (auto &conn : conn_infos) {
-    sde_drm::DRMConnectorInfo &info = conn.second;
-    if (info.panel_id) {
-      // skip adding demura disabled panels
-      if ((info.is_primary && primary_off) || (!info.is_primary && secondary_off)) {
-        continue;
-      }
-      panel_ids->push_back(info.panel_id);
     }
   }
 

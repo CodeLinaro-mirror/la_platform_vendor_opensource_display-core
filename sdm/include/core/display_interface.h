@@ -23,9 +23,7 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following
- * license:
- *
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
@@ -372,6 +370,16 @@ enum PanelFeatureVendorServiceType {
   kTypeDeleteDemuraTnConfig = 4,
   /* Setter: None */
   kTypeTriggerDemuraOemPlugIn = 5,
+  /* Setter: None */
+  kTypeReloadDemuraCalibFiles = 6,
+  /* Setter: None */
+  kTypeDemuraDisplayEventsCtrl = 7,
+  /* Getter: None */
+  kTypeQueryDemuraTnInfo = 8,
+  /* Setter: int */
+  kTypeDemuraTnBatchId = 9,
+  /* Setter: None */
+  kTypeDemuraTnAodHandlerCtrl = 10,
   PanelFeatureVendorServiceTypeMax,
 };
 
@@ -399,6 +407,26 @@ class DisplayEventHandler {
     @sa DisplayInterface::SetDisplayState
   */
   virtual DisplayError VSync(const DisplayEventVSync &vsync) = 0;
+
+  /*! @brief Page Flip event handler.
+
+    @details This event is dispatched on every vertical synchronization.
+    The event is disabled by default.
+
+    @param[in] fd \link int \endlink
+    @param[in] sequence (frame) \link unsigned int \endlink
+    @param[in] tv_sec \link unsigned int \endlink
+    @param[in] tv_usec \link unsigned int \endlink
+    @param[in] data \link void* \endlink
+
+    @return \link DisplayError \endlink
+
+    @sa DisplayInterface::GetVSyncState
+    @sa DisplayInterface::SetVSyncState
+  */
+  virtual DisplayError PFlip(int fd, unsigned int sequence,
+                             unsigned int tv_sec, unsigned int tv_usec,
+                             void *data) = 0;
 
   /*! @brief Event handler for Refresh event.
 
@@ -434,6 +462,9 @@ class DisplayEventHandler {
 
   /*! @brief Event handler for sending status of Qsync */
   virtual DisplayError HandleQsyncState(const QsyncEventData &event_data) { return kErrorNone; }
+
+  /*! @brief Event handler to check if a Display is in Prepare phase. */
+  virtual DisplayError IsPreparePhase(bool *prepare_phase) { return kErrorNone; }
 
   /*! @brief Event handler to notify CWB Done */
   virtual void NotifyCwbDone(int32_t status, const LayerBuffer& buffer) { }
@@ -762,10 +793,11 @@ class DisplayInterface {
   /*! @brief Method to set brightness of the builtin display.
 
     @param[in] brightness the new backlight level 0.0f(min) to 1.0f(max) where -1.0f represents off.
+    @param[in] return_error false by default, true to distinguish deferred error case.
 
     @return \link DisplayError \endlink
   */
-  virtual DisplayError SetPanelBrightness(float brightness) = 0;
+  virtual DisplayError SetPanelBrightness(float brightness, bool return_error = false) = 0;
 
   /*! @brief Method to notify display about change in min HDCP encryption level.
 
@@ -1485,6 +1517,26 @@ class DisplayInterface {
    @return \link DisplayError \endlink
   */
   virtual DisplayError GetCoprStats(std::vector<int> *stats) = 0;
+
+  /*! @brief Method to get count of AI/Dest Scaler HW blocks.
+
+    @param[out] scaler_count count of AI/Dest Scaler HW blocks.
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError GetScalerCount(uint32_t *scaler_count) = 0;
+
+  /*! @brief Method to validate extended display resolutions.
+
+   @param[in] vector of resolutions
+
+   @param[out] vector of resolutions
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError ValidateExtendedDisplayResolutions(
+      std::vector<std::pair<uint32_t, uint32_t>> ext_disp_res,
+      std::vector<std::pair<uint32_t, uint32_t>> *fin_disp_res) = 0;
 
  protected:
   virtual ~DisplayInterface() { }

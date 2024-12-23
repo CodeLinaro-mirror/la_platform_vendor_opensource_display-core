@@ -1,4 +1,4 @@
-HEADER_PATH := ${WORKSPACE}/display/vendor/qcom/opensource/display-core/libdrmutils
+HEADER_PATH := ./
 
 cpp_sources = drm_lib_loader.cpp \
               drm_master.cpp \
@@ -13,5 +13,6 @@ libdrmutils_la_CC = @CC@
 libdrmutils_la_SOURCES = $(cpp_sources)
 libdrmutils_la_CFLAGS = $(COMMON_CFLAGS) -DLOG_TAG=\"DRMUTILS\"
 libdrmutils_la_CPPFLAGS = $(AM_CPPFLAGS)
-libsdmcore_la_LIBADD = -ldrm
+libdrmutils_la_CPPFLAGS += -Xlinker --unresolved-symbols=ignore-in-shared-libs
+libdrmutils_la_LIBADD = -ldrm -ldl ../libdebug/libdisplaydebug.la ../sdm/libs/utils/libsdmutils.la
 libdrmutils_la_LDFLAGS = -shared -avoid-version
