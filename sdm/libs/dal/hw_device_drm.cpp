@@ -152,12 +152,14 @@ static PPBlock GetPPBlock(const HWToneMapLut &lut_type) {
 
 static uint64_t GetDRMModifier(uint64_t default_modifier, HWCacColorComponent cac_color) {
   switch (cac_color) {
+#ifndef TARGET_INCLUDES_NEO
     case kCacRed:
       return DRM_FORMAT_MOD_QCOM_CAC_R;
     case kCacGreen:
       return DRM_FORMAT_MOD_QCOM_CAC_G;
     case kCacBlue:
       return DRM_FORMAT_MOD_QCOM_CAC_B;
+#endif
     default:
       return default_modifier;
   }

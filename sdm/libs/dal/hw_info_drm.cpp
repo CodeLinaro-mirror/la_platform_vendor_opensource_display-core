@@ -821,12 +821,14 @@ void HWInfoDRM::GetSDMFormat(uint32_t v4l2_format, LayerBufferFormat *sdm_format
     case SDE_PIX_FMT_Y_CBCR_H2V2_TP10_UBWC:  *sdm_format = kFormatYCbCr420TP10Ubwc;     break;
     case SDE_PIX_FMT_Y_CBCR_H2V2_P010_UBWC:  *sdm_format = kFormatYCbCr420P010Ubwc;     break;
     case SDE_PIX_FMT_Y_CBCR_H2V2_P010_VENUS: *sdm_format = kFormatYCbCr420P010Venus;    break;
+#ifndef TARGET_INCLUDES_NEO
     case SDE_PIX_FMT_Y_CBCR_H2V1_P210:
       *sdm_format = kFormatYCbCr422P210;
       break;
     case SDE_PIX_FMT_Y_CBCR_H2V1_P210_UBWC:
       *sdm_format = kFormatYCbCr422P210Ubwc;
       break;
+#endif
     default: *sdm_format = kFormatInvalid;
   }
 }
