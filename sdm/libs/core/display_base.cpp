@@ -23,8 +23,8 @@
 */
 
 /*
-* ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+* ​Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -245,7 +245,7 @@ DisplayError DisplayBase::Init() {
   // ColorManager also supported for pluggable display if ENABLE_QDCM_COLORMODES_ON_EXTERNAL
   // vendor property is set.
   if ((kBuiltIn == display_type_) ||
-      ((kPluggable == display_type_) && (enable_qdcm_colormodes_on_external_ == 1))) {
+      ((kPluggable == display_type_) && (enable_qdcm_colormodes_on_external_ >= QdcmOnExternal::LEGACY_QDCM))) {
     DppsControlInterface *dpps_intf = comp_manager_->GetDppsControlIntf();
     ColorMgrFactoryIntf *color_mgr_factory;
 
@@ -939,6 +939,11 @@ bool DisplayBase::IsValidateNeeded() {
 DisplayError DisplayBase::PrePrepare(LayerStack *layer_stack) {
   DTRACE_SCOPED();
   ClientLock lock(disp_mutex_);
+
+  // Do not skip validate if needs update PP features.
+  if (color_mgr_) {
+    needs_validate_ |= color_mgr_->IsValidateNeeded();
+  }
 
   EnableLlccDuringAodMode(layer_stack);
 

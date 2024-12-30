@@ -24,6 +24,7 @@ cc_library_shared {
         "-fno-operator-names",
         "-Wno-unused-parameter",
         "-DLOG_TAG=\"SDE_DRM\"",
+        "-DPP_DRM_ENABLE",
     ],
     srcs: [
         "drm_manager.cpp",
