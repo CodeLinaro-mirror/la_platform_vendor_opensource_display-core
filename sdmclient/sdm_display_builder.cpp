@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <utils/debug.h>
@@ -757,7 +757,7 @@ int SDMDisplayBuilder::HandleConnectedDisplays(HWDisplaysInfo *displays_info,
               strerror(abs(err)));
         status = err;
 
-        if (err == kErrorDeviceRemoved) {
+        if (err == kErrorDeviceRemoved || err == kErrorHardware) {
           status = -ENODEV;
         }
         // Attempt creating remaining pluggable displays.
