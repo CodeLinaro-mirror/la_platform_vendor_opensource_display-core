@@ -24,7 +24,7 @@
 
 /*
 * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -92,10 +92,10 @@ DisplayError DisplayBuiltIn::SetupAiqe() {
 
   DebugHandler::Get()->GetProperty(AIQE_SSRC_ENABLE, &value);
   if (value == 1) {
-    aiqe::SsrcFeatureFactory *ssrc_feature_factory;
-    aiqe::SsrcFeatureDisplayDetails *display_details;
-    std::string *default_mode;
-    bool *force_commit;
+    aiqe::SsrcFeatureFactory *ssrc_feature_factory = nullptr;
+    aiqe::SsrcFeatureDisplayDetails *display_details = nullptr;
+    std::string *default_mode = nullptr;
+    bool *force_commit = nullptr;
     GenericPayload payload;
 
     if (!ssrc_lib_.Open(SSRC_LIBRARY_NAME)) {
@@ -498,7 +498,7 @@ DisplayError DisplayBuiltIn::PrePrepare(LayerStack *layer_stack) {
   uint32_t display_width = client_ctx_.display_attributes.x_pixels;
   uint32_t display_height = client_ctx_.display_attributes.y_pixels;
   GenericPayload bool_payload;
-  bool *force_update;
+  bool *force_update = nullptr;
 
   DisplayError error = HandleDemuraLayer(layer_stack);
   if (error != kErrorNone) {
@@ -1324,7 +1324,8 @@ DisplayError DisplayBuiltIn::SendPanelIdToParserManager() {
     return kErrorUndefined;
   }
 
-  std::vector<uint64_t> *panel_ids;
+  std::vector<uint64_t> *panel_ids = nullptr;
+
   GenericPayload in;
   ret = in.CreatePayload<std::vector<uint64_t>>(panel_ids);
   if (ret) {
@@ -4383,7 +4384,7 @@ DisplayError DisplayBuiltIn::SetSsrcMode(const std::string &mode) {
   DisplayError ret = kErrorNotSupported;
 
   if (ssrc_feature_enabled_ && ssrc_feature_interface_) {
-    std::string *mode_str;
+    std::string *mode_str = nullptr;
     GenericPayload payload;
     int rc = payload.CreatePayload(mode_str);
     if (rc) {
