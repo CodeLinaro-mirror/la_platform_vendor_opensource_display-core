@@ -24,7 +24,7 @@
 
 /*
 * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -1475,7 +1475,6 @@ DisplayError DisplayBuiltIn::SetUpCommit(LayerStack *layer_stack) {
   PreCommit(layer_stack);
   if (pending_cycles_for_poms_setup_ && !avoid_vsync_enable_) {
     avoid_vsync_enable_ = true;
-    vsync_enable_pending_ |= vsync_enable_;
     // Need to disable vsync while POMS in progress as it can't be processed by driver.
     SetVsyncStatus(false /*Disable vsync events.*/);
   }
@@ -1925,9 +1924,9 @@ void DisplayBuiltIn::SetVsyncStatus(bool enable) {
   DTRACE_BEGIN(trace_name.c_str());
   if (enable) {
     // Enable if vsync is still enabled.
-    vsync_enable_pending_ |= vsync_enable_;
-    vsync_enable_ = false;
-    SetVSyncStateLocked(vsync_enable_pending_);
+    if (vsync_enable_ && !avoid_vsync_enable_) {
+      master_hw_events_intf_->SetEventState(HWEvent::VSYNC, vsync_enable_);
+    }
   } else {
     master_hw_events_intf_->SetEventState(HWEvent::VSYNC, false);
   }
