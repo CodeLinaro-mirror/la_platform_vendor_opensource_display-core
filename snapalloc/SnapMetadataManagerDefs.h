@@ -101,6 +101,9 @@ struct SnapMetadata {
   char heapName[QTI_MAX_NAME_LEN];
   vendor_qti_hardware_display_common_PixelFormat pixel_format_requested;
   int64_t bufferDequeueDuration;
+  bool is_format_SMPTE2094_10 = false;
+  std::vector<uint8_t> custom_content_metadata;
+  vendor_qti_hardware_display_common_ThreeDimensionalRefInfo three_dimensional_ref_info;
 };
 }  // namespace snapalloc
 

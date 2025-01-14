@@ -63,7 +63,7 @@ bool SnapConstraintManager::CanAllocateZSLForSecureCamera() {
   }
   std::string secure_preview_buffer_format_prop;
   debug_->IsSecurePreviewBufferFormatEnabled(&secure_preview_buffer_format_prop);
-  if (!(secure_preview_buffer_format_prop.compare("420_sp") == 0)) {
+  if (secure_preview_buffer_format_prop.compare("420_sp") == 0) {
     can_allocate = false;
   }
   inited = true;
@@ -153,15 +153,23 @@ bool SnapConstraintManager::ValidateDescriptor(const BufferDescriptor &snap_desc
           static_cast<uint64_t>(snap_desc.format));
     return false;
   }
+
   auto format_data = format_data_map_.at(snap_desc.format);
   int bpp = (format_data.bits_per_pixel) / 8;
   bpp = (bpp == -1 || bpp == 0) ? 1 : bpp;
-  if (snap_desc.width == 0 || snap_desc.height == 0 ||
-      (OVERFLOW_MUL((snap_desc.width * bpp), snap_desc.height)) ||
+
+  // First check multiplication overflow of (w, bpp) then check overflow of (w*bpp, h)
+  if (snap_desc.width <= 0 || snap_desc.height <= 0 || OVERFLOW_MUL(snap_desc.width, bpp)) {
+    DLOGE("%s: Invalid Descriptor: uw%dxuh%d bpp:%d overflow_detected %d", __FUNCTION__,
+          snap_desc.width, snap_desc.height, bpp, OVERFLOW_MUL(snap_desc.width, bpp));
+    return false;
+  }
+
+  if ((OVERFLOW_MUL((snap_desc.width * bpp), snap_desc.height)) ||
       (static_cast<int32_t>(snap_desc.format) <= 0) || snap_desc.layerCount <= 0) {
-    DLOGE("Invalid Descriptor: uw%dxuh%d, format %d, layer_count %d, overflow_detected %d",
+    DLOGE("Invalid Descriptor: uw%dxuh%d, format %d, layer_count %d, overflow_detected %d bpp:%d",
           snap_desc.width, snap_desc.height, snap_desc.format, snap_desc.layerCount,
-          (OVERFLOW_MUL((snap_desc.width * bpp), snap_desc.height)) ? 1 : 0);
+          (OVERFLOW_MUL((snap_desc.width * bpp), snap_desc.height)) ? 1 : 0, bpp);
     return false;
   }
 
@@ -262,6 +270,7 @@ Error SnapConstraintManager::GetAllocationData(
   auto align = GetDataAlignment(out_desc->format, out_desc->usage, pixel_format_modifier);
   OVERFLOW_ERR_RETURN(ALIGN(out_ad->size, align), out_desc->layerCount, OverflowType::MUL);
   out_ad->size = ALIGN(out_ad->size, align) * out_desc->layerCount;
+  out_layout->size_in_bytes = out_ad->size;
 
   return err;
 }

@@ -156,6 +156,7 @@ enum DebugTag {
   kTagIWE,              //!< Debug log is tagged for IWE Implementation.
   kTagWbUsage,          //!< Debug log is tagged for writeback block usage Implementation.
   kTagSelfRefresh,      //!< Debug log is tagged for HAL Self-Refresh Implementation.
+  kTagDemura,           //!< Debug log is tagged for Demura and DemuraTn Implementation.
 };
 
 typedef std::vector<std::pair<std::string, std::string>> ColorModeAttributeVal;
@@ -401,6 +402,7 @@ enum SDMPowerMode {
     POWER_MODE_ON_SUSPEND = 4,
 };
 
+// Values taken from PixelFormat.aidl
 enum SDMPixelFormat {
   PIXEL_FORMAT_UNSPECIFIED             = 0,
   PIXEL_FORMAT_RGBA_8888               = 0x1,
@@ -435,6 +437,7 @@ enum SDMPixelFormat {
   PIXEL_FORMAT_R_16_UINT               = 0x39,
   PIXEL_FORMAT_RG_1616_UINT            = 0x3a,
   PIXEL_FORMAT_RGBA_10101010           = 0x3b,
+  PIXEL_FORMAT_YCBCR_P210              = 0x3c,
 };
 
 enum SDMClientCommitDone {
@@ -501,6 +504,9 @@ enum SDMCapability {
   kPresentFenceIsNotReliable = 3,
   kSkipValidate = 4,
   kBootDisplayConfig = 5,
+  kHdrOutputConversionConfig = 6,
+  kRefreshRateChangedCallbackDebug = 7,
+  kLayerLifeCycleBatchCommand = 8,
 };
 
 enum SDMFormatColorComponent {

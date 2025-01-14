@@ -207,6 +207,9 @@ class SnapMetadataManager {
   Error DynamicMetadataHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
                               void *in_set = nullptr, void *out_get = nullptr,
                               BufferDescriptor *buf_des = nullptr);
+  Error SMPTE2094_10Helper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                           void *in_set = nullptr, void *out_get = nullptr,
+                           BufferDescriptor *buf_des = nullptr);
   Error MatrixCoefficientsHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
                                  void *in_set = nullptr, void *out_get = nullptr,
                                  BufferDescriptor *buf_des = nullptr);
@@ -238,6 +241,9 @@ class SnapMetadataManager {
                        void *out_get = nullptr, BufferDescriptor *buf_des = nullptr);
   Error MultiViewHelper(SnapMetadata *metadata, SnapHandleInternal *handle, void *in_set = nullptr,
                         void *out_get = nullptr, BufferDescriptor *buf_des = nullptr);
+  Error ThreeDimensionalRefInfoHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                                      void *in_set = nullptr, void *out_get = nullptr,
+                                      BufferDescriptor *buf_des = nullptr);
 
   struct DRMFormatDescriptor {
     uint32_t drm_format;
@@ -363,6 +369,14 @@ class SnapMetadataManager {
            {.drm_format = DRM_FORMAT_NV12,
             .drm_modifier =
                 static_cast<int>(DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_DX)}},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_P210,
+            .compression_type = COMPRESSION_NONE},
+           {.drm_format = DRM_FORMAT_P210, .drm_modifier = DRM_FORMAT_MOD_QCOM_DX}},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_P210,
+            .compression_type = QTI_COMPRESSION_UBWC},
+           {.drm_format = DRM_FORMAT_P210,
+            .drm_modifier =
+                static_cast<int>(DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_DX)}},
           {{.format = vendor_qti_hardware_display_common_PixelFormat::TP10,
             .compression_type = QTI_COMPRESSION_UBWC},
            {.drm_format = DRM_FORMAT_NV12,
@@ -452,6 +466,7 @@ class SnapMetadataManager {
           {MASTERING_DISPLAY, &SnapMetadataManager::MasteringDisplayHelper},
           {CONTENT_LIGHT_LEVEL, &SnapMetadataManager::ContentLightLevelHelper},
           {DYNAMIC_METADATA, &SnapMetadataManager::DynamicMetadataHelper},
+          {SMPTE2094_10, &SnapMetadataManager::SMPTE2094_10Helper},
           {MATRIX_COEFFICIENTS, &SnapMetadataManager::MatrixCoefficientsHelper},
           {COLOR_REMAPPING_INFO, &SnapMetadataManager::ColorRemappingInfoHelper},
           {BASE_ADDRESS, &SnapMetadataManager::BaseAddressHelper},
@@ -464,6 +479,7 @@ class SnapMetadataManager {
           {ANAMORPHIC_COMPRESSION_METADATA, &SnapMetadataManager::AnamorphicCompressionHelper},
           {BASE_VIEW, &SnapMetadataManager::BaseViewHelper},
           {MULTI_VIEW_INFO, &SnapMetadataManager::MultiViewHelper},
+          {THREE_DIMENSIONAL_REF_INFO, &SnapMetadataManager::ThreeDimensionalRefInfoHelper},
   };
   struct metadata_traits {
     bool is_settable;
@@ -521,6 +537,7 @@ class SnapMetadataManager {
           {MASTERING_DISPLAY, {true}},
           {CONTENT_LIGHT_LEVEL, {true}},
           {DYNAMIC_METADATA, {true}},
+          {SMPTE2094_10, {true}},
           {MATRIX_COEFFICIENTS, {true}},
           {COLOR_REMAPPING_INFO, {true}},
           {BASE_ADDRESS, {false}},
@@ -533,6 +550,7 @@ class SnapMetadataManager {
           {ANAMORPHIC_COMPRESSION_METADATA, {true}},
           {BASE_VIEW, {false}},
           {MULTI_VIEW_INFO, {false}},
+          {THREE_DIMENSIONAL_REF_INFO, {true}},
       };
 };
 }  // namespace snapalloc

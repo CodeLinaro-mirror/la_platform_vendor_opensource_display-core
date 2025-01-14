@@ -45,6 +45,9 @@
 #include <private/spr_intf.h>
 #include <private/display_event_proxy_intf.h>
 #include <private/tvm_service_manager_intf.h>
+#include <private/vm_file_xfer_intf.h>
+#include <private/cb_intf.h>
+#include <private/vm_file_xfer_fact_intf_extn.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <string>
@@ -169,7 +172,10 @@ class DisplayIPCVmCallbackImpl : public IPCVmCallbackIntf {
   recursive_mutex cb_mutex_;
 };
 
-class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
+class DisplayBuiltIn : public DisplayBase,
+                       HWEventHandler,
+                       DppsPropIntf,
+                       SdmDisplayCbInterface<TvmServiceCbEvent> {
  public:
   DisplayBuiltIn(DisplayEventHandler *event_handler,
                  sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> hw_info_intf,
@@ -293,6 +299,9 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   DisplayError PostCommit() override;
   DisplayError GetQsyncFps(uint32_t *qsync_fps) override;
 
+  // Implement SdmDisplayCbInterface
+  int Notify(const TvmServiceCbEvent &) override;
+
  private:
   bool CanCompareFrameROI(LayerStack *layer_stack);
   bool CanSkipDisplayPrepare(LayerStack *layer_stack);
@@ -349,6 +358,9 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   DisplayError QueryDemuraTnInfo(void *data);
   DisplayError SetDemuraTnBatchId(void *data);
   DisplayError SetDemuraTnAodHandlerCtrl(void *data);
+  int StartVmFileServiceAndExportFiles();
+  int CreateServiceManager();
+  int HandleTvmServiceEvent(const TvmServiceCbEvent &event);
 
   const uint32_t kPuTimeOutMs = 1000;
   std::map<uint32_t, std::vector<HWEvent>> event_list_;
@@ -428,10 +440,12 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   bool vrr_enabled_ = false;
   std::shared_ptr<TvmDispServiceManagerIntf> service_manager_intf_ = nullptr;
   std::shared_ptr<DemuraParserManagerIntf> pm_intf_ = nullptr;
+  std::shared_ptr<VMFileXferIntf> vm_file_xfer_intf_ = nullptr;
   bool demura_allowed_ = false;
   bool demuratn_allowed_ = false;
   int demura_prop_ = 0;
   bool demura_calib_files_reloaded_ = false;
+  VmFileXferClientFactIntfExtn *factory_extn_ = nullptr;
 };
 
 }  // namespace sdm

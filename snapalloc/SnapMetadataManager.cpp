@@ -257,6 +257,21 @@ Error SnapMetadataManager::MultiViewHelper(SnapMetadata *metadata, SnapHandleInt
   return Error::BAD_VALUE;
 }
 
+Error SnapMetadataManager::ThreeDimensionalRefInfoHelper(SnapMetadata *metadata,
+                                                         SnapHandleInternal *handle, void *in_set,
+                                                         void *out_get, BufferDescriptor *buf_des) {
+  if (out_get != nullptr) {
+    *static_cast<vendor_qti_hardware_display_common_ThreeDimensionalRefInfo *>(out_get) =
+        metadata->three_dimensional_ref_info;
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    metadata->three_dimensional_ref_info =
+        *static_cast<vendor_qti_hardware_display_common_ThreeDimensionalRefInfo *>(in_set);
+    return Error::NONE;
+  }
+  return Error::BAD_VALUE;
+}
+
 Error SnapMetadataManager::ProtectedContentHelper(SnapMetadata *metadata,
                                                   SnapHandleInternal *handle, void *in_set,
                                                   void *out_get, BufferDescriptor *buf_des) {
@@ -851,8 +866,73 @@ Error SnapMetadataManager::CustomContentMetadataHelper(SnapMetadata *metadata,
               custom_content_metadata_ptr);
       vendor_qti_hardware_display_common_CustomContentMetadata *c_md_in =
           reinterpret_cast<vendor_qti_hardware_display_common_CustomContentMetadata *>(in_set);
+      // set metadata for metadata type CUSTOM_CONTENT_METADATA
+      metadata->is_format_SMPTE2094_10 = false;
       memcpy(c_md_out, c_md_in, sizeof(*c_md_in));
     }
+    return Error::NONE;
+  }
+  return Error::BAD_VALUE;
+}
+
+Error SnapMetadataManager::SMPTE2094_10Helper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                                              void *in_set, void *out_get,
+                                              BufferDescriptor *buf_des) {
+  if (handle->custom_content_md_region_base() == 0) {
+    if (out_get != nullptr) {
+      void *custom_content_metadata_ptr =
+          reinterpret_cast<void *>(metadata->custom_content_metadata.data());
+      size_t custom_metadata_size = metadata->custom_content_metadata.size() * sizeof(uint8_t);
+
+      vendor_qti_hardware_display_common_CustomContentMetadata *c_md_out =
+          reinterpret_cast<vendor_qti_hardware_display_common_CustomContentMetadata *>(out_get);
+      c_md_out->size = metadata->custom_content_metadata.size();
+      memcpy(c_md_out->metadataPayload, custom_content_metadata_ptr, custom_metadata_size);
+      return Error::NONE;
+    } else if (in_set != nullptr) {
+      vendor_qti_hardware_display_common_CustomContentMetadata *c_md_in =
+          reinterpret_cast<vendor_qti_hardware_display_common_CustomContentMetadata *>(in_set);
+      metadata->custom_content_metadata.resize(sizeof(c_md_in->metadataPayload));
+      void *custom_content_metadata_ptr =
+          reinterpret_cast<void *>(metadata->custom_content_metadata.data());
+      size_t custom_metadata_size = metadata->custom_content_metadata.size();
+      vendor_qti_hardware_display_common_CustomContentMetadata *c_md_out =
+          reinterpret_cast<vendor_qti_hardware_display_common_CustomContentMetadata *>(
+              custom_content_metadata_ptr);
+      // set metadata for metadata type SMPTE2094_10
+      metadata->is_format_SMPTE2094_10 = true;
+      memcpy(custom_content_metadata_ptr, c_md_in->metadataPayload,
+             sizeof(*c_md_in->metadataPayload));
+      return Error::NONE;
+    }
+    return Error::BAD_VALUE;
+  }
+
+  if (handle->custom_content_md_reserved_size() !=
+      sizeof(vendor_qti_hardware_display_common_CustomContentMetadata)) {
+    return Error::UNSUPPORTED;
+  }
+
+  void *custom_content_metadata_ptr =
+      reinterpret_cast<void *>(handle->custom_content_md_region_base());
+  size_t custom_metadata_size = sizeof(vendor_qti_hardware_display_common_CustomContentMetadata);
+
+  if (out_get != nullptr) {
+    if (handle->custom_content_md_region_base() && !metadata->is_format_SMPTE2094_10) {
+      // metadata is set for metadata type CUSTOM_CONTENT_METADATA
+      return Error::UNSUPPORTED;
+    }
+    memcpy(out_get, custom_content_metadata_ptr, custom_metadata_size);
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    vendor_qti_hardware_display_common_CustomContentMetadata *c_md_out =
+        reinterpret_cast<vendor_qti_hardware_display_common_CustomContentMetadata *>(
+            custom_content_metadata_ptr);
+    vendor_qti_hardware_display_common_CustomContentMetadata *c_md_in =
+        reinterpret_cast<vendor_qti_hardware_display_common_CustomContentMetadata *>(in_set);
+    // set metadata for metadata type SMPTE2094_10
+    metadata->is_format_SMPTE2094_10 = true;
+    memcpy(c_md_out, c_md_in, sizeof(*c_md_in));
     return Error::NONE;
   }
   return Error::BAD_VALUE;
@@ -1397,6 +1477,9 @@ Error SnapMetadataManager::Set(SnapHandleInternal *hnd,
       case vendor_qti_hardware_display_common_MetadataType::VIDEO_TRANSCODE_STATS:
         metadata->video_transcode_stats.stat_len = 0;
         break;
+      case vendor_qti_hardware_display_common_MetadataType::SMPTE2094_10:
+        metadata->is_format_SMPTE2094_10 = false;
+        break;
       default:
         DLOGE("Input is null when setting metadata type %d", type);
         break;
@@ -1422,6 +1505,11 @@ void SnapMetadataManager::SetMetadataState(SnapMetadata *metadata,
     if (GET_VENDOR_METADATA_STATUS_INDEX(metadata_type) < METADATA_SET_SIZE) {
       metadata->isVendorMetadataSet[GET_VENDOR_METADATA_STATUS_INDEX(metadata_type)] =
           metadata_state;
+      if (type == vendor_qti_hardware_display_common_MetadataType::SMPTE2094_10) {
+        metadata->isVendorMetadataSet[GET_VENDOR_METADATA_STATUS_INDEX(static_cast<int>(
+            vendor_qti_hardware_display_common_MetadataType::CUSTOM_CONTENT_METADATA))] =
+            metadata_state;
+      }
     }
   } else {
     if (GET_STANDARD_METADATA_STATUS_INDEX(metadata_type) < METADATA_SET_SIZE) {

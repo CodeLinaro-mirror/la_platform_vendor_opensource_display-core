@@ -856,6 +856,7 @@ struct DRMCrtcInfo {
   bool has_micro_idle = false;
   uint32_t ubwc_version = 1;
   bool has_spr = false;
+  bool has_spr_dither = false;
   uint32_t rc_count = 0;
   uint64_t rc_total_mem_size = 0;
   uint32_t demura_count = 0;
@@ -934,6 +935,7 @@ struct DRMPlaneTypeInfo {
   uint32_t master_plane_id;
   // FourCC format enum and modifier
   std::vector<std::pair<uint32_t, uint64_t>> formats_supported;
+  std::vector<std::pair<uint32_t, uint64_t>> cac_formats_supported;
   uint32_t max_linewidth;
   uint32_t max_scaler_linewidth;
   uint32_t max_rotation_linewidth; // inline rotation limitation

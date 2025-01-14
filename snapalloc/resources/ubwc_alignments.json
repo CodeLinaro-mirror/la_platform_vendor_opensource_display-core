@@ -233,6 +233,43 @@
                 }
             },
             {
+                "format": "YCBCR_P210",
+                "constraints": {
+                    "size_align_bytes": 4096,
+                    "planes": [
+                        {
+                            "components": [
+                                {
+                                    "component_type": "Y"
+                                }
+                            ],
+                            "horiz_stride_align_bytes": 256,
+                            "scanline_align": 16,
+                            "meta_planes": {
+                                "horiz_stride_align_bytes": 64,
+                                "scanline_align": 16
+                            }
+                        },
+                        {
+                            "components": [
+                                {
+                                    "component_type": "Cr"
+                                },
+                                {
+                                    "component_type": "Cb"
+                                }
+                            ],
+                            "horiz_stride_align_bytes": 256,
+                            "scanline_align": 16,
+                            "meta_planes": {
+                                "horiz_stride_align_bytes": 64,
+                                "scanline_align": 16
+                            }
+                        }
+                    ]
+                }
+            },
+            {
                 "format": "RGBA16161616F",
                 "constraints": {
                     "size_align_bytes": 4096,

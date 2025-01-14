@@ -493,7 +493,9 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
         continue;
       }
     }
-
+    if (hw_resource->cac_version != kCacVersionNone) {
+      PopulateCacSupportedFormat(pipe_obj.second, hw_resource);
+    }
     // TODO(user): Move pipe caps to pipe_caps structure per pipe. Set default for now.
     // currently copying values to hw_resource!
     HWPipeCaps pipe_caps;
@@ -663,6 +665,24 @@ void HWInfoDRM::PopulatePipeBWCaps(const sde_drm::DRMPlaneTypeInfo &info,
   }
 }
 
+void HWInfoDRM::PopulateCacSupportedFormat(const sde_drm::DRMPlaneTypeInfo &info,
+                                           HWResourceInfo *hw_resource) {
+  if (hw_resource->cac_supported_formats.size()) {
+    return;
+  }
+  if (!info.cac_mode.test(sde_drm::CAC_MODE_UNPACK_BIT) &&
+      !info.cac_mode.test(sde_drm::CAC_MODE_LOOPBACK_UNPACK_BIT)) {
+    return;
+  }
+
+  vector<LayerBufferFormat> cac_sdm_formats;
+  for (auto &fmts : info.cac_formats_supported) {
+    GetSDMFormat(fmts.first, fmts.second, &cac_sdm_formats);
+  }
+
+  hw_resource->cac_supported_formats = std::move(cac_sdm_formats);
+}
+
 void HWInfoDRM::PopulateSupportedFmts(HWSubBlockType sub_blk_type,
                                       const sde_drm::DRMPlaneTypeInfo &info,
                                       HWResourceInfo *hw_resource) {
@@ -762,6 +782,12 @@ void HWInfoDRM::GetSDMFormat(uint32_t v4l2_format, LayerBufferFormat *sdm_format
     case SDE_PIX_FMT_Y_CBCR_H2V2_TP10_UBWC:  *sdm_format = kFormatYCbCr420TP10Ubwc;     break;
     case SDE_PIX_FMT_Y_CBCR_H2V2_P010_UBWC:  *sdm_format = kFormatYCbCr420P010Ubwc;     break;
     case SDE_PIX_FMT_Y_CBCR_H2V2_P010_VENUS: *sdm_format = kFormatYCbCr420P010Venus;    break;
+    case SDE_PIX_FMT_Y_CBCR_H2V1_P210:
+      *sdm_format = kFormatYCbCr422P210;
+      break;
+    case SDE_PIX_FMT_Y_CBCR_H2V1_P210_UBWC:
+      *sdm_format = kFormatYCbCr422P210Ubwc;
+      break;
     default: *sdm_format = kFormatInvalid;
   }
 }
@@ -965,6 +991,13 @@ void HWInfoDRM::GetSDMFormat(uint32_t drm_format, uint64_t drm_format_modifier,
       fmts.push_back(drm_format_modifier == DRM_FORMAT_MOD_QCOM_COMPRESSED
                          ? kFormatRGBA16161616FUbwc
                          : kFormatRGBA16161616F);
+      break;
+    case DRM_FORMAT_P210:
+      if (drm_format_modifier == (DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_DX)) {
+        fmts.push_back(kFormatYCbCr422P210Ubwc);
+      } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_DX) {
+        fmts.push_back(kFormatYCbCr422P210);
+      }
       break;
     default:
       break;

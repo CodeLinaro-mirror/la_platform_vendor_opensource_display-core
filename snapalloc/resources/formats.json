@@ -112,6 +112,43 @@
             }
         },
         {
+            "format": "YCBCR_P210",
+            "data": {
+                "bits_per_pixel": 32,
+                "planes": [
+                    {
+                        "components": [
+                            {
+                                "component_type": "Y",
+                                "offset_bits": 6,
+                                "size_bits": 10
+                            }
+                        ],
+                        "sample_increment_bits": 16,
+                        "h_subsampling_factor": 1,
+                        "v_subsampling_factor": 1
+                    },
+                    {
+                        "components": [
+                            {
+                                "component_type": "CB",
+                                "offset_bits": 6,
+                                "size_bits": 10
+                            },
+                            {
+                                "component_type": "CR",
+                                "offset_bits": 22,
+                                "size_bits": 10
+                            }
+                        ],
+                        "sample_increment_bits": 32,
+                        "h_subsampling_factor": 2,
+                        "v_subsampling_factor": 1
+                    }
+                ]
+            }
+        },
+        {
             "format" : "RGBA_8888",
             "data" : {
                 "bits_per_pixel" : 32,

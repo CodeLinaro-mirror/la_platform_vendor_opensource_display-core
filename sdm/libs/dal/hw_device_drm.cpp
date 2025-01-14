@@ -330,6 +330,14 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
       *drm_format_modifier =
           DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_LOSSY_8_5;
       break;
+    case kFormatYCbCr422P210:
+      *drm_format = DRM_FORMAT_P210;
+      *drm_format_modifier = DRM_FORMAT_MOD_QCOM_DX;
+      break;
+    case kFormatYCbCr422P210Ubwc:
+      *drm_format = DRM_FORMAT_P210;
+      *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_DX;
+      break;
     default:
       DLOGW("Unsupported format %s", GetFormatString(format));
   }
@@ -2696,7 +2704,7 @@ DisplayError HWDeviceDRM::SetPPFeature(PPFeatureInfo *feature) {
     return kErrorNone;
   } else if (drm_id.at(0) == DRMPPFeatureID::kFeatureDither) {
     drm_mgr_intf_->GetCrtcInfo(token_.crtc_id, &crtc_info);
-    if (crtc_info.has_spr)
+    if (crtc_info.has_spr_dither)
       drm_id.at(0) = DRMPPFeatureID::kFeatureSprDither;
   }
 

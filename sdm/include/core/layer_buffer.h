@@ -109,15 +109,15 @@ enum LayerBufferFormat {
   kFormatABGR2101010,   //!< 10-bits Alpha, Blue, Green, Red interleaved in ABGR order.
   kFormatBGRX1010102,   //!< 10-bits Blue, Green, Red, Padding interleaved in BGRX order. No Alpha.
   kFormatXBGR2101010,   //!< 10-bits Padding, Blue, Green, Red interleaved in XBGR order. No Alpha.
-  kFormatRGBA1010102Ubwc,    //!< UBWC aligned RGBA1010102 format
-  kFormatRGBX1010102Ubwc,    //!< UBWC aligned RGBX1010102 format
-  kFormatRGB101010,          // 10-bits Red, Green, Blue, interleaved in RGB order. No Alpha.
-  kFormatBlob,               // Task-specific data without a standard image structure.
-  kFormatRGBA16161616F,      //!< Floating point 16-bits Red, Green, Blue, Alpha
-                             //!< interleaved in RGBA order.
-  kFormatRGBA16161616FUbwc,  //!< UBWC aligned floating point 16-bits Red, Green, Blue, Alpha
-                             //!< interleaved in RGBA order.
-  kFormatA8,                 //!< 8-bits Alpha format.
+  kFormatRGBA1010102Ubwc,        //!< UBWC aligned RGBA1010102 format
+  kFormatRGBX1010102Ubwc,        //!< UBWC aligned RGBX1010102 format
+  kFormatRGB101010,              // 10-bits Red, Green, Blue, interleaved in RGB order. No Alpha.
+  kFormatBlob,                   // Task-specific data without a standard image structure.
+  kFormatRGBA16161616F,          //!< Floating point 16-bits Red, Green, Blue, Alpha
+                                 //!< interleaved in RGBA order.
+  kFormatRGBA16161616FUbwc,      //!< UBWC aligned floating point 16-bits Red, Green, Blue, Alpha
+                                 //!< interleaved in RGBA order.
+  kFormatA8,                     //!< 8-bits Alpha format.
   kFormatRGBA8888UbwcLossy2To1,  //!< UBWC aligned RGBA8888 format with lossy 2:1 compression
   kFormatRGBA8888UbwcLossy8To5,  //!< UBWC aligned RGBA8888 format with lossy 8:5 compression
 
@@ -189,6 +189,13 @@ enum LayerBufferFormat {
   kFormatYCbCr420SPVenusTile,  //!< Tiled & uncompressed YCbCr420SemiPlanarVenus format
   kFormatYCbCr420TP10Tile,     //!< Tiled & uncompressed YCbCr420TP10 format.
   kFormatYCbCr420P010Tile,     //!< Tiled & uncompressed YCbCr420P010 format.
+  kFormatYCbCr422P210,         //!< 16 bit Y-plane with 6 MSB bits set to 0:
+                               //!< y(0), y(1), y(2) ... y(n)
+                               //!< 2x1 subsampled interleaved 10 bit UV-plane with
+                               //!< 6 MSB bits set to 0:
+                               //!<    u(0), v(0), u(2), v(2) ... u(n-1), v(n-1)
+                               //!< aka P210.
+  kFormatYCbCr422P210Ubwc,     //!< UBWC aligned YCbCr422P210 format.
 
   /* All YUV-Packed formats, Any new format will be added towards end of this group to maintain
      backward compatibility.

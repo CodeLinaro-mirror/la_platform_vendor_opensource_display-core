@@ -21,6 +21,12 @@ enum TvmDispServiceManagerOps {
   kTvmDispServiceManagerOpsMax,
 };
 
+enum TvmServiceCbEvent {
+  kVmFileTransferServiceDead,
+  kDemuraTnServiceDead,
+  kTvmServiceEventsMax = 0xff
+};
+
 using TvmDispServiceManagerIntf =
     GenericIntf<TvmDispServiceManagerParams, TvmDispServiceManagerOps, GenericPayload>;
 
