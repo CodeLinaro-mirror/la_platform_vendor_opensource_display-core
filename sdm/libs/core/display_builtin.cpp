@@ -24,7 +24,7 @@
 
 /*
 * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -1095,6 +1095,8 @@ DisplayError DisplayBuiltIn::SetupABCFeature() {
   demura_ = std::move(abc_intf);
   if (demura_->Init() != 0) {
     DLOGE("Unable to initialize abc_intf on Display %d-%d", display_id_, display_type_);
+    demura_->Deinit();
+    demura_.reset();
     return kErrorUndefined;
   }
 
