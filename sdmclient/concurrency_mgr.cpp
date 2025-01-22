@@ -1088,6 +1088,28 @@ DisplayError ConcurrencyMgr::SetPowerMode(uint64_t display, int32_t int_mode) {
     return kErrorNone;
   }
 
+  if (mode == SDMPowerMode::POWER_MODE_OFF || mode == SDMPowerMode::POWER_MODE_DOZE_SUSPEND) {
+    disp_->GetActiveDisplays().erase(display);
+  } else {
+    DisplayMapInfo *disp_map_info = nullptr;
+    int display_type = qdutilsDisplayType::DISPLAY_PRIMARY;
+
+    for (; display_type <= qdutilsDisplayType::DISPLAY_VIRTUAL_2; display_type++) {
+      for (auto &map_info : disp_->GetDisplayMapInfo(display_type)) {
+        if (display != map_info.client_id)
+          continue;
+
+        disp_map_info = &map_info;
+        break;
+      }
+
+      if (disp_map_info != nullptr) {
+        disp_->GetActiveDisplays().insert(std::make_pair(disp_map_info->client_id, disp_map_info));
+        break;
+      }
+    }
+  }
+
   auto error = CallDisplayFunction(display, &SDMDisplay::SetPowerMode, mode,
                                    false /* teardown */);
   if (error != kErrorNone) {
