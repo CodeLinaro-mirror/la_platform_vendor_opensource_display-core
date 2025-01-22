@@ -25,7 +25,7 @@
 /*
 * ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 *
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -75,6 +75,9 @@ class ResourceDefault : public ResourceInterface {
   DisplayError ValidateAndSetCursorPosition(Handle display_ctx, DispLayerStack *disp_layer_stack,
                                             int x, int y, DisplayConfigVariableInfo *fb_config);
   DisplayError SetMaxBandwidthMode(HWBwModes mode);
+  virtual DisplayError SetAIScalerMode(uint32_t mode_id) { return kErrorNone; }
+  virtual DisplayError GetAIScalerMode(uint32_t *mode_id) { return kErrorNone; }
+
   virtual DisplayError SetDetailEnhancerData(Handle display_ctx,
                                              const DisplayDetailEnhancerData &de_data);
   virtual DisplayError UpdateSyncHandle(Handle display_ctx, const SyncPoints &sync_points);

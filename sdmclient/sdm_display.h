@@ -28,7 +28,7 @@
  */
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #ifndef __SDM_DISPLAY_H__
@@ -485,6 +485,7 @@ public:
   virtual DisplayError SetABCState(bool state) { return kErrorNotSupported; }
   virtual DisplayError SetABCReconfig() { return kErrorNotSupported; }
   virtual DisplayError SetABCMode(string mode_name) { return kErrorNotSupported; }
+  virtual DisplayError SetAIScalerMode(uint32_t mode_id) { return kErrorNotSupported; }
   virtual DisplayError
   GetClientTargetProperty(SDMClientTargetProperty *out_client_target_property);
   virtual void GetConfigInfo(

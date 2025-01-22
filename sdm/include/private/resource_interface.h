@@ -25,7 +25,7 @@
 /*
 * ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 *
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -125,6 +125,8 @@ class ResourceInterface {
   virtual DisplayError GetDefaultQoSData(Handle display_ctx,
                                          std::map<uint32_t, HWQosData> *default_qos_data) = 0;
   virtual bool IsGPUHWAvailable() = 0;
+  virtual DisplayError SetAIScalerMode(uint32_t mode_id) = 0;
+  virtual DisplayError GetAIScalerMode(uint32_t *mode_id) = 0;
 };
 
 }  // namespace sdm

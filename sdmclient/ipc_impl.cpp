@@ -30,7 +30,7 @@
  * Changes from Qualcomm Innovation Center, Inc. are provided under the
  * following license:
  *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <cstring>
@@ -191,6 +191,7 @@ int IPCImpl::SetParameter(IPCParams param, const GenericPayload &in) {
         DLOGI("Send display config %s to SVM", cmd_disp_configs.abc_mode);
       }
 
+      cmd_disp_configs.ai_scaler_mode_id = disp_configs->ai_scaler_mode_id;
       DLOGI("Send display configs: h_total %d v_total %d, fps %d, %s panel, "
             "disp_type %d to SVM",
             cmd_disp_configs.h_total, cmd_disp_configs.v_total,

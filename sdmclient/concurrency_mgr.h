@@ -28,7 +28,7 @@
  */
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #ifndef __CONCURRENCY_MGR_H__
@@ -536,6 +536,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError SetABCState(uint64_t display_id, bool state);
   DisplayError SetABCReconfig(uint64_t display_id);
   DisplayError SetABCMode(uint64_t display_id, string mode_name);
+  DisplayError SetAIScalerMode(uint64_t display_id, uint32_t mode_id);
   DisplayError SetPanelFeatureConfig(Display display, int32_t type, void *data);
 
   static const int locker_count_ = pluggable_lock_index_ + 1;

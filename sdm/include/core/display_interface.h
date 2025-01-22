@@ -24,7 +24,7 @@
 
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -1492,6 +1492,14 @@ class DisplayInterface {
    @return \link DisplayError \endlink
   */
   virtual DisplayError SetABCMode(const string &mode_name) = 0;
+
+  /*! @brief Method to set AI Scaler mode ID.
+
+   @param[in] mode_id
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetAIScalerMode(uint32_t mode_id) = 0;
 
   /*! @brief Method to set panel feature configurations
 
