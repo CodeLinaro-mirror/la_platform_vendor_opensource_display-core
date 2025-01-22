@@ -131,6 +131,7 @@ class ResourceDefault : public ResourceInterface {
                                          std::map<uint32_t, HWQosData> *default_qos_data) {
     return kErrorNone;
   }
+  virtual bool IsGPUHWAvailable() { return true; }
 
  private:
   enum PipeOwner {

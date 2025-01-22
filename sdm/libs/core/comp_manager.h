@@ -149,6 +149,7 @@ class CompManager : public CwbCallback {
   bool IsMirroredOfAnyDisplay(int32_t display_id, const LayerStack *layer_stack,
                               int32_t *out_src_display);
   bool IsActiveDisplay(int32_t display_id);
+  bool IsGPUHWAvailable();
 
  private:
   static const int kMaxThermalLevel = 3;
