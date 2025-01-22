@@ -272,7 +272,7 @@ class DisplayBuiltIn : public DisplayBase,
   // Implement the HWEventHandlers
   DisplayError VSync(int64_t timestamp) override;
   DisplayError Blank(bool blank) override { return kErrorNone; }
-  void IdleTimeout() override;
+  bool IdleTimeout() override;
   void TriggerIdleTimeout() override;
   void CECMessage(char *message) override {}
   void IdlePowerCollapse() override;
