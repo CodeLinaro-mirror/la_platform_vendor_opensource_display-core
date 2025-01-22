@@ -128,6 +128,13 @@ static const std::string kEnhanced = "enhanced";
 
 // Color feature flags
 #define SDM_DITHER_LUMA_MODE 0x1
+#define SDM_DITHER_OFFSET_ENABLE (1 << 1)
+#define SDM_DITHER_MATRIX_SELECT_NONE 0
+#define SDM_DITHER_MATRIX_SELECT_4_4 1
+#define SDM_DITHER_MATRIX_SELECT_6_6 2
+#define SDM_DITHER_MATRIX_SELECT_8_8 3
+#define SDM_DITHER_MATRIX_SELECT_16_16 4
+
 #define SDM_PCC_BEFORE_POS 0x1
 #define SDM_PGC_HIGHPREC_MODE 0x1
 #define IGC_DITHER_EN (1 << 0)
@@ -195,6 +202,7 @@ struct PPFeatureVersion {
   static const uint32_t kSDEPgcV17 = 5;
   static const uint32_t kSDEPgcV2 = 6;
   static const uint32_t kSDEDitherV17 = 7;
+  static const uint32_t kSDEDitherV30 = 8;
   static const uint32_t kSDEGamutV17 = 9;
   static const uint32_t kSDEPaV17 = 11;
   static const uint32_t kSDEPccV17 = 13;
@@ -208,6 +216,7 @@ struct PPFeatureVersion {
   static const uint32_t kSDEPaV2 = 22;
   static const uint32_t kSDEPccV6 = 23;
   static const uint32_t kSDEIgcV50 = 24;
+  static const uint32_t kSDECWBDitherV3 = 25;
 
   uint32_t version[kMaxNumPPFeatures];
   PPFeatureVersion() { memset(version, 0, sizeof(version)); }
@@ -376,6 +385,8 @@ struct SDEDitherCfg {
   uint32_t dither_matrix[16];
   uint32_t temporal_en;
   uint32_t flags;
+  uint32_t dither_matrix_select;
+  int32_t dither_matrix_extended[256];
 
   static SDEDitherCfg *Init(uint32_t arg __attribute__((__unused__)));
   SDEDitherCfg *GetConfig() { return this; }
