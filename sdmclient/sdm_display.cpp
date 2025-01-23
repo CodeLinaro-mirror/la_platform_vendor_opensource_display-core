@@ -2776,9 +2776,11 @@ bool SDMDisplay::IsLayerUpdating(SDMLayer *sdm_layer) {
   //   b) layer is front buffer rendering, or
   //   c) valid dirty_regions(android specific hint for updating status), or
   //   d) layer stack geometry has changed (TODO(user): Remove when SDM accepts
-  //      geometry_changed as bit fields).
+  //      geometry_changed as bit fields), or
+  //   e) layer is marked as video.
   return (layer->flags.single_buffer || layer->flags.front_buffer ||
-          sdm_layer->IsSurfaceUpdated() || sdm_layer->GetGeometryChanges());
+          sdm_layer->IsSurfaceUpdated() || sdm_layer->GetGeometryChanges() ||
+          layer->input_buffer.flags.video);
 }
 
 DisplayClass SDMDisplay::GetDisplayClass() { return display_class_; }
