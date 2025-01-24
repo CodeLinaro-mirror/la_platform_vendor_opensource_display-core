@@ -589,7 +589,8 @@ ConcurrencyMgr::GetReleaseFences(Display display, uint32_t *out_num_elements,
 DisplayError ConcurrencyMgr::getDisplayDecorationSupport(Display display,
                                                          uint32_t *format,
                                                          uint32_t *alpha) {
-  if (disable_get_screen_decorator_support_) {
+  bool gpu_hw_available = core_intf_->IsGPUHWAvailable();
+  if (disable_get_screen_decorator_support_ || !gpu_hw_available) {
     return kErrorNotSupported;
   }
 
@@ -1085,6 +1086,28 @@ DisplayError ConcurrencyMgr::SetPowerMode(uint64_t display, int32_t int_mode) {
   if (last_power_mode == mode) {
     DTRACE_END();
     return kErrorNone;
+  }
+
+  if (mode == SDMPowerMode::POWER_MODE_OFF || mode == SDMPowerMode::POWER_MODE_DOZE_SUSPEND) {
+    disp_->GetActiveDisplays().erase(display);
+  } else {
+    DisplayMapInfo *disp_map_info = nullptr;
+    int display_type = qdutilsDisplayType::DISPLAY_PRIMARY;
+
+    for (; display_type <= qdutilsDisplayType::DISPLAY_VIRTUAL_2; display_type++) {
+      for (auto &map_info : disp_->GetDisplayMapInfo(display_type)) {
+        if (display != map_info.client_id)
+          continue;
+
+        disp_map_info = &map_info;
+        break;
+      }
+
+      if (disp_map_info != nullptr) {
+        disp_->GetActiveDisplays().insert(std::make_pair(disp_map_info->client_id, disp_map_info));
+        break;
+      }
+    }
   }
 
   auto error = CallDisplayFunction(display, &SDMDisplay::SetPowerMode, mode,

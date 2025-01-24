@@ -1166,4 +1166,13 @@ bool CompManager::IsActiveDisplay(int32_t display_id) {
   return !!powered_on_displays_.count(display_id);
 }
 
+bool CompManager::IsGPUHWAvailable() {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+  if (resource_intf_) {
+    return resource_intf_->IsGPUHWAvailable();
+  }
+
+  return false;
+}
+
 }  // namespace sdm
