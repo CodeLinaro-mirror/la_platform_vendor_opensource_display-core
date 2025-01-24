@@ -1119,10 +1119,7 @@ uint64_t SnapMetadataManager::GetMetaDataSize(uint64_t reserved_region_size,
 
 bool SnapMetadataManager::IsFormatSupportedByGPU(BufferDescriptor desc) {
     GraphicsConstraintProvider *graphics_provider = GraphicsConstraintProvider::GetInstance();
-    return graphics_provider->IsFormatSupportedByGPU(
-             static_cast<vendor_qti_hardware_display_common_PixelFormat>(desc.format),
-             static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
-                        GetPixelFormatModifier(desc)));
+    return graphics_provider->IsFormatSupportedByGPU(desc);
 }
 
 uint32_t SnapMetadataManager::GetCustomContentMetadataSize(
