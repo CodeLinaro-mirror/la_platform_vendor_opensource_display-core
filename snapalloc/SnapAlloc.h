@@ -16,6 +16,7 @@ class SnapAlloc : public ISnapAlloc {
   Error Allocate(const BufferDescriptor &in_descriptor, int in_count,
                  AllocationResult *allocation_result) override;
   Error IsSupported(const BufferDescriptor &in_descriptor, bool *is_supported) override;
+  bool IsFormatSupportedByGPU(const BufferDescriptor &in_descriptor) override;
 
  private:
   ::snapalloc::SnapAllocCore *snap_alloc_core_;
