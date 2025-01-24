@@ -492,6 +492,10 @@ Error SnapAllocCore::IsSupported(BufferDescriptor desc, bool *is_supported) {
   return err;
 }
 
+bool SnapAllocCore::IsFormatSupportedByGPU(BufferDescriptor desc) {
+  return metadata_mgr_->IsFormatSupportedByGPU(desc);
+}
+
 Error SnapAllocCore::GetMetadata(SnapHandle *hnd,
                                  vendor_qti_hardware_display_common_MetadataType type, void *out) {
   std::lock_guard<std::mutex> buffer_lock(buffer_lock_);
