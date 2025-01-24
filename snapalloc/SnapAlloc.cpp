@@ -45,6 +45,10 @@ Error SnapAlloc::IsSupported(const BufferDescriptor &in_descriptor, bool *is_sup
   return err;
 };
 
+bool SnapAlloc::IsFormatSupportedByGPU(const BufferDescriptor &in_descriptor) {
+  return snap_alloc_core_->IsFormatSupportedByGPU(in_descriptor);
+};
+
 extern "C" {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wreturn-type-c-linkage"
