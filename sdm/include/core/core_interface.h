@@ -295,6 +295,12 @@ class CoreInterface {
   */
   virtual DisplayError GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) = 0;
 
+  /*! @brief Method which returns true if GPU HW is available otherwise false
+
+    @return returns true if GPU HW is available otherwise false
+  */
+  virtual bool IsGPUHWAvailable() = 0;
+
   /*! @brief Method to get the maximum supported number of concurrent displays of a particular type.
 
     @details Client shall use this method to get the maximum number of DisplayInterface instances

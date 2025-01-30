@@ -166,6 +166,7 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "SDE_DSPP_PA_DITHER_V2") { return DRMProperty::SDE_DSPP_PA_DITHER_V2; }
   if (name == "SDE_PP_DITHER_V1") { return DRMProperty::SDE_PP_DITHER_V1; }
   if (name == "SDE_PP_DITHER_V2") { return DRMProperty::SDE_PP_DITHER_V2; }
+  if (name == "SDE_PP_DITHER_V3") { return DRMProperty::SDE_PP_DITHER_V3; }
   if (name == "inverse_pma") { return DRMProperty::INVERSE_PMA; }
   if (name == "csc_dma_v1") { return DRMProperty::CSC_DMA_V1; }
   if (name == "SDE_DGM_1D_LUT_IGC_V5") { return DRMProperty::SDE_DGM_1D_LUT_IGC_V5; }
@@ -207,6 +208,7 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "Colorspace") { return DRMProperty::COLORSPACE; }
   if (name == "supported_colorspaces") { return DRMProperty::SUPPORTED_COLORSPACES; }
   if (name == "SDE_DSPP_SPR_DITHER_V1") { return DRMProperty::SDE_DSPP_SPR_DITHER_V1; }
+  if (name == "SDE_DSPP_SPR_DITHER_V2") { return DRMProperty::SDE_DSPP_SPR_DITHER_V2; }
   if (name == "cache_state") { return DRMProperty::CACHE_STATE; }
   if (name == "vm_request_state") { return DRMProperty::VM_REQ_STATE; }
   if (name == "dspp_caps") { return DRMProperty::DSPP_CAPABILITIES; }
@@ -231,6 +233,7 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "SDE_DSPP_AIQE_ABC_V1") { return DRMProperty::AIQE_ABC_V1; }
   if (name == "dyn_bit_clk") { return DRMProperty::DYN_BIT_CLK; }
   if (name == "SDE_PP_CWB_DITHER_V2") { return DRMProperty::SDE_PP_CWB_DITHER_V2; }
+  if (name == "SDE_PP_CWB_DITHER_V3") { return DRMProperty::SDE_PP_CWB_DITHER_V3; }
   if (name == "noise_layer_v1") { return DRMProperty::NOISE_LAYER_V1; }
   if (name == "dsc_mode") { return DRMProperty::DSC_MODE; }
   if (name == "dimming_bl_lut") { return DRMProperty::DIMMING_BL_LUT; }

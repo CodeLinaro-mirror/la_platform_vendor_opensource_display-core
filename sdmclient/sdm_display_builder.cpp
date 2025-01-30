@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <utils/debug.h>
@@ -363,7 +363,6 @@ DisplayError SDMDisplayBuilder::CreateVirtualDisplayObj(
       *out_display_id = client_id;
       map_info.disp_type = kVirtual;
       map_info.sdm_id = display_id;
-      map_active_displays_.insert(std::make_pair(client_id, &map_info));
 
       VirtualDisplayData vds_data;
       vds_data.width = width;
@@ -468,8 +467,6 @@ int SDMDisplayBuilder::CreatePrimaryDisplay() {
       map_info_primary_[0].disp_type = info.display_type;
       map_info_primary_[0].sdm_id = info.display_id;
 
-      map_active_displays_.insert(
-          std::make_pair(client_id, &map_info_primary_[0]));
       cb_->SetDisplayByClientId(client_id, sdm_display);
     } else {
       DLOGE("Primary display creation has failed! status = %d", status);
@@ -529,7 +526,6 @@ int SDMDisplayBuilder::HandleBuiltInDisplays() {
       map_info.disp_type = info.display_type;
       map_info.sdm_id = info.display_id;
 
-      map_active_displays_.insert(std::make_pair(client_id, &map_info));
       cb_->SetDisplayByClientId(client_id, disp);
 
       DLOGI("Hotplugging builtin display, sdm id = %d, client id = %d",
@@ -757,7 +753,7 @@ int SDMDisplayBuilder::HandleConnectedDisplays(HWDisplaysInfo *displays_info,
               strerror(abs(err)));
         status = err;
 
-        if (err == kErrorDeviceRemoved) {
+        if (err == kErrorDeviceRemoved || err == kErrorHardware) {
           status = -ENODEV;
         }
         // Attempt creating remaining pluggable displays.
@@ -776,7 +772,6 @@ int SDMDisplayBuilder::HandleConnectedDisplays(HWDisplaysInfo *displays_info,
       map_info.disp_type = info.display_type;
       map_info.sdm_id = info.display_id;
 
-      map_active_displays_.insert(std::make_pair(client_id, &map_info));
       cb_->SetDisplayByClientId(client_id, sdm_display);
 
       pending_hotplugs_.push_back((Display)client_id);

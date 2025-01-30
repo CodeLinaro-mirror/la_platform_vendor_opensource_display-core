@@ -1671,8 +1671,8 @@ void DisplayBase::CommitThread() {
         event_handler_->HandleEvent(kPostIdleTimeout);
         idle_hint_set_ = true;
       } else {
-        IdleTimeout();
-        if (display_type_ == kBuiltIn && is_mirror_mode_active_) {
+        bool idle_timeout_configured = IdleTimeout();
+        if (display_type_ == kBuiltIn && is_mirror_mode_active_ && idle_timeout_configured) {
           event_handler_->TimeoutOnBuiltins();
         }
       }
@@ -3377,11 +3377,12 @@ bool DisplayBase::NeedsMixerReconfiguration(LayerStack *layer_stack, uint32_t *n
 
   // Resize mixer attributes to fb config when client requests CWB at LM tap-point
   // TODO(user): remove below check when clients request buffer with mixer resolution
-  if (force_lm_to_fb_config_ ||
+  if (force_lm_to_fb_config_ || enable_ai_scaler_ ||
       (HasConcurrentWriteback() && layer_stack->output_buffer && valid_lm_tappoint)) {
-    DLOGV_IF(kTagDisplay, "CWB:%d, force_lm_to_fb_config_:%d, configure LM width:%d height:%d",
+    DLOGV_IF(kTagDisplay,
+             "CWB:%d, force_lm_to_fb_config_:%d, enable_ai_scaler_:%d, set LM width:%d height:%d",
              (HasConcurrentWriteback() && layer_stack->output_buffer), force_lm_to_fb_config_,
-             fb_width, fb_height);
+             enable_ai_scaler_, fb_width, fb_height);
     *new_mixer_width = fb_width;
     *new_mixer_height = fb_height;
     return ((*new_mixer_width != mixer_width) || (*new_mixer_height != mixer_height));
@@ -3437,8 +3438,7 @@ bool DisplayBase::NeedsMixerReconfiguration(LayerStack *layer_stack, uint32_t *n
 
   // TODO(user): Mark layer which needs downscaling on GPU fallback as priority layer and use MDP
   // for composition to avoid quality mismatch between GPU and MDP switch(idle timeout usecase).
-  if ((max_layer_area > fb_area && (num_active_displays == 1) && (!enable_ai_scaler_)) ||
-      max_layer_area == fb_area) {
+  if ((max_layer_area > fb_area && (num_active_displays == 1)) || max_layer_area == fb_area) {
     // Disable dynamic destination scalar when more than one display is active
     // Dynamic destination scalar introduce the demand for scaling, and since built-in displays
     // do not have dedicate VIG pipes, lead to composition strategies exhausted.

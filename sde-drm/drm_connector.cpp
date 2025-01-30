@@ -30,7 +30,7 @@
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted (subject to the limitations in the
@@ -431,6 +431,17 @@ int DRMConnectorManager::GetConnectorInfo(uint32_t conn_id, DRMConnectorInfo *in
   }
 
   return ret;
+}
+
+void DRMConnectorManager::GetPPInfo(uint32_t conn_id, DRMPPFeatureInfo *info) {
+  lock_guard<mutex> lock(lock_);
+  auto it = connector_pool_.find(conn_id);
+  if (it == connector_pool_.end()) {
+    DRM_LOGE("Invalid connector id %d", conn_id);
+    return;
+  }
+
+  it->second->GetPPInfo(info);
 }
 
 void DRMConnectorManager::GetConnectorList(std::vector<uint32_t> *conn_ids) {
@@ -1131,6 +1142,12 @@ int DRMConnector::GetInfo(DRMConnectorInfo *info) {
   drmModeFreeObjectProperties(props);
 
   return 0;
+}
+
+void DRMConnector::GetPPInfo(DRMPPFeatureInfo *info) {
+  if (pp_mgr_) {
+    pp_mgr_->GetPPInfo(info);
+  }
 }
 
 void DRMConnector::InitAndParse(drmModeConnector *conn) {
