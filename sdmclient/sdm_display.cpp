@@ -30,7 +30,7 @@
  * Changes from Qualcomm Innovation Center, Inc. are provided under the
  * following license:
  *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <errno.h>
@@ -695,6 +695,13 @@ void SDMDisplay::PopulateSDMExtendedDisplayResolution() {
   extended_display_resolutions = final_extended_display_resolutions;
 
   uint32_t config_index = variable_config_map_.size();
+
+  // pop the extra config pushed for POMS support to make it equal to the variable_config
+  if (is_poms_mode_) {
+    sdm_config_map_.pop_back();
+    is_poms_mode_ = false;
+  }
+
   for (uint32_t res_index = 0; res_index < extended_display_resolutions.size(); res_index++) {
     if (IsPanelConfig(extended_display_resolutions.at(res_index).first,
                       extended_display_resolutions.at(res_index).second)) {
@@ -736,6 +743,7 @@ void SDMDisplay::UpdateConfigs() {
       if (config.second == info) {
         config_exists = true;
         sdm_config_map_.at(i) = config.first;
+        is_poms_mode_ = true;
         break;
       }
     }

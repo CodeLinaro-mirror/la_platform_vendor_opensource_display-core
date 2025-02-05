@@ -28,7 +28,7 @@
  */
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #ifndef __SDM_DISPLAY_H__
@@ -738,6 +738,7 @@ public:
   uint64_t expected_present_time_ = 0;  // Expected Present time for current frame
   int idle_active_ms_ = 0;
   uint32_t frame_interval_ns_ = 0;  // FrameInterval for current frame
+  bool is_poms_mode_ = false;
 };
 
 inline DisplayError SDMDisplay::Perform(uint32_t operation, ...) {
