@@ -32,7 +32,7 @@
 /*
 * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 *
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -161,7 +161,10 @@ DisplayError HWInfoDRM::Init() {
     DRMMaster *drm_master = {};
     int dev_fd = -1;
     DRMMaster::GetInstance(&drm_master, core_id_);
-    if (!drm_master) {
+    if (!drm_master && core_id_ == 0) {
+      DLOGE("Failed to acquire DRMMaster instance %d", core_id_);
+      return kErrorCriticalResource;
+    } else if (!drm_master) {
       DLOGI("Failed to acquire DRMMaster instance %d", core_id_);
       return kErrorCriticalResource;
     }

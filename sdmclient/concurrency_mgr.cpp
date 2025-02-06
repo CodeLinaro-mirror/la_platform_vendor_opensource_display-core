@@ -1184,6 +1184,10 @@ DisplayError ConcurrencyMgr::GetDozeSupport(Display display,
 DisplayError ConcurrencyMgr::NotifyCallback(uint32_t command,
                                             SDMParcel *input_parcel,
                                             SDMParcel *output_parcel) {
+  if (!services_) {
+    DLOGE("SDM Services not available. Init failed?");
+    return kErrorResources;
+  }
   auto ret = services_->notifyCallback(command, input_parcel, output_parcel);
 
   return ret;
