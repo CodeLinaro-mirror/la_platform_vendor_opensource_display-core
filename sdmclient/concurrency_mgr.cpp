@@ -28,7 +28,7 @@
  */
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <algorithm>
@@ -1184,6 +1184,10 @@ DisplayError ConcurrencyMgr::GetDozeSupport(Display display,
 DisplayError ConcurrencyMgr::NotifyCallback(uint32_t command,
                                             SDMParcel *input_parcel,
                                             SDMParcel *output_parcel) {
+  if (!services_) {
+    DLOGE("SDM Services not available. Init failed?");
+    return kErrorResources;
+  }
   auto ret = services_->notifyCallback(command, input_parcel, output_parcel);
 
   return ret;
