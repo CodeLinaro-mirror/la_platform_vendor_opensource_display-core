@@ -1102,6 +1102,9 @@ DisplayError DisplayBuiltIn::SetupABCFeature() {
   demura_ = std::move(abc_intf);
   if (demura_->Init() != 0) {
     DLOGE("Unable to initialize abc_intf on Display %d-%d", display_id_, display_type_);
+    comp_manager_->FreeDemuraFetchResources(display_id_);
+    demura_->Deinit();
+    demura_.reset();
     return kErrorUndefined;
   }
 
