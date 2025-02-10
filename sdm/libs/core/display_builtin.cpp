@@ -92,10 +92,10 @@ DisplayError DisplayBuiltIn::SetupAiqe() {
 
   DebugHandler::Get()->GetProperty(AIQE_SSRC_ENABLE, &value);
   if (value == 1) {
-    aiqe::SsrcFeatureFactory *ssrc_feature_factory;
-    aiqe::SsrcFeatureDisplayDetails *display_details;
-    std::string *default_mode;
-    bool *force_commit;
+    aiqe::SsrcFeatureFactory *ssrc_feature_factory = nullptr;
+    aiqe::SsrcFeatureDisplayDetails *display_details = nullptr;
+    std::string *default_mode = nullptr;
+    bool *force_commit = nullptr;
     GenericPayload payload;
 
     if (!ssrc_lib_.Open(SSRC_LIBRARY_NAME)) {
@@ -485,6 +485,12 @@ DisplayError DisplayBuiltIn::Deinit() {
       }
       comp_manager_->FreeDemuraFetchResources(display_id_);
     }
+
+    if (feat_license_intf_) {
+      feat_license_intf_->Deinit();
+      feat_license_intf_.reset();
+      feat_license_intf_ = nullptr;
+    }
   }
 
   dpps_info_.Deinit();
@@ -499,7 +505,7 @@ DisplayError DisplayBuiltIn::PrePrepare(LayerStack *layer_stack) {
   uint32_t display_width = client_ctx_.display_attributes.x_pixels;
   uint32_t display_height = client_ctx_.display_attributes.y_pixels;
   GenericPayload bool_payload;
-  bool *force_update;
+  bool *force_update = nullptr;
 
   DisplayError error = HandleDemuraLayer(layer_stack);
   if (error != kErrorNone) {
@@ -1096,6 +1102,9 @@ DisplayError DisplayBuiltIn::SetupABCFeature() {
   demura_ = std::move(abc_intf);
   if (demura_->Init() != 0) {
     DLOGE("Unable to initialize abc_intf on Display %d-%d", display_id_, display_type_);
+    comp_manager_->FreeDemuraFetchResources(display_id_);
+    demura_->Deinit();
+    demura_.reset();
     return kErrorUndefined;
   }
 
@@ -1204,78 +1213,18 @@ DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
   panel_id_ = panel_id;
   DLOGI("panel_id 0x%lx", panel_id_);
 
-#if defined SDM_UNIT_TESTING || defined TRUSTED_VM
-  demura_allowed_ = true;
-  demuratn_allowed_ = true;
-#else
-  if (!feature_license_factory_) {
-    DLOGI("Feature license factory is not available");
-    return kErrorNone;
-  }
-
-  // If DemuraTn license is present only, need to query the unity config from
-  // parserManager during Demura license validate permission.
+  // Send Panel ID to parser manager before validating license
+  // in case of DemuraTn is enabled with unity config.
   error = SendPanelIdToParserManager();
   if (error) {
     DLOGE("Failed to setup parser manager, error %d", error);
     return error;
   }
 
-  std::shared_ptr<FeatureLicenseIntf> feat_license_intf =
-      feature_license_factory_->CreateFeatureLicenseIntf();
-  if (!feat_license_intf) {
-    feature_license_factory_ = nullptr;
-    DLOGE("Failed to create FeatureLicenseIntf");
-    return kErrorUndefined;
+  error = ValidateDemuraLicense();
+  if (error) {
+    DLOGE("Failed to validate license, error %d", error);
   }
-  ret = feat_license_intf->Init();
-  if (ret) {
-    DLOGE("Failed to init FeatureLicenseIntf");
-    return kErrorUndefined;
-  }
-
-  GenericPayload demura_pl, aa_pl, out_pl;
-  DemuraValidatePermissionInput *demura_input = nullptr;
-  ret = demura_pl.CreatePayload<DemuraValidatePermissionInput>(demura_input);
-  if (ret) {
-    DLOGE("Failed to create the payload. Error:%d", ret);
-    return kErrorUndefined;
-  }
-
-  bool *allowed = nullptr;
-  ret = out_pl.CreatePayload<bool>(allowed);
-  if (ret) {
-    DLOGE("Failed to create the payload. Error:%d", ret);
-    return kErrorUndefined;
-  }
-
-  demura_input->id = kDemura;
-  demura_input->panel_id = panel_id_;
-  ret = feat_license_intf->ProcessOps(kValidatePermission, demura_pl, &out_pl);
-  if (ret) {
-    DLOGE("Failed to get the license permission for Demura. Error:%d", ret);
-  } else {
-    demura_allowed_ = *allowed;
-  }
-
-  AntiAgingValidatePermissionInput *aa_input = nullptr;
-  ret = aa_pl.CreatePayload<AntiAgingValidatePermissionInput>(aa_input);
-  if (ret) {
-    DLOGE("Failed to create the payload. Error:%d", ret);
-    return kErrorUndefined;
-  }
-
-  aa_input->id = kAntiAging;
-  ret = feat_license_intf->ProcessOps(kValidatePermission, aa_pl, &out_pl);
-  if (ret) {
-    DLOGE("Failed to get the license permission for Anti-aging. Error:%d", ret);
-  } else {
-    demuratn_allowed_ = *allowed;
-  }
-#endif
-
-  DLOGI("Demura enable allowed %d, Anti-aging enable allowed %d", demura_allowed_,
-        demuratn_allowed_);
 
   // Setup Demura T0 and Tn
   if (demura_allowed_) {
@@ -1296,6 +1245,77 @@ DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
     }
   }
 
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::ValidateDemuraLicense() {
+#if defined SDM_UNIT_TESTING || defined TRUSTED_VM
+  demura_allowed_ = true;
+  demuratn_allowed_ = true;
+#else
+  if (!feature_license_factory_) {
+    DLOGI("Feature license factory is not available");
+    return kErrorNone;
+  }
+
+  if (!feat_license_intf_) {
+    feat_license_intf_ = feature_license_factory_->CreateFeatureLicenseIntf();
+    if (!feat_license_intf_) {
+      feature_license_factory_ = nullptr;
+      DLOGE("Failed to create FeatureLicenseIntf");
+      return kErrorUndefined;
+    }
+    int ret = feat_license_intf_->Init();
+    if (ret) {
+      DLOGE("Failed to init FeatureLicenseIntf");
+      feat_license_intf_.reset();
+      feat_license_intf_ = nullptr;
+      return kErrorUndefined;
+    }
+  }
+
+  GenericPayload demura_pl, aa_pl, out_pl;
+  DemuraValidatePermissionInput *demura_input = nullptr;
+  int ret = demura_pl.CreatePayload<DemuraValidatePermissionInput>(demura_input);
+  if (ret) {
+    DLOGE("Failed to create the payload. Error:%d", ret);
+    return kErrorUndefined;
+  }
+
+  bool *allowed = nullptr;
+  ret = out_pl.CreatePayload<bool>(allowed);
+  if (ret) {
+    DLOGE("Failed to create the payload. Error:%d", ret);
+    return kErrorUndefined;
+  }
+
+  demura_input->id = kDemura;
+  demura_input->panel_id = panel_id_;
+  ret = feat_license_intf_->ProcessOps(kValidatePermission, demura_pl, &out_pl);
+  if (ret) {
+    DLOGE("Failed to get the license permission for Demura. Error:%d", ret);
+  } else {
+    demura_allowed_ = *allowed;
+  }
+
+  AntiAgingValidatePermissionInput *aa_input = nullptr;
+  ret = aa_pl.CreatePayload<AntiAgingValidatePermissionInput>(aa_input);
+  if (ret) {
+    DLOGE("Failed to create the payload. Error:%d", ret);
+    return kErrorUndefined;
+  }
+
+  aa_input->id = kAntiAging;
+  ret = feat_license_intf_->ProcessOps(kValidatePermission, aa_pl, &out_pl);
+  if (ret) {
+    DLOGE("Failed to get the license permission for Anti-aging. Error:%d", ret);
+  } else {
+    demuratn_allowed_ = *allowed;
+  }
+#endif
+
+  DLOGI("Demura enable allowed %d, Anti-aging enable allowed %d", demura_allowed_,
+        demuratn_allowed_);
   return kErrorNone;
 }
 
@@ -1325,7 +1345,8 @@ DisplayError DisplayBuiltIn::SendPanelIdToParserManager() {
     return kErrorUndefined;
   }
 
-  std::vector<uint64_t> *panel_ids;
+  std::vector<uint64_t> *panel_ids = nullptr;
+
   GenericPayload in;
   ret = in.CreatePayload<std::vector<uint64_t>>(panel_ids);
   if (ret) {
@@ -3935,6 +3956,13 @@ DisplayError DisplayBuiltIn::SetDemuraState(int state) {
   }
 
   if (!demura_intended_ && state) {
+    if (!demura_allowed_) {
+      // Validate demura license again in case failed during boot up
+      error = ValidateDemuraLicense();
+      if (error) {
+        DLOGE("Failed to validate Demura license, error %d", error);
+      }
+    }
     if (demura_allowed_) {
       error = SendPanelIdToParserManager();
       if (error) {
@@ -4385,7 +4413,7 @@ DisplayError DisplayBuiltIn::SetSsrcMode(const std::string &mode) {
   DisplayError ret = kErrorNotSupported;
 
   if (ssrc_feature_enabled_ && ssrc_feature_interface_) {
-    std::string *mode_str;
+    std::string *mode_str = nullptr;
     GenericPayload payload;
     int rc = payload.CreatePayload(mode_str);
     if (rc) {
