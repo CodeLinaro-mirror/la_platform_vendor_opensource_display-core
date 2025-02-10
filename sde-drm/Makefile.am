@@ -1,5 +1,5 @@
 AM_CFLAGS    = -Wno-missing-field-initializers -Wconversion \
-               -std=c++11 -DLOG_TAG=\"SDE_DRM\" -DUNIX_OS
+               -DLOG_TAG=\"SDE_DRM\" -DUNIX_OS
 
 cpp_sources  = drm_manager.cpp \
                drm_connector.cpp \

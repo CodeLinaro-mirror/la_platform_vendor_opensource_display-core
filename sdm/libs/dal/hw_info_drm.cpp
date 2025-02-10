@@ -326,7 +326,7 @@ DisplayError HWInfoDRM::GetHWResourceInfo(HWResourceInfo *hw_resource) {
   DLOGI("Max High Bw = %" PRIu64 "", hw_resource->dyn_bw_info.total_bw_limit[kBwVFEOff]);
   DLOGI("Max Pipe Bw = %" PRIu64 " KBps", hw_resource->dyn_bw_info.pipe_bw_limit[kBwVFEOn]);
   DLOGI("Max Pipe Bw High= %" PRIu64 " KBps", hw_resource->dyn_bw_info.pipe_bw_limit[kBwVFEOff]);
-  DLOGI("MaxSDEClock = %d Hz", hw_resource->max_sde_clk);
+  DLOGI("MaxSDEClock = %ud Hz", hw_resource->max_sde_clk);
   DLOGI("Demura Count = %" PRIu32, hw_resource->demura_count);
   DLOGI("ABC Count = %" PRIu32, hw_resource->abc_count);
   DLOGI("DSPP Count = %" PRIu32, hw_resource->dspp_count);
