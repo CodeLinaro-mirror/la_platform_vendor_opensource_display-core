@@ -270,6 +270,7 @@ enum struct DRMProperty {
   USECASE_IDX,
   BRIGHTNESS,
   FLUSH_SYNC_EN,
+  COMMIT_PATH,
 
   // Insert above
   MAX

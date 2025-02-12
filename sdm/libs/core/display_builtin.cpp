@@ -301,6 +301,10 @@ DisplayError DisplayBuiltIn::Init() {
   Debug::Get()->GetProperty(DEFER_FPS_FRAME_COUNT, &value);
   deferred_config_.frame_count = (value > 0) ? UINT32(value) : 0;
 
+  value = 0;
+  Debug::Get()->GetProperty(ENABLE_HFI_PATH, &value);
+  hfi_path_supported_ = (value > 0);
+
   error = event_proxy_info_.Init(client_ctx_.hw_panel_info.panel_name, this, extension_lib_,
                                  prop_intf_);
   if (error != kErrorNone) {
@@ -1653,6 +1657,21 @@ DisplayError DisplayBuiltIn::SetDisplayState(DisplayState state, bool teardown,
       comp_manager_->GetDemuraStatusForDisplay(display_id_) && (state == kStateOff)) {
     comp_manager_->SetDemuraStatusForDisplay(display_id_, false);
     SetDemuraIntfStatus(false, demura_current_idx_);
+  }
+
+  if (hfi_path_supported_) {
+    if (state == DisplayState::kStateDoze || state == DisplayState::kStateDozeSuspend) {
+      // set driver commit path to HFI if entering doze mode
+      error = hw_intf_->setDriverCommitPath(DriverCommitPath::kHFI);
+    } else if ((state_ == DisplayState::kStateDoze || state_ == DisplayState::kStateDozeSuspend) &&
+               (state != DisplayState::kStateDoze && state != DisplayState::kStateDozeSuspend)) {
+      // set driver commit path to hwio if exiting doze ode
+      error = hw_intf_->setDriverCommitPath(DriverCommitPath::kHWIO);
+    }
+  }
+
+  if (error) {
+    DLOGW("Failed to update driver path when transitioning to state %d", state);
   }
 
   error = DisplayBase::SetDisplayState(state, teardown, release_fence);

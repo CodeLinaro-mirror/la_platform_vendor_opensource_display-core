@@ -36,7 +36,7 @@
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -141,7 +141,8 @@ int DRMAtomicReq::Perform(DRMOps opcode, uint32_t obj_id, ...) {
     case DRMOps::CRTC_RESET_CACHE:
     case DRMOps::CRTC_SET_NOISELAYER_CONFIG:
     case DRMOps::CRTC_SET_UBWC_CLK:
-    case DRMOps::CRTC_SET_FLUSH_SYNC_EN: {
+    case DRMOps::CRTC_SET_FLUSH_SYNC_EN:
+    case DRMOps::CRTC_SET_COMMIT_PATH: {
       drm_mgr_->GetCrtcMgr()->Perform(opcode, obj_id, drm_atomic_req_, args);
     } break;
     case DRMOps::CONNECTOR_SET_CRTC:

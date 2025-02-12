@@ -361,6 +361,14 @@ DisplayError HWPeripheralDRM::Commit(HWLayersInfo *hw_layers_info) {
     return error;
   }
 
+  if (use_hfi_path_) {
+    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_COMMIT_PATH, token_.crtc_id, 1);
+    hwio_path_switch_pending_ = true;
+  } else if (hwio_path_switch_pending_) {
+    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_COMMIT_PATH, token_.crtc_id, 0);
+    hwio_path_switch_pending_ = false;
+  }
+
   SetIdlePCState();
   SetSelfRefreshState();
   SetVMReqState();
@@ -928,6 +936,10 @@ DisplayError HWPeripheralDRM::SetDisplayAttributes(uint32_t index) {
     return kErrorDeferred;
   }
 
+  if (use_hfi_path_) {
+    DLOGW("Attempting mode switch in DCP mode - unsupported operation!");
+  }
+
   HWDeviceDRM::SetDisplayAttributes(index);
   // update bit clk rates.
   hw_panel_info_.bitclk_rates = bitclk_rates_;
@@ -1393,6 +1405,13 @@ bool HWPeripheralDRM::IsVRRSupported() {
   }
 
   return false;
+}
+
+DisplayError HWPeripheralDRM::setDriverCommitPath(DriverCommitPath path) {
+  use_hfi_path_ = (path == kHFI);
+  DLOGI("Setting commit path to %s", to_string(path).c_str());
+
+  return kErrorNone;
 }
 
 }  // namespace sdm

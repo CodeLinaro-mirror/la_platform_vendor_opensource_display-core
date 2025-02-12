@@ -687,6 +687,13 @@ enum struct DRMOps {
    *      uint32_t - Brightness Level
    */
   CONNECTOR_SET_BRIGHTNESS,
+
+  /*
+   * Op: Sets commit path to HFI or HWIO
+   * Arg: uint32_t - CRTC id
+   *      uint32_t - Commit path, 1 for HFI, 0 for HWIO
+   */
+  CRTC_SET_COMMIT_PATH,
 };
 
 enum struct DRMRotation {
