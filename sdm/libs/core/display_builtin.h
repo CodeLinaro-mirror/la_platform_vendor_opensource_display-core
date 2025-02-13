@@ -359,6 +359,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError QueryDemuraTnInfo(void *data);
   DisplayError SetDemuraTnBatchId(void *data);
   DisplayError SetDemuraTnAodHandlerCtrl(void *data);
+  DisplayError SetDemuraTnAgingSurfTransfer(void *data);
   int StartVmFileServiceAndExportFiles();
   int CreateServiceManager();
   int HandleTvmServiceEvent(const TvmServiceCbEvent &event);

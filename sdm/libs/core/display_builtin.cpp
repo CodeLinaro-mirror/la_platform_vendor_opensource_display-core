@@ -4680,6 +4680,9 @@ DisplayError DisplayBuiltIn::SetPanelFeatureConfig(int32_t type, void *data) {
     case kTypeDemuraTnAodHandlerCtrl:
       ret = SetDemuraTnAodHandlerCtrl(data);
       break;
+    case kTypeDemuraTnAgingSurfTransfer:
+      ret = SetDemuraTnAgingSurfTransfer(data);
+      break;
     default:
       DLOGE("Invalid type %d", type);
       ret = kErrorParameters;
@@ -5208,6 +5211,29 @@ DisplayError DisplayBuiltIn::SetDemuraTnAodHandlerCtrl(void *data) {
   }
 
   DLOGI("Set aod handler ctrl done");
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetDemuraTnAgingSurfTransfer(void *data) {
+  (void)data;
+  if (demuratn_enabled_) {
+    DLOGE("Pls disable demuraTn temporarily before aging surface transfer");
+    return kErrorUndefined;
+  }
+
+  if (!demuratn_) {
+    DLOGE("Demuratn_ is %pK", demuratn_.get());
+    return kErrorUndefined;
+  }
+
+  GenericPayload payload = {};
+  int ret = demuratn_->SetParameter(kDemuraTnCoreUvmParamAgingSurfTransfer, payload);
+  if (ret) {
+    DLOGE("Set demuraTn aging surface transfer failed ret %d", ret);
+    return kErrorUndefined;
+  }
+
+  DLOGI("Set demuraTn aging surface transfer done");
   return kErrorNone;
 }
 
