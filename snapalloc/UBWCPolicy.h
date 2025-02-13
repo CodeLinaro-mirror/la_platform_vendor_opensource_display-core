@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #ifndef __UBWC_POLICY_H__
@@ -46,10 +46,12 @@ class UBWCPolicy {
 
  private:
   ~UBWCPolicy();
-  UBWCPolicy(){};
+  UBWCPolicy();
   static std::mutex ubwc_policy_mutex_;
 
   static UBWCPolicy *instance_;
+  SnapConstraintParser *constraint_parser_;
+  GraphicsConstraintProvider *graphics_provider_;
   int GetConstraints(BufferDescriptor desc, BufferConstraints *out);
   std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map_;
   std::map<vendor_qti_hardware_display_common_PixelFormat, BufferConstraints> constraint_set_map_;
@@ -62,4 +64,4 @@ class UBWCPolicy {
 };
 }  // namespace snapalloc
 
-#endif  // __UBWC_POLICY_H__
+#endif  // __UBWC_POLICY_H_

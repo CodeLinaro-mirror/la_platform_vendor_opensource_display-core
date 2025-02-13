@@ -14,6 +14,11 @@ namespace snapalloc {
 UBWCPolicy *UBWCPolicy::instance_{nullptr};
 std::mutex UBWCPolicy::ubwc_policy_mutex_;
 
+UBWCPolicy::UBWCPolicy() {
+  constraint_parser_ = SnapConstraintParser::GetInstance();
+  graphics_provider_ = GraphicsConstraintProvider::GetInstance();
+}
+
 UBWCPolicy *UBWCPolicy::GetInstance(
     std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map) {
   std::lock_guard<std::mutex> lock(ubwc_policy_mutex_);
@@ -27,14 +32,14 @@ UBWCPolicy *UBWCPolicy::GetInstance(
 
 void UBWCPolicy::Init(
     std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map) {
-  SnapConstraintParser *parser = SnapConstraintParser::GetInstance();
   if (!format_data_map.empty()) {
     format_data_map_ = format_data_map;
   } else {
-    parser->ParseFormats(&format_data_map_);
+    constraint_parser_->ParseFormats(&format_data_map_);
   }
 #ifndef __ANDROID__
-  parser->ParseAlignments("/vendor/etc/display/ubwc_alignments.json", &constraint_set_map_);
+  constraint_parser_->ParseAlignments("/vendor/etc/display/ubwc_alignments.json",
+                                      &constraint_set_map_);
 #endif
 }
 
@@ -62,11 +67,10 @@ bool UBWCPolicy::IsUBWCAlloc(BufferDescriptor desc) {
 
   if (enable && (desc.usage & vendor_qti_hardware_display_common_BufferUsage::GPU_TEXTURE ||
                  desc.usage & vendor_qti_hardware_display_common_BufferUsage::GPU_RENDER_TARGET)) {
-    GraphicsConstraintProvider *graphics_provider = GraphicsConstraintProvider::GetInstance();
     vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
         static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
             GetPixelFormatModifier(desc));
-    enable = graphics_provider->IsUBWCSupportedByGPU(desc.format, pixel_format_modifier);
+    enable = graphics_provider_->IsUBWCSupportedByGPU(desc.format, pixel_format_modifier);
   }
 
   if (IsAstc(desc.format)) {
@@ -252,7 +256,6 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
 #endif
 
 #ifdef __ANDROID__
-  SnapConstraintParser *parser = SnapConstraintParser::GetInstance();
   if (format_data_map_.empty()) {
     DLOGE("Error while reading the format data");
     return Error::UNSUPPORTED;
@@ -407,18 +410,17 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
   } else {
     // TODO: meta plane handling (if needed)
     DLOGD_IF(enable_logs, "using graphics to get UBWC allocation");
-    GraphicsConstraintProvider *graphics_provider = GraphicsConstraintProvider::GetInstance();
     vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
         static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
             GetPixelFormatModifier(desc));
-    if (graphics_provider->IsUBWCSupportedByGPU(desc.format, pixel_format_modifier)) {
+    if (graphics_provider_->IsUBWCSupportedByGPU(desc.format, pixel_format_modifier)) {
       int size = 0;
-      if (graphics_provider != nullptr) {
+      if (graphics_provider_ != nullptr) {
         vendor_qti_hardware_display_common_GraphicsMetadata graphics_metadata;
 
-        int ret = graphics_provider->GetInitialMetadata(desc, &graphics_metadata, true);
+        int ret = graphics_provider_->GetInitialMetadata(desc, &graphics_metadata, true);
         if (!ret) {
-          size = graphics_provider->AdrenoGetAlignedGpuBufferSize(graphics_metadata.data);
+          size = graphics_provider_->AdrenoGetAlignedGpuBufferSize(graphics_metadata.data);
           if (size > 0)
             out_ad->size = size;
         }
@@ -427,7 +429,7 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
       // Plane layout
       BufferConstraints data;
       int status = 0;
-      status = graphics_provider->BuildConstraints(desc, &data);
+      status = graphics_provider_->BuildConstraints(desc, &data);
       if (status != 0) {
         DLOGE("Error while getting constraints from graphics libs");
         return Error::NO_RESOURCES;
