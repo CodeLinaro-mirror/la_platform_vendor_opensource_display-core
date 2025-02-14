@@ -24,7 +24,7 @@
 
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -108,9 +108,9 @@ enum ContentQuality {
   kContentQualityLow,      // Low quality content, high artifact and noise,
   kContentQualityMedium,   // Medium quality, medium artifact and noise,
   kContentQualityHigh,     // High quality content, low artifact and noise
+  kContentQualityExtreme,  // Extreme quality content
   kContentQualityMax,
 };
-
 
 /*! @brief This enum represents the type of the content.
 
@@ -121,6 +121,19 @@ enum DeContentType {
   kContentTypeVideo,
   kContentTypeGraphics,
   kContentTypeMax,
+};
+
+/*! @brief This enum represents the power/quality optimization mode.
+
+  @sa DisplayInterface::SetDetailEnhancerData
+*/
+enum ScalingOptimizationMode {
+  kOptimizationQuality,       // Default: high quality
+  kOptimizationBalanced,      // Balance quality and power
+  kOptimizationPower,         // Low power
+  kOptimizationBalancedHigh,  // Balance quality and power between quality and balanced
+  kOptimizationBalancedLow,   // Balance quality and power between balanced and power
+  kOptimizationMax,
 };
 
 /*! @brief This enum represents the display port.
@@ -335,6 +348,8 @@ struct DisplayDetailEnhancerData {
   uint32_t halo_suppress_coeff = 0;        // Halo suppression enable
   uint32_t polarity_en = 0;                // Polarity enable
   uint32_t edge_bleed_sup_en = 0;          // Edge bleed support enable
+  ScalingOptimizationMode optimization_mode =
+      kOptimizationQuality;  // quality/power optimization mode
 };
 
 /*! @brief This enum represents the supported display features that needs to be queried
