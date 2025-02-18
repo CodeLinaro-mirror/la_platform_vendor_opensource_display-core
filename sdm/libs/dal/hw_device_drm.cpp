@@ -2531,7 +2531,8 @@ void HWDeviceDRM::SelectCscType(const LayerBuffer &input_buffer, DRMCscType *typ
     uint8_t *md = input_buffer.extended_content_metadata->metadataPayload;
     if (md[0] == 0x0 && md[1] == 0x0 && md[2] == 0x0 && md[3] == 0x1 && md[4] == 0x7c &&
         md[5] == 0x1) {
-      if ((input_buffer.dataspace.range == QtiRange_Full) ||
+      if (((input_buffer.dataspace.range == QtiRange_Full) &&
+           (input_buffer.dataspace.transfer != QtiTransfer_HLG)) ||
           (input_buffer.dataspace.transfer == QtiTransfer_SMPTE_170M) ||
           (input_buffer.dataspace.transfer == QtiTransfer_sRGB)) {
         *type = DRMCscType::kCscYuv2RgbDolbyVisionP5;

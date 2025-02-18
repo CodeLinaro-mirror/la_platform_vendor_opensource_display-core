@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #ifndef __GRAPHICS_CONSTRAINT_PROVIDER_H__
@@ -95,6 +95,7 @@ typedef enum {
   ADRENO_PIXELFORMAT_Y8 = 625,        //  Single 8-bit luma only channel YUV format
   ADRENO_PIXELFORMAT_TP10 = 654,      // YUV 4:2:0 planar 10 bits/comp (2 planes)
   ADRENO_PIXELFORMAT_NV12_4R = 660,   // Same as NV12, but with different tiling
+  ADRENO_PIXELFORMAT_P210 = 709,
 } ADRENOPIXELFORMAT;
 
 namespace snapalloc {
@@ -380,8 +381,13 @@ class GraphicsConstraintProvider : public SnapConstraintProvider {
           {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_422_I,
             .modifier = PIXEL_FORMAT_MODIFIER_NONE},
            ADRENO_PIXELFORMAT_YUY2},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_P210,
+            .modifier = PIXEL_FORMAT_MODIFIER_NONE},
+           ADRENO_PIXELFORMAT_P210},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_P210,
+            .modifier = PIXEL_FORMAT_MODIFIER_EXPLICIT_UBWC},
+           ADRENO_PIXELFORMAT_P210},
       };
-
 };
 }  // namespace snapalloc
 
