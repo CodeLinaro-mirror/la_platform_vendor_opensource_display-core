@@ -176,8 +176,8 @@ DisplayError HWPeripheralDRM::SetDynamicDSIClock(uint64_t bit_clk_rate) {
     return kErrorNotSupported;
   }
 
-  if (vrefresh_) {
-    // vrefresh change pending.
+  if (vrefresh_ || update_mode_) {
+    // vrefresh and/or mode change pending.
     // Defer bit rate clock change.
     return kErrorNotSupported;
   }
