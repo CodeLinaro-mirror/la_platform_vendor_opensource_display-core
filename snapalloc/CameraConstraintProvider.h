@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #ifndef __CAMERA_CONSTRAINT_PROVIDER_H__
@@ -10,6 +10,7 @@
 #include "Debug.h"
 #include "SnapConstraintProvider.h"
 #include "SnapUtils.h"
+#include "SnapMemAllocDefs.h"
 
 // Plane types supported by the camera format
 typedef enum {
@@ -110,6 +111,8 @@ class CameraConstraintProvider : public SnapConstraintProvider {
 
   int GetCapabilities(BufferDescriptor desc, CapabilitySet *out);
   int GetConstraints(BufferDescriptor desc, BufferConstraints *out);
+  Error GetCameraAlloc(BufferDescriptor desc, AllocData *out_ad,
+                       vendor_qti_hardware_display_common_BufferLayout *out_layout);
 
  private:
   CameraConstraintProvider(){};
@@ -139,7 +142,8 @@ class CameraConstraintProvider : public SnapConstraintProvider {
   int GetScanline(int format, int plane_type, int height, int modifier, int *scanlines);
   int GetPlaneSize(int format, int plane_type, int width, int height, int modifier,
                    unsigned int *size);
-
+  std::vector<vendor_qti_hardware_display_common_PlaneLayoutComponentType> GetPlaneComponentTypes(
+      int plane_type);
   int BuildConstraints(BufferDescriptor desc, BufferConstraints *data);
 
   PlaneComponent GetPlaneComponent(CamxPlaneType plane_type);

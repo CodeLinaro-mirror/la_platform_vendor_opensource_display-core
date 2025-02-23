@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapConstraintManager.h"
@@ -38,9 +38,8 @@ void SnapConstraintManager::Init() {
       GraphicsConstraintProvider::GetInstance(format_data_map_);
   providers_.push_back(graphics_provider);
 
-  CameraConstraintProvider *camera_provider =
-      CameraConstraintProvider::GetInstance(format_data_map_);
-  providers_.push_back(camera_provider);
+  camera_provider_ = CameraConstraintProvider::GetInstance(format_data_map_);
+  providers_.push_back(camera_provider_);
 
   DisplayConstraintProvider *disp_provider =
       DisplayConstraintProvider::GetInstance(format_data_map_);
@@ -232,8 +231,14 @@ Error SnapConstraintManager::GetAllocationData(
   bool ubwc_enabled = !ubwc_disabled_prop && ubwc_policy_->IsUBWCAlloc(*out_desc);
   SetSnapPrivateFlags(out_desc->format, out_desc->usage, ubwc_enabled, out_priv_flags);
   out_ad->uncached = UseUncached(out_desc->format, out_desc->usage, ubwc_enabled);
-
-  if (ubwc_enabled) {
+  vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
+      static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
+          GetPixelFormatModifier(*out_desc));
+  if (IsCameraCustomFormat(out_desc->format, pixel_format_modifier)) {
+    DLOGD_IF(enable_logs, "Camera MIPMAP formats - calling into camera APIs");
+    // Camera custom formats. Need to use camera lib.
+    camera_provider_->GetCameraAlloc(*out_desc, out_ad, out_layout);
+  } else if (ubwc_enabled) {
     DLOGD_IF(enable_logs, "IsUBWCAlloc is true");
     int ubwc_version = 0;
     for (auto const &cap : cap_map) {
@@ -264,9 +269,6 @@ Error SnapConstraintManager::GetAllocationData(
   }
 
   // Final buffer size must be aligned at minimum to page size
-  vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
-      static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
-          GetPixelFormatModifier(*out_desc));
   auto align = GetDataAlignment(out_desc->format, out_desc->usage, pixel_format_modifier);
   OVERFLOW_ERR_RETURN(ALIGN(out_ad->size, align), out_desc->layerCount, OverflowType::MUL);
   out_ad->size = ALIGN(out_ad->size, align) * out_desc->layerCount;
