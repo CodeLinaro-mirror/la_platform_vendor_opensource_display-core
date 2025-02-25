@@ -4109,10 +4109,12 @@ PrimariesTransfer DisplayBase::GetBlendSpaceFromColorMode() {
     pt.primaries = GetColorPrimariesFromAttribute(color_gamut, allow_tonemap_native_);
     if (transfer == kHlg) {
       pt.transfer = QtiTransfer_HLG;
-    } else {
+    } else if (transfer == kSt2084) {
       pt.transfer = QtiTransfer_SMPTE_ST2084;
+    } else {
+      pt.transfer = QtiTransfer_sRGB;
     }
-  } else if (color_gamut == kDcip3) {
+  } else if (color_gamut == kDcip3 || color_gamut == kBt2020) {
     pt.primaries = GetColorPrimariesFromAttribute(color_gamut, allow_tonemap_native_);
     pt.transfer = QtiTransfer_sRGB;
   } else if (color_gamut == kNative && !allow_tonemap_native_) {
