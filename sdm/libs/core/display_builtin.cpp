@@ -881,6 +881,19 @@ DisplayError DisplayBuiltIn::SetupDemuraLayer() {
     DLOGE("Failed to get BufferInfo, error = %d", ret);
     return kErrorResources;
   }
+
+  GenericPayload dec_pl;
+  DemuraHfcDecimationInfo *hfc_decimate_info = nullptr;
+  if ((ret = dec_pl.CreatePayload<DemuraHfcDecimationInfo>(hfc_decimate_info))) {
+    DLOGE("Failed to create payload for decimate_cfg, error = %d", ret);
+    return kErrorResources;
+  }
+
+  if ((ret = demura_->GetParameter(kDemuraFeatureParamHfcDecimationInfo, &dec_pl))) {
+    DLOGE("Failed to get decimate_cfg, error = %d", ret);
+    return kErrorResources;
+  }
+
   demura_layer_.clear();  // This will clear the old demura layers
 
   for (int buf_idx = 0; buf_idx < corrdata->surfaces.size(); buf_idx++) {
@@ -909,6 +922,8 @@ DisplayError DisplayBuiltIn::SetupDemuraLayer() {
     demura_layer.composition = kCompositionDemura;
     demura_layer.blending = kBlendingSkip;
     demura_layer.flags.is_demura = 1;
+    demura_layer.demura_decimate_w = hfc_decimate_info->decimate_w;
+    demura_layer.demura_decimate_h = hfc_decimate_info->decimate_h;
     // ROI must match input dimensions
     demura_layer.src_rect.top = 0;
     demura_layer.src_rect.left = 0;
