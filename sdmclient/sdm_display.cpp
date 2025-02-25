@@ -458,6 +458,10 @@ void SDMColorModeMgr::PopulateColorModes() {
         color_mode_map_[SDMColorMode::COLOR_MODE_DISPLAY_P3][render_intent]
                        [kSdrType] = mode_string;
       }
+      if (color_gamut == kBt2020 && dynamic_range == kSdr) {
+        color_mode_map_[SDMColorMode::COLOR_MODE_DISPLAY_BT2020][render_intent][kSdrType] =
+            mode_string;
+      }
       if (color_gamut == kDcip3 && dynamic_range == kHdr) {
         if (display_intf_->IsSupportSsppTonemap()) {
           color_mode_map_[SDMColorMode::COLOR_MODE_DISPLAY_P3][render_intent]
