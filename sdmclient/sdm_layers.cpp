@@ -30,7 +30,7 @@
  * Changes from Qualcomm Innovation Center, Inc. are provided under the
  * following license:
  *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include "sdm_layers.h"
@@ -689,6 +689,7 @@ void SDMLayer::GetUBWCStatsFromMetaData(UBWCStats *cr_stats, UbwcCrStatsVector *
   // in layer_buffer or copy directly to Vector
   if (cr_stats->bDataValid) {
     switch (cr_stats->version) {
+      case UBWCVersion::UBWC_VERSION_6_0:
       case UBWCVersion::UBWC_VERSION_5_0:
       case UBWCVersion::UBWC_VERSION_4_0:
       case UBWCVersion::UBWC_VERSION_3_0:
