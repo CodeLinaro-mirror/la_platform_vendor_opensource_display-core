@@ -145,6 +145,7 @@ public:
  virtual DisplayError SetABCState(bool state);
  virtual DisplayError SetABCReconfig();
  virtual DisplayError SetABCMode(string mode_name);
+ virtual DisplayError SetAIScalerMode(uint32_t mode_id);
  virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data);
 
 private:

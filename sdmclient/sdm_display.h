@@ -485,6 +485,7 @@ public:
   virtual DisplayError SetABCState(bool state) { return kErrorNotSupported; }
   virtual DisplayError SetABCReconfig() { return kErrorNotSupported; }
   virtual DisplayError SetABCMode(string mode_name) { return kErrorNotSupported; }
+  virtual DisplayError SetAIScalerMode(uint32_t mode_id) { return kErrorNotSupported; }
   virtual DisplayError
   GetClientTargetProperty(SDMClientTargetProperty *out_client_target_property);
   virtual void GetConfigInfo(

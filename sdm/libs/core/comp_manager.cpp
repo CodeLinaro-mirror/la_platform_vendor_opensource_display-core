@@ -25,7 +25,7 @@
 /*
 * ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 *
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -209,6 +209,14 @@ DisplayError CompManager::UnregisterDisplay(Handle display_ctx) {
   delete display_comp_ctx;
   display_comp_ctx = NULL;
   return kErrorNone;
+}
+
+DisplayError CompManager::SetAIScalerMode(uint32_t mode_id) {
+  return resource_intf_->SetAIScalerMode(mode_id);
+}
+
+DisplayError CompManager::GetAIScalerMode(uint32_t *mode_id) {
+  return resource_intf_->GetAIScalerMode(mode_id);
 }
 
 DisplayError CompManager::CheckEnforceSplit(Handle comp_handle,

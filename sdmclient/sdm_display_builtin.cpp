@@ -1842,6 +1842,20 @@ DisplayError SDMDisplayBuiltIn::SetABCMode(string mode_name) {
   return kErrorNone;
 }
 
+DisplayError SDMDisplayBuiltIn::SetAIScalerMode(uint32_t mode_id) {
+  DLOGV("Display ID: %" PRId64 " Mode ID: %d", id_, mode_id);
+  DisplayError error = display_intf_->SetAIScalerMode(mode_id);
+
+  if (error != kErrorNone) {
+    DLOGE("Failed to set AI Scaler mode ID %d, error = %d", mode_id, error);
+    return kErrorParameters;
+  }
+
+  callbacks_->OnRefresh(id_);
+
+  return kErrorNone;
+}
+
 void SDMDisplayBuiltIn::HandleLargeCompositionHint(bool release) {
   if (!cpu_hint_) {
     return;

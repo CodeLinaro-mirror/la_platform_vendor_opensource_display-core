@@ -389,6 +389,10 @@ DisplayError DisplayBuiltIn::Init() {
   }
 
   value = 0;
+  Debug::Get()->GetProperty(ENABLE_AI_SCALER_PROP, &value);
+  enable_ai_scaler_ = (value == 1);
+
+  value = 0;
   DebugHandler::Get()->GetProperty(ENHANCE_IDLE_TIME, &value);
   enhance_idle_time_ = (value == 1);
 
@@ -3375,6 +3379,18 @@ void DisplayBuiltIn::SendDisplayConfigs() {
       DLOGI("current_abc_mode = %s", disp_configs->abc_mode.c_str());
     }
 
+    if (enable_ai_scaler_) {
+      uint32_t current_mode_id = 0;
+      DisplayError error = comp_manager_->GetAIScalerMode(&current_mode_id);
+      if (error) {
+        DLOGE("Failed to get current AI scaler mode ID, error = %d", error);
+        return;
+      }
+
+      disp_configs->ai_scaler_mode_id = current_mode_id;
+      DLOGI("Current AI Scaler mode ID = %d", disp_configs->ai_scaler_mode_id);
+    }
+
     if ((ret = ipc_intf_->SetParameter(kIpcParamDisplayConfigs, in))) {
       DLOGW("Failed to send display config, error = %d", ret);
     }
@@ -4610,6 +4626,21 @@ DisplayError DisplayBuiltIn::SetABCMode(const string &mode_name) {
 
   needs_validate_ = true;
   return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetAIScalerMode(uint32_t mode_id) {
+  DisplayError ret = kErrorParameters;
+
+  if (IsPrimaryDisplay()) {
+    ret = comp_manager_->SetAIScalerMode(mode_id);
+  }
+
+  if (ret) {
+    DLOGE("Unable to set AI Scaler mode ID. error: %d", ret);
+  }
+
+  needs_validate_ = true;
+  return ret;
 }
 
 DisplayError DisplayBuiltIn::SetPanelFeatureConfig(int32_t type, void *data) {
