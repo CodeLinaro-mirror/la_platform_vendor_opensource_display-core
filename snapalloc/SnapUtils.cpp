@@ -124,6 +124,10 @@ bool CpuCanAccess(SnapUsage usage) {
     {{SnapPixelFormat::RGBA_5551}, {true, false, false, false, false, false, false, false}},
     {{SnapPixelFormat::Y16}, {false, true, false, false, false, false, false, false}},
     {{SnapPixelFormat::YCBCR_P210}, {false, true, false, false, false, true, false, false}},
+    {{SnapPixelFormat::NV12_UBWC_MIPMAP}, {false, true, false, false, false, true, false, false}},
+    {{SnapPixelFormat::NV12_MIPMAP}, {false, true, false, false, false, true, false, false}},
+    {{SnapPixelFormat::TP10_UBWC_MIPMAP}, {false, true, false, false, false, true, false, false}},
+    {{SnapPixelFormat::P010_MIPMAP}, {false, true, false, false, false, true, false, false}},
 };
 
 bool IsUbwcSupported(SnapPixelFormat format) {

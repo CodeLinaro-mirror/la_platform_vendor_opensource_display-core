@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapConstraintParser.h"
@@ -111,6 +111,10 @@ static std::unordered_map<std::string, vendor_qti_hardware_display_common_PixelF
         {"COMPRESSED_SRGB8_ALPHA8_ASTC_10x10_KHR", COMPRESSED_SRGB8_ALPHA8_ASTC_10x10_KHR},
         {"COMPRESSED_SRGB8_ALPHA8_ASTC_12x10_KHR", COMPRESSED_SRGB8_ALPHA8_ASTC_12x10_KHR},
         {"COMPRESSED_SRGB8_ALPHA8_ASTC_12x12_KHR", COMPRESSED_SRGB8_ALPHA8_ASTC_12x12_KHR},
+        {"NV12_UBWC_MIPMAP", NV12_UBWC_MIPMAP},
+        {"NV12_MIPMAP", NV12_MIPMAP},
+        {"TP10_UBWC_MIPMAP", TP10_UBWC_MIPMAP},
+        {"P010_MIPMAP", P010_MIPMAP},
 };
 
 static std::unordered_map<std::string, vendor_qti_hardware_display_common_PlaneLayoutComponentType>
