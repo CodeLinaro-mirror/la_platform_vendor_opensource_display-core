@@ -25,7 +25,7 @@
 /*
 * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 *
-* Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -134,6 +134,7 @@ typedef struct CmdSetDisplayConfigs_t  {
       uint32_t mixer_width;
       uint32_t mixer_height;
       char abc_mode[ABC_MODE_SIZE_MAX];
+      uint32_t ai_scaler_mode_id;
     };
     uint32_t reserve[128] = { 0 };
   };

@@ -30,7 +30,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /*
 * ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 *
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -528,7 +528,9 @@ void HWPeripheralDRM::SetAIScalerData(const AIScalerInfoMap ai_scale_info_map) {
              AIQE_AI_SCALER_PARAM_LEN * sizeof(ai_scaler_cfg->param[0]));
     }
 
-    if (ai_scaler_cache_[i].scaler_data.config != sde_ai_scaler_cfg_.config) {
+    ai_scaler_current_mode_id_ = ai_scale_info->ai_scale_data.mode_id;
+    if ((ai_scaler_cache_[i].scaler_data.config != sde_ai_scaler_cfg_.config) ||
+        (ai_scaler_cache_[i].mode_id != ai_scaler_current_mode_id_)) {
       needs_ai_scaler_update_ = true;
     }
   }
@@ -569,6 +571,7 @@ void HWPeripheralDRM::CacheDestScalarData() {
     // Cache the AI Scaler data during commit
     for (uint32_t i = 0; i < ai_scaler_cache_.size(); i++) {
       ai_scaler_cache_[i].scaler_data = sde_ai_scaler_cfg_;
+      ai_scaler_cache_[i].mode_id = ai_scaler_current_mode_id_;
     }
     needs_ai_scaler_update_ = false;
   }

@@ -2657,6 +2657,22 @@ DisplayError ConcurrencyMgr::SetABCMode(uint64_t display_id, string mode_name) {
   return sdm_display_[disp_idx]->SetABCMode(mode_name);
 }
 
+DisplayError ConcurrencyMgr::SetAIScalerMode(uint64_t display_id, uint32_t mode_id) {
+  int disp_idx = GetDisplayIndex(display_id);
+  if (disp_idx == -1) {
+    DLOGW("Invalid display = %d", display_id);
+    return kErrorResources;
+  }
+
+  SCOPE_LOCK(locker_[disp_idx]);
+  if (!sdm_display_[disp_idx]) {
+    DLOGW("Display %d is not connected.", display_id);
+    return kErrorResources;
+  }
+
+  return sdm_display_[disp_idx]->SetAIScalerMode(mode_id);
+}
+
 DisplayError ConcurrencyMgr::SetPanelFeatureConfig(Display display, int32_t type, void *data) {
   return CallDisplayFunction(display, &SDMDisplay::SetPanelFeatureConfig, type, data);
 }

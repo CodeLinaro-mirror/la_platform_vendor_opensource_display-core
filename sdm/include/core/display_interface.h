@@ -1508,6 +1508,14 @@ class DisplayInterface {
   */
   virtual DisplayError SetABCMode(const string &mode_name) = 0;
 
+  /*! @brief Method to set AI Scaler mode ID.
+
+   @param[in] mode_id
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetAIScalerMode(uint32_t mode_id) = 0;
+
   /*! @brief Method to set panel feature configurations
 
    @param[in] type : Operation type
