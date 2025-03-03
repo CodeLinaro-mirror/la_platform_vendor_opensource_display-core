@@ -25,7 +25,7 @@
 /*
 * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 *
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -87,7 +87,7 @@ DisplayError DisplayVirtual::Init() {
     default_clock_hz_.insert(std::pair<uint32_t, uint32_t>(i, 0));
     cached_framebuffer_.insert(std::pair<uint32_t, LayerBuffer>(i, {}));
     cached_qos_data_.insert(std::pair<uint32_t, HWQosData>(i, {}));
-    disp_layer_stack_->info.insert(std::pair<uint32_t, HWLayersInfo>(i, {}));
+    disp_layer_stack_->info.insert(std::pair<uint32_t, HWLayersInfo>(i, HWLayersInfo()));
   }
 
   for (auto info_intf = hw_info_intf_.Begin(); info_intf != hw_info_intf_.End(); info_intf++) {
