@@ -30,7 +30,7 @@
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted (subject to the limitations in the
@@ -962,8 +962,10 @@ void DRMPlane::InitAndParse(drmModePlane *plane) {
   ParseProperties();
 
   unique_ptr<DRMPPManager> pp_mgr(new DRMPPManager(fd_));
-  pp_mgr_ = std::move(pp_mgr);
-  pp_mgr_->Init(prop_mgr_, DRM_MODE_OBJECT_PLANE);
+  if (pp_mgr != nullptr) {
+    pp_mgr_ = std::move(pp_mgr);
+    pp_mgr_->Init(prop_mgr_, DRM_MODE_OBJECT_PLANE);
+  }
 }
 
 bool DRMPlane::ConfigureScalerLUT(drmModeAtomicReq *req, uint32_t dir_lut_blob_id,
