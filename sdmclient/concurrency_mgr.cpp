@@ -249,6 +249,7 @@ void ConcurrencyMgr::PostInit() {
 }
 
 DisplayError ConcurrencyMgr::Deinit() {
+  DLOGI("Destroying and cleaning up concurrency manager");
   if (hpd_) {
     hpd_->Deinit();
     delete hpd_;
@@ -790,7 +791,18 @@ void ConcurrencyMgr::RegisterCompositorCallback(SDMCompositorCbIntf *cb, bool en
   vector<Display> pending_hotplugs;
 
   client_connected_ = enable;
-  if (enable) {
+  if (!enable) {
+    DLOGI("Unregister AidlComposerClient's callback");
+    if (hpd_) {
+      hpd_->Deinit();
+      hpd_ = nullptr;
+    }
+
+    if (services_) {
+      services_->Deinit();
+      services_ = nullptr;
+    }
+  } else {
     GetPendingHotplug(pending_hotplugs);
 
     if (sdm_display_[SDM_DISPLAY_PRIMARY]) {
