@@ -689,6 +689,7 @@ void SDMLayer::GetUBWCStatsFromMetaData(UBWCStats *cr_stats, UbwcCrStatsVector *
   // in layer_buffer or copy directly to Vector
   if (cr_stats->bDataValid) {
     switch (cr_stats->version) {
+      case UBWCVersion::UBWC_VERSION_6_0:
       case UBWCVersion::UBWC_VERSION_5_0:
       case UBWCVersion::UBWC_VERSION_4_0:
       case UBWCVersion::UBWC_VERSION_3_0:
