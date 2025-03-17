@@ -28,8 +28,8 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -88,7 +88,8 @@ int DRMDppsManagerImp::GetDrmResources(drmModeRes* res) {
 
   for (auto i = 0; i < res->count_connectors; i++) {
     conn = drmModeGetConnector(drm_fd_, res->connectors[i]);
-    if (conn && conn->connector_type == DRM_MODE_CONNECTOR_DSI &&
+    if (conn && (conn->connector_type == DRM_MODE_CONNECTOR_DSI ||
+        conn->connector_type == DRM_MODE_CONNECTOR_DisplayPort) &&
         conn->count_modes && conn->connection == DRM_MODE_CONNECTED) {
       DRM_LOGI("Found connector %d", conn->connector_id);
       conn_id_ = conn->connector_id;
@@ -105,7 +106,9 @@ int DRMDppsManagerImp::GetDrmResources(drmModeRes* res) {
 
   for (auto i = 0; i < conn->count_encoders; i++) {
     enc = drmModeGetEncoder(drm_fd_, conn->encoders[i]);
-    if (enc && enc->encoder_type == DRM_MODE_ENCODER_DSI) {
+    if (enc && (enc->encoder_type == DRM_MODE_ENCODER_DSI ||
+        enc->encoder_type == DRM_MODE_ENCODER_TMDS ||
+        enc->encoder_type == DRM_MODE_ENCODER_DPMST)) {
       DRM_LOGI("Found encoder %d", enc->encoder_id);
       enc_id = enc->encoder_id;
       break;
