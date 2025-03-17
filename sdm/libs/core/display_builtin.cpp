@@ -4547,6 +4547,11 @@ DisplayError DisplayBuiltIn::SetABCReconfig() {
     return kErrorUndefined;
   }
 
+  if (!abc_prop_) {
+    DLOGI("ABC feature is not enabled");
+    return kErrorUndefined;
+  }
+
   if (!comp_manager_->GetDemuraStatusForDisplay(display_id_)) {
     return kErrorUndefined;
   }
@@ -4570,6 +4575,12 @@ DisplayError DisplayBuiltIn::SetABCReconfig() {
 
   if (SetDemuraIntfStatus(true)) {
     DLOGE("Failed to set ABC Status on Display %d", display_id_);
+    return kErrorUndefined;
+  }
+
+  DisplayError error = ExportABCFiles();
+  if (error) {
+    DLOGE("Failed to export ABC files, error %d", error);
     return kErrorUndefined;
   }
 
@@ -4732,6 +4743,19 @@ DisplayError DisplayBuiltIn::ExportDemuraFiles() {
   return kErrorNone;
 }
 
+DisplayError DisplayBuiltIn::ExportABCFiles() {
+  if (abc_tvm_enabled_ && demura_) {
+    GenericPayload in;
+    int ret = demura_->SetParameter(kDemuraFeatureParamExportFiles, in);
+    if (ret != 0) {
+      DLOGW("Failed to export ABC files");
+      return kErrorUndefined;
+    }
+  }
+
+  return kErrorNone;
+}
+
 DisplayError DisplayBuiltIn::StartTvmServices() {
   if (!abc_prop_ && !demura_prop_) {
     return kErrorNone;
@@ -4763,15 +4787,6 @@ DisplayError DisplayBuiltIn::StartTvmServices() {
         DLOGE("Failed to init DemuraTnCleanupIntf, ret %d", ret);
         demuratn_cleanup_intf_.reset();
       }
-    }
-  }
-
-  if (abc_prop_ && abc_tvm_enabled_ && demura_) {
-    GenericPayload in;
-    int ret = demura_->SetParameter(kDemuraFeatureParamExportFiles, in);
-    if (ret != 0) {
-      DLOGW("Failed to export ABC files");
-      return kErrorUndefined;
     }
   }
 
@@ -4827,6 +4842,7 @@ int DisplayBuiltIn::CreateServiceManager() {
 
 int DisplayBuiltIn::StartVmFileServiceAndExportFiles() {
   int ret = 0;
+  DisplayError error = kErrorNone;
 
   if (!service_manager_intf_) {
     DLOGE("Invalid service manager");
@@ -4845,11 +4861,17 @@ int DisplayBuiltIn::StartVmFileServiceAndExportFiles() {
 
   // Export files
   if (demura_prop_) {
-    DisplayError error = ExportDemuraFiles();
+    error = ExportDemuraFiles();
     if (error) {
       DLOGE("Failed to export demura files, error %d", error);
       return -EINVAL;
     }
+  }
+
+  error = ExportABCFiles();
+  if (error) {
+    DLOGE("Failed to export ABC files, error %d", error);
+    return -EINVAL;
   }
 
   if (!factory_extn_) {
