@@ -264,7 +264,7 @@ DisplayError HWInfoDRM::GetHWResourceInfo(HWResourceInfo *hw_resource) {
   hw_resource->has_qseed3 = false;
   hw_resource->has_concurrent_writeback = false;
 
-  hw_resource->hw_version = SDEVERSION(10, 0, 0);
+  hw_resource->hw_version = SDEVERSION(4, 0, 1);
 
   // TODO(user): Deprecate
   hw_resource->max_mixer_width = 2560;
@@ -411,8 +411,7 @@ void HWInfoDRM::GetSystemInfo(HWResourceInfo *hw_resource) {
   }
 
   hw_resource->max_sde_clk = info.max_sde_clk;
-  printf("---info hwversion %d\n", info.hw_version);
-  hw_resource->hw_version = SDEVERSION(10, 0, 0);//info.hw_version;
+  hw_resource->hw_version = info.hw_version;
 
   std::vector<LayerBufferFormat> sdm_format;
   for (auto &it : info.comp_ratio_rt_map) {
