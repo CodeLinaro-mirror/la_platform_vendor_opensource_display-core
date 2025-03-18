@@ -487,7 +487,6 @@ DisplayError DisplayBuiltIn::Deinit() {
         }
         pm_intf_->Deinit();
       }
-      comp_manager_->FreeDemuraFetchResources(display_id_);
     }
 
     if (feat_license_intf_) {
