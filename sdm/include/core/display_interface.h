@@ -814,7 +814,8 @@ class DisplayInterface {
 
     @return \link DisplayError \endlink
   */
-  virtual DisplayError SetPanelBrightness(float brightness, bool return_error = false) = 0;
+  virtual DisplayError SetPanelBrightness(float brightness, bool apply_immediately = true,
+                                          bool return_error = false) = 0;
 
   /*! @brief Method to notify display about change in min HDCP encryption level.
 

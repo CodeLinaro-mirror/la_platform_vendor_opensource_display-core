@@ -1771,7 +1771,8 @@ DisplayError DisplayBuiltIn::SetDisplayMode(uint32_t mode) {
   return error;
 }
 
-DisplayError DisplayBuiltIn::SetPanelBrightness(float brightness, bool return_error) {
+DisplayError DisplayBuiltIn::SetPanelBrightness(float brightness, bool apply_immediately,
+                                                bool return_error) {
   DisplayError err = kErrorNone;
   {
     lock_guard<recursive_mutex> obj(brightness_lock_);
@@ -1799,10 +1800,7 @@ DisplayError DisplayBuiltIn::SetPanelBrightness(float brightness, bool return_er
       level_remainder = t - level;
     }
 
-    err = dpu_core_mux_->SetPanelBrightness(level);
-    if (enable_brightness_drm_prop_) {
-      event_handler_->Refresh();
-    }
+    err = dpu_core_mux_->SetPanelBrightness(level, apply_immediately);
     if (err == kErrorNone) {
       level_remainder_ = level_remainder;
       pending_brightness_ = false;

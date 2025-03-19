@@ -531,9 +531,9 @@ DisplayError DPUMultiCore::SetRefreshRate(uint32_t refresh_rate) {
   return kErrorNone;
 }
 
-DisplayError DPUMultiCore::SetPanelBrightness(int level) {
+DisplayError DPUMultiCore::SetPanelBrightness(int level, bool apply_immediately) {
   for (auto hw_intf : hw_intf_) {
-    DisplayError error = hw_intf.second->SetPanelBrightness(level);
+    DisplayError error = hw_intf.second->SetPanelBrightness(level, apply_immediately);
     if (error != kErrorNone) {
       return error;
     }

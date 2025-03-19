@@ -42,7 +42,7 @@ class DPUSingleCore : public DPUCoreMux {
   void SetIdleTimeoutMs(uint32_t timeout_ms);
   DisplayError SetDisplayMode(const HWDisplayMode hw_display_mode);
   DisplayError SetRefreshRate(uint32_t refresh_rate);
-  DisplayError SetPanelBrightness(int level);
+  DisplayError SetPanelBrightness(int level, bool apply_immediately);
   DisplayError GetHWScanInfo(HWScanInfo *scan_info);
   DisplayError GetVideoFormat(uint32_t config_index, uint32_t *video_format);
   DisplayError GetMaxCEAFormat(uint32_t *max_cea_format);

@@ -360,7 +360,7 @@ public:
     return kErrorNotSupported;
   }
   virtual DisplayError SetPendingRefresh() { return kErrorNotSupported; }
-  virtual DisplayError SetPanelBrightness(float brightness) {
+  virtual DisplayError SetPanelBrightness(float brightness, bool apply_immediately) {
     return kErrorNotSupported;
   }
   virtual DisplayError GetPanelBrightness(float *brightness) {

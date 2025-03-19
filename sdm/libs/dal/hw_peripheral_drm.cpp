@@ -983,8 +983,15 @@ DisplayError HWPeripheralDRM::SetFrameTrigger(FrameTriggerMode mode) {
   return kErrorNone;
 }
 
-DisplayError HWPeripheralDRM::SetPanelBrightness(int level) {
+DisplayError HWPeripheralDRM::SetPanelBrightness(int level, bool apply_immediately) {
   DTRACE_SCOPED();
+
+  std::string trace = "ENABLE_BRIGHTNESS_DRM_PROP " + to_string(enable_brightness_drm_prop_) +
+                      " apply_immediately " + to_string(apply_immediately) + " level " +
+                      to_string(level);
+  DTRACE_BEGIN(trace.c_str());
+  DTRACE_END();
+
   if (pending_power_state_ != kPowerStateNone) {
     DLOGI("Power state %d pending!! Skip for now", pending_power_state_);
     return kErrorDeferred;
@@ -1001,8 +1008,10 @@ DisplayError HWPeripheralDRM::SetPanelBrightness(int level) {
     return kErrorNone;
   }
 
-  if (enable_brightness_drm_prop_) {
-    // set brightness through drm property
+  // If ENABLE_BRIGHTNESS_DRM_PROP is enabled and SF triggered a commit, cache the new brightness
+  // level and send it as part of the commit. If ENABLE_BRIGHTNESS_DRM_PROP is enabled but there's
+  // no upcoming commit, update the brightness in the sysfs node.
+  if (enable_brightness_drm_prop_ && !apply_immediately) {
     cached_brightness_level_ = level;
     return kErrorNone;
   }
@@ -1037,6 +1046,7 @@ DisplayError HWPeripheralDRM::SetPanelBrightness(int level) {
     return kErrorHardware;
   }
 
+  current_brightness_ = level;
   Sys::close_(fd);
 
   return kErrorNone;

@@ -195,8 +195,8 @@ DisplayError DPUSingleCore::SetRefreshRate(uint32_t refresh_rate) {
   return hw_intf_->SetRefreshRate(refresh_rate);
 }
 
-DisplayError DPUSingleCore::SetPanelBrightness(int level) {
-  return hw_intf_->SetPanelBrightness(level);
+DisplayError DPUSingleCore::SetPanelBrightness(int level, bool apply_immediately) {
+  return hw_intf_->SetPanelBrightness(level, apply_immediately);
 }
 
 DisplayError DPUSingleCore::GetHWScanInfo(HWScanInfo *scan_info) {
