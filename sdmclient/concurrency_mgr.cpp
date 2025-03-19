@@ -28,7 +28,7 @@
  */
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <algorithm>
@@ -249,6 +249,7 @@ void ConcurrencyMgr::PostInit() {
 }
 
 DisplayError ConcurrencyMgr::Deinit() {
+  DLOGI("Destroying and cleaning up concurrency manager");
   if (hpd_) {
     hpd_->Deinit();
     delete hpd_;
@@ -790,7 +791,18 @@ void ConcurrencyMgr::RegisterCompositorCallback(SDMCompositorCbIntf *cb, bool en
   vector<Display> pending_hotplugs;
 
   client_connected_ = enable;
-  if (enable) {
+  if (!enable) {
+    DLOGI("Unregister AidlComposerClient's callback");
+    if (hpd_) {
+      hpd_->Deinit();
+      hpd_ = nullptr;
+    }
+
+    if (services_) {
+      services_->Deinit();
+      services_ = nullptr;
+    }
+  } else {
     GetPendingHotplug(pending_hotplugs);
 
     if (sdm_display_[SDM_DISPLAY_PRIMARY]) {
@@ -2284,15 +2296,14 @@ DisplayError ConcurrencyMgr::SetContentFps(const std::string &name, int32_t fps)
 }
 
 int ConcurrencyMgr::GetDisplayConfigGroup(uint64_t display, DisplayConfigGroupInfo variable_config) {
-  int disp_idx = GetDisplayIndex(display);
-  if (disp_idx == -1) {
-    DLOGE("Invalid display = %d", disp_idx);
+  if (display < 0) {
+    DLOGE("Invalid display = %d", display);
     return kErrorNotSupported;
   }
 
-  SCOPE_LOCK(locker_[disp_idx]);
-  if (sdm_display_[disp_idx]) {
-    return sdm_display_[disp_idx]->GetDisplayConfigGroup(variable_config);
+  SCOPE_LOCK(locker_[display]);
+  if (sdm_display_[display]) {
+    return sdm_display_[display]->GetDisplayConfigGroup(variable_config);
   }
 
   return -1;
@@ -2493,19 +2504,18 @@ DisplayError ConcurrencyMgr::GetDisplayHwId(uint64_t disp_id,
 }
 
 bool ConcurrencyMgr::IsModeSwitchAllowed(uint64_t disp_id, int32_t config) {
-  int disp_idx = GetDisplayIndex(disp_id);
-  if (disp_idx == -1) {
+  if (disp_id < 0) {
     DLOGW("Invalid display = %d", disp_id);
     return false;
   }
 
-  SCOPE_LOCK(locker_[disp_idx]);
-  if (!sdm_display_[disp_idx]) {
+  SCOPE_LOCK(locker_[disp_id]);
+  if (!sdm_display_[disp_id]) {
     DLOGW("Display %d is not connected.", disp_id);
     return false;
   }
 
-  return sdm_display_[disp_idx]->IsModeSwitchAllowed(config);
+  return sdm_display_[disp_id]->IsModeSwitchAllowed(config);
 }
 
 DisplayError ConcurrencyMgr::GetActiveBuiltinDisplay(uint64_t *disp_id) {
@@ -2603,13 +2613,12 @@ DisplayError ConcurrencyMgr::SetFrameIntervalNs(Display display, uint32_t frame_
 }
 
 int ConcurrencyMgr::GetNotifyEptConfig(Display display) {
-  int disp_idx = GetDisplayIndex(display);
-  if (disp_idx == -1) {
-    DLOGE("Invalid display = %d", disp_idx);
+  if (display < 0) {
+    DLOGE("Invalid display = %d", display);
     return -1;
   }
 
-  return sdm_display_[disp_idx]->GetNotifyEptConfig();
+  return sdm_display_[display]->GetNotifyEptConfig();
 }
 
 DisplayError ConcurrencyMgr::SetABCState(uint64_t display_id, bool state) {
@@ -2658,6 +2667,22 @@ DisplayError ConcurrencyMgr::SetABCMode(uint64_t display_id, string mode_name) {
   }
 
   return sdm_display_[disp_idx]->SetABCMode(mode_name);
+}
+
+DisplayError ConcurrencyMgr::SetAIScalerMode(uint64_t display_id, uint32_t mode_id) {
+  int disp_idx = GetDisplayIndex(display_id);
+  if (disp_idx == -1) {
+    DLOGW("Invalid display = %d", display_id);
+    return kErrorResources;
+  }
+
+  SCOPE_LOCK(locker_[disp_idx]);
+  if (!sdm_display_[disp_idx]) {
+    DLOGW("Display %d is not connected.", display_id);
+    return kErrorResources;
+  }
+
+  return sdm_display_[disp_idx]->SetAIScalerMode(mode_id);
 }
 
 DisplayError ConcurrencyMgr::SetPanelFeatureConfig(Display display, int32_t type, void *data) {

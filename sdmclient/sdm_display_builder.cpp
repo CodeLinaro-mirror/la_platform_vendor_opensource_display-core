@@ -816,17 +816,15 @@ int SDMDisplayBuilder::HandleConnectedDisplays(HWDisplaysInfo *displays_info,
 
 bool SDMDisplayBuilder::TeardownPluggableDisplays() {
   bool hpd_teardown_handled = false;
+  Display client_id = 0;
 
-  while (true) {
-    auto it = std::find_if(
-        map_active_displays_.begin(), map_active_displays_.end(),
-        [](auto &disp) { return disp.second->disp_type == kPluggable; });
-
-    if (it == map_active_displays_.end()) {
-      break;
+  for (auto &map_info : map_info_pluggable_) {
+    client_id = map_info.client_id;
+    // check whether pluggable display with the client_id is connected
+    auto sdm_display = cb_->GetDisplayFromClientId(client_id);
+    if (sdm_display) {  // if display is connected, then un-connect/destroy
+      hpd_teardown_handled |= !DisconnectPluggableDisplays(&map_info);
     }
-
-    hpd_teardown_handled |= !DisconnectPluggableDisplays(it->second);
   }
 
   if (hpd_teardown_handled) {

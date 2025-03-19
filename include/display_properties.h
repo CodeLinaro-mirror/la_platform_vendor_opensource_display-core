@@ -29,7 +29,7 @@
 
 /*
 * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -277,6 +277,9 @@
 #define ENABLE_ABC                        DISPLAY_PROP("enable_abc")
 #define DISABLE_ABC_PRIMARY               DISPLAY_PROP("disable_abc_primary")
 #define DISABLE_ABC_SECONDARY             DISPLAY_PROP("disable_abc_secondary")
+
+// Disable Ambient HDR
+#define DISABLE_AMBIENT_HDR               DISPLAY_PROP("disable_ambient_hdr")
 
 // Add all other.properties above
 // End of property

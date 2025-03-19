@@ -390,6 +390,15 @@ DisplayError SDMDisplayBuiltIn::SetPowerMode(SDMPowerMode mode, bool teardown) {
       cpu_hint_->ReqEvent(kPerfHintDisplayDoze);
       break;
     case SDMPowerMode::POWER_MODE_ON:
+      if (abc_defer_reconfig_) {
+        DisplayError error = display_intf_->SetABCReconfig();
+        if (error != kErrorNone) {
+          DLOGE("Failed to Reconfig ABC feature, error = %d", error);
+        }
+
+        abc_defer_reconfig_ = false;
+      }
+
       cpu_hint_->ReqEvent(kPerfHintDisplayOn);
       break;
     case SDMPowerMode::POWER_MODE_OFF:
@@ -1815,15 +1824,7 @@ DisplayError SDMDisplayBuiltIn::SetABCState(bool state) {
 
 DisplayError SDMDisplayBuiltIn::SetABCReconfig() {
   DLOGV("Display ID: %" PRId64, id_);
-  DisplayError error = display_intf_->SetABCReconfig();
-
-  if (error != kErrorNone) {
-    DLOGE("Failed to Reconfig ABC feature, error = %d", error);
-    return kErrorParameters;
-  }
-
-  callbacks_->OnRefresh(id_);
-
+  abc_defer_reconfig_ = true;
   return kErrorNone;
 }
 
@@ -1833,6 +1834,20 @@ DisplayError SDMDisplayBuiltIn::SetABCMode(string mode_name) {
 
   if (error != kErrorNone) {
     DLOGE("Failed to set ABC mode %s, error = %d", mode_name.c_str(), error);
+    return kErrorParameters;
+  }
+
+  callbacks_->OnRefresh(id_);
+
+  return kErrorNone;
+}
+
+DisplayError SDMDisplayBuiltIn::SetAIScalerMode(uint32_t mode_id) {
+  DLOGV("Display ID: %" PRId64 " Mode ID: %d", id_, mode_id);
+  DisplayError error = display_intf_->SetAIScalerMode(mode_id);
+
+  if (error != kErrorNone) {
+    DLOGE("Failed to set AI Scaler mode ID %d, error = %d", mode_id, error);
     return kErrorParameters;
   }
 

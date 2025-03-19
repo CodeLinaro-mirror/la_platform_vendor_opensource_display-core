@@ -24,7 +24,7 @@
 
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -76,6 +76,7 @@ struct IPCDisplayConfigParams {
   uint32_t mixer_width = 0;
   uint32_t mixer_height = 0;
   std::string abc_mode = "";  //!< Current ABC mode.
+  uint32_t ai_scaler_mode_id = 0;  //!< Current AI Scaler mode ID
 };
 
 struct DemuraPaths {

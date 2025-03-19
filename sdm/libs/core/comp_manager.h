@@ -25,7 +25,7 @@
 /*
 * ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 *
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -70,6 +70,8 @@ class CompManager : public CwbCallback {
                                std::map<uint32_t, HWQosData> *default_qos_data,
                                CompManagerEventHandler *event_handler);
   DisplayError UnregisterDisplay(Handle display_ctx);
+  DisplayError SetAIScalerMode(uint32_t mode_id);
+  DisplayError GetAIScalerMode(uint32_t *mode_id);
   DisplayError ReconfigureDisplay(Handle display_ctx, DisplayDeviceContext &device_ctx,
                                   DisplayClientContext &client_ctx,
                                   std::map<uint32_t, HWQosData> *default_qos_data);

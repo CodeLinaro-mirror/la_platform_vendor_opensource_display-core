@@ -29,7 +29,7 @@
 
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -160,6 +160,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(SetABCState(bool state))
   MAKE_NO_OP(SetABCReconfig())
   MAKE_NO_OP(SetABCMode(const string &mode_name))
+  MAKE_NO_OP(SetAIScalerMode(uint32_t mode_id));
   MAKE_NO_OP(GetQSyncMode(QSyncMode *))
   MAKE_NO_OP(colorSamplingOn());
   MAKE_NO_OP(colorSamplingOff());

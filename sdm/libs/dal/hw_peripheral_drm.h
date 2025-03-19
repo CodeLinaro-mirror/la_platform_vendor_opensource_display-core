@@ -30,7 +30,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted (subject to the limitations in the
@@ -143,10 +143,12 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
 
   struct AIScalerCache {
     struct drm_msm_ai_scaler scaler_data = {};
+    uint32_t mode_id;
   };
 
   sde_drm_dest_scaler_data sde_dest_scalar_data_ = {};
   struct drm_msm_ai_scaler sde_ai_scaler_cfg_ = {};
+  uint32_t ai_scaler_current_mode_id_ = 0;
   std::vector<SDEScaler> scalar_data_ = {};
   sde_drm::DRMIdlePCState idle_pc_state_ = sde_drm::DRMIdlePCState::NONE;
   bool idle_pc_enabled_ = true;

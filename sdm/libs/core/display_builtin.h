@@ -260,6 +260,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetABCState(bool state) override;
   DisplayError SetABCReconfig() override;
   DisplayError SetABCMode(const string &mode_name) override;
+  DisplayError SetAIScalerMode(uint32_t mode_id) override;
   DisplayError SetPanelFeatureConfig(int32_t type, void *data) override;
   DisplayError StartTvmServices();
   DisplayError StartService(TvmDispServiceManagerParams service);
@@ -417,6 +418,7 @@ class DisplayBuiltIn : public DisplayBase,
   bool abc_enabled_ = false;
   bool abc_tvm_enabled_ = false;
   bool abc_prop_ = false;
+  bool enable_ai_scaler_ = false;
   bool enable_dpps_dyn_fps_ = false;
   HWDisplayMode last_panel_mode_ = kModeDefault;
   bool hdr_present_ = false;
