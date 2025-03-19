@@ -23,9 +23,9 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
 #include "display_builtin.h"
@@ -4737,17 +4737,54 @@ DisplayError DisplayBuiltIn::SetDemuraTnCWBSamplingPeriod(void *data) {
 }
 
 DisplayError DisplayBuiltIn::ExportDemuraFiles() {
-  if (!pm_intf_) {
-    DLOGW("Invalid parser manager intf");
+#if !defined(SDM_UNIT_TESTING) && !defined(TRUSTED_VM)
+  int ret = 0;
+  const std::string kConfigFilePath = "/mnt/vendor/persist/display/";
+  std::vector<std::string> configs = {"demura_config_", "demura_publickey_", "demura_signature_"};
+
+  if (!panel_id_) {
+    DLOGE("Invalid panel id %llx", panel_id_);
     return kErrorUndefined;
   }
 
-  GenericPayload in;
-  int ret = pm_intf_->SetParameter(kDemuraParserManagerExportDemuraFiles, in);
-  if (ret) {
-    DLOGE("Failed to export demura files, ret %d", ret);
+  if (!vm_file_xfer_intf_) {
+    DLOGE("Invalid xfer client intf");
     return kErrorUndefined;
   }
+
+  std::vector<std::string> filenames;
+  for (const std::string &config : configs) {
+    std::stringstream file_path;
+    file_path << kConfigFilePath << config << std::setfill('0') << std::setw(16) << std::hex
+              << panel_id_;
+
+    std::string filename = file_path.str();
+    std::ifstream file(filename);
+    if (!file.good()) {
+      DLOGE("File does not exist or is not readable: %s", filename.c_str());
+      return kErrorUndefined;
+    }
+
+    filenames.push_back(filename);
+  }
+
+  GenericPayload s_in;
+  VMFileXferStoreInput *s_ip = nullptr;
+  ret = s_in.CreatePayload<VMFileXferStoreInput>(s_ip);
+  if (ret || s_ip == nullptr) {
+    DLOGE("Failed to create input payload error = %d", ret);
+    return kErrorUndefined;
+  }
+
+  for (const std::string &filename : filenames) {
+    s_ip->local_file_path = filename;
+    ret = vm_file_xfer_intf_->SetParameter(kVMFileTransferParamsStore, s_in);
+    if (ret) {
+      DLOGE("Failed to store config file: %s", s_ip->local_file_path.c_str());
+      return kErrorUndefined;
+    }
+  }
+#endif
 
   return kErrorNone;
 }
@@ -4868,15 +4905,6 @@ int DisplayBuiltIn::StartVmFileServiceAndExportFiles() {
     DLOGI("Started kStartVmFileTransferService");
   }
 
-  // Export files
-  if (demura_prop_) {
-    error = ExportDemuraFiles();
-    if (error) {
-      DLOGE("Failed to export demura files, error %d", error);
-      return -EINVAL;
-    }
-  }
-
   error = ExportABCFiles();
   if (error) {
     DLOGE("Failed to export ABC files, error %d", error);
@@ -4904,6 +4932,14 @@ int DisplayBuiltIn::StartVmFileServiceAndExportFiles() {
     return ret;
   } else {
     DLOGI("Created VmFileXferClient");
+  }
+
+  // Export files
+  if (demura_prop_) {
+    error = ExportDemuraFiles();
+    if (error) {
+      DLOGE("Failed to export demura files, error %d", error);
+    }
   }
 
   return ret;
