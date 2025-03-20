@@ -111,6 +111,7 @@ DisplayError CoreImpl::Init() {
   }
 
   error = HWInfoInterface::Create(&hw_info_intf_, core_ids_);
+  drm_node_unavailable_ = (error == kErrorCriticalResource);
   if (error != kErrorNone) {
     DisplayError err = HandleNullDisplay();
     if ((err != kErrorNone) || !enable_null_display_) {
@@ -431,7 +432,7 @@ DisplayError CoreImpl::HandleNullDisplay() {
     return error;
   }
   DLOGI("comp manager successfully initialized with default hw resources");
-  enable_null_display_ = !comp_mgr_.IsDisplayHWAvailable();
+  enable_null_display_ = (!comp_mgr_.IsDisplayHWAvailable() || drm_node_unavailable_);
   return kErrorNone;
 }
 

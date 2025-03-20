@@ -151,6 +151,7 @@ class CoreImpl : public CoreInterface {
   bool enable_null_display_ = false;
   std::bitset<8> core_ids_ = std::bitset<8>(0xFF);
   std::shared_ptr<DemuraTnValidatorIntf> demuratn_validator_intf_;
+  bool drm_node_unavailable_ = false;
 };
 
 }  // namespace sdm
