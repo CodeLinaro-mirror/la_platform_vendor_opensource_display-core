@@ -28,10 +28,10 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __DISPLAY_PROPERTIES_H__
 #define __DISPLAY_PROPERTIES_H__
@@ -271,6 +271,7 @@
 #define HAL_REFRESH_HEADROOM                 DISPLAY_PROP("hal_refresh_headroom")
 #define BUILTIN_MIRRORING                    DISPLAY_PROP("builtin_mirroring")
 #define BUILTIN_PRESENTATION                 DISPLAY_PROP("builtin_presentation")
+#define DISABLE_DYNAMIC_SPLIT                DISPLAY_PROP("disable_dynamic_split")
 #define DISABLE_FP16_SUPPORT                 DISPLAY_PROP("disable_fp16_support")
 #define LSR_VARIANT                          DISPLAY_PROP("lsr_variant")
 #define ENABLE_SPLIT_VOTE                    DISPLAY_PROP("enable_split_vote")
