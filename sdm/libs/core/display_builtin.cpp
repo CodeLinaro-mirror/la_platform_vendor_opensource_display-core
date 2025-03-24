@@ -246,7 +246,8 @@ DisplayError DisplayBuiltIn::Init() {
             HWEvent::BACKLIGHT_EVENT,
             HWEvent::POWER_EVENT,
             HWEvent::MMRM,
-            HWEvent::VM_RELEASE_EVENT};
+            HWEvent::VM_RELEASE_EVENT,
+            HWEvent::VM_RECLAIM_EVENT};
   if (client_ctx_.hw_panel_info.mode == kModeCommand) {
     events.push_back(HWEvent::IDLE_POWER_COLLAPSE);
   }
@@ -3498,6 +3499,11 @@ void DisplayBuiltIn::HandlePowerEvent() {
 void DisplayBuiltIn::HandleVmReleaseEvent() {
   if (event_handler_)
     event_handler_->HandleEvent(kVmReleaseDone);
+}
+
+void DisplayBuiltIn::HandleVmReclaimEvent() {
+  if (event_handler_)
+    event_handler_->HandleEvent(kVmReclaimDone);
 }
 
 DisplayError DisplayBuiltIn::GetQsyncFps(uint32_t *qsync_fps) {

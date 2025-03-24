@@ -491,6 +491,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                                     uint32_t refresh_rate,
                                     uint32_t qsync_refresh_rate);
   virtual void VmReleaseDone(Display display);
+  virtual void VmReclaimDone(Display display);
   virtual DisplayError NotifyCwbDone(int dpy_index, int32_t status,
                                      uint64_t handle_id);
   virtual int NotifyIdleStatus(bool idle_status);

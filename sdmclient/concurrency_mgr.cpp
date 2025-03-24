@@ -1351,6 +1351,10 @@ void ConcurrencyMgr::VmReleaseDone(Display display) {
   tui_->VmReleaseDone(display);
 }
 
+void ConcurrencyMgr::VmReclaimDone(Display display) {
+  tui_->VmReclaimDone(display);
+}
+
 void ConcurrencyMgr::HandleSecureSession() {
   std::bitset<kSecureMax> secure_sessions = 0;
   Display client_id = kNumDisplays;

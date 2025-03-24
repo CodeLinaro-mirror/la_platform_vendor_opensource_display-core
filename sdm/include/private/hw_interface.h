@@ -92,6 +92,7 @@ class HWEventHandler {
   virtual void MMRMEvent(uint32_t clk) = 0;
   virtual void HandlePowerEvent() = 0;
   virtual void HandleVmReleaseEvent() = 0;
+  virtual void HandleVmReclaimEvent() = 0;
   virtual void GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) = 0;
   virtual bool IsPrimaryDisplay() = 0;
   virtual DisplayError GetPanelBrightnessBasePath(std::string *base_path) = 0;
