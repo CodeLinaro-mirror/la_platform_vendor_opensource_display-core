@@ -1606,6 +1606,13 @@ DisplayError SDMDisplay::HandleEvent(DisplayEvent event) {
             id_);
     }
   } break;
+  case kVmReclaimDone: {
+    if (event_handler_) {
+      event_handler_->VmReclaimDone(id_);
+    } else {
+      DLOGW("Cannot execute VmReclaimDone (client_id = %" PRId64 "), event_handler_ is null", id_);
+    }
+  } break;
   case kIdleTimeout:
     ReqPerfHintRelease();
     break;
