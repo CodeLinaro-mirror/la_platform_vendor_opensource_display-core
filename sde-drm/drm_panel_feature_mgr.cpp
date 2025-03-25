@@ -133,6 +133,11 @@ void DRMPanelFeatureMgr::Init(int fd, drmModeRes* res) {
     }
   }
 
+  for (int i = kDRMPanelFeatureDsppIndex; i < kDRMPanelFeatureMax; ++i) {
+    DRMPanelFeatureID prop_id = static_cast<DRMPanelFeatureID>(i);
+    drm_prop_blob_ids_cache_[prop_id] = std::deque<uint32_t>();
+  }
+
   drm_property_map_[kDRMPanelFeatureDemuraResources] = DRMProperty::DEMURA_BOOT_PLANE_V1;
   drm_property_map_[kDRMPanelFeaturePanelId] = DRMProperty::DEMURA_PANEL_ID;
   drm_property_map_[kDRMPanelFeatureSPRUDC] = DRMProperty::SPR_UDC_CFG_V2;
