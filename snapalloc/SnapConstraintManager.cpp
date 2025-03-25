@@ -247,7 +247,7 @@ Error SnapConstraintManager::GetAllocationData(
       }
     }
     ubwc_caps_.version = ubwc_version;
-    err = ubwc_policy_->GetUBWCAlloc(*out_desc, ubwc_caps_, out_ad, out_layout);
+    err = ubwc_policy_->GetUBWCAlloc(*out_desc, cap_map, ubwc_caps_, out_ad, out_layout);
   } else {
     if (ubwc_disabled_prop) {
       // Reset UBWC bit for UBWC disabled case
