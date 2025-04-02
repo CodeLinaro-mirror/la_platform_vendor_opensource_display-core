@@ -246,6 +246,99 @@
                                 }
                             ]
                         }
+                    },
+                    {
+                        "modifier": 10,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 512,
+                                    "scanline_align": 512,
+                                    "size_align_bytes": 1
+                                },
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "CB"
+                                        },
+                                        {
+                                            "component_type": "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 512,
+                                    "scanline_align": 256,
+                                    "size_align_bytes": 1
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "modifier" : 16,
+                        "constraints" : {
+                            "size_align_bytes" : 4096,
+                            "planes" : [
+                                {
+                                    "components": [
+                                        {
+                                            "component_type" : "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes" : 1024,
+                                    "scanline_align" : 1024,
+                                    "size_align_bytes": 1
+                                },
+                                {
+                                    "components": [
+                                        {
+                                            "component_type" : "CB"
+                                        },
+                                        {
+                                            "component_type" : "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes" : 1024,
+                                    "scanline_align" : 512,
+                                    "size_align_bytes": 1
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "modifier" : 11,
+                        "constraints" : {
+                            "size_align_bytes" : 4096,
+                            "planes" : [
+                                {
+                                    "components": [
+                                        {
+                                            "component_type" : "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes" : 512,
+                                    "scanline_align" : 512,
+                                    "size_align_bytes": 1
+                                },
+                                {
+                                    "components": [
+                                        {
+                                            "component_type" : "CB"
+                                        },
+                                        {
+                                            "component_type" : "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes" : 512,
+                                    "scanline_align" : 256,
+                                    "size_align_bytes": 1
+                                }
+                            ]
+                        }
                     }
                 ]
             },
@@ -457,6 +550,130 @@
                                     ],
                                     "horiz_stride_align_bytes": 256,
                                     "scanline_align": 16,
+                                    "size_align_bytes": 1
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "modifier": 1,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 32,
+                                    "size_align_bytes": 1
+                                },
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "CB"
+                                        },
+                                        {
+                                            "component_type": "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 16,
+                                    "size_align_bytes": 1
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "modifier": 11,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 1024,
+                                    "scanline_align": 512,
+                                    "size_align_bytes": 1
+                                },
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "CB"
+                                        },
+                                        {
+                                            "component_type": "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 1024,
+                                    "scanline_align": 256,
+                                    "size_align_bytes": 1
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "modifier": 10,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 1024,
+                                    "scanline_align": 512,
+                                    "size_align_bytes": 1
+                                },
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "CB"
+                                        },
+                                        {
+                                            "component_type": "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 1024,
+                                    "scanline_align": 256,
+                                    "size_align_bytes": 1
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "modifier": 16,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 2048,
+                                    "scanline_align": 1024,
+                                    "size_align_bytes": 1
+                                },
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "CB"
+                                        },
+                                        {
+                                            "component_type": "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 2048,
+                                    "scanline_align": 512,
                                     "size_align_bytes": 1
                                 }
                             ]

@@ -44,7 +44,9 @@ int VideoConstraintProvider::GetCapabilities(BufferDescriptor desc, CapabilitySe
       desc.usage & vendor_qti_hardware_display_common_BufferUsage::QTI_PRIVATE_VIDEO_HW ||
       desc.usage & vendor_qti_hardware_display_common_BufferUsage::HW_IMAGE_ENCODER ||
       (pixel_format_modifier == static_cast<uint64_t>(PIXEL_FORMAT_MODIFIER_VENUS) ||
-       pixel_format_modifier == static_cast<uint64_t>(PIXEL_FORMAT_MODIFIER_ENCODEABLE))) {
+       pixel_format_modifier == static_cast<uint64_t>(PIXEL_FORMAT_MODIFIER_ENCODEABLE) ||
+       pixel_format_modifier == static_cast<uint64_t>(PIXEL_FORMAT_MODIFIER_HEIF) ||
+       pixel_format_modifier == static_cast<uint64_t>(PIXEL_FORMAT_MODIFIER_1K_ALIGNED))) {
     DLOGD_IF(enable_logs, "VideoConstraintProvider is enabled");
     out->enabled = true;
   } else {
@@ -132,13 +134,30 @@ int VideoConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConstra
   BufferConstraints data;
   int status = 0;
   status = BuildConstraints(desc, &data);
-  if (status != Error::NONE) {
-    DLOGW("Error while getting constraints from video libs width %d, height %d, format %d",
-          desc.width, desc.height, static_cast<uint64_t>(desc.format));
-    return -1;
+  if (status == Error::NONE) {
+    *out = data;
+    return 0;
   }
-  *out = data;
-  return 0;
+  DLOGW("Error while getting constraints from video libs width %d, height %d, format %d",
+        desc.width, desc.height, static_cast<uint64_t>(desc.format));
+  DLOGD_IF(enable_logs, "Using JSON to determine constraints");
+  auto modifier = GetPixelFormatModifier(desc);
+  if ((modifier ==
+       vendor_qti_hardware_display_common_PixelFormatModifier::PIXEL_FORMAT_MODIFIER_HEIF) ||
+      (modifier ==
+       vendor_qti_hardware_display_common_PixelFormatModifier::PIXEL_FORMAT_MODIFIER_1K_ALIGNED)) {
+    DLOGD_IF(enable_logs, "Using alignment JSON for constraints");
+    if (constraint_set_map_.empty()) {
+      DLOGW("VideoConstraintProvider constraint set map is empty");
+      return -1;
+    }
+    if (!(parser_->GetBufferConstraints(constraint_set_map_, desc, out))) {
+      DLOGW("VideoConstraintProvider could not find entry for format %lu & modifier %d",
+            static_cast<uint64_t>(desc.format), GetPixelFormatModifier(desc));
+      return -1;
+    }
+    return 0;
+  }
 #endif
 
   if (constraint_set_map_.empty()) {
