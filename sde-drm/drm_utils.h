@@ -29,7 +29,7 @@
 
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
-* Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2023, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -55,6 +55,8 @@ void ParseFormats(const std::string &line, std::vector<std::pair<uint32_t, uint6
 void Tokenize(const std::string &str, std::vector<std::string> *tokens, char delim);
 void AddProperty(drmModeAtomicReqPtr req, uint32_t object_id, uint32_t property_id, uint64_t value,
                  bool cache, std::unordered_map<uint32_t, uint64_t> &prop_val_map);
+uint16_t DRM_float_2_FP16(const float in);
+float DRM_FP16_2_float(const uint16_t in);
 
 // common to plane and crtc
 static std::pair<uint32_t, uint32_t> alpha_range_ = {0, UINT16_MAX};

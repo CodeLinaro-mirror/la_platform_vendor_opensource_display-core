@@ -3665,6 +3665,7 @@ void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
         hw_layer.input_buffer.height = sdm_layer->input_buffer.height;
         hw_layer.input_buffer.unaligned_width = sdm_layer->input_buffer.unaligned_width;
         hw_layer.input_buffer.unaligned_height = sdm_layer->input_buffer.unaligned_height;
+        hw_layer.hdr_sdr_ratio = sdm_layer->hdr_sdr_ratio;
       }
     }
   }
