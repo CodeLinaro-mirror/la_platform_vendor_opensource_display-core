@@ -28,9 +28,8 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- *
- * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ * Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -373,10 +372,6 @@ bool IsWideColor(const QtiColorPrimaries &primary) {
   }
 }
 
-bool IsExtendedRange(LayerBuffer buffer) {
-  return (Is16BitFormat(buffer.format) && buffer.dataspace.range == QtiRange_Extended);
-}
-
 // TODO(user): eventually we should upgrade the legacy ColorMetadata struct in
 // snapdragon_color_intf.h so we don't have to do all this
 ColorMetaData convertToLegacyColorMetadata(const LayerBuffer *buffer) {
@@ -434,6 +429,40 @@ ColorMetaData convertToLegacyColorMetadata(const LayerBuffer *buffer) {
   memcpy(&data.dynamicMetaDataPayload, &buffer->dynamicMetadata.dynamicMetaDataPayload, buffer->dynamicMetadata.dynamicMetaDataLen);
 
   return data;
+}
+
+bool IsFP16ExtendedRange(LayerBuffer buffer) {
+  return (Is16BitFormat(buffer.format) && buffer.dataspace.range == QtiRange_Extended);
+}
+
+bool IsHDRLayer(LayerBuffer buffer) {
+  if (buffer.dataspace.colorPrimaries == QtiColorPrimaries_BT2020 &&
+      (buffer.dataspace.transfer == QtiTransfer_SMPTE_ST2084 ||
+       buffer.dataspace.transfer == QtiTransfer_HLG)) {
+    return true;
+  } else if (IsFP16ExtendedRange(buffer)) {
+    // Treat input format FP16 with extended range as HDR layer
+    // TODO(user): treat any extended range content as HDR layer
+    return true;
+  }
+  return false;
+}
+
+bool HasHDRMetadata(LayerBuffer buffer) {
+  return (buffer.dynamicMetadata.dynamicMetaDataValid ||
+          buffer.masteringDisplayInfo.colorVolumeSEIEnabled ||
+          buffer.contentLightLevel.lightLevelSEIEnabled);
+}
+
+bool IsSCRGB(LayerBuffer buffer) {
+  return (IsFP16ExtendedRange(buffer) &&
+          buffer.dataspace.colorPrimaries == QtiColorPrimaries_BT709_5 &&
+          (buffer.dataspace.transfer == QtiTransfer_sRGB ||
+           buffer.dataspace.transfer == QtiTransfer_Linear)
+#ifdef ANDROID
+          && HasHDRMetadata(buffer)
+#endif
+  );
 }
 
 }  // namespace sdm

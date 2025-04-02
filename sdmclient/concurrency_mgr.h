@@ -61,7 +61,7 @@
 #include "sdm_display_builtin.h"
 #include "sdm_display_intf_aiqe.h"
 #include "sdm_display_intf_caps.h"
-#include "sdm_display_intf_drawcycle.h"
+#include "sdm_display_intf_drawcycle_v2.h"
 #include "sdm_display_intf_lifecycle.h"
 #include "sdm_display_intf_parcel.h"
 #include "sdm_display_intf_settings.h"
@@ -86,7 +86,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                        public SDMDisplayCapsIntf,
                        public SDMDisplaySettingsIntf,
                        public SDMDisplayLifeCycleIntf,
-                       public SDMDisplayDrawCycleIntf,
+                       public SDMDisplayDrawCycleIntfV2,
                        public SDMTrustedUICbIntf,
                        public SDMServicesCbIntf,
                        public SDMHotPlugCbIntf,
@@ -451,9 +451,11 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                                 LayerId *out_layers,
                                 std::vector<shared_ptr<Fence>> *out_fences);
   DisplayError SetClientTarget(uint64_t display, const SnapHandle *target,
-                               shared_ptr<Fence> acquire_fence,
-                               int32_t dataspace, const SDMRegion &region,
-                               uint32_t version);
+                               shared_ptr<Fence> acquire_fence, int32_t dataspace,
+                               const SDMRegion &region, uint32_t version);
+  DisplayError SetClientTarget(uint64_t display, const SnapHandle *target,
+                               shared_ptr<Fence> acquire_fence, int32_t dataspace,
+                               const SDMRegion &region, uint32_t version, float hdr_sdr_ratio);
   DisplayError SetCursorPosition(Display display, LayerId layer, int32_t x,
                                  int32_t y);
   DisplayError GetDataspaceSaturationMatrix(int32_t /*Dataspace*/ int_dataspace,
