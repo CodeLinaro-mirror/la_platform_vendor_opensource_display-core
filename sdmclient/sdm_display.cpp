@@ -1032,9 +1032,12 @@ void SDMDisplay::BuildLayerStack() {
       dump_frame_count_ && (dump_output_to_file_ || dump_input_layers_);
   DLOGV_IF(kTagClient, "layer_stack_.client_incompatible : %d",
            layer_stack_.client_incompatible);
+
+  if (layer_stack_.flags.front_buffer_layer_present) {
+    DLOGV_IF(kTagClient, "front buffer layer present");
+  }
+
   SDMDebugHandler::ATRACE_INT("HDRPresent ", layer_stack_.flags.hdr_present ? 1 : 0);
-  SDMDebugHandler::ATRACE_INT("FrontBufferPresent ",
-                              layer_stack_.flags.front_buffer_layer_present ? 1 : 0);
 }
 
 void SDMDisplay::BuildSolidFillStack() {
