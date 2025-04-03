@@ -94,8 +94,8 @@ DisplayError SDMDisplayBuiltIn::Create(CoreInterface *core_intf, BufferAllocator
   return status;
 }
 
-void SDMDisplayBuiltIn::Destroy(SDMDisplay *sdm_display) {
-  sdm_display->Deinit();
+void SDMDisplayBuiltIn::Destroy(SDMDisplay *sdm_display, bool deinit_layer_builder) {
+  sdm_display->Deinit(deinit_layer_builder);
   delete sdm_display;
 }
 
@@ -1335,13 +1335,13 @@ bool SDMDisplayBuiltIn::HasSmartPanelConfig(void) {
   return false;
 }
 
-DisplayError SDMDisplayBuiltIn::Deinit() {
+DisplayError SDMDisplayBuiltIn::Deinit(bool deinit_layer_builder) {
   // Destory color convert instance. This destroys thread and underlying GL
   // resources.
   callbacks_->DestroyLayerStitch(id_);
 
   callbacks_->StopHistogram(id_, true);
-  return SDMDisplay::Deinit();
+  return SDMDisplay::Deinit(deinit_layer_builder);
 }
 
 void SDMDisplayBuiltIn::OnTask(const LayerStitchTaskCode &task_code,

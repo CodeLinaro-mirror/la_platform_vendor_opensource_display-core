@@ -26,56 +26,42 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 /*
  * ​​​​​Changes from Qualcomm Technologies, Inc. are provided under the following license:
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
-#ifndef __SDM_DISPLAY_VIRTUAL_H__
-#define __SDM_DISPLAY_VIRTUAL_H__
+
+#ifndef __SDM_DISPLAY_NULL_H__
+#define __SDM_DISPLAY_NULL_H__
 
 #include "display_event_handler.h"
 #include "sdm_display.h"
 
 namespace sdm {
 
-class SDMDisplayVirtual : public SDMDisplay {
-public:
+class SDMDisplayNull : public SDMDisplay {
+ public:
+  static DisplayError Create(CoreInterface *core_intf, BufferAllocator *buffer_allocator,
+                             SDMCompositorCallbacks *callbacks,
+                             SDMDisplayEventHandler *event_handler, Display id, int32_t sdm_id,
+                             SDMDisplay **sdm_display);
   static void Destroy(SDMDisplay *sdm_display);
   virtual DisplayError Init();
   virtual DisplayError Deinit(bool deinit_layer_builder = true);
   virtual DisplayError Present(shared_ptr<Fence> *out_retire_fence);
-  virtual DisplayError SetFrameDumpConfig(uint32_t count,
-                                          uint32_t bit_mask_layer_type,
-                                          int32_t format,
-                                          CwbConfig &cwb_config);
-  virtual DisplayError GetDisplayType(int32_t *out_type);
-  virtual DisplayError SetColorMode(SDMColorMode mode);
-  virtual DisplayError SetColorModeWithRenderIntent(SDMColorMode mode, SDMRenderIntent intent);
-  virtual DisplayError SetOutputBuffer(const SnapHandle *buf,
-                                       shared_ptr<Fence> release_fence);
-  virtual DisplayError DumpVDSBuffer();
-  bool NeedsGPUBypass();
-  virtual DisplayError PreValidateDisplay(bool *exit_validate);
-  virtual DisplayError CommitOrPrepare(bool validate_only,
-                                       shared_ptr<Fence> *out_retire_fence,
-                                       uint32_t *out_num_types,
-                                       uint32_t *out_num_requests,
+  virtual DisplayError Flush();
+  virtual DisplayError CommitOrPrepare(bool validate_only, shared_ptr<Fence> *out_retire_fence,
+                                       uint32_t *out_num_types, uint32_t *out_num_requests,
                                        bool *needs_commit);
-  SDMDisplayVirtual(CoreInterface *core_intf, BufferAllocator *buffer_allocator,
-                    SDMCompositorCallbacks *callbacks, Display id, int32_t sdm_id, uint32_t width,
-                    uint32_t height);
 
- protected:
-  uint32_t width_ = 0;
-  uint32_t height_ = 0;
-  std::shared_ptr<LayerBuffer> output_buffer_ = std::make_shared<LayerBuffer>();
-  const SnapHandle *output_handle_;
-
-private:
-  bool dump_output_layer_ = false;
+ private:
+  SDMDisplayNull(CoreInterface *core_intf, BufferAllocator *buffer_allocator,
+                 SDMCompositorCallbacks *callbacks, SDMDisplayEventHandler *event_handler,
+                 Display id, int32_t sdm_id);
 };
 
-} // namespace sdm
+}  // namespace sdm
 
-#endif // __SDM_DISPLAY_VIRTUAL_H__
+#endif  // __SDM_DISPLAY_NULL_H__

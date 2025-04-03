@@ -770,7 +770,7 @@ void SDMDisplay::UpdateConfigs() {
   }
 }
 
-DisplayError SDMDisplay::Deinit() {
+DisplayError SDMDisplay::Deinit(bool deinit_layer_builder) {
   DisplayError error = core_intf_->DestroyDisplay(display_intf_);
   if (error != kErrorNone) {
     DLOGE("Display destroy failed. Error = %d", error);
@@ -793,8 +793,10 @@ DisplayError SDMDisplay::Deinit() {
     delete color_mode_;
   }
 
-  layer_builder_->DeInit(id_);
-  layer_builder_ = nullptr;
+  if (deinit_layer_builder) {
+    layer_builder_->DeInit(id_);
+    layer_builder_ = nullptr;
+  }
 
   return kErrorNone;
 }

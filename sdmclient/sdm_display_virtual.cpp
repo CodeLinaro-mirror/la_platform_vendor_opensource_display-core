@@ -27,10 +27,8 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * ​​​​​Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <stdarg.h>
@@ -65,7 +63,9 @@ DisplayError SDMDisplayVirtual::Init() {
   return kErrorNone;
 }
 
-DisplayError SDMDisplayVirtual::Deinit() { return SDMDisplay::Deinit(); }
+DisplayError SDMDisplayVirtual::Deinit(bool deinit_layer_builder) {
+  return SDMDisplay::Deinit();
+}
 
 bool SDMDisplayVirtual::NeedsGPUBypass() {
   return display_paused_ || active_secure_sessions_.any() ||
