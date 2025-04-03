@@ -125,6 +125,7 @@ class SnapHandleData : public SnapHandleInternal {
     prop.custom_content_md_reserved_size = custom_content_md_size;
     prop.pixel_format_modifier = pixel_format_modifier;
     prop.view = view;
+    prop.lock_count = 0;
   }
 };
 void SnapHandleInternal::closeFds() {
