@@ -171,7 +171,7 @@ public:
   virtual ~SDMDisplay() {}
 
   virtual DisplayError Init();
-  virtual DisplayError Deinit();
+  virtual DisplayError Deinit(bool deinit_layer_builder = true);
 
   virtual DisplayError GetFixedConfig(DisplayConfigFixedInfo *info);
 

@@ -84,7 +84,9 @@ DisplayError SDMDisplayVirtual::Init() {
   return kErrorNone;
 }
 
-DisplayError SDMDisplayVirtual::Deinit() { return SDMDisplay::Deinit(); }
+DisplayError SDMDisplayVirtual::Deinit(bool deinit_layer_builder) {
+  return SDMDisplay::Deinit();
+}
 
 bool SDMDisplayVirtual::NeedsGPUBypass() {
   return display_paused_ || active_secure_sessions_.any() ||

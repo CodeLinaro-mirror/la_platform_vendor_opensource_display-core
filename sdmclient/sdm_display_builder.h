@@ -1,5 +1,4 @@
 /*
- * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
@@ -13,6 +12,7 @@
 
 #include "sdm_display.h"
 #include "sdm_display_builder_cb_intf.h"
+#include "sdm_display_null.h"
 #include "sdm_display_builtin.h"
 #include "sdm_display_pluggable.h"
 #include "sdm_display_pluggable_test.h"
@@ -71,6 +71,7 @@ class SDMDisplayBuilder {
   void HandlePluggableDisplaysAsync(const shared_ptr<Fence> &retire_fence = nullptr);
   int HandleConnectedDisplays(HWDisplaysInfo *hw_displays_info, bool delay_hotplug);
   int HandleDisconnectedDisplays(HWDisplaysInfo *hw_displays_info);
+  DisplayError HandleConnectedPrimaryDisplays(const HWDisplayInfo &info);
   void DestroyDisplayLocked(int display_id);
   void DestroyPluggableDisplay(DisplayMapInfo *map_info);
   void DestroyPluggableDisplayLocked(DisplayMapInfo *map_info);
@@ -139,6 +140,9 @@ class SDMDisplayBuilder {
 
   HotPlugEvent pending_hotplug_event_ = kHotPlugNone;
   Locker *locker_ = nullptr;
+
+  bool null_display_active_ = false;
+  SDMDisplay *null_display_ = nullptr;
 };
 
 }  // namespace sdm
