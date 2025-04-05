@@ -30,7 +30,7 @@
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted (subject to the limitations in the
@@ -102,6 +102,7 @@ using std::lock_guard;
 
 #define MAX_SCALER_LINEWIDTH 2560
 
+// clang-format off
 static struct sde_drm_csc_v1 csc_10bit_convert[kCscTypeMax] = {
   [kCscYuv2Rgb601L] = {
     {
@@ -216,7 +217,19 @@ static struct drm_msm_fp16_csc csc_fp16_convert[kFP16CscTypeMax] = {
       FP16_CSC_CFG1_PARAM_LEN,
       {0xD527, 0x5A7D, 0XCC26, 0x586D, 0xCB6C, 0x585D, 0x0, 0x57D0,}
   },
+  [kFP16CscTypeUnity] = {
+      0x0,  // flags -- currently unused
+      FP16_CSC_CFG0_PARAM_LEN,
+      {
+        0x3C00, 0x0, 0x0, 0x0,
+        0x0, 0x3C00, 0x0, 0x0,
+        0x0, 0x0, 0x3C00, 0x0,
+      },
+      FP16_CSC_CFG1_PARAM_LEN,
+      {0xFFFF, 0x7FFF, 0xFFFF, 0x7FFF, 0xFFFF, 0x7FFF, 0x0, 0x3C00,}
+  },
 };
+// clang-format on
 
 static uint8_t REFLECT_X = 0;
 static uint8_t REFLECT_Y = 0;
@@ -1074,16 +1087,17 @@ bool DRMPlane::SetCscConfig(drmModeAtomicReq *req, DRMCscType csc_type) {
   return true;
 }
 
-bool DRMPlane::SetFp16CscConfig(drmModeAtomicReq *req, DRMFp16CscType csc_type) {
-  if (csc_type > kFP16CscTypeMax) {
+bool DRMPlane::SetFp16CscConfig(drmModeAtomicReq *req, DRMFp16CscConfig *csc_config) {
+  if (csc_config->csc_type > kFP16CscTypeMax) {
     return false;
   }
+
   auto prop_id = prop_mgr_.GetPropertyId(DRMProperty::SDE_SSPP_FP16_CSC_V1);
   if (!prop_id) {
     return false;
   }
 
-  if (csc_type == kFP16CscTypeMax) {
+  if (csc_config->csc_type == kFP16CscTypeMax) {
 // Since logic for setting FP16 properties is in SetupAtomic, adding optimization for setting and
 // resetting blob properties leads to AddProperty being called in Validate and ignored during
 // Commit call. This invalidates the current FP16 test cases, and to avoid this we need to add
@@ -1097,17 +1111,31 @@ bool DRMPlane::SetFp16CscConfig(drmModeAtomicReq *req, DRMFp16CscType csc_type) 
     AddProperty(req, drm_plane_->plane_id, prop_id, 0, false /* cache */, tmp_prop_val_map_);
   } else {
 #ifndef SDM_VIRTUAL_DRIVER
-    if (csc_type == fp16_csc_type_) {
+    if ((csc_config->csc_type == fp16_csc_config_.csc_type) &&
+        (csc_config->hdr_sdr_ratio == fp16_csc_config_.hdr_sdr_ratio)) {
       return true;
     }
 #endif
     UnsetFp16CscConfig();
-    drmModeCreatePropertyBlob(fd_, reinterpret_cast<void *>(&csc_fp16_convert[csc_type]),
-                              sizeof(drm_msm_fp16_csc), &fp16_csc_blob_id_);
+
+    drm_msm_fp16_csc fp16_csc_copy = csc_fp16_convert[csc_config->csc_type];
+    drm_msm_fp16_csc *fp16_csc = &fp16_csc_copy;
+
+    if (csc_config->csc_type == kFP16CscTypeUnity) {
+      for (uint32_t index = 0; index < fp16_csc->cfg_param_0_len; index++) {
+        fp16_csc->cfg_param_0[index] = DRM_float_2_FP16(
+            DRM_FP16_2_float(fp16_csc->cfg_param_0[index]) / csc_config->hdr_sdr_ratio);
+      }
+    }
+
+    drmModeCreatePropertyBlob(fd_, reinterpret_cast<void *>(fp16_csc), sizeof(drm_msm_fp16_csc),
+                              &fp16_csc_blob_id_);
     AddProperty(req, drm_plane_->plane_id, prop_id, fp16_csc_blob_id_, false /* cache */,
                 tmp_prop_val_map_);
   }
-  fp16_csc_type_ = csc_type;
+
+  fp16_csc_config_.csc_type = csc_config->csc_type;
+  fp16_csc_config_.hdr_sdr_ratio = csc_config->hdr_sdr_ratio;
 
   return true;
 }
@@ -1134,14 +1162,13 @@ bool DRMPlane::SetFp16UnmultConfig(drmModeAtomicReq *req, uint32_t unmult_en) {
   return true;
 }
 
-bool DRMPlane::SetFp16GcConfig(drmModeAtomicReq *req, drm_msm_fp16_gc *fp16_gc_config) {
+bool DRMPlane::SetFp16GcConfig(drmModeAtomicReq *req, drm_msm_fp16_gc *gc_config) {
   auto prop_id = prop_mgr_.GetPropertyId(DRMProperty::SDE_SSPP_FP16_GC_V1);
   if (!prop_id) {
     return false;
   }
 
-
-  if (fp16_gc_config->mode == FP16_GC_MODE_INVALID) {
+  if (gc_config->mode == FP16_GC_MODE_INVALID) {
 #ifndef SDM_VIRTUAL_DRIVER
     if (!fp16_gc_blob_id_) {
       return true;
@@ -1151,19 +1178,18 @@ bool DRMPlane::SetFp16GcConfig(drmModeAtomicReq *req, drm_msm_fp16_gc *fp16_gc_c
     AddProperty(req, drm_plane_->plane_id, prop_id, 0, false /* cache */, tmp_prop_val_map_);
   } else {
 #ifndef SDM_VIRTUAL_DRIVER
-    if (fp16_gc_config->mode == fp16_gc_config_.mode &&
-        fp16_gc_config->flags == fp16_gc_config_.flags) {
+    if (gc_config->mode == fp16_gc_config_.mode && gc_config->flags == fp16_gc_config_.flags) {
       return true;
     }
 #endif
     UnsetFp16GcConfig();
-    drmModeCreatePropertyBlob(fd_, reinterpret_cast<void *>(fp16_gc_config),
-                              sizeof(drm_msm_fp16_gc), &fp16_gc_blob_id_);
+    drmModeCreatePropertyBlob(fd_, reinterpret_cast<void *>(gc_config), sizeof(drm_msm_fp16_gc),
+                              &fp16_gc_blob_id_);
     AddProperty(req, drm_plane_->plane_id, prop_id, fp16_gc_blob_id_, false /* cache */,
                 tmp_prop_val_map_);
   }
-  fp16_gc_config_.mode = fp16_gc_config->mode;
-  fp16_gc_config_.flags = fp16_gc_config->flags;
+  fp16_gc_config_.mode = gc_config->mode;
+  fp16_gc_config_.flags = gc_config->flags;
 
   return true;
 }
@@ -1542,8 +1568,10 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
     } break;
 
     case DRMOps::PLANE_SET_FP16_CSC_CONFIG: {
-      uint32_t config = va_arg(args, uint32_t);
-      SetFp16CscConfig(req, (DRMFp16CscType)config);
+      DRMFp16CscConfig *config = va_arg(args, DRMFp16CscConfig *);
+      if (config) {
+        SetFp16CscConfig(req, config);
+      }
     } break;
 
     case DRMOps::PLANE_SET_FP16_GC_CONFIG: {
@@ -1803,7 +1831,8 @@ void DRMPlane::Unset(bool is_commit, drmModeAtomicReq *req) {
   ResetColorLUTs(is_commit, req);
 
   // Reset FP16 properties
-  PerformWrapper(DRMOps::PLANE_SET_FP16_CSC_CONFIG, req, kFP16CscTypeMax);
+  DRMFp16CscConfig fp16_csc_config = {.csc_type = kFP16CscTypeMax, .hdr_sdr_ratio = 1.0f};
+  PerformWrapper(DRMOps::PLANE_SET_FP16_CSC_CONFIG, req, &fp16_csc_config);
   PerformWrapper(DRMOps::PLANE_SET_FP16_IGC_CONFIG, req, 0);
   PerformWrapper(DRMOps::PLANE_SET_FP16_UNMULT_CONFIG, req, 0);
   drm_msm_fp16_gc fp16_gc_config = {.flags = 0, .mode = FP16_GC_MODE_INVALID};

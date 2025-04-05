@@ -26,13 +26,13 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #include <errno.h>
 #include <math.h>
 #include <sys/stat.h>
@@ -789,19 +789,6 @@ DisplayError SDMDisplay::Deinit() {
   return kErrorNone;
 }
 
-static bool IsHDRLayerPresent(Layer *layer) {
-  if (layer->input_buffer.dataspace.colorPrimaries ==
-          QtiColorPrimaries_BT2020 &&
-      (layer->input_buffer.dataspace.transfer == QtiTransfer_SMPTE_ST2084 ||
-       layer->input_buffer.dataspace.transfer == QtiTransfer_HLG)) {
-    return true;
-  } else if (IsExtendedRange(layer->input_buffer)) {
-    // Treat input format FP16 with extended range as HDR layer
-    return true;
-  }
-  return false;
-}
-
 void SDMDisplay::BuildLayerStack() {
   layer_stack_ = LayerStack();
   display_rect_ = LayerRect();
@@ -914,7 +901,7 @@ void SDMDisplay::BuildLayerStack() {
     // hdr flag is reset since same layer can switch b/w hdr & non-hdr content
     // eg: switching b/w hdr & sdr videos in pip
     layer->input_buffer.flags.hdr = false;
-    bool hdr_layer = IsHDRLayerPresent(layer);
+    bool hdr_layer = IsHDRLayer(layer->input_buffer);
     if (hdr_layer && !disable_hdr_handling_) {
       // Dont honor HDR when its handling is disabled
       layer->input_buffer.flags.hdr = true;
@@ -1336,11 +1323,9 @@ DisplayError SDMDisplay::GetActiveConfig(bool get_real_config, Config *out_confi
   return kErrorNone;
 }
 
-DisplayError SDMDisplay::SetClientTarget(const SnapHandle *target,
-                                         shared_ptr<Fence> acquire_fence,
-                                         int32_t dataspace,
-                                         const SDMRegion &damage,
-                                         uint32_t version) {
+DisplayError SDMDisplay::SetClientTarget(const SnapHandle *target, shared_ptr<Fence> acquire_fence,
+                                         int32_t dataspace, const SDMRegion &damage,
+                                         uint32_t version, float hdr_sdr_ratio) {
   DTRACE_SCOPED();
   // moved this check here from sdm_display
   // TODO(user): SurfaceFlinger gives us a null pointer here when doing full SDE composition
@@ -1358,6 +1343,7 @@ DisplayError SDMDisplay::SetClientTarget(const SnapHandle *target,
   Layer *sdm_layer = client_target_->GetSDMLayer();
   sdm_layer->frame_rate =
       std::min(current_refresh_rate_, SDMDisplay::GetThrottlingRefreshRate());
+  sdm_layer->hdr_sdr_ratio = hdr_sdr_ratio;
 
   SetClientTargetDataSpace(dataspace);
   client_target_->SetLayerSurfaceDamage(damage);

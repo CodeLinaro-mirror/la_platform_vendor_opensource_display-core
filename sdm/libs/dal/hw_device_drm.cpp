@@ -29,7 +29,6 @@
 
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- *
  * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
@@ -1802,16 +1801,16 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
 
           drm_atomic_intf_->Perform(DRMOps::PLANE_SET_ZORDER, pipe_id, pipe_info->z_order);
 
-          sde_drm::DRMFp16CscType fp16_csc_type = sde_drm::DRMFp16CscType::kFP16CscTypeMax;
-          int fp16_igc_en = 0;
-          int fp16_unmult_en = 0;
-          drm_msm_fp16_gc fp16_gc_config = {.flags = 0, .mode = FP16_GC_MODE_INVALID};
-          SelectFp16Config(layer.input_buffer, &fp16_igc_en, &fp16_unmult_en, &fp16_csc_type,
-                           &fp16_gc_config, layer.blending);
-          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_FP16_CSC_CONFIG, pipe_id, fp16_csc_type);
-          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_FP16_IGC_CONFIG, pipe_id, fp16_igc_en);
-          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_FP16_GC_CONFIG, pipe_id, &fp16_gc_config);
-          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_FP16_UNMULT_CONFIG, pipe_id, fp16_unmult_en);
+          sde_drm::DRMFp16Config fp16_config = {};
+          fp16_config.csc_config.hdr_sdr_ratio = layer.hdr_sdr_ratio;
+          SelectFp16Config(layer.input_buffer, &fp16_config, layer.blending);
+          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_FP16_CSC_CONFIG, pipe_id,
+                                    &fp16_config.csc_config);
+          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_FP16_IGC_CONFIG, pipe_id, fp16_config.igc_en);
+          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_FP16_GC_CONFIG, pipe_id,
+                                    &fp16_config.gc_config);
+          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_FP16_UNMULT_CONFIG, pipe_id,
+                                    fp16_config.unmult_en);
 
           // Account for PMA block activation directly at translation time to preserve layer
           // blending definition and avoid issues when a layer structure is reused.
@@ -1820,7 +1819,7 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
           if (layer_blend == kBlendingPremultiplied) {
             // If blending type is premultiplied alpha, prevent performing alpha unmultiply
             // multiple times for INV PMA / FP16 / UCSC blocks
-            if (fp16_unmult_en) {
+            if (fp16_config.unmult_en) {
               layer_blend = kBlendingCoverage;
               pipe_info->inverse_pma_info.inverse_pma = false;
               pipe_info->inverse_pma_info.op = kReset;
@@ -1932,12 +1931,9 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
           SetSsppTonemapFeatures(pipe_info);
         } else if (update_luts) {
           if (force_tonemapping_) {
-            sde_drm::DRMFp16CscType fp16_csc_type = sde_drm::DRMFp16CscType::kFP16CscTypeMax;
-            int fp16_igc_en = 0;
-            int fp16_unmult_en = 0;
-            drm_msm_fp16_gc fp16_gc_config = {.flags = 0, .mode = FP16_GC_MODE_INVALID};
-            SelectFp16Config(layer.input_buffer, &fp16_igc_en, &fp16_unmult_en, &fp16_csc_type,
-                             &fp16_gc_config, layer.blending);
+            sde_drm::DRMFp16Config fp16_config = {};
+            fp16_config.csc_config.hdr_sdr_ratio = layer.hdr_sdr_ratio;
+            SelectFp16Config(layer.input_buffer, &fp16_config, layer.blending);
 
             // Account for PMA block activation directly at translation time to preserve layer
             // blending definition and avoid issues when a layer structure is reused.
@@ -1946,7 +1942,7 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
             if (layer_blend == kBlendingPremultiplied) {
               // If blending type is premultiplied alpha, prevent performing alpha unmultiply
               // multiple times for INV PMA / FP16 / UCSC blocks
-              if (fp16_unmult_en) {
+              if (fp16_config.unmult_en) {
                 layer_blend = kBlendingCoverage;
                 pipe_info->inverse_pma_info.inverse_pma = false;
                 pipe_info->inverse_pma_info.op = kReset;
@@ -2598,40 +2594,43 @@ void HWDeviceDRM::SelectCscTypeWithColorPrimaries(const LayerBuffer &input_buffe
   }
 }
 
-void HWDeviceDRM::SelectFp16Config(const LayerBuffer &input_buffer, int *igc_en, int *unmult_en,
-                                   sde_drm::DRMFp16CscType *csc_type, drm_msm_fp16_gc *gc,
-                                   LayerBlending blend) {
-  if (csc_type == NULL || gc == NULL || igc_en == NULL || unmult_en == NULL) {
+void HWDeviceDRM::SelectFp16Config(const LayerBuffer &input_buffer,
+                                   sde_drm::DRMFp16Config *fp16_config, LayerBlending blend) {
+  if (fp16_config == NULL) {
     // FP16 block will be disabled by default for invalid params
     DLOGE("Invalid params");
     return;
   }
 
-  *csc_type = sde_drm::DRMFp16CscType::kFP16CscTypeMax;
-  *unmult_en = 0;
-  *igc_en = 0;
-  gc->flags = 0;
-  gc->mode = FP16_GC_MODE_INVALID;
-
-  if (!Is16BitFormat(input_buffer.format)) {
+  // FP16 blocks need to be configured only for extended range content (values > 1.0)
+  if (!IsFP16ExtendedRange(input_buffer)) {
     return;
   }
 
-  // FP16 block should only be configured for the expected use cases.
-  // All other cases will be disabled by default.
-  if ((input_buffer.dataspace.colorPrimaries == QtiColorPrimaries_BT709_5) &&
-      (input_buffer.dataspace.range == QtiRange_Extended)) {
-    *csc_type = sde_drm::DRMFp16CscType::kFP16CscSrgb2Bt2020;
-    gc->mode = FP16_GC_MODE_PQ;
-    if (input_buffer.dataspace.transfer == QtiTransfer_sRGB) {
-      *igc_en = 1;
-    } else if (input_buffer.dataspace.transfer == QtiTransfer_Linear) {
-      *igc_en = 0;
-    }
+  // TODO(user): remove when FP16 IGC supports more values
+  if ((input_buffer.dataspace.transfer != QtiTransfer_sRGB) &&
+      (input_buffer.dataspace.transfer != QtiTransfer_Linear)) {
+    return;
+  }
 
-    if (blend == kBlendingPremultiplied) {
-      *unmult_en = 1;
-    }
+  // Supported use cases:
+  // 1. scRGB content - treated as BT2020/PQ
+  // 2. FP16 extended range with HDR/SDR ratio > 1.0
+  // All other cases will be disabled by default.
+  if (IsSCRGB(input_buffer)) {
+    fp16_config->csc_config.csc_type = sde_drm::DRMFp16CscType::kFP16CscSrgb2Bt2020;
+    fp16_config->igc_en = (input_buffer.dataspace.transfer == QtiTransfer_sRGB) ? 1 : 0;
+    fp16_config->gc_config.mode = FP16_GC_MODE_PQ;
+    fp16_config->unmult_en = (blend == kBlendingPremultiplied) ? 1 : 0;
+    return;
+  }
+
+  if (fp16_config->csc_config.hdr_sdr_ratio > 1.0) {
+    fp16_config->csc_config.csc_type = sde_drm::DRMFp16CscType::kFP16CscTypeUnity;
+    fp16_config->igc_en = (input_buffer.dataspace.transfer == QtiTransfer_sRGB) ? 1 : 0;
+    fp16_config->gc_config.mode = fp16_config->igc_en ? FP16_GC_MODE_SRGB : FP16_GC_MODE_INVALID;
+    fp16_config->unmult_en = (blend == kBlendingPremultiplied) ? 1 : 0;
+    return;
   }
 }
 

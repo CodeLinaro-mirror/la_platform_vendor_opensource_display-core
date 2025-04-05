@@ -25,7 +25,7 @@
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted (subject to the limitations in the
@@ -334,10 +334,10 @@ struct LayerRequest {
                                    .range = QtiRange_Full,
                                    .transfer = QtiTransfer_sRGB };
   QtiMatrixCoEfficients matrixCoefficients;
-  QtiMasteringDisplay masteringDisplayInfo;
-  QtiContentLightLevel contentLightLevel;
+  QtiMasteringDisplay masteringDisplayInfo = { .colorVolumeSEIEnabled = false };
+  QtiContentLightLevel contentLightLevel = { .lightLevelSEIEnabled = false };
   QtiColorRemappingInfo cRI;
-  QtiDynamicMetadata dynamicMetadata;
+  QtiDynamicMetadata dynamicMetadata = { .dynamicMetaDataValid = false, .dynamicMetaDataLen = 0 };
                                   // Requested color metadata
   uint32_t width = 0;  // Requested unaligned width.
   uint32_t height = 0;  // Requested unalighed height
@@ -547,6 +547,8 @@ struct Layer {
 
   std::string layer_name = "";                     //!< Layer full name
   float layer_brightness = 1.0;                    //!< Layer brightness
+  float hdr_sdr_ratio = 1.0;                       //!< HDR/SDR ratio for extended range layer.
+                                                   //!< Only valid for client target in android.
 };
 
 /*! @brief This structure defines the color space + transfer of a given layer.
