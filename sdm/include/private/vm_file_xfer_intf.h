@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -36,6 +36,8 @@ struct VMFileXferRetrieveInput {
 // Pass Local file path
 struct VMFileXferStoreInput {
   std::string local_file_path = "";
+  bool overwrite = false;
+  bool size_check = false;
 };
 
 // Query remote file
