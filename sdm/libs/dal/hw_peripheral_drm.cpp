@@ -292,7 +292,7 @@ DisplayError HWPeripheralDRM::UpdateLoopBackConnector() {
   // Fake register to get the loopback connector
   sde_drm::DRMDisplayToken token = {};
   int ret = drm_mgr_intf_->RegisterDisplay(sde_drm::DRMDisplayType::VIRTUAL, &token,
-                                           true /* loopback connector */);
+                                           sde_drm::DRMConnectorIdentifier::CAC_LOOPBACK);
   if (ret) {
     if (ret != -ENODEV) {
       DLOGE("Failed registering display %d. Error: %d.", sde_drm::DRMDisplayType::VIRTUAL, ret);

@@ -765,6 +765,7 @@ void DRMPlane::GetTypeInfo(const PropertyMap &prop_map) {
   string demura_block = "demura_block=";
   string cac_mode = "cac_mode=";
   string cac_parent_rect = "cac_parent_rec=";
+  string plane_type = "plane_type=";
 
   while (std::getline(stream, line)) {
     if (line.find(inline_rot_pixel_formats) != string::npos) {
@@ -821,6 +822,12 @@ void DRMPlane::GetTypeInfo(const PropertyMap &prop_map) {
       info->cac_mode = 0xF & std::stoi(line.erase(0, cac_mode.length()));
     } else if (line.find(cac_parent_rect) != string::npos) {
       info->cac_parent_rect = std::stoi(line.erase(0, cac_parent_rect.length()));
+    } else if (line.find(plane_type) != string::npos) {
+      if (string(line, plane_type.length()) == "csc") {
+        info->type = DRMPlaneType::CSC;
+      } else if (string(line, plane_type.length()) == "repro") {
+        info->type = DRMPlaneType::REPRO;
+      }
     }
   }
 

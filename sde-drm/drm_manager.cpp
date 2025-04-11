@@ -247,8 +247,8 @@ DRMDppsManagerIntf *DRMManager::GetDppsMgrIntf() {
 }
 
 int DRMManager::RegisterDisplay(DRMDisplayType disp_type, DRMDisplayToken *token,
-                                bool has_cac_loopback) {
-  int ret = conn_mgr_->Reserve(disp_type, token, has_cac_loopback);
+                                DRMConnectorIdentifier identifier) {
+  int ret = conn_mgr_->Reserve(disp_type, token, identifier);
   if (ret) {
     if (ret == -ENODEV) {
       DRM_LOGI("display type %d is not present", disp_type);
