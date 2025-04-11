@@ -1340,7 +1340,6 @@ DisplayError DisplayBuiltIn::SetupDemuraT0() {
 }
 
 DisplayError DisplayBuiltIn::SendPanelIdToParserManager() {
-  DisplayError error = kErrorNone;
   int ret = 0;
 
   if (!pm_intf_) {
@@ -1348,22 +1347,24 @@ DisplayError DisplayBuiltIn::SendPanelIdToParserManager() {
     return kErrorUndefined;
   }
 
-  std::vector<uint64_t> *panel_ids = nullptr;
-
+  PanelIdsInfo *panel_ids_info = nullptr;
   GenericPayload in;
-  ret = in.CreatePayload<std::vector<uint64_t>>(panel_ids);
-  if (ret) {
-    DLOGE("Failed to create payload for panel ids, error = %d", ret);
+  ret = in.CreatePayload<PanelIdsInfo>(panel_ids_info);
+  if (ret || !panel_ids_info) {
+    DLOGE("Failed to create payload for panel ids, ret %d", ret);
     return kErrorResources;
   }
-  panel_ids->push_back(panel_id_);
 
+  panel_ids_info->panel_ids.push_back(panel_id_);
+  panel_ids_info->is_primary_display = IsPrimaryDisplayLocked();
   if ((ret = pm_intf_->SetParameter(kDemuraParserManagerParamPanelIds, in))) {
     DLOGE("Failed to set the panel ids to the parser manager");
     return kErrorResources;
   }
 
-  return error;
+  DLOGI("Successfully set panel ID 0x%lx to parser manager intf, is_primary_display %d", panel_id_,
+        panel_ids_info->is_primary_display);
+  return kErrorNone;
 }
 
 DisplayError DisplayBuiltIn::SetupDemuraTn() {

@@ -25,7 +25,7 @@
 /*
  * ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  *
- * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -179,14 +179,6 @@ CleanupOnError:
 }
 
 void CoreImpl::ReleaseDemuraResources() {
-  GenericPayload dummy;
-  if (pm_intf_) {
-    int ret = pm_intf_->SetParameter(kDemuraParserManagerParamReleaseParsers, dummy);
-    if (ret < 0) {
-        DLOGW("Failed to release demura parsers");
-    }
-  }
-
   for (auto &it : demura_display_ids_)
     comp_mgr_.FreeDemuraFetchResources(it);
 }
@@ -203,8 +195,6 @@ DisplayError CoreImpl::Deinit() {
   }
 
   ReleaseDemuraResources();
-  if (pm_intf_)
-    pm_intf_->Deinit();
 
   if (demuratn_validator_intf_ && demuratn_validator_intf_.use_count() == 1) {
     demuratn_validator_intf_->Deinit();
@@ -787,17 +777,6 @@ DisplayError CoreImpl::ReserveDemuraPipeResources() {
     }
 
     ValidateAndCleanupDemuraFiles();
-
-    pm_intf_ = panel_feature_factory_intf_->CreateDemuraParserManager(ipc_intf_, buffer_allocator_);
-    if (!pm_intf_) {
-      DLOGE("Failed to get Parser Manager intf");
-      return kErrorResources;
-    }
-
-    if (pm_intf_->Init() != 0) {
-      DLOGE("Failed to init Parser Manager intf");
-      return kErrorResources;
-    }
   }
 
   reserve_done_ = true;
@@ -805,6 +784,7 @@ DisplayError CoreImpl::ReserveDemuraPipeResources() {
 }
 
 DisplayError CoreImpl::ValidateAndCleanupDemuraFiles() {
+  DLOGI("Start to validate and cleanup demura files");
   if (!panel_feature_factory_intf_) {
     DLOGE("Failed to get panel feature factory intf");
     return kErrorResources;
@@ -829,6 +809,7 @@ DisplayError CoreImpl::ValidateAndCleanupDemuraFiles() {
     return kErrorResources;
   }
 
+  DLOGI("Finish validating and cleanup demura files");
   return kErrorNone;
 }
 
