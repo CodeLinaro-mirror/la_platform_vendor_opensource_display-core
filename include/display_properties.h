@@ -272,6 +272,8 @@
 #define BUILTIN_MIRRORING                    DISPLAY_PROP("builtin_mirroring")
 #define BUILTIN_PRESENTATION                 DISPLAY_PROP("builtin_presentation")
 #define DISABLE_FP16_SUPPORT                 DISPLAY_PROP("disable_fp16_support")
+#define LSR_VARIANT                          DISPLAY_PROP("lsr_variant")
+#define ENABLE_SPLIT_VOTE                    DISPLAY_PROP("enable_split_vote")
 
 // Enable AI Scaler
 #define ENABLE_AI_SCALER_PROP                DISPLAY_PROP("enable_ai_scaler")
