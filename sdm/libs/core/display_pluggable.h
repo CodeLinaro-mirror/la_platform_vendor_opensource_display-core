@@ -83,6 +83,7 @@ class DisplayPluggable : public DisplayBase, HWEventHandler {
   void MMRMEvent(uint32_t clk) override;
   void HandlePowerEvent() override;
   void HandleVmReleaseEvent() override;
+  void HandleVmReclaimEvent() override;
   void GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) override;
   bool IsPrimaryDisplay() override;
   DisplayError GetPanelBrightnessBasePath(std::string *base_path) override;
