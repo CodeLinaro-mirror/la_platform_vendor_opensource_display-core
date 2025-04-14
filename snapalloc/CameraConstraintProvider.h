@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #ifndef __CAMERA_CONSTRAINT_PROVIDER_H__
@@ -10,6 +10,7 @@
 #include "Debug.h"
 #include "SnapConstraintProvider.h"
 #include "SnapUtils.h"
+#include "SnapMemAllocDefs.h"
 
 // Plane types supported by the camera format
 typedef enum {
@@ -40,14 +41,18 @@ typedef enum : unsigned int {
                                                   // individual APIs
   CAMERA_PIXEL_FORMAT_NV12_VENUS = 0x7FA30C04,    // NV12 video format
   CAMERA_PIXEL_FORMAT_NV12_HEIF = 0x00000116,     // HEIF video YUV420 format
-  CAMERA_PIXEL_FORMAT_YCbCr_420_SP_UBWC = 0x7FA30C06,    // 8 bit YUV 420 semi-planar UBWC format
-  CAMERA_PIXEL_FORMAT_YCbCr_420_TP10_UBWC = 0x7FA30C09,  // TP10 YUV 420 semi-planar UBWC format
-  CAMERA_PIXEL_FORMAT_YCbCr_420_P010_UBWC = 0x124,       // P010 YUV 420 semi-planar UBWC format
-  CAMERA_PIXEL_FORMAT_RAW_OPAQUE = 0x24,                 // Opaque RAW format
-  CAMERA_PIXEL_FORMAT_RAW10 = 0x25,                      // Opaque RAW10 bit format
-  CAMERA_PIXEL_FORMAT_RAW12 = 0x26,                      // Opaque RAW12 bit format
-  CAMERA_PIXEL_FORMAT_RAW14 = 0x144,                     // Opaque RAW14 bit format
-  CAMERA_PIXEL_FORMAT_RAW8 = 0x00000123,                 // Opaque RAW8 bit format
+  CAMERA_PIXEL_FORMAT_YCbCr_420_SP_UBWC = 0x7FA30C06,      // 8 bit YUV 420 semi-planar UBWC format
+  CAMERA_PIXEL_FORMAT_YCbCr_420_TP10_UBWC = 0x7FA30C09,    // TP10 YUV 420 semi-planar UBWC format
+  CAMERA_PIXEL_FORMAT_YCbCr_420_P010_UBWC = 0x124,         // P010 YUV 420 semi-planar UBWC format
+  CAMERA_PIXEL_FORMAT_RAW_OPAQUE = 0x24,                   // Opaque RAW format
+  CAMERA_PIXEL_FORMAT_RAW10 = 0x25,                        // Opaque RAW10 bit format
+  CAMERA_PIXEL_FORMAT_RAW12 = 0x26,                        // Opaque RAW12 bit format
+  CAMERA_PIXEL_FORMAT_RAW14 = 0x144,                       // Opaque RAW14 bit format
+  CAMERA_PIXEL_FORMAT_RAW8 = 0x00000123,                   // Opaque RAW8 bit format
+  CAMERA_PIXEL_FORMAT_YCbCr_420_NV12_UBWC_MIPMAP = 0x223,  // UBWCNV12 MIPMAP
+  CAMERA_PIXEL_FORMAT_YCbCr_420_NV12_MIPMAP = 0x224,       // NV12 MIPMAP
+  CAMERA_PIXEL_FORMAT_YCbCr_420_TP10_UBWC_MIPMAP = 0x225,  // UBWCTP10 MIPMAP
+  CAMERA_PIXEL_FORMAT_YCbCr_420_P010_MIPMAP = 0x226,       // P010 MIPMAP
 } CamxPixelFormat;
 
 // Camera Result Codes
@@ -110,6 +115,8 @@ class CameraConstraintProvider : public SnapConstraintProvider {
 
   int GetCapabilities(BufferDescriptor desc, CapabilitySet *out);
   int GetConstraints(BufferDescriptor desc, BufferConstraints *out);
+  Error GetCameraAlloc(BufferDescriptor desc, AllocData *out_ad,
+                       vendor_qti_hardware_display_common_BufferLayout *out_layout);
 
  private:
   CameraConstraintProvider(){};
@@ -139,7 +146,8 @@ class CameraConstraintProvider : public SnapConstraintProvider {
   int GetScanline(int format, int plane_type, int height, int modifier, int *scanlines);
   int GetPlaneSize(int format, int plane_type, int width, int height, int modifier,
                    unsigned int *size);
-
+  std::vector<vendor_qti_hardware_display_common_PlaneLayoutComponentType> GetPlaneComponentTypes(
+      int plane_type);
   int BuildConstraints(BufferDescriptor desc, BufferConstraints *data);
 
   PlaneComponent GetPlaneComponent(CamxPlaneType plane_type);
@@ -239,7 +247,19 @@ class CameraConstraintProvider : public SnapConstraintProvider {
            CAMERA_PIXEL_FORMAT_RAW14},
           {{.format = vendor_qti_hardware_display_common_PixelFormat::RAW8,
             .modifier = PIXEL_FORMAT_MODIFIER_NONE},
-           CAMERA_PIXEL_FORMAT_RAW8}};
+           CAMERA_PIXEL_FORMAT_RAW8},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCbCr_420_SP,
+            .modifier = PIXEL_FORMAT_MODIFIER_UBWC_MIPMAP},
+           CAMERA_PIXEL_FORMAT_YCbCr_420_NV12_UBWC_MIPMAP},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCbCr_420_SP,
+            .modifier = PIXEL_FORMAT_MODIFIER_MIPMAP},
+           CAMERA_PIXEL_FORMAT_YCbCr_420_NV12_MIPMAP},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::TP10,
+            .modifier = PIXEL_FORMAT_MODIFIER_UBWC_MIPMAP},
+           CAMERA_PIXEL_FORMAT_YCbCr_420_TP10_UBWC_MIPMAP},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_P010,
+            .modifier = PIXEL_FORMAT_MODIFIER_MIPMAP},
+           CAMERA_PIXEL_FORMAT_YCbCr_420_P010_MIPMAP}};
 };
 }  // namespace snapalloc
 

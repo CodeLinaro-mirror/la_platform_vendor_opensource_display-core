@@ -45,6 +45,7 @@ public:
                                     uint32_t refresh_rate,
                                     uint32_t qsync_refresh_rate) = 0;
   virtual void VmReleaseDone(Display display) = 0;
+  virtual void VmReclaimDone(Display display) = 0;
   virtual DisplayError NotifyCwbDone(int dpy_index, int32_t status,
                                      uint64_t handle_id) = 0;
   virtual Display GetVsyncSource() = 0;
