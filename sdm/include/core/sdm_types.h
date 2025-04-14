@@ -193,6 +193,9 @@ enum SDMDisplayType {
                         //!< instead of kHDMI.
   kVirtual,             //!< Contents would be rendered into the output buffer provided by the
                         //!< client e.g. wireless display.
+  kCSC,                 //!< Writeback display for CSC
+  kRepro,               //!< Writeback display for Reprojection
+
   kDisplayMax,
   kDisplayTypeMax = kDisplayMax
 };

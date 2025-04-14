@@ -44,6 +44,13 @@
 
 namespace sdm {
 
+enum struct VirtualDisplayType {
+  DPU,
+  LOOPBACK,
+  CSC,
+  REPRO,
+};
+
 class HWInfoInterface {
  public:
   static DisplayError Create(sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> *intfs,
@@ -53,6 +60,7 @@ class HWInfoInterface {
   virtual DisplayError GetHWResourceInfo(HWResourceInfo *hw_resource) = 0;
   virtual DisplayError GetFirstDisplayInterfaceType(HWDisplayInterfaceInfo *hw_disp_info) = 0;
   virtual DisplayError GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) = 0;
+  virtual DisplayError GetVirtualDisplayStatus(VirtualDisplayType type, HWDisplayInfo *hw_info) = 0;
   virtual DisplayError GetMaxDisplaysSupported(SDMDisplayType type, int32_t *max_displays) = 0;
   virtual DisplayError GetRequiredDemuraFetchResourceCount(
       std::map<uint32_t, uint8_t> *required_demura_fetch_cnt) = 0;

@@ -164,14 +164,14 @@ static PPBlock GetPPBlock(const HWToneMapLut &lut_type) {
   return pp_block;
 }
 
-static uint64_t GetDRMModifier(uint64_t default_modifier, HWCacColorComponent cac_color) {
-  switch (cac_color) {
+static uint64_t GetDRMModifier(uint64_t default_modifier, ColorComponent color) {
+  switch (color) {
 #ifndef TARGET_INCLUDES_NEO
-    case kCacRed:
+    case kColorRed:
       return DRM_FORMAT_MOD_QCOM_CAC_R;
-    case kCacGreen:
+    case kColorGreen:
       return DRM_FORMAT_MOD_QCOM_CAC_G;
-    case kCacBlue:
+    case kColorBlue:
       return DRM_FORMAT_MOD_QCOM_CAC_B;
 #endif
     default:
@@ -180,19 +180,19 @@ static uint64_t GetDRMModifier(uint64_t default_modifier, HWCacColorComponent ca
 }
 
 static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
-                         uint64_t *drm_format_modifier, HWCacColorComponent cac_color) {
+                         uint64_t *drm_format_modifier, ColorComponent color) {
   switch (format) {
     case kFormatARGB8888:
       *drm_format = DRM_FORMAT_BGRA8888;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatRGBA8888:
       *drm_format = DRM_FORMAT_ABGR8888;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatRGBA8888Ubwc:
       *drm_format = DRM_FORMAT_ABGR8888;
-      *drm_format_modifier = GetDRMModifier(DRM_FORMAT_MOD_QCOM_COMPRESSED, cac_color);
+      *drm_format_modifier = GetDRMModifier(DRM_FORMAT_MOD_QCOM_COMPRESSED, color);
       break;
     case kFormatRGBA5551:
       *drm_format = DRM_FORMAT_ABGR1555;
@@ -202,27 +202,27 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
       break;
     case kFormatBGRA8888:
       *drm_format = DRM_FORMAT_ARGB8888;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatRGBX8888:
       *drm_format = DRM_FORMAT_XBGR8888;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatRGBX8888Ubwc:
       *drm_format = DRM_FORMAT_XBGR8888;
-      *drm_format_modifier = GetDRMModifier(DRM_FORMAT_MOD_QCOM_COMPRESSED, cac_color);
+      *drm_format_modifier = GetDRMModifier(DRM_FORMAT_MOD_QCOM_COMPRESSED, color);
       break;
     case kFormatBGRX8888:
       *drm_format = DRM_FORMAT_XRGB8888;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatRGB888:
       *drm_format = DRM_FORMAT_BGR888;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatBGR888:
       *drm_format = DRM_FORMAT_RGB888;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatRGB565:
       *drm_format = DRM_FORMAT_BGR565;
@@ -236,53 +236,53 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
       break;
     case kFormatRGBA1010102:
       *drm_format = DRM_FORMAT_ABGR2101010;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatRGBA1010102Ubwc:
       *drm_format = DRM_FORMAT_ABGR2101010;
-      *drm_format_modifier = GetDRMModifier(DRM_FORMAT_MOD_QCOM_COMPRESSED, cac_color);
+      *drm_format_modifier = GetDRMModifier(DRM_FORMAT_MOD_QCOM_COMPRESSED, color);
       break;
     case kFormatARGB2101010:
       *drm_format = DRM_FORMAT_BGRA1010102;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatRGBX1010102:
       *drm_format = DRM_FORMAT_XBGR2101010;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatRGBX1010102Ubwc:
       *drm_format = DRM_FORMAT_XBGR2101010;
-      *drm_format_modifier = GetDRMModifier(DRM_FORMAT_MOD_QCOM_COMPRESSED, cac_color);
+      *drm_format_modifier = GetDRMModifier(DRM_FORMAT_MOD_QCOM_COMPRESSED, color);
       break;
     case kFormatXRGB2101010:
       *drm_format = DRM_FORMAT_BGRX1010102;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatBGRA1010102:
       *drm_format = DRM_FORMAT_ARGB2101010;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatABGR2101010:
       *drm_format = DRM_FORMAT_RGBA1010102;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatBGRX1010102:
       *drm_format = DRM_FORMAT_XRGB2101010;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatXBGR2101010:
       *drm_format = DRM_FORMAT_RGBX1010102;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatC8Ubwc:
       *drm_format = DRM_FORMAT_C8;
       *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_FSC_TILE;
-      *drm_format_modifier |= GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier |= GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatC84RUbwc:
       *drm_format = DRM_FORMAT_C8;
       *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_FSC_4R_TILE;
-      *drm_format_modifier |= GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier |= GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatC84R4YUbwc:
       *drm_format = DRM_FORMAT_ABGR8888;
@@ -291,7 +291,7 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
     case kFormatC8:
       *drm_format = DRM_FORMAT_C8;
       *drm_format_modifier = DRM_FORMAT_MOD_QCOM_FSC_TILE;
-      *drm_format_modifier |= GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier |= GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatYCbCr420SemiPlanar:
       *drm_format = DRM_FORMAT_NV12;
@@ -465,11 +465,11 @@ int HWDeviceDRM::Registry::Register(HWLayersInfo *hw_layers_info) {
   return err;
 }
 
-void HWDeviceDRM::Registry::GetBufInfoForTunnelPipe(HWCacColorComponent color,
+void HWDeviceDRM::Registry::GetBufInfoForTunnelPipe(ColorComponent color,
                                                     BufferInfo *loopback_cac_info,
                                                     AllocatedBufferInfo *buf_info,
                                                     DRMBuffer *layout) {
-  if ((cac_version_ != kCacVersionLoopback) || (color == kCacNone) || !loopback_cac_info) {
+  if ((cac_version_ != kCacVersionLoopback) || (color == kColorNone) || !loopback_cac_info) {
     return;
   }
   // Using the plane buffer fd and faking the buffer as full screen for CAC loopback
@@ -503,15 +503,16 @@ int HWDeviceDRM::Registry::CreateFbId(const LayerBuffer &buffer, std::vector<uin
     layout.height *= 2;
   }
   for (int color = 0; color < fb_id->size(); color++) {
-    GetBufInfoForTunnelPipe(static_cast<HWCacColorComponent>(color), loopback_cac_info, &buf_info,
-                            &layout);
-    GetDRMFormat(buf_info.format, &layout.drm_format, &layout.drm_format_modifier,
-                 static_cast<HWCacColorComponent>(color));
+    ColorComponent color_field = (buffer.planes[0].color == kColorNone)
+                                     ? static_cast<ColorComponent>(color)
+                                     : buffer.planes[0].color;
+    GetBufInfoForTunnelPipe(color_field, loopback_cac_info, &buf_info, &layout);
+    GetDRMFormat(buf_info.format, &layout.drm_format, &layout.drm_format_modifier, color_field);
     ret = master->CreateFbId(layout, fb_id_data);
     if (ret < 0) {
       DLOGE(
           "CreateFbId failed. width %d, height %d, format: %s, stride %u, "
-          "cac_color %d, usage %" PRIu64 " error %d",
+          "color_field %d, usage %" PRIu64 " error %d",
           layout.width, layout.height, GetFormatString(buf_info.format), layout.stride[0], color,
           buffer.usage, errno);
     }
@@ -567,7 +568,7 @@ int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buff
     if (it != layer->buffer_map->buffer_map.end()) {
       auto itr = it->second.find(core_id_);
       if (itr != it->second.end()) {
-        FrameBufferObject *fb_obj = static_cast<FrameBufferObject*>(itr->second[kCacNone].get());
+        FrameBufferObject *fb_obj = static_cast<FrameBufferObject *>(itr->second[kColorNone].get());
         if (fb_obj->IsEqual(buffer.format, buffer.width, buffer.height, secure_present) &&
             (it->second.size() >= fb_id_size)) {
           // Found fb_id for given handle_id key
@@ -641,7 +642,7 @@ void HWDeviceDRM::Registry::MapOutputBufferToFbId(std::shared_ptr<LayerBuffer> o
       }
     }
 
-    if (output_buffer_map_.size() >= UI_FBID_LIMIT) {
+    if (output_buffer_map_.size() >= output_fbid_cache_limit_) {
       // Clear output buffer map, if the size reaches cache limit.
       output_buffer_map_.clear();
     }
@@ -650,9 +651,9 @@ void HWDeviceDRM::Registry::MapOutputBufferToFbId(std::shared_ptr<LayerBuffer> o
   std::vector<uint32_t> fb_id(1);
   if (CreateFbId(*output_buffer, &fb_id) >= 0) {
     std::unordered_map<uint32_t, std::shared_ptr<LayerBufferObject>> dpu_buffer_map;
-    dpu_buffer_map[core_id_] = std::make_shared<FrameBufferObject>(fb_id[kCacNone],
-        core_id_, output_buffer->format, output_buffer->width, output_buffer->height,
-        false /* shallow */, secure_present);
+    dpu_buffer_map[core_id_] = std::make_shared<FrameBufferObject>(
+        fb_id[kColorNone], core_id_, output_buffer->format, output_buffer->width,
+        output_buffer->height, false /* shallow */, secure_present);
     output_buffer_map_[handle_id] = dpu_buffer_map;
     *fb_modified = true;
   }
@@ -1213,6 +1214,8 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
   hw_panel_info_.fsc_panel = connector_info_.fsc_panel;
   hw_panel_info_.num_fsc_fields = connector_info_.num_fsc_fields;
   hw_panel_info_.is_primary_panel = connector_info_.is_primary;
+  hw_panel_info_.is_lsr_display =
+      connector_info_.is_primary && hw_resource_.num_csc_pipe && hw_resource_.num_repro_pipe;
   hw_panel_info_.is_pluggable = 0;
   hw_panel_info_.hdr_enabled = connector_info_.panel_hdr_prop.hdr_enabled;
   // Convert the luminance values to cd/m^2 units.
@@ -2488,11 +2491,11 @@ DisplayError HWDeviceDRM::DefaultCommit(HWLayersInfo *hw_layers_info) {
   uint64_t handle_id = hw_layers_info->hw_layers.at(0).input_buffer.handle_id;
   std::vector<uint32_t> fb_id = {};
   registry_.GetFbId(&hw_layers_info->hw_layers.at(0), handle_id, &fb_id);
-  ret = drmModeSetCrtc(dev_fd, crtc_id, fb_id[kCacNone], 0 /* x */, 0 /* y */, &connector_id,
+  ret = drmModeSetCrtc(dev_fd, crtc_id, fb_id[kColorNone], 0 /* x */, 0 /* y */, &connector_id,
                        1 /* num_connectors */, &mode);
   if (ret < 0) {
     DLOGE("drmModeSetCrtc failed dev fd %d, fb_id %d, crtc id %d, connector id %d, %s", dev_fd,
-          fb_id[kCacNone], crtc_id, connector_id, strerror(errno));
+          fb_id[kColorNone], crtc_id, connector_id, strerror(errno));
     return kErrorHardware;
   }
 

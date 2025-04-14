@@ -1002,6 +1002,7 @@ void SDMDisplay::BuildLayerStack() {
     if (sdm_layer_stack_->layer_set_.size() <= kMaxLayerCount) {
       layer->flags.updating = IsLayerUpdating(sdm_layer);
     }
+    layer->flags.buffer_flipped = sdm_layer->BufferLatched();
 
     if (sdm_layer->IsColorTransformSet()) {
       layer->flags.color_transform = true;
