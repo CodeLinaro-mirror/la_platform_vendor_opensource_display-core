@@ -1754,7 +1754,6 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
     master_hw_events_intf_->SetEventState(HWEvent::HISTOGRAM, true);
     master_hw_events_intf_->SetEventState(HWEvent::MMRM, true);
     master_hw_events_intf_->SetEventState(HWEvent::VM_RELEASE_EVENT, true);
-    master_hw_events_intf_->SetEventState(HWEvent::VM_RECLAIM_EVENT, true);
     registered_hw_events_ = true;
   }
 

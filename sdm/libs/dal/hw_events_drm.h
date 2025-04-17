@@ -91,7 +91,6 @@ class HWEventsDRM : public HWEventsInterface {
   void HandleMMRM(char *data);
   void HandlePowerEvent(char * /*data*/);
   void HandleVmReleaseEvent(char * /*data*/);
-  void HandleVmReclaimEvent(char * /*data*/);
   int SetHwRecoveryEvent(const uint32_t hw_event_code, HWRecoveryEvent *sdm_event_code);
   void PopulateHWEventData(const vector<HWEvent> &event_list);
   void WakeUpEventThread();
@@ -106,7 +105,6 @@ class HWEventsDRM : public HWEventsInterface {
   DisplayError RegisterMMRM(bool enable);
   DisplayError RegisterPowerEvents(bool enable);
   DisplayError RegisterVmReleaseEvents(bool enable);
-  DisplayError RegisterVmReclaimEvents(bool enable);
   void HandleDRMOpen(int& fd);
 
   HWEventHandler *event_handler_{};
@@ -135,7 +133,6 @@ class HWEventsDRM : public HWEventsInterface {
   uint32_t mmrm_index_ = UINT32_MAX;
   uint32_t power_event_index_ = UINT32_MAX;
   uint32_t vm_release_event_index_ = UINT32_MAX;
-  uint32_t vm_reclaim_event_index_ = UINT32_MAX;
   std::bitset<HW_EVENT_MAX> registered_hw_events_ = {};
   uint32_t core_id_ = 0;
   char path_[64];

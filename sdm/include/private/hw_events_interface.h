@@ -56,7 +56,6 @@ enum HWEvent {
   MMRM,
   POWER_EVENT,
   VM_RELEASE_EVENT,
-  VM_RECLAIM_EVENT,
   HW_EVENT_MAX,
 };
 

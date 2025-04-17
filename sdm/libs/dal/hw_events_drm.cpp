@@ -77,9 +77,6 @@
 #ifndef DRM_EVENT_VM_RELEASE
 #define DRM_EVENT_VM_RELEASE 0X8000000E
 #endif
-#ifndef DRM_EVENT_VM_RECLAIM
-#define DRM_EVENT_VM_RECLAIM 0X80000014
-#endif
 
 #define __CLASS__ "HWEventsDRM"
 
@@ -202,15 +199,6 @@ DisplayError HWEventsDRM::InitializePollFd() {
         poll_fds_[i].events = POLLIN | POLLPRI | POLLERR;
         vm_release_event_index_ = i;
       } break;
-      case HWEvent::VM_RECLAIM_EVENT: {
-        HandleDRMOpen(poll_fds_[i].fd);
-        if (poll_fds_[i].fd < 0) {
-          DLOGE("drmOpen failed with error %d", poll_fds_[i].fd);
-          return kErrorResources;
-        }
-        poll_fds_[i].events = POLLIN | POLLPRI | POLLERR;
-        vm_reclaim_event_index_ = i;
-      } break;
       default:
         break;
     }
@@ -262,9 +250,6 @@ DisplayError HWEventsDRM::SetEventParser() {
         break;
       case HWEvent::VM_RELEASE_EVENT:
         event_data.event_parser = &HWEventsDRM::HandleVmReleaseEvent;
-        break;
-      case HWEvent::VM_RECLAIM_EVENT:
-        event_data.event_parser = &HWEventsDRM::HandleVmReclaimEvent;
         break;
       default:
         error = kErrorParameters;
@@ -344,7 +329,6 @@ DisplayError HWEventsDRM::Deinit() {
   SetEventState(HWEvent::MMRM, false);
   SetEventState(HWEvent::POWER_EVENT, false);
   SetEventState(HWEvent::VM_RELEASE_EVENT, false);
-  SetEventState(HWEvent::VM_RECLAIM_EVENT, false);
 
   Sys::pthread_cancel_(event_thread_);
   WakeUpEventThread();
@@ -427,9 +411,6 @@ DisplayError HWEventsDRM::SetEventState(HWEvent event, bool enable, void *arg) {
     case HWEvent::VM_RELEASE_EVENT: {
       RegisterVmReleaseEvents(enable);
     } break;
-    case HWEvent::VM_RECLAIM_EVENT: {
-      RegisterVmReclaimEvents(enable);
-    } break;
     default:
       DLOGE("Event not supported");
       return kErrorNotSupported;
@@ -479,7 +460,6 @@ void HWEventsDRM::CloseFds() {
       case HWEvent::HISTOGRAM:
       case HWEvent::POWER_EVENT:
       case HWEvent::VM_RELEASE_EVENT:
-      case HWEvent::VM_RECLAIM_EVENT:
         drmClose(poll_fds_[i].fd);
         poll_fds_[i].fd = -1;
         break;
@@ -535,7 +515,6 @@ void *HWEventsDRM::DisplayEventHandler() {
         case HWEvent::MMRM:
         case HWEvent::POWER_EVENT:
         case HWEvent::VM_RELEASE_EVENT:
-        case HWEvent::VM_RECLAIM_EVENT:
           if (poll_fd.revents & (POLLIN | POLLPRI | POLLERR)) {
             (this->*(event_data_list_[i]).event_parser)(nullptr);
           }
@@ -789,32 +768,6 @@ DisplayError HWEventsDRM::RegisterVmReleaseEvents(bool enable) {
   }
 
   DLOGI("Register vm release event %s successful", enable ? "enable" : "disable");
-  return kErrorNone;
-}
-
-DisplayError HWEventsDRM::RegisterVmReclaimEvents(bool enable) {
-  if (vm_reclaim_event_index_ == UINT32_MAX) {
-    DLOGI("Vm Reclaim is not supported event");
-    return kErrorNone;
-  }
-  struct drm_msm_event_req req = {};
-  int ret = 0;
-
-  req.object_id = token_.crtc_id;
-  req.object_type = DRM_MODE_OBJECT_CRTC;
-  req.event = DRM_EVENT_VM_RECLAIM;
-  if (enable) {
-    ret = drmIoctl(poll_fds_[vm_reclaim_event_index_].fd, DRM_IOCTL_MSM_REGISTER_EVENT, &req);
-  } else {
-    ret = drmIoctl(poll_fds_[vm_reclaim_event_index_].fd, DRM_IOCTL_MSM_DEREGISTER_EVENT, &req);
-  }
-
-  if (ret) {
-    DLOGE("register vm reclaim event %s failed with ret %d", enable ? "enable" : "disable", ret);
-    return kErrorResources;
-  }
-
-  DLOGI("Register vm reclaim event %s successful", enable ? "enable" : "disable");
   return kErrorNone;
 }
 
@@ -1121,21 +1074,6 @@ void HWEventsDRM::HandleVmReleaseEvent(char * /*data*/) {
   auto msm_event = reinterpret_cast<struct drm_msm_event_resp *>(event_data.data());
   DLOGI("vm release event data %d", *(reinterpret_cast<uint32_t *>(msm_event->data)));
   event_handler_->HandleVmReleaseEvent();
-}
-
-void HWEventsDRM::HandleVmReclaimEvent(char * /*data*/) {
-  auto constexpr expected_size = sizeof(drm_msm_event_resp) + sizeof(uint32_t);
-  std::array<char, expected_size> event_data{'\0'};
-  auto size =
-      Sys::pread_(poll_fds_[vm_reclaim_event_index_].fd, event_data.data(), event_data.size(), 0);
-  if (size != expected_size) {
-    DLOGE("event size %d is unexpected. skipping this vm reclaim event", UINT32(size));
-    return;
-  }
-
-  auto msm_event = reinterpret_cast<struct drm_msm_event_resp *>(event_data.data());
-  DLOGI("vm reclaim event data %d", *(reinterpret_cast<uint32_t *>(msm_event->data)));
-  event_handler_->HandleVmReclaimEvent();
 }
 
 }  // namespace sdm

@@ -51,7 +51,6 @@ public:
   void Init(SDMDisplayBuilder *disp, Locker *locker, int pluggable_lock_index);
   DisplayError HandleTUITransition(int disp_id, int event);
   void VmReleaseDone(Display display);
-  void VmReclaimDone(Display display);
   int NotifyTUIEventDone(int disp_id, SDMTUIEventType event_type);
   DisplayError TUIEventHandler(int disp_id, SDMTUIEventType event_type);
   void SetIdleTimeoutMs(uint32_t value, uint32_t inactive_ms);
@@ -66,7 +65,6 @@ private:
   DisplayError TUITransitionEndLocked(int disp_id);
   DisplayError TUITransitionUnPrepare(int disp_id);
   DisplayError WaitForVmRelease(Display display, int timeout_ms);
-  DisplayError WaitForVmReclaim(Display display, int timeout_ms);
 
   SDMTrustedUICbIntf *cb_ = nullptr;
   SDMDisplayBuilder *disp_ = nullptr;
@@ -77,21 +75,15 @@ private:
   std::future<int> tui_callback_handler_future_;
 
   static Locker vm_release_locker_[kNumDisplays];
-  static Locker vm_reclaim_locker_[kNumDisplays];
   static std::bitset<kNumDisplays> clients_waiting_for_vm_release_;
-  static std::bitset<kNumDisplays> clients_waiting_for_vm_reclaim_;
   static const int kVmReleaseTimeoutMs = 100;
   static const int kVmReleaseRetry = 3;
-  static const int kVmReclaimRetry = 1;
   static const int kDenomNstoMs = 1000000;
   static const int kNumDrawCycles = 3;
   int pluggable_lock_index_ = 0;
   uint32_t idle_time_active_ms_ = 0;
   uint32_t idle_time_inactive_ms_ = 0;
   QSyncMode sdm_display_qsync_[kNumDisplays] = {QSyncMode::kQSyncModeNone};
-  bool tui_start_success_ = false;
-  bool tui_end_success_ = true;
-  bool vm_reclaim_done_ = false;
 };
 
 } // namespace sdm
