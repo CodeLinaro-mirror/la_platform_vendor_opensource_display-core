@@ -42,7 +42,9 @@
 namespace sdm {
 
 Locker SDMTrustedUI::vm_release_locker_[kNumDisplays];
+Locker SDMTrustedUI::vm_reclaim_locker_[kNumDisplays];
 std::bitset<kNumDisplays> SDMTrustedUI::clients_waiting_for_vm_release_;
+std::bitset<kNumDisplays> SDMTrustedUI::clients_waiting_for_vm_reclaim_;
 
 void SDMTrustedUI::Init(SDMDisplayBuilder *disp, Locker *locker,
                         int pluggable_lock_index) {
@@ -194,6 +196,11 @@ DisplayError SDMTrustedUI::TUITransitionStart(int disp_id) {
   // Hold this lock to until on going hotplug handling is complete before we
   // start TUI session
   SCOPE_LOCK(locker_[pluggable_lock_index_]);
+  if (!tui_end_success_) {
+    DLOGI("Previous tui session did not end properly.");
+    return kErrorNotSupported;
+  }
+
   if (TUITransitionPrepare(disp_id) != 0) {
     return kErrorNotSupported;
   }
@@ -275,6 +282,8 @@ DisplayError SDMTrustedUI::TUITransitionStart(int disp_id) {
     }
   }
 
+  tui_start_success_ = true;
+  tui_end_success_ = false;
   return kErrorNone;
 
 end:
@@ -286,6 +295,20 @@ DisplayError SDMTrustedUI::TUITransitionEnd(int disp_id) {
   // Hold this lock so that any deferred hotplug events will not be handled
   // during the commit and will be handled at the end of TUITransitionPrepare.
   SCOPE_LOCK(locker_[pluggable_lock_index_]);
+  if (!tui_start_success_) {
+    DLOGI("Bailing out TUI end");
+    return kErrorNotSupported;
+  }
+
+  if (!vm_reclaim_done_) {
+    auto ret = WaitForVmReclaim(disp_id, 1000);
+    if (ret != kErrorNone) {
+      DLOGE("Wait for vm reclaim failed, retry tui end once again");
+      return ret;
+    }
+  }
+
+  vm_reclaim_done_ = false;
   return TUITransitionEndLocked(disp_id);
 }
 
@@ -400,6 +423,8 @@ DisplayError SDMTrustedUI::TUITransitionUnPrepare(int disp_id) {
   }
 
   // Reset tui session state variable.
+  tui_start_success_ = false;
+  tui_end_success_ = true;
   DLOGI("End of TUI session on display %d", disp_id);
   return kErrorNone;
 }
@@ -427,6 +452,28 @@ DisplayError SDMTrustedUI::WaitForVmRelease(Display disp_id, int timeout_ms) {
   return ret == 0 ? kErrorNone : kErrorTimeOut;
 }
 
+DisplayError SDMTrustedUI::WaitForVmReclaim(Display disp_id, int timeout_ms) {
+  SCOPE_LOCK(vm_reclaim_locker_[disp_id]);
+
+  clients_waiting_for_vm_reclaim_.set(disp_id);
+  int re_try = kVmReclaimRetry;
+  int ret = 0;
+  do {
+    auto display = cb_->GetDisplayFromClientId(disp_id);
+    if (display->GetCurrentPowerMode() == SDMPowerMode::POWER_MODE_OFF) {
+      return kErrorHardware;
+    }
+    ret = vm_reclaim_locker_[disp_id].WaitFinite(timeout_ms);
+    if (!ret) {
+      break;
+    }
+  } while (re_try--);
+  if (ret != 0) {
+    DLOGW("Timed out with error %d for display %" PRIu64, ret, disp_id);
+  }
+  return ret == 0 ? kErrorNone : kErrorTimeOut;
+}
+
 void SDMTrustedUI::VmReleaseDone(Display display) {
   SCOPE_LOCK(vm_release_locker_[display]);
 
@@ -435,6 +482,17 @@ void SDMTrustedUI::VmReleaseDone(Display display) {
     DLOGI("Signal vm release done!! for display %d", display);
     clients_waiting_for_vm_release_.reset(display);
   }
+}
+
+void SDMTrustedUI::VmReclaimDone(Display display) {
+  SCOPE_LOCK(vm_reclaim_locker_[display]);
+
+  if (clients_waiting_for_vm_reclaim_.test(display)) {
+    vm_reclaim_locker_[display].Signal();
+    DLOGI("Signal vm reclaim done!! for display %d", display);
+    clients_waiting_for_vm_reclaim_.reset(display);
+  }
+  vm_reclaim_done_ = true;
 }
 
 } // namespace sdm

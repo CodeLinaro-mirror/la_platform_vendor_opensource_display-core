@@ -265,6 +265,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError StartTvmServices();
   DisplayError StartService(TvmDispServiceManagerParams service);
   DisplayError ExportDemuraFiles();
+  DisplayError ExportABCFiles();
   DisplayError EnableCopr(bool en) override;
   DisplayError GetCoprStats(std::vector<int> *stats) override;
   DisplayError GetScalerCount(uint32_t *scaler_count) override;
@@ -286,6 +287,7 @@ class DisplayBuiltIn : public DisplayBase,
   void HandleBacklightEvent(float brightness_level) override;
   void HandlePowerEvent() override;
   void HandleVmReleaseEvent() override;
+  void HandleVmReclaimEvent() override;
   void GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) override;
   bool IsPrimaryDisplay() override;
   DisplayError GetPanelBrightnessBasePath(std::string *base_path) override;
@@ -359,6 +361,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError QueryDemuraTnInfo(void *data);
   DisplayError SetDemuraTnBatchId(void *data);
   DisplayError SetDemuraTnAodHandlerCtrl(void *data);
+  DisplayError SetDemuraTnAgingSurfTransfer(void *data);
   int StartVmFileServiceAndExportFiles();
   int CreateServiceManager();
   int HandleTvmServiceEvent(const TvmServiceCbEvent &event);

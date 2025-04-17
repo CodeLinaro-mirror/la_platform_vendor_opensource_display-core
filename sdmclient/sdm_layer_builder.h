@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #ifndef __SDM_LAYER_BUILDER_H__
@@ -64,6 +64,8 @@ public:
  DisplayError SetCursorPosition(uint64_t disp_id, int64_t layer_id, int32_t x, int32_t y) override;
  LayerBufferFormat GetSDMFormat(const int32_t &source, const int32_t flags,
                                 const int64_t compression_type) override;
+ bool CheckLayerBufferBinding(uint64_t display_id, int64_t layer_id,
+                              const SnapHandle *buffer) override;
  DisplayError GetSDMLayerStack(uint64_t display_id, SDMLayerStack **stack) {
    SCOPE_LOCK(locker_[display_id]);
    auto disp = display_layer_stack_.find(display_id);

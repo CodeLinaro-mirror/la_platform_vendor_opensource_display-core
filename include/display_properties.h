@@ -168,6 +168,8 @@
 #define DEMURA_SECONDARY_PANEL_OVERRIDE_HIGH    DISPLAY_PROP("demura_secondary_panel_override_high")
 #define ENABLE_DEMURA_BL_SCREEN_REFRESH      DISPLAY_PROP("enable_demura_backlight_screen_refresh")
 #define DEMURA_CONFIG_FILE_RENAME_ALLOWED    DISPLAY_PROP("demura_config_file_rename_allowed")
+#define DEMURA_MULTICONFIG_COUNT_PRIMARY     DISPLAY_PROP("demura_multiconfig_count_primary")
+#define DEMURA_MULTICONFIG_COUNT_SECONDARY   DISPLAY_PROP("demura_multiconfig_count_secondary")
 
 // Panel Feature DemuraTn Properties
 #define ENABLE_ANTI_AGING                    DISPLAY_PROP("enable_antiaging")
@@ -269,6 +271,9 @@
 #define HAL_REFRESH_HEADROOM                 DISPLAY_PROP("hal_refresh_headroom")
 #define BUILTIN_MIRRORING                    DISPLAY_PROP("builtin_mirroring")
 #define BUILTIN_PRESENTATION                 DISPLAY_PROP("builtin_presentation")
+#define DISABLE_FP16_SUPPORT                 DISPLAY_PROP("disable_fp16_support")
+#define LSR_VARIANT                          DISPLAY_PROP("lsr_variant")
+#define ENABLE_SPLIT_VOTE                    DISPLAY_PROP("enable_split_vote")
 
 // Enable AI Scaler
 #define ENABLE_AI_SCALER_PROP                DISPLAY_PROP("enable_ai_scaler")

@@ -25,9 +25,11 @@
 * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
 * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*
+*/
+
+/*
 * Changes from Qualcomm Innovation Center are provided under the following license:
-* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -96,10 +98,10 @@ class DRMPlane {
   void ResetPlanesLUT(drmModeAtomicReq *req);
   void GetIndex(uint8_t *index) { *index = plane_type_info_.pipe_idx; }
   void GetRect(uint8_t *rect) { *rect = plane_type_info_.master_plane_id ? 1 : 0; }
-  bool SetFp16CscConfig(drmModeAtomicReq *req, DRMFp16CscType csc_type);
+  bool SetFp16CscConfig(drmModeAtomicReq *req, DRMFp16CscConfig *csc_config);
   bool SetFp16IgcConfig(drmModeAtomicReq *req, uint32_t igc_en);
   bool SetFp16UnmultConfig(drmModeAtomicReq *req, uint32_t unmult_en);
-  bool SetFp16GcConfig(drmModeAtomicReq *req, drm_msm_fp16_gc *fp16_gc_config);
+  bool SetFp16GcConfig(drmModeAtomicReq *req, drm_msm_fp16_gc *gc_config);
   void UnsetFp16CscConfig();
   void UnsetFp16GcConfig();
 #ifdef UCSC_SUPPORTED
@@ -144,7 +146,7 @@ class DRMPlane {
 
   // FP16 / UCSC properties
   uint32_t fp16_csc_blob_id_ = 0;
-  DRMFp16CscType fp16_csc_type_ = kFP16CscTypeMax;
+  DRMFp16CscConfig fp16_csc_config_ = {.csc_type = kFP16CscTypeMax, .hdr_sdr_ratio = 1.0f};
   uint32_t fp16_gc_blob_id_ = 0;
   drm_msm_fp16_gc fp16_gc_config_ = {.flags = 0, .mode = FP16_GC_MODE_INVALID};
 #ifdef UCSC_SUPPORTED

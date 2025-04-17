@@ -1754,6 +1754,7 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
     master_hw_events_intf_->SetEventState(HWEvent::HISTOGRAM, true);
     master_hw_events_intf_->SetEventState(HWEvent::MMRM, true);
     master_hw_events_intf_->SetEventState(HWEvent::VM_RELEASE_EVENT, true);
+    master_hw_events_intf_->SetEventState(HWEvent::VM_RECLAIM_EVENT, true);
     registered_hw_events_ = true;
   }
 
@@ -3665,6 +3666,7 @@ void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
         hw_layer.input_buffer.height = sdm_layer->input_buffer.height;
         hw_layer.input_buffer.unaligned_width = sdm_layer->input_buffer.unaligned_width;
         hw_layer.input_buffer.unaligned_height = sdm_layer->input_buffer.unaligned_height;
+        hw_layer.hdr_sdr_ratio = sdm_layer->hdr_sdr_ratio;
       }
     }
   }

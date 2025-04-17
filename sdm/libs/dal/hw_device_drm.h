@@ -250,8 +250,7 @@ class HWDeviceDRM : public HWInterface {
   DisplayError SelectCscTypeWithMatrixCoEfficients(const LayerBuffer &input_buffer,
                                                    sde_drm::DRMCscType *type);
   void SelectCscTypeWithColorPrimaries(const LayerBuffer &input_buffer, sde_drm::DRMCscType *type);
-  void SelectFp16Config(const LayerBuffer &input_buffer, int *igc_en, int *unmult_en,
-                        sde_drm::DRMFp16CscType *csc_type, drm_msm_fp16_gc *gc,
+  void SelectFp16Config(const LayerBuffer &input_buffer, sde_drm::DRMFp16Config *fp16_config,
                         LayerBlending blend);
   void SetRect(const LayerRect &source, sde_drm::DRMRect *target);
   void SetRotation(LayerTransform transform, const HWLayerConfig &layer_config,

@@ -246,7 +246,8 @@ DisplayError DisplayBuiltIn::Init() {
             HWEvent::BACKLIGHT_EVENT,
             HWEvent::POWER_EVENT,
             HWEvent::MMRM,
-            HWEvent::VM_RELEASE_EVENT};
+            HWEvent::VM_RELEASE_EVENT,
+            HWEvent::VM_RECLAIM_EVENT};
   if (client_ctx_.hw_panel_info.mode == kModeCommand) {
     events.push_back(HWEvent::IDLE_POWER_COLLAPSE);
   }
@@ -487,7 +488,6 @@ DisplayError DisplayBuiltIn::Deinit() {
         }
         pm_intf_->Deinit();
       }
-      comp_manager_->FreeDemuraFetchResources(display_id_);
     }
 
     if (feat_license_intf_) {
@@ -1341,7 +1341,6 @@ DisplayError DisplayBuiltIn::SetupDemuraT0() {
 }
 
 DisplayError DisplayBuiltIn::SendPanelIdToParserManager() {
-  DisplayError error = kErrorNone;
   int ret = 0;
 
   if (!pm_intf_) {
@@ -1349,22 +1348,24 @@ DisplayError DisplayBuiltIn::SendPanelIdToParserManager() {
     return kErrorUndefined;
   }
 
-  std::vector<uint64_t> *panel_ids = nullptr;
-
+  PanelIdsInfo *panel_ids_info = nullptr;
   GenericPayload in;
-  ret = in.CreatePayload<std::vector<uint64_t>>(panel_ids);
-  if (ret) {
-    DLOGE("Failed to create payload for panel ids, error = %d", ret);
+  ret = in.CreatePayload<PanelIdsInfo>(panel_ids_info);
+  if (ret || !panel_ids_info) {
+    DLOGE("Failed to create payload for panel ids, ret %d", ret);
     return kErrorResources;
   }
-  panel_ids->push_back(panel_id_);
 
+  panel_ids_info->panel_ids.push_back(panel_id_);
+  panel_ids_info->is_primary_display = IsPrimaryDisplayLocked();
   if ((ret = pm_intf_->SetParameter(kDemuraParserManagerParamPanelIds, in))) {
     DLOGE("Failed to set the panel ids to the parser manager");
     return kErrorResources;
   }
 
-  return error;
+  DLOGI("Successfully set panel ID 0x%lx to parser manager intf, is_primary_display %d", panel_id_,
+        panel_ids_info->is_primary_display);
+  return kErrorNone;
 }
 
 DisplayError DisplayBuiltIn::SetupDemuraTn() {
@@ -3500,6 +3501,11 @@ void DisplayBuiltIn::HandleVmReleaseEvent() {
     event_handler_->HandleEvent(kVmReleaseDone);
 }
 
+void DisplayBuiltIn::HandleVmReclaimEvent() {
+  if (event_handler_)
+    event_handler_->HandleEvent(kVmReclaimDone);
+}
+
 DisplayError DisplayBuiltIn::GetQsyncFps(uint32_t *qsync_fps) {
   ClientLock lock(disp_mutex_);
   return dpu_core_mux_->GetQsyncFps(qsync_fps);
@@ -4547,6 +4553,11 @@ DisplayError DisplayBuiltIn::SetABCReconfig() {
     return kErrorUndefined;
   }
 
+  if (!abc_prop_) {
+    DLOGI("ABC feature is not enabled");
+    return kErrorUndefined;
+  }
+
   if (!comp_manager_->GetDemuraStatusForDisplay(display_id_)) {
     return kErrorUndefined;
   }
@@ -4570,6 +4581,12 @@ DisplayError DisplayBuiltIn::SetABCReconfig() {
 
   if (SetDemuraIntfStatus(true)) {
     DLOGE("Failed to set ABC Status on Display %d", display_id_);
+    return kErrorUndefined;
+  }
+
+  DisplayError error = ExportABCFiles();
+  if (error) {
+    DLOGE("Failed to export ABC files, error %d", error);
     return kErrorUndefined;
   }
 
@@ -4680,6 +4697,9 @@ DisplayError DisplayBuiltIn::SetPanelFeatureConfig(int32_t type, void *data) {
     case kTypeDemuraTnAodHandlerCtrl:
       ret = SetDemuraTnAodHandlerCtrl(data);
       break;
+    case kTypeDemuraTnAgingSurfTransfer:
+      ret = SetDemuraTnAgingSurfTransfer(data);
+      break;
     default:
       DLOGE("Invalid type %d", type);
       ret = kErrorParameters;
@@ -4732,6 +4752,19 @@ DisplayError DisplayBuiltIn::ExportDemuraFiles() {
   return kErrorNone;
 }
 
+DisplayError DisplayBuiltIn::ExportABCFiles() {
+  if (IsPrimaryDisplay() && abc_tvm_enabled_ && demura_) {
+    GenericPayload in;
+    int ret = demura_->SetParameter(kDemuraFeatureParamExportFiles, in);
+    if (ret != 0) {
+      DLOGW("Failed to export ABC files");
+      return kErrorUndefined;
+    }
+  }
+
+  return kErrorNone;
+}
+
 DisplayError DisplayBuiltIn::StartTvmServices() {
   if (!abc_prop_ && !demura_prop_) {
     return kErrorNone;
@@ -4763,15 +4796,6 @@ DisplayError DisplayBuiltIn::StartTvmServices() {
         DLOGE("Failed to init DemuraTnCleanupIntf, ret %d", ret);
         demuratn_cleanup_intf_.reset();
       }
-    }
-  }
-
-  if (abc_prop_ && abc_tvm_enabled_ && demura_) {
-    GenericPayload in;
-    int ret = demura_->SetParameter(kDemuraFeatureParamExportFiles, in);
-    if (ret != 0) {
-      DLOGW("Failed to export ABC files");
-      return kErrorUndefined;
     }
   }
 
@@ -4827,6 +4851,7 @@ int DisplayBuiltIn::CreateServiceManager() {
 
 int DisplayBuiltIn::StartVmFileServiceAndExportFiles() {
   int ret = 0;
+  DisplayError error = kErrorNone;
 
   if (!service_manager_intf_) {
     DLOGE("Invalid service manager");
@@ -4845,11 +4870,17 @@ int DisplayBuiltIn::StartVmFileServiceAndExportFiles() {
 
   // Export files
   if (demura_prop_) {
-    DisplayError error = ExportDemuraFiles();
+    error = ExportDemuraFiles();
     if (error) {
       DLOGE("Failed to export demura files, error %d", error);
       return -EINVAL;
     }
+  }
+
+  error = ExportABCFiles();
+  if (error) {
+    DLOGE("Failed to export ABC files, error %d", error);
+    return -EINVAL;
   }
 
   if (!factory_extn_) {
@@ -5208,6 +5239,29 @@ DisplayError DisplayBuiltIn::SetDemuraTnAodHandlerCtrl(void *data) {
   }
 
   DLOGI("Set aod handler ctrl done");
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetDemuraTnAgingSurfTransfer(void *data) {
+  (void)data;
+  if (demuratn_enabled_) {
+    DLOGE("Pls disable demuraTn temporarily before aging surface transfer");
+    return kErrorUndefined;
+  }
+
+  if (!demuratn_) {
+    DLOGE("Demuratn_ is %pK", demuratn_.get());
+    return kErrorUndefined;
+  }
+
+  GenericPayload payload = {};
+  int ret = demuratn_->SetParameter(kDemuraTnCoreUvmParamAgingSurfTransfer, payload);
+  if (ret) {
+    DLOGE("Set demuraTn aging surface transfer failed ret %d", ret);
+    return kErrorUndefined;
+  }
+
+  DLOGI("Set demuraTn aging surface transfer done");
   return kErrorNone;
 }
 

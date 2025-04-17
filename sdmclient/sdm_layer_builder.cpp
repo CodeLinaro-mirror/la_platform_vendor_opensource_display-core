@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include "sdm_layer_builder.h"
@@ -59,6 +59,19 @@ DisplayError SDMLayerBuilder::DeInit(uint64_t display_id) {
 LayerBufferFormat SDMLayerBuilder::GetSDMFormat(const int32_t &source, const int32_t flags,
                                                 const int64_t compression_type) {
   return buffer_allocator_->GetSDMFormat(source, flags, compression_type);
+}
+
+bool SDMLayerBuilder::CheckLayerBufferBinding(uint64_t display_id, int64_t layer_id,
+                                              const SnapHandle *buffer) {
+  auto sdm_layer = GetSDMLayer(display_id, layer_id);
+  if (sdm_layer != nullptr) {
+    auto layer = sdm_layer->GetSDMLayer();
+    if (layer != nullptr) {
+      return (layer->input_buffer.buffer_id == reinterpret_cast<uint64_t>(buffer));
+    }
+  }
+
+  return false;
 }
 
 SDMLayer *SDMLayerBuilder::GetSDMLayer(uint64_t display_id, int64_t layer_id) {
