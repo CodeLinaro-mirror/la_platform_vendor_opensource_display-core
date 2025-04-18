@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapMetadataManager.h"
@@ -267,6 +267,18 @@ Error SnapMetadataManager::ThreeDimensionalRefInfoHelper(SnapMetadata *metadata,
   } else if (in_set != nullptr) {
     metadata->three_dimensional_ref_info =
         *static_cast<vendor_qti_hardware_display_common_ThreeDimensionalRefInfo *>(in_set);
+    return Error::NONE;
+  }
+  return Error::BAD_VALUE;
+}
+
+Error SnapMetadataManager::ViewIdHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                                        void *in_set, void *out_get, BufferDescriptor *buf_des) {
+  if (out_get != nullptr) {
+    *static_cast<uint32_t *>(out_get) = metadata->viewId;
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    metadata->viewId = *static_cast<uint32_t *>(in_set);
     return Error::NONE;
   }
   return Error::BAD_VALUE;
