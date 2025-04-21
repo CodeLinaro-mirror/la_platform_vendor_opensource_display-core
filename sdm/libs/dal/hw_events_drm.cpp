@@ -223,7 +223,7 @@ DisplayError HWEventsDRM::SetEventParser() {
   for (auto &event_data : event_data_list_) {
     switch (event_data.event_type) {
       case HWEvent::VSYNC:
-        event_data.event_parser = &HWEventsDRM::HandlePageFlip;
+        event_data.event_parser = &HWEventsDRM::HandleVSync;
         break;
       case HWEvent::CEC_READ_MESSAGE:
         event_data.event_parser = &HWEventsDRM::HandleCECMessage;
@@ -833,6 +833,8 @@ void HWEventsDRM::HandleVSync(char *data) {
   drmEventContext event = {};
   event.version = DRM_EVENT_CONTEXT_VERSION;
   event.vblank_handler = &HWEventsDRM::VSyncHandlerCallback;
+  event.page_flip_handler = &HWEventsDRM::PFlipHandlerCallback;
+
   int error = drmHandleEvent(poll_fds_[vsync_index_].fd, &event);
   if (error != 0) {
     DLOGE("drmHandleEvent failed: %i", error);
@@ -846,18 +848,6 @@ void HWEventsDRM::HandleVSync(char *data) {
       ret = RegisterVSync();
       if (ret == kErrorNone)
         registered_hw_events_.set(HWEvent::VSYNC);
-    }
-  }
-}
-
-void HWEventsDRM::HandlePageFlip(char *data) {
-  if (poll_fds_[vsync_index_].revents & (POLLIN | POLLPRI)) {
-    drmEventContext event = {};
-    event.version = DRM_EVENT_CONTEXT_VERSION;
-    event.page_flip_handler = &HWEventsDRM::PFlipHandlerCallback;
-    int error = drmHandleEvent(poll_fds_[vsync_index_].fd, &event);
-    if (error != 0) {
-      DLOGE("drmHandleEvent failed: %i", error);
     }
   }
 }
