@@ -580,7 +580,6 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   std::condition_variable cv_;
   Layer noise_layer_ = {};
   DisplayError ConfigureCwbForIdleFallback(LayerStack *layer_stack);
-  bool cwb_fence_wait_ = false;
   bool enable_cwb_cpu_boosting_ = false;
   bool force_refresh_to_process_cwb_ = false;
   bool enable_client_control_cwb_refresh_ = false;
