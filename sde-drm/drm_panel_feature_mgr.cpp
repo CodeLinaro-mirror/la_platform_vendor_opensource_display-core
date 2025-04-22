@@ -324,6 +324,15 @@ int DRMPanelFeatureMgr::InitObjectProps(int obj_id, int obj_type) {
                                                                         3,
                                                                         sizeof(drm_msm_dem_cfg),
                                                                         0};
+    } else if (prop_enum == DRMProperty::DEMURA_INIT_CFG_V4) {
+      drm_property_map_[kDRMPanelFeatureDemuraInit] = DRMProperty::DEMURA_INIT_CFG_V4;
+      feature_info_tbl_[kDRMPanelFeatureDemuraInit] =
+          DRMPanelFeatureInfo{kDRMPanelFeatureDemuraInit,
+                              DRM_MODE_OBJECT_CRTC,
+                              UINT32_MAX,
+                              4,
+                              sizeof(drm_msm_dem_cfg),
+                              0};
     } else if (prop_enum == DRMProperty::SDE_DSPP_AIQE_MDNIE_V1) {
       // Same property kDRMPanelFeatureAiqeMdnie is used for both MDNIE V1 and V2
       drm_property_map_[kDRMPanelFeatureAiqeMdnie] = DRMProperty::SDE_DSPP_AIQE_MDNIE_V1;
