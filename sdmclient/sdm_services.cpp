@@ -30,7 +30,7 @@
  * Changes from Qualcomm Innovation Center, Inc. are provided under the
  * following license:
  *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <utils/constants.h>
@@ -1985,5 +1985,32 @@ DisplayError SDMServices::SetPanelFeatureConfig(SDMParcel *input_parcel, SDMParc
     output_parcel->writeInt32(ret);
   }
   return ret;
+}
+
+DisplayError SDMServices::GetPanelResolution(SDMParcel *input_parcel, SDMParcel *output_parcel) {
+  SDMDisplay *display = cb_->GetDisplayFromClientId(SDM_DISPLAY_PRIMARY);
+  if (!display) {
+    DLOGW("Display = %d is not connected.", SDM_DISPLAY_PRIMARY);
+    return kErrorHardware;
+  }
+
+  uint32_t width = 0, height = 0;
+  display->GetPanelResolution(&width, &height);
+  output_parcel->writeInt32(INT(width));
+  output_parcel->writeInt32(INT(height));
+
+  return kErrorNone;
+}
+
+DisplayError SDMServices::SetStandbyMode(SDMParcel *input_parcel) {
+  SDMDisplay *display = cb_->GetDisplayFromClientId(SDM_DISPLAY_PRIMARY);
+  if (!display) {
+    DLOGW("Display = %d is not connected.", SDM_DISPLAY_PRIMARY);
+    return kErrorHardware;
+  }
+
+  int enable = input_parcel->readInt32();
+  int is_twm = input_parcel->readInt32();
+  return display->SetStandbyMode(enable, is_twm);
 }
 } // namespace sdm

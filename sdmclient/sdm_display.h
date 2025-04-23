@@ -531,6 +531,7 @@ public:
   DisplayError GetCachedActiveConfig(bool get_real_config, Config *config);
   virtual void TimeoutOnBuiltins(){};
   virtual void IdleTimeout(){};
+  DisplayError SetStandbyMode(bool enable, bool is_twm);
 
  protected:
   static uint32_t throttling_refresh_rate_;
@@ -617,7 +618,12 @@ public:
   SDMDisplayType type_ = kDisplayTypeMax;
   Display id_ = UINT64_MAX;
   int32_t sdm_id_ = -1;
-  DisplayInterface *display_intf_ = NULL;
+  DisplayInterface *display_intf_ = nullptr;
+  // Used to store null display interface (if required)
+  DisplayInterface *display_null_intf_ = nullptr;
+  // Used to store display_intf_ pointer if null display is active
+  DisplayInterface *stored_display_intf_ = nullptr;
+  bool null_display_active_ = false;
   LayerStack layer_stack_;
   SDMLayer *client_target_ = nullptr; // Also known as framebuffer target
 
