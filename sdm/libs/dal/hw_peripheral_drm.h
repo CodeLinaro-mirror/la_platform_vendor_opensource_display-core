@@ -106,7 +106,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   virtual DisplayError SetBppMode(uint32_t bpp);
   virtual DisplayError SetRefreshRate(uint32_t refresh_rate);
   virtual DisplayError SetFrameTrigger(FrameTriggerMode mode);
-  virtual DisplayError SetPanelBrightness(int level);
+  virtual DisplayError SetPanelBrightness(int level, bool apply_immediately);
   virtual DisplayError GetPanelBrightness(int *level);
   virtual void GetHWPanelMaxBrightness();
   virtual DisplayError SetBLScale(uint32_t level);
