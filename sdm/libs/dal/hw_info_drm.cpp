@@ -539,6 +539,23 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
         }
         hw_resource->num_cursor_pipe++;
         break;
+      // TODO: populate for csc and repro pipe type
+      /* case DRMPlaneType::CSC:
+        name = "CSC";
+        pipe_caps.type = kPipeTypeCSC;
+        if (!hw_resource->num_csc_pipe ) {
+          PopulateSupportedFmts(kHWCSCPipe, pipe_obj.second, hw_resource);
+        }
+        hw_resource->num_csc_pipe++;
+        break;
+      case DRMPlaneType::REPRO:
+        name = "REPRO";
+        pipe_caps.type = kPipeTypeRepro;
+        if (!hw_resource->num_repro_pipe ) {
+          PopulateSupportedFmts(kHWReproPipe, pipe_obj.second, hw_resource);
+        }
+        hw_resource->num_repro_pipe++;
+        break; */
       default:
         continue;  // Not adding any other pipe type
     }
@@ -1047,8 +1064,8 @@ DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
         ((0 == iter.first) || (iter.first > INT32_MAX)) ? -1 :
                               (int32_t)DisplayId(core_id_, iter.first).GetDisplayId();
 
-    // loopback connector are internal, Used for CAC loopback
-    if (iter.second.has_cac_loopback) {
+    // skip virtual internal connectors
+    if (iter.second.has_cac_loopback || iter.second.is_wb_csc || iter.second.is_wb_repro) {
       continue;
     }
 

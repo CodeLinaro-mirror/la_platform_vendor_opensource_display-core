@@ -98,10 +98,8 @@ class DRMConnector {
   int IsConnected() { return (DRM_MODE_CONNECTED == drm_connector_->connection); }
   int GetPossibleEncoders(std::set<uint32_t> *possible_encoders);
   void SetSkipConnectorReload(bool skip_reload) { skip_connector_reload_ = skip_reload; };
-  void SetloopbackConnector(const DRMConnectorInfo &info) {
-    has_cac_loopback_ = info.has_cac_loopback;
-  };
-  bool IsLoopbackConnector() { return has_cac_loopback_; };
+  void SetConnectorIdentifier(const DRMConnectorInfo &info);
+  DRMConnectorIdentifier GetConnectorIdentifier() { return identifier_; };
   void Dump();
   void GetPPInfo(DRMPPFeatureInfo *info);
 
@@ -120,7 +118,7 @@ class DRMConnector {
   drmModeConnector *drm_connector_ = {};
   DRMPropertyManager prop_mgr_ {};
   bool skip_connector_reload_ = false; //  Usually set to true for new TV/pluggable displays.
-  bool has_cac_loopback_ = false;
+  DRMConnectorIdentifier identifier_ = DRMConnectorIdentifier::DPU;
   DRMStatus status_ = DRMStatus::FREE;
   std::unique_ptr<DRMPPManager> pp_mgr_{};
   DRMJitterConfig jitter_cfg_ = {};
@@ -137,7 +135,7 @@ class DRMConnectorManager {
   void DeInit() {}
   void DumpAll();
   void DumpByID(uint32_t id);
-  int Reserve(DRMDisplayType disp_type, DRMDisplayToken *token, bool has_cac_loopback);
+  int Reserve(DRMDisplayType disp_type, DRMDisplayToken *token, DRMConnectorIdentifier identifier);
   int Reserve(uint32_t conn_id, DRMDisplayToken *token);
   void Free(DRMDisplayToken *token);
   void Perform(DRMOps code, uint32_t obj_id, drmModeAtomicReq *req, va_list args);

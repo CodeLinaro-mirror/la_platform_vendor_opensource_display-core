@@ -56,7 +56,7 @@ class DRMManager : public DRMManagerInterface {
  public:
   virtual ~DRMManager();
   virtual int RegisterDisplay(DRMDisplayType disp_type, DRMDisplayToken *token,
-                              bool has_cac_loopback);
+                              DRMConnectorIdentifier identifier);
   virtual int RegisterDisplay(int32_t display_id, DRMDisplayToken *token);
   virtual void UnregisterDisplay(DRMDisplayToken *token);
   virtual void GetPlanesInfo(DRMPlanesInfo *info);
