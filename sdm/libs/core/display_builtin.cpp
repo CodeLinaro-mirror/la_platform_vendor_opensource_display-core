@@ -3235,7 +3235,7 @@ DisplayError DisplayBuiltIn::ReconfigureDisplay() {
   }
 
   // Notify Demura when refresh rate changes
-  if (demura_) {
+  if (demura_ && !abc_prop_) {
     GenericPayload demura_fps_pl = {};
     uint32_t *demura_fps_ptr = nullptr;
     int ret = demura_fps_pl.CreatePayload<uint32_t>(demura_fps_ptr);
