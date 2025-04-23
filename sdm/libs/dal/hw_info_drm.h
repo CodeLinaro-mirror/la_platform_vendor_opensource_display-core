@@ -30,11 +30,10 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __HW_INFO_DRM_H__
 #define __HW_INFO_DRM_H__
@@ -65,6 +64,7 @@ class HWInfoDRM : public HWInfoInterface {
   virtual DisplayError GetPanelBootParamString(std::string *panel_boot_param_string);
   virtual uint32_t GetMaxMixerCount();
   virtual uint32_t GetCoreId() { return core_id_; }
+  virtual DisplayError GetDemuraDoubleBufferCodebookFlags(bool *out);
 
  private:
   void Deinit();

@@ -1236,6 +1236,17 @@ DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
   panel_id_ = panel_id;
   DLOGI("panel_id 0x%lx", panel_id_);
 
+  PanelFeaturePropertyInfo demura_info;
+  bool double_buffer_codebook_supported = false;
+  demura_info.prop_id = kPanelFeatureDemuraInitCfg;
+  demura_info.prop_ptr = reinterpret_cast<uint64_t>(&double_buffer_codebook_supported);
+  ret = prop_intf_->GetPanelFeature(&demura_info);
+  if (ret) {
+    DLOGE("Failed to get panel feature, error = %d", ret);
+    return kErrorUndefined;
+  }
+  double_buffer_codebook_supported_ = double_buffer_codebook_supported;
+
   // Send Panel ID to parser manager before validating license
   // in case of DemuraTn is enabled with unity config.
   error = SendPanelIdToParserManager();
@@ -1377,6 +1388,7 @@ DisplayError DisplayBuiltIn::SendPanelIdToParserManager() {
 
   panel_ids_info->panel_ids.push_back(panel_id_);
   panel_ids_info->is_primary_display = IsPrimaryDisplayLocked();
+  panel_ids_info->double_buffer_codebook_supported = double_buffer_codebook_supported_;
   if ((ret = pm_intf_->SetParameter(kDemuraParserManagerParamPanelIds, in))) {
     DLOGE("Failed to set the panel ids to the parser manager");
     return kErrorResources;
@@ -4081,8 +4093,7 @@ DisplayError DisplayBuiltIn::SetDemuraConfig(int demura_idx) {
   }
 
   DLOGI("Setting the Demura Config, config = %d", demura_idx);
-
-  if (demura_idx < kDemuraDefaultIdx || demura_idx >= kMaxPanelConfigSupported) {
+  if (demura_idx < kDemuraDefaultIdx) {
     DLOGE("Invalid demura config index");
     return kErrorParameters;
   }

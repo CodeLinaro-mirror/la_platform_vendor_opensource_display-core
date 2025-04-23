@@ -56,6 +56,7 @@ enum DemuraParserManagerOps {
 struct PanelIdsInfo {
   std::vector<uint64_t> panel_ids;
   bool is_primary_display;
+  bool double_buffer_codebook_supported = false;
 };
 
 using DemuraParserManagerIntf =

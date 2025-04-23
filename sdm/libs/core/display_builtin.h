@@ -456,6 +456,7 @@ class DisplayBuiltIn : public DisplayBase,
   VmFileXferClientFactIntfExtn *factory_extn_ = nullptr;
   std::shared_ptr<FeatureLicenseIntf> feat_license_intf_ = nullptr;
   bool hfi_path_supported_ = false;
+  bool double_buffer_codebook_supported_ = false;
 };
 
 }  // namespace sdm
