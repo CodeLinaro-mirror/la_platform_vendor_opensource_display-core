@@ -1,5 +1,7 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include <unistd.h>
 #include <utils/CallStack.h>
@@ -224,8 +226,13 @@ Error SnapAllocCore::RetainViewBuffer(SnapHandle *meta_hnd, uint32_t view,
     DLOGE("Retain MetaHandle before retaining auxillary view buffer");
     return Error::UNSUPPORTED;
   }
+  uint32_t view_to_import = view;
+  err = metadata_mgr_->GetViewToImport(buf, view, &view_to_import);
+  if (err) {
+    DLOGW_IF(enable_logs, "Failed to get view to import for requested view:%d", view);
+  }
 
-  SnapHandle *view_handle = buf->CreateViewHandle(view);
+  SnapHandle *view_handle = buf->CreateViewHandle(view_to_import);
 
   if (!view_handle) {
     return Error::UNSUPPORTED;

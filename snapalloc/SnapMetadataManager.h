@@ -1,5 +1,7 @@
-// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __SNAP_METADATA_MANAGER_H__
 #define __SNAP_METADATA_MANAGER_H__
@@ -48,6 +50,7 @@ class SnapMetadataManager {
   typedef Error (SnapMetadataManager::*MetadataHelper)(SnapMetadata *metadata,
                                                        SnapHandleInternal *handle, void *in_set,
                                                        void *out_get, BufferDescriptor *buf_des);
+  Error GetViewToImport(SnapHandleInternal *hnd, const uint32_t view_requested, uint32_t *view);
 
  private:
   ~SnapMetadataManager();
@@ -246,7 +249,11 @@ class SnapMetadataManager {
                                       BufferDescriptor *buf_des = nullptr);
   Error ViewIdHelper(SnapMetadata *metadata, SnapHandleInternal *handle, void *in_set = nullptr,
                      void *out_get = nullptr, BufferDescriptor *buf_des = nullptr);
-
+  struct ViewMapping {
+    uint32_t left_id;
+    uint32_t right_id;
+  };
+  std::unordered_map<uint64_t, std::pair<uint32_t, ViewMapping>> bufferid_view_map_ = {};
   struct DRMFormatDescriptor {
     uint32_t drm_format;
     uint64_t drm_modifier;

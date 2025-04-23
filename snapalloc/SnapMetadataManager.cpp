@@ -1,5 +1,7 @@
-// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include "SnapMetadataManager.h"
 #include "BufferLayout.h"
@@ -267,6 +269,22 @@ Error SnapMetadataManager::ThreeDimensionalRefInfoHelper(SnapMetadata *metadata,
   } else if (in_set != nullptr) {
     metadata->three_dimensional_ref_info =
         *static_cast<vendor_qti_hardware_display_common_ThreeDimensionalRefInfo *>(in_set);
+    if (bufferid_view_map_.find(handle->id()) != bufferid_view_map_.end()) {
+      DLOGD_IF(enable_logs, "%s: buf id: %d exists in map", __FUNCTION__, handle->id());
+      auto &entry = bufferid_view_map_.at(handle->id());
+      ViewMapping mapping_entry = {
+          .left_id = (metadata->three_dimensional_ref_info.threedRefDispInfo[0]).left_view_id,
+          .right_id = (metadata->three_dimensional_ref_info.threedRefDispInfo[0]).right_view_id};
+      entry.second = mapping_entry;
+    } else {
+      DLOGD_IF(enable_logs, "%s: buf id: %d does not exists in map. Creating new entry",
+               __FUNCTION__, handle->id());
+      ViewMapping mapping_entry = {
+          .left_id = (metadata->three_dimensional_ref_info.threedRefDispInfo[0]).left_view_id,
+          .right_id = (metadata->three_dimensional_ref_info.threedRefDispInfo[0]).right_view_id};
+      std::pair<uint32_t, ViewMapping> entry = {0, mapping_entry};
+      bufferid_view_map_.emplace(std::make_pair(handle->id(), entry));
+    }
     return Error::NONE;
   }
   return Error::BAD_VALUE;
@@ -279,6 +297,16 @@ Error SnapMetadataManager::ViewIdHelper(SnapMetadata *metadata, SnapHandleIntern
     return Error::NONE;
   } else if (in_set != nullptr) {
     metadata->viewId = *static_cast<uint32_t *>(in_set);
+    if (bufferid_view_map_.find(handle->id()) != bufferid_view_map_.end()) {
+      DLOGD_IF(enable_logs, "%s: buf id: %d exists in map", __FUNCTION__, handle->id());
+      auto &entry = bufferid_view_map_.at(handle->id());
+      entry.first = metadata->viewId;
+    } else {
+      DLOGD_IF(enable_logs, "%s: buf id: %d does not exists in map. Creating new entry",
+               __FUNCTION__, handle->id());
+      std::pair<uint32_t, ViewMapping> entry = {metadata->viewId, {}};
+      bufferid_view_map_.emplace(std::make_pair(handle->id(), entry));
+    }
     return Error::NONE;
   }
   return Error::BAD_VALUE;
@@ -1458,6 +1486,68 @@ void SnapMetadataManager::UnmapAndReset(SnapHandleInternal *hnd) {
            GetMetaDataSize(hnd->reserved_size(), hnd->custom_content_md_reserved_size()));
     hnd->base_metadata() = 0;
   }
+}
+
+Error SnapMetadataManager::GetViewToImport(SnapHandleInternal *hnd, const uint32_t view_requested,
+                                           uint32_t *view) {
+  // Get BufID
+  uint32_t buf_id_index_0 = hnd->id();
+  // Init with default order 0-L & 1-R
+  uint32_t view_id_from_metadata =
+      vendor_qti_hardware_display_common_QtiViews::PRIV_VIEW_MASK_PRIMARY;
+  uint32_t left_id_from_sei = vendor_qti_hardware_display_common_QtiViews::PRIV_VIEW_MASK_PRIMARY;
+  uint32_t right_id_from_sei =
+      vendor_qti_hardware_display_common_QtiViews::PRIV_VIEW_MASK_SECONDARY;
+  DLOGD_IF(enable_logs, "BufferId of metahandle %d", buf_id_index_0);
+
+  // Based on buf_id get viewId, SEI_left_id, SEI_right_id
+  if (bufferid_view_map_.find(buf_id_index_0) != bufferid_view_map_.end()) {
+    auto entry = bufferid_view_map_.at(buf_id_index_0);
+    view_id_from_metadata = entry.first;
+    left_id_from_sei = entry.second.left_id;
+    right_id_from_sei = entry.second.right_id;
+  } else {
+    DLOGW_IF(enable_logs, "Buffer_view_sei data mapping not found. Returning requested view: %d",
+             view_requested);
+    *view = view_requested;
+    return Error::UNSUPPORTED;
+  }
+
+  if (view_id_from_metadata == 0 || (left_id_from_sei == 0 && right_id_from_sei == 0)) {
+    DLOGW_IF(enable_logs, "ViewID or SEI metadata not set. Returning requested view: %d",
+             view_requested);
+    *view = view_requested;
+    return Error::UNSUPPORTED;
+  }
+
+  // Get the view_id for requested view
+  uint32_t view_to_compare = view_requested;
+  if (view_requested == vendor_qti_hardware_display_common_QtiViews::PRIV_VIEW_MASK_PRIMARY) {
+    view_to_compare = left_id_from_sei;
+    DLOGD_IF(enable_logs, "View to compare is left as requested is primary");
+  } else if (view_requested ==
+             vendor_qti_hardware_display_common_QtiViews::PRIV_VIEW_MASK_SECONDARY) {
+    view_to_compare = right_id_from_sei;
+    DLOGD_IF(enable_logs, "view to compare is right as requested is secondary");
+  }
+
+  if (view_id_from_metadata == view_to_compare) {
+    DLOGD_IF(enable_logs, "view set in metadata is same as buf_index 0. returning primary view");
+    *view = vendor_qti_hardware_display_common_QtiViews::PRIV_VIEW_MASK_PRIMARY;
+  } else {
+    DLOGD_IF(enable_logs,
+             "view set in metadata is not same as buf_index 0. returning secondary view");
+    *view = vendor_qti_hardware_display_common_QtiViews::PRIV_VIEW_MASK_SECONDARY;
+  }
+
+  DLOGD_IF(
+      enable_logs,
+      "view_requested %d view_id_from_metadata %d , left_id_from_sei %d, right_id_from_sei %d, "
+      "view_to_compare %d, view returned %d",
+      view_requested, view_id_from_metadata, left_id_from_sei, right_id_from_sei, view_to_compare,
+      *view);
+
+  return Error::NONE;
 }
 
 Error SnapMetadataManager::Set(SnapHandleInternal *hnd,
