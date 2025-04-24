@@ -116,7 +116,10 @@ void GetColorMetadataFromColorMode(SDMColorMode mode, Dataspace &ds) {
 ConcurrencyMgr::ConcurrencyMgr() {}
 
 ConcurrencyMgr::~ConcurrencyMgr() {
-  Deinit();
+  // client can call deinit themselves, so check to avoid double deinit call
+  if (is_composer_up_) {
+    Deinit();
+  }
 }
 
 int ConcurrencyMgr::GetDisplayIndex(int dpy) {
