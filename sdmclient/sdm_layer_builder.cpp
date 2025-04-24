@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include "sdm_layer_builder.h"
@@ -30,6 +30,10 @@ DisplayError SDMLayerBuilder::Init(BufferAllocator *buffer_allocator,
 
   Debug::Get()->GetProperty(DISABLE_MASK_LAYER_HINT, &disable_mask_layer_hint_);
   DLOGI("disable_mask_layer_hint_: %d", disable_mask_layer_hint_);
+
+  int prop_value = 0;
+  Debug::Get()->GetProperty(DISABLE_LLCBC_SUPPORT_PROP, &prop_value);
+  SDMLayer::SetAutoLayerIdCreation(!!prop_value);
 
   // initialize layer stack
   display_layer_stack_[display_id];
