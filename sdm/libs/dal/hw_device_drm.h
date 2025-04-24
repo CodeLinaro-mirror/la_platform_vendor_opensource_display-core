@@ -216,6 +216,7 @@ class HWDeviceDRM : public HWInterface {
                                              uint32_t frame_interval_ns);
   virtual bool IsVRRSupported() { return false; }
   virtual void DisplayEarlyWakeUp();
+  virtual DisplayError setDriverCommitPath(DriverCommitPath path) { return kErrorNotSupported; }
 
   enum {
     kHWEventVSync,

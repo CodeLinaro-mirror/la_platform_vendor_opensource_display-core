@@ -25,7 +25,7 @@
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -76,6 +76,25 @@ enum HWFeature {
   kHasDedicatedCwb,
   kMaxSupportedCwb,
 };
+
+enum DriverCommitPath {
+  kHWIO,
+  kHFI,
+};
+
+inline std::string to_string(DriverCommitPath path) {
+  switch (path) {
+    case kHWIO:
+      return "HWIO";
+      break;
+    case kHFI:
+      return "HFI";
+      break;
+    default:
+      return "Unknown";
+      break;
+  }
+}
 
 // HWEventHandler - Implemented in DisplayBase and HWInterface implementation
 class HWEventHandler {
@@ -179,6 +198,7 @@ class HWInterface {
                                              uint32_t frame_interval_ns) = 0;
   virtual bool IsVRRSupported() = 0;
   virtual void DisplayEarlyWakeUp() = 0;
+  virtual DisplayError setDriverCommitPath(DriverCommitPath path) = 0;
 
  protected:
   virtual ~HWInterface() { }

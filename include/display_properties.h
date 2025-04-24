@@ -287,6 +287,9 @@
 // Disable Ambient HDR
 #define DISABLE_AMBIENT_HDR               DISPLAY_PROP("disable_ambient_hdr")
 
+// HFI commit path support
+#define ENABLE_HFI_PATH                   DISPLAY_PROP("enable_hfi_path")
+
 // Add all other.properties above
 // End of property
 // clang-format on

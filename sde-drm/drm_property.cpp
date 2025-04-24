@@ -275,6 +275,7 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "usecase_idx") { return DRMProperty::USECASE_IDX; }
   if (name == "brightness") { return DRMProperty::BRIGHTNESS; }
   if (name == "flush_sync_en") { return DRMProperty::FLUSH_SYNC_EN; }
+  if (name == "hw_op_mode") { return DRMProperty::COMMIT_PATH; }
 
   return DRMProperty::INVALID;
 }

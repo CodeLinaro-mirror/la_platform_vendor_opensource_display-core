@@ -455,6 +455,7 @@ class DisplayBuiltIn : public DisplayBase,
   bool demura_calib_files_reloaded_ = false;
   VmFileXferClientFactIntfExtn *factory_extn_ = nullptr;
   std::shared_ptr<FeatureLicenseIntf> feat_license_intf_ = nullptr;
+  bool hfi_path_supported_ = false;
 };
 
 }  // namespace sdm
