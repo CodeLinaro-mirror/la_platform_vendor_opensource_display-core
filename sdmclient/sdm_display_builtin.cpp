@@ -1242,12 +1242,11 @@ void SDMDisplayBuiltIn::IdleTimeout() {
   display_intf_->TriggerIdleTimeout();
 }
 
-DisplayError SDMDisplayBuiltIn::SetPanelBrightness(float brightness) {
-  DisplayError ret = display_intf_->SetPanelBrightness(brightness);
+DisplayError SDMDisplayBuiltIn::SetPanelBrightness(float brightness, bool apply_immediately) {
+  DisplayError ret = display_intf_->SetPanelBrightness(brightness, apply_immediately);
   if (ret != kErrorNone) {
     return kErrorResources;
   }
-
   return kErrorNone;
 }
 
@@ -1256,7 +1255,6 @@ DisplayError SDMDisplayBuiltIn::GetPanelBrightness(float *brightness) {
   if (ret != kErrorNone) {
     return kErrorResources;
   }
-
   return kErrorNone;
 }
 

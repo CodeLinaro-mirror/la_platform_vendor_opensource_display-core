@@ -95,7 +95,7 @@ public:
  virtual DisplayError GetSupportedDSIClock(std::vector<uint64_t> *bitclk_rates);
  virtual DisplayError UpdateDisplayId(Display id);
  virtual DisplayError SetPendingRefresh();
- virtual DisplayError SetPanelBrightness(float brightness);
+ virtual DisplayError SetPanelBrightness(float brightness, bool apply_immediately);
  virtual DisplayError GetPanelBrightness(float *brightness);
  virtual DisplayError GetPanelMaxBrightness(uint32_t *max_brightness_level);
  virtual DisplayError SetFrameTriggerMode(uint32_t mode);

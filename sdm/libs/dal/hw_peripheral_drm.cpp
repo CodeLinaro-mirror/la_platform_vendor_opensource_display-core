@@ -292,7 +292,7 @@ DisplayError HWPeripheralDRM::UpdateLoopBackConnector() {
   // Fake register to get the loopback connector
   sde_drm::DRMDisplayToken token = {};
   int ret = drm_mgr_intf_->RegisterDisplay(sde_drm::DRMDisplayType::VIRTUAL, &token,
-                                           true /* loopback connector */);
+                                           sde_drm::DRMConnectorIdentifier::CAC_LOOPBACK);
   if (ret) {
     if (ret != -ENODEV) {
       DLOGE("Failed registering display %d. Error: %d.", sde_drm::DRMDisplayType::VIRTUAL, ret);
@@ -359,6 +359,14 @@ DisplayError HWPeripheralDRM::Commit(HWLayersInfo *hw_layers_info) {
   if (error != kErrorNone) {
     DLOGE("Failed to configure CacLoopback!");
     return error;
+  }
+
+  if (use_hfi_path_) {
+    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_COMMIT_PATH, token_.crtc_id, 1);
+    hwio_path_switch_pending_ = true;
+  } else if (hwio_path_switch_pending_) {
+    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_COMMIT_PATH, token_.crtc_id, 0);
+    hwio_path_switch_pending_ = false;
   }
 
   SetIdlePCState();
@@ -928,6 +936,10 @@ DisplayError HWPeripheralDRM::SetDisplayAttributes(uint32_t index) {
     return kErrorDeferred;
   }
 
+  if (use_hfi_path_) {
+    DLOGW("Attempting mode switch in DCP mode - unsupported operation!");
+  }
+
   HWDeviceDRM::SetDisplayAttributes(index);
   // update bit clk rates.
   hw_panel_info_.bitclk_rates = bitclk_rates_;
@@ -983,8 +995,15 @@ DisplayError HWPeripheralDRM::SetFrameTrigger(FrameTriggerMode mode) {
   return kErrorNone;
 }
 
-DisplayError HWPeripheralDRM::SetPanelBrightness(int level) {
+DisplayError HWPeripheralDRM::SetPanelBrightness(int level, bool apply_immediately) {
   DTRACE_SCOPED();
+
+  std::string trace = "ENABLE_BRIGHTNESS_DRM_PROP " + to_string(enable_brightness_drm_prop_) +
+                      " apply_immediately " + to_string(apply_immediately) + " level " +
+                      to_string(level);
+  DTRACE_BEGIN(trace.c_str());
+  DTRACE_END();
+
   if (pending_power_state_ != kPowerStateNone) {
     DLOGI("Power state %d pending!! Skip for now", pending_power_state_);
     return kErrorDeferred;
@@ -1001,8 +1020,10 @@ DisplayError HWPeripheralDRM::SetPanelBrightness(int level) {
     return kErrorNone;
   }
 
-  if (enable_brightness_drm_prop_) {
-    // set brightness through drm property
+  // If ENABLE_BRIGHTNESS_DRM_PROP is enabled and SF triggered a commit, cache the new brightness
+  // level and send it as part of the commit. If ENABLE_BRIGHTNESS_DRM_PROP is enabled but there's
+  // no upcoming commit, update the brightness in the sysfs node.
+  if (enable_brightness_drm_prop_ && !apply_immediately) {
     cached_brightness_level_ = level;
     return kErrorNone;
   }
@@ -1037,6 +1058,7 @@ DisplayError HWPeripheralDRM::SetPanelBrightness(int level) {
     return kErrorHardware;
   }
 
+  current_brightness_ = level;
   Sys::close_(fd);
 
   return kErrorNone;
@@ -1393,6 +1415,13 @@ bool HWPeripheralDRM::IsVRRSupported() {
   }
 
   return false;
+}
+
+DisplayError HWPeripheralDRM::setDriverCommitPath(DriverCommitPath path) {
+  use_hfi_path_ = (path == kHFI);
+  DLOGI("Setting commit path to %s", to_string(path).c_str());
+
+  return kErrorNone;
 }
 
 }  // namespace sdm

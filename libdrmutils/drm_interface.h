@@ -687,6 +687,13 @@ enum struct DRMOps {
    *      uint32_t - Brightness Level
    */
   CONNECTOR_SET_BRIGHTNESS,
+
+  /*
+   * Op: Sets commit path to HFI or HWIO
+   * Arg: uint32_t - CRTC id
+   *      uint32_t - Commit path, 1 for HFI, 0 for HWIO
+   */
+  CRTC_SET_COMMIT_PATH,
 };
 
 enum struct DRMRotation {
@@ -880,6 +887,21 @@ enum struct DRMPlaneType {
   DMA,
   // Supports a small dimension and doesn't use a CRTC stage
   CURSOR,
+  // Used for LSR usecase on CSC WB connector only
+  CSC,
+  // Used for LSR usecase on  Repro WB connector only
+  REPRO,
+  MAX,
+};
+
+enum struct DRMConnectorIdentifier {
+  DPU = 0,
+  // Use to handle Video usecase using EVA FW
+  LSR_CSC,
+  // Use to handle UI and CSC output using EVA FW
+  LSR_REPRO,
+  // Used for CAC loopback
+  CAC_LOOPBACK,
   MAX,
 };
 
@@ -1079,6 +1101,8 @@ struct DRMConnectorInfo {
   bool has_disp_in_other_core = false;
   bool dpu_ctl_op_sync = false;
   bool has_cac_loopback = false;
+  bool is_wb_csc = false;
+  bool is_wb_repro = false;
   DMSType dms_type = DMSType::DMS_VID_DISABLED;
 };
 
@@ -1534,12 +1558,12 @@ class DRMManagerInterface {
    * needed.
    *
    * [input]: disp_type - Peripheral / TV / Virtual
-   * [input]: has_cac_loopback - set if loopback connector needed
+   * [input]: connector identifier - used when one display type has multiple connector type.
    * [output]: DRMDisplayToken - CRTC and Connector IDs for the display.
    * [return]: 0 on success, a negative error value otherwise.
    */
   virtual int RegisterDisplay(DRMDisplayType disp_type, DRMDisplayToken *tok,
-                              bool has_cac_loopback = false) = 0;
+                              DRMConnectorIdentifier identifier = DRMConnectorIdentifier::DPU) = 0;
 
   /*
    * Register a logical display to receive a token.

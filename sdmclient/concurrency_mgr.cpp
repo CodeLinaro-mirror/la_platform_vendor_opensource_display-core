@@ -116,7 +116,10 @@ void GetColorMetadataFromColorMode(SDMColorMode mode, Dataspace &ds) {
 ConcurrencyMgr::ConcurrencyMgr() {}
 
 ConcurrencyMgr::~ConcurrencyMgr() {
-  Deinit();
+  // client can call deinit themselves, so check to avoid double deinit call
+  if (is_composer_up_) {
+    Deinit();
+  }
 }
 
 int ConcurrencyMgr::GetDisplayIndex(int dpy) {
@@ -804,6 +807,11 @@ void ConcurrencyMgr::RegisterCompositorCallback(SDMCompositorCbIntf *cb, bool en
     }
   } else {
     GetPendingHotplug(pending_hotplugs);
+
+    if (!services_) {
+      services_ = new SDMServices(this, buffer_allocator_, socket_handler_);
+      services_->Init(disp_, buffer_allocator_, locker_, tui_);
+    }
 
     if (sdm_display_[SDM_DISPLAY_PRIMARY]) {
       DLOGI("Hotplugging primary...");
@@ -1771,8 +1779,8 @@ DisplayError ConcurrencyMgr::GetDisplayBrightnessSupport(Display display,
   return kErrorNone;
 }
 
-DisplayError ConcurrencyMgr::SetDisplayBrightness(Display display,
-                                                  float brightness) {
+DisplayError ConcurrencyMgr::SetDisplayBrightness(Display display, float brightness,
+                                                  bool performing_commit) {
   if (display >= kNumDisplays) {
     return kErrorParameters;
   }
@@ -1781,7 +1789,7 @@ DisplayError ConcurrencyMgr::SetDisplayBrightness(Display display,
     return kErrorParameters;
   }
 
-  return (INT32(sdm_display_[display]->SetPanelBrightness(brightness)))
+  return (INT32(sdm_display_[display]->SetPanelBrightness(brightness, !performing_commit)))
              ? kErrorNotSupported
              : kErrorNone;
 }

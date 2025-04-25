@@ -776,6 +776,15 @@ DisplayError SDMDisplay::Deinit() {
     return kErrorNotSupported;
   }
 
+  // Destroy display_null interface if it was created.
+  if (nullptr != display_null_intf_) {
+    error = core_intf_->DestroyNullDisplay(display_null_intf_);
+    if (kErrorNone != error) {
+      DLOGE("NullDisplay destroy failed. Error = %d", error);
+      return error;
+    }
+  }
+
   delete client_target_;
 
   if (color_mode_) {
@@ -1032,9 +1041,12 @@ void SDMDisplay::BuildLayerStack() {
       dump_frame_count_ && (dump_output_to_file_ || dump_input_layers_);
   DLOGV_IF(kTagClient, "layer_stack_.client_incompatible : %d",
            layer_stack_.client_incompatible);
+
+  if (layer_stack_.flags.front_buffer_layer_present) {
+    DLOGV_IF(kTagClient, "front buffer layer present");
+  }
+
   SDMDebugHandler::ATRACE_INT("HDRPresent ", layer_stack_.flags.hdr_present ? 1 : 0);
-  SDMDebugHandler::ATRACE_INT("FrontBufferPresent ",
-                              layer_stack_.flags.front_buffer_layer_present ? 1 : 0);
 }
 
 void SDMDisplay::BuildSolidFillStack() {
@@ -4197,4 +4209,61 @@ DisplayError SDMDisplay::GetParentConfig(Config *config) {
 
   return kErrorNotSupported;
 }
+
+DisplayError SDMDisplay::SetStandbyMode(bool enable, bool is_twm) {
+  DisplayError error = kErrorNone;
+
+  if (enable) {
+    if (nullptr == display_null_intf_) {
+      // Create null display
+      error = core_intf_->CreateNullDisplay(&display_null_intf_);
+      if (kErrorNone != error) {
+        DLOGE("Failed to create Null Display. Error = %d", error);
+        return error;
+      }
+    }
+
+    if (!null_display_active_) {
+      stored_display_intf_ = display_intf_;
+      display_intf_ = display_null_intf_;
+      shared_ptr<Fence> release_fence = nullptr;
+
+      if (is_twm && current_power_mode_ == SDMPowerMode::POWER_MODE_ON) {
+        DLOGD("Display is in ON state and device is entering TWM mode.");
+        error =
+            stored_display_intf_->SetDisplayState(kStateDoze, false /* teardown */, &release_fence);
+        if (error != kErrorNone) {
+          if (error == kErrorShutDown) {
+            shutdown_pending_ = true;
+            return error;
+          }
+          DLOGE("Set state failed. Error = %d", error);
+          return error;
+        } else {
+          current_power_mode_ = SDMPowerMode::POWER_MODE_DOZE;
+          DLOGD("Display moved to DOZE state.");
+        }
+      }
+
+      null_display_active_ = true;
+      DLOGD("Null display is connected successfully");
+    } else {
+      DLOGD("Null display is already connected.");
+    }
+  } else {
+    if (null_display_active_) {
+      if (is_twm) {
+        DLOGE("Unexpected event. Display state may be inconsistent.");
+        return kErrorNotSupported;
+      }
+      display_intf_ = stored_display_intf_;
+      null_display_active_ = false;
+      DLOGD("Null Display is disconnected successfully");
+    } else {
+      DLOGD("Null Display is already disconnected.");
+    }
+  }
+  return kErrorNone;
+}
+
 }  // namespace sdm

@@ -25,7 +25,7 @@
 /*
  * ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -88,6 +88,12 @@ struct DemuraBacklightInfo {
   uint32_t os_brightness;
 };
 
+struct DemuraHfcDecimationInfo {
+  uint32_t decimation_cfg;
+  uint32_t decimate_w;
+  uint32_t decimate_h;
+};
+
 // Demura specific param as strings
 const std::string kDemuraFeatureParamActive = "Active";
 const std::string kDemuraFeatureParamCorrectionBuffer = "CorrectionBuffer";
@@ -101,6 +107,7 @@ const std::string kDemuraFeatureParamBacklightEvent = "DisplayBacklightEvent";
 const std::string kDemuraFeatureParamBrightHeadroomRatio = "BrightHeadroomRatio";
 const std::string kDemuraFeatureParamRefreshRate = "RefreshRate";
 const std::string kDemuraFeatureParamDispEventState = "DispEventState";
+const std::string kDemuraFeatureParamHfcDecimationInfo = "HfcDecimationInfo";
 
 // ABC specific params for supporting TVM
 const std::string kDemuraFeatureParamExportFiles = "ExportFiles";

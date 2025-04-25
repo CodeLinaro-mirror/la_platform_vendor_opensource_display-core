@@ -200,7 +200,8 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError GetRefreshRateRange(uint32_t *min_refresh_rate,
                                    uint32_t *max_refresh_rate) override;
   DisplayError SetRefreshRate(uint32_t refresh_rate, bool final_rate, bool idle_screen) override;
-  DisplayError SetPanelBrightness(float brightness, bool return_error = false) override;
+  DisplayError SetPanelBrightness(float brightness, bool apply_immediately,
+                                  bool return_error = false) override;
   DisplayError GetPanelBrightness(float *brightness) override;
   DisplayError GetPanelBrightnessFromLevel(float level, float *brightness);
   DisplayError GetPanelBrightnessLevel(int *level) override;
@@ -454,6 +455,7 @@ class DisplayBuiltIn : public DisplayBase,
   bool demura_calib_files_reloaded_ = false;
   VmFileXferClientFactIntfExtn *factory_extn_ = nullptr;
   std::shared_ptr<FeatureLicenseIntf> feat_license_intf_ = nullptr;
+  bool hfi_path_supported_ = false;
 };
 
 }  // namespace sdm

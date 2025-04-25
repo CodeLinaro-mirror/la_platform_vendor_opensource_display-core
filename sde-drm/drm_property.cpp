@@ -224,6 +224,7 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "bpp_mode") { return DRMProperty::BPP_MODE; }
   if (name == "SDE_DEMURA_INIT_CFG_V1") { return DRMProperty::DEMURA_INIT_CFG_V1; }
   if (name == "SDE_DEMURA_INIT_CFG_V3") { return DRMProperty::DEMURA_INIT_CFG_V3; }
+  if (name == "SDE_DEMURA_INIT_CFG_V4") { return DRMProperty::DEMURA_INIT_CFG_V4; }
   if (name == "SDE_DEMURA_CFG0_PARAM2") {
     return DRMProperty::DEMURA_CFG0_PARAM2;
   }
@@ -274,6 +275,7 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "usecase_idx") { return DRMProperty::USECASE_IDX; }
   if (name == "brightness") { return DRMProperty::BRIGHTNESS; }
   if (name == "flush_sync_en") { return DRMProperty::FLUSH_SYNC_EN; }
+  if (name == "hw_op_mode") { return DRMProperty::COMMIT_PATH; }
 
   return DRMProperty::INVALID;
 }

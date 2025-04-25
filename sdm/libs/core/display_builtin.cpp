@@ -301,6 +301,10 @@ DisplayError DisplayBuiltIn::Init() {
   Debug::Get()->GetProperty(DEFER_FPS_FRAME_COUNT, &value);
   deferred_config_.frame_count = (value > 0) ? UINT32(value) : 0;
 
+  value = 0;
+  Debug::Get()->GetProperty(ENABLE_HFI_PATH, &value);
+  hfi_path_supported_ = (value > 0);
+
   error = event_proxy_info_.Init(client_ctx_.hw_panel_info.panel_name, this, extension_lib_,
                                  prop_intf_);
   if (error != kErrorNone) {
@@ -882,6 +886,19 @@ DisplayError DisplayBuiltIn::SetupDemuraLayer() {
     DLOGE("Failed to get BufferInfo, error = %d", ret);
     return kErrorResources;
   }
+
+  GenericPayload dec_pl;
+  DemuraHfcDecimationInfo *hfc_decimate_info = nullptr;
+  if ((ret = dec_pl.CreatePayload<DemuraHfcDecimationInfo>(hfc_decimate_info))) {
+    DLOGE("Failed to create payload for decimate_cfg, error = %d", ret);
+    return kErrorResources;
+  }
+
+  if ((ret = demura_->GetParameter(kDemuraFeatureParamHfcDecimationInfo, &dec_pl))) {
+    DLOGE("Failed to get decimate_cfg, error = %d", ret);
+    return kErrorResources;
+  }
+
   demura_layer_.clear();  // This will clear the old demura layers
 
   for (int buf_idx = 0; buf_idx < corrdata->surfaces.size(); buf_idx++) {
@@ -910,6 +927,8 @@ DisplayError DisplayBuiltIn::SetupDemuraLayer() {
     demura_layer.composition = kCompositionDemura;
     demura_layer.blending = kBlendingSkip;
     demura_layer.flags.is_demura = 1;
+    demura_layer.demura_decimate_w = hfc_decimate_info->decimate_w;
+    demura_layer.demura_decimate_h = hfc_decimate_info->decimate_h;
     // ROI must match input dimensions
     demura_layer.src_rect.top = 0;
     demura_layer.src_rect.left = 0;
@@ -1655,6 +1674,21 @@ DisplayError DisplayBuiltIn::SetDisplayState(DisplayState state, bool teardown,
     SetDemuraIntfStatus(false, demura_current_idx_);
   }
 
+  if (hfi_path_supported_) {
+    if (state == DisplayState::kStateDoze || state == DisplayState::kStateDozeSuspend) {
+      // set driver commit path to HFI if entering doze mode
+      error = hw_intf_->setDriverCommitPath(DriverCommitPath::kHFI);
+    } else if ((state_ == DisplayState::kStateDoze || state_ == DisplayState::kStateDozeSuspend) &&
+               (state != DisplayState::kStateDoze && state != DisplayState::kStateDozeSuspend)) {
+      // set driver commit path to hwio if exiting doze ode
+      error = hw_intf_->setDriverCommitPath(DriverCommitPath::kHWIO);
+    }
+  }
+
+  if (error) {
+    DLOGW("Failed to update driver path when transitioning to state %d", state);
+  }
+
   error = DisplayBase::SetDisplayState(state, teardown, release_fence);
   if (error != kErrorNone) {
     return error;
@@ -1773,7 +1807,8 @@ DisplayError DisplayBuiltIn::SetDisplayMode(uint32_t mode) {
   return error;
 }
 
-DisplayError DisplayBuiltIn::SetPanelBrightness(float brightness, bool return_error) {
+DisplayError DisplayBuiltIn::SetPanelBrightness(float brightness, bool apply_immediately,
+                                                bool return_error) {
   DisplayError err = kErrorNone;
   {
     lock_guard<recursive_mutex> obj(brightness_lock_);
@@ -1801,10 +1836,7 @@ DisplayError DisplayBuiltIn::SetPanelBrightness(float brightness, bool return_er
       level_remainder = t - level;
     }
 
-    err = dpu_core_mux_->SetPanelBrightness(level);
-    if (enable_brightness_drm_prop_) {
-      event_handler_->Refresh();
-    }
+    err = dpu_core_mux_->SetPanelBrightness(level, apply_immediately);
     if (err == kErrorNone) {
       level_remainder_ = level_remainder;
       pending_brightness_ = false;
@@ -3222,7 +3254,7 @@ DisplayError DisplayBuiltIn::ReconfigureDisplay() {
   }
 
   // Notify Demura when refresh rate changes
-  if (demura_) {
+  if (demura_ && !abc_prop_) {
     GenericPayload demura_fps_pl = {};
     uint32_t *demura_fps_ptr = nullptr;
     int ret = demura_fps_pl.CreatePayload<uint32_t>(demura_fps_ptr);

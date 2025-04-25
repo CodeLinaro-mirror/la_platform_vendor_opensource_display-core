@@ -549,6 +549,11 @@ struct Layer {
   float layer_brightness = 1.0;                    //!< Layer brightness
   float hdr_sdr_ratio = 1.0;                       //!< HDR/SDR ratio for extended range layer.
                                                    //!< Only valid for client target in android.
+
+  uint32_t demura_decimate_w = 1;                  //!< If demura layer, stores the decimation
+                                                   //!< along width.
+  uint32_t demura_decimate_h = 1;                  //!< If demura layer, stores the decimation
+                                                   //!< along height.
 };
 
 /*! @brief This structure defines the color space + transfer of a given layer.

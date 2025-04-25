@@ -62,7 +62,7 @@ class DPUCoreMux {
   virtual void SetIdleTimeoutMs(uint32_t timeout_ms) = 0;
   virtual DisplayError SetDisplayMode(const HWDisplayMode hw_display_mode) = 0;
   virtual DisplayError SetRefreshRate(uint32_t refresh_rate) = 0;
-  virtual DisplayError SetPanelBrightness(int level) = 0;
+  virtual DisplayError SetPanelBrightness(int level, bool apply_immediately) = 0;
   virtual DisplayError GetHWScanInfo(HWScanInfo *scan_info) = 0;
   virtual DisplayError GetVideoFormat(uint32_t config_index, uint32_t *video_format) = 0;
   virtual DisplayError GetMaxCEAFormat(uint32_t *max_cea_format) = 0;
