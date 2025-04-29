@@ -1238,7 +1238,7 @@ DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
 
   PanelFeaturePropertyInfo demura_info;
   bool double_buffer_codebook_supported = false;
-  demura_info.prop_id = kPanelFeatureDemuraInitCfg;
+  demura_info.prop_id = kPanelFeatureDemuraDoubleBufferCbFlags;
   demura_info.prop_ptr = reinterpret_cast<uint64_t>(&double_buffer_codebook_supported);
   ret = prop_intf_->GetPanelFeature(&demura_info);
   if (ret) {
