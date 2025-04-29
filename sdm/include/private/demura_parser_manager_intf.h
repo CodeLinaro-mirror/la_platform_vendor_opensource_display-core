@@ -23,9 +23,8 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- *
- * Copyright (c) 2022, 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -41,7 +40,6 @@ namespace sdm {
 enum DemuraParserManagerParams {
   kDemuraParserManagerParamPanelIds,
   kDemuraParserManagerParamReleaseParsers,
-  kDemuraParserManagerExportDemuraFiles,
   kDemuraParserManagerReparseDemuraFiles,
   kDemuraParserManagerParamMax = 0x80,
   kDemuraParserManagerPrivParamStart,
