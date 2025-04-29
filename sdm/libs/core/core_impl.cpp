@@ -23,9 +23,8 @@
 */
 
 /*
- * ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- *
- * Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -790,6 +789,11 @@ DisplayError CoreImpl::ValidateAndCleanupDemuraFiles() {
     return kErrorResources;
   }
 
+  if (!hw_info_intf_[0]) {
+    DLOGE("hw_info_intf_[0] is nullptr");
+    return kErrorResources;
+  }
+
   demuratn_validator_intf_ = panel_feature_factory_intf_->CreateDemuraTnValidatorIntf();
   if (!demuratn_validator_intf_) {
     DLOGW("Failed to create DemuraTnValidatorIntf");
@@ -799,6 +803,30 @@ DisplayError CoreImpl::ValidateAndCleanupDemuraFiles() {
   if (ret) {
     DLOGW("Failed to init DemuraTnValidatorIntf, ret %d", ret);
     demuratn_validator_intf_.reset();
+    return kErrorResources;
+  }
+
+  // Query demura double buffer codebook flags
+  bool flags = false;
+  DisplayError err = hw_info_intf_[0]->GetDemuraDoubleBufferCodebookFlags(&flags);
+  if (err) {
+    DLOGE("Failed to get demura double buffer codebook flags, error = %d", err);
+    return kErrorUndefined;
+  }
+
+  // Config demura double buffer codebook flags
+  GenericPayload flags_pl;
+  bool *flags_ptr = nullptr;
+  ret = flags_pl.CreatePayload<bool>(flags_ptr);
+  if (ret) {
+    DLOGE("Failed to create the payload for flags_ptr. Error:%d", ret);
+    return kErrorResources;
+  }
+  *flags_ptr = flags;
+  ret =
+      demuratn_validator_intf_->SetParameter(kDemuraTnValidatorDoubleBufferCodebookFlags, flags_pl);
+  if (ret) {
+    DLOGE("Failed to Set double buffer codebook flags, ret %d", ret);
     return kErrorResources;
   }
 

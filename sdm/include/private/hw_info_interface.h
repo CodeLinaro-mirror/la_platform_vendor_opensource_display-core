@@ -25,11 +25,10 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __HW_INFO_INTERFACE_H__
 #define __HW_INFO_INTERFACE_H__
@@ -60,6 +59,7 @@ class HWInfoInterface {
   virtual DisplayError GetPanelBootParamString(std::string *panel_boot_param_string) = 0;
   virtual uint32_t GetMaxMixerCount() = 0;
   virtual uint32_t GetCoreId() = 0;
+  virtual DisplayError GetDemuraDoubleBufferCodebookFlags(bool *out) = 0;
 
  protected:
   static sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> intf_;
