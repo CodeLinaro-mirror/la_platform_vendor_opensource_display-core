@@ -23,10 +23,10 @@
 */
 
 /*
-* ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include <stdio.h>
 #include <malloc.h>
@@ -560,7 +560,11 @@ DisplayError DisplayBase::SetupPanelFeatureFactory() {
 
   int demuratn_enable = 0;
   GetDemuraTnFactory get_demuratn_factory_ptr = nullptr;
-  Debug::Get()->GetProperty(ENABLE_ANTI_AGING, &demuratn_enable);
+  if (IsPrimaryDisplay()) {
+    Debug::Get()->GetProperty(ENABLE_ANTI_AGING, &demuratn_enable);
+  } else {
+    Debug::Get()->GetProperty(ENABLE_ANTI_AGING_SECONDARY, &demuratn_enable);
+  }
   if (demuratn_enable) {
     if (!extension_lib_.Sym(
             GET_DEMURATN_FACTORY,
