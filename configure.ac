@@ -40,6 +40,7 @@ AC_ARG_ENABLE([sdmhaldrm],
         enable_sdmhaldrm=no)
 
 AM_CONDITIONAL([ENABLE_SDMHALDRM], [test "x${enable_sdmhaldrm}" = "xyes"])
+AM_CONDITIONAL([RT_SCHEDULE], [test "x${RT_SCHEDULE}" = "xyes"])
 
 # Checks for programs.
 AC_PROG_CC
