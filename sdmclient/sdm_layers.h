@@ -29,8 +29,7 @@
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the
  * following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #ifndef __SDM_LAYERS_H__
@@ -183,6 +182,7 @@ class SDMLayer {
     ignore_sdr_histogram_md_ = disable;
   }
   static bool IsLayerIdExisting(LayerId id) { return id_mgr_.IsIdExisting(id); }
+  static void SetAutoLayerIdCreation(bool flag) { auto_create_layer_id_ = flag; }
 
  private:
   std::shared_ptr<ISnapMapper> snapmapper_;
@@ -193,6 +193,7 @@ class SDMLayer {
   std::string name_;
   const Display display_id_;
   static IdManager id_mgr_;
+  static bool auto_create_layer_id_;
   shared_ptr<Fence> release_fence_;
   BufferAllocator *buffer_allocator_ = NULL;
   int32_t dataspace_ = 0;

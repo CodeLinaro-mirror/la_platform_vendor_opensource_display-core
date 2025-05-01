@@ -29,8 +29,7 @@
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the
  * following license:
- *
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include "sdm_layers.h"
@@ -52,6 +51,7 @@ namespace sdm {
 using UBWCVersion = vendor_qti_hardware_display_common_UBWCVersion;
 
 IdManager SDMLayer::id_mgr_;
+bool SDMLayer::auto_create_layer_id_ = false;
 
 Error GetMetadata(const SnapHandle *handle, MetadataType type, void *out,
                   std::shared_ptr<ISnapMapper> snapmapper_) {
@@ -114,10 +114,10 @@ static bool IsSdrDimmingDisabled() {
 
 // Layer operations
 SDMLayer::SDMLayer(Display display_id, BufferAllocator *buf_allocator)
-    : SDMLayer(display_id, id_mgr_.GetNextPossibleId(), buf_allocator) {}
+    : SDMLayer(display_id, id_mgr_.GetNextPossibleId(auto_create_layer_id_), buf_allocator) {}
 
 SDMLayer::SDMLayer(Display display_id, LayerId layer_id, BufferAllocator *buf_allocator)
-    : id_(id_mgr_.CreateId(layer_id)), display_id_(display_id), buffer_allocator_(buf_allocator) {
+    : id_(id_mgr_.LogId(layer_id)), display_id_(display_id), buffer_allocator_(buf_allocator) {
   layer_ = new Layer();
   geometry_changes_ |= kAdded;
 
@@ -149,7 +149,7 @@ SDMLayer::~SDMLayer() {
     }
     delete layer_;
   }
-  id_mgr_.DestroyId(id_);
+  id_mgr_.EraseId(id_);
 }
 
 DisplayError SDMLayer::SetLayerBuffer(const SnapHandle *handle,
