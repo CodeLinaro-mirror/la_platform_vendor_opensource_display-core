@@ -300,14 +300,6 @@ DisplayError SDMTrustedUI::TUITransitionEnd(int disp_id) {
     return kErrorNotSupported;
   }
 
-  if (!vm_reclaim_done_) {
-    auto ret = WaitForVmReclaim(disp_id, 1000);
-    if (ret != kErrorNone) {
-      DLOGE("Wait for vm reclaim failed, retry tui end once again");
-      return ret;
-    }
-  }
-
   vm_reclaim_done_ = false;
   return TUITransitionEndLocked(disp_id);
 }
