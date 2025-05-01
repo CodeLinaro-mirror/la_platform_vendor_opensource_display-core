@@ -264,6 +264,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError StartTvmServices();
   DisplayError StartService(TvmDispServiceManagerParams service);
   DisplayError ExportDemuraFiles();
+  DisplayError ExportABCFiles();
   DisplayError EnableCopr(bool en) override;
   DisplayError GetCoprStats(std::vector<int> *stats) override;
   DisplayError GetScalerCount(uint32_t *scaler_count) override;

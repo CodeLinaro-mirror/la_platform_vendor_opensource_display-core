@@ -30,7 +30,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /*
 * ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 *
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -176,8 +176,8 @@ DisplayError HWPeripheralDRM::SetDynamicDSIClock(uint64_t bit_clk_rate) {
     return kErrorNotSupported;
   }
 
-  if (vrefresh_) {
-    // vrefresh change pending.
+  if (vrefresh_ || update_mode_) {
+    // vrefresh and/or mode change pending.
     // Defer bit rate clock change.
     return kErrorNotSupported;
   }

@@ -538,6 +538,13 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError SetABCMode(uint64_t display_id, string mode_name);
   DisplayError SetAIScalerMode(uint64_t display_id, uint32_t mode_id) { return kErrorNone; }
   DisplayError SetPanelFeatureConfig(Display display, int32_t type, void *data);
+  bool CheckLayerBufferBinding(uint64_t display_id, int64_t layer_id, const SnapHandle *buffer) {
+    // This function interface is implemented  for a composer command BufferSlotsToClear, where
+    // it helps to figure out active slot to avoid releasing corresponding associated buffer.
+    // So, if it will be really needed by its dependent implementation, then it must be
+    // true to avoid release of active slot buffer.
+    return true;
+  }
 
   static const int locker_count_ = pluggable_lock_index_ + 1;
   static Locker locker_[locker_count_];

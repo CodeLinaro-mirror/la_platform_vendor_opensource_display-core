@@ -554,7 +554,7 @@ Error SnapAllocCore::GetMetadata(SnapHandle *hnd,
   }
   auto buf = GetBufferFromHandleLocked(hnd);
   if (buf == nullptr) {
-    DLOGE("%s: Unable to get locked buffer", __FUNCTION__);
+    DLOGW("%s: Unable to get locked buffer", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
   auto err = metadata_mgr_->ValidateAndMap(buf);
@@ -574,7 +574,7 @@ Error SnapAllocCore::SetMetadata(SnapHandle *hnd,
   }
   auto buf = GetBufferFromHandleLocked(hnd);
   if (buf == nullptr) {
-    DLOGE("%s: Unable to get locked buffer", __FUNCTION__);
+    DLOGW("%s: Unable to get locked buffer", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
   auto err = metadata_mgr_->ValidateAndMap(buf);
@@ -611,7 +611,7 @@ Error SnapAllocCore::GetMetadataState(SnapHandle *hnd,
   }
   auto buf = GetBufferFromHandleLocked(hnd);
   if (buf == nullptr) {
-    DLOGE("%s: Unable to get locked buffer", __FUNCTION__);
+    DLOGW("%s: Unable to get locked buffer", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
   auto err = metadata_mgr_->ValidateAndMap(buf);
