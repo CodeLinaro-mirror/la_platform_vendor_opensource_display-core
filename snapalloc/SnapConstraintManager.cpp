@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapConstraintManager.h"
@@ -32,7 +32,13 @@ void SnapConstraintManager::Init() {
 
   default_provider_ = DefaultConstraintProvider::GetInstance(format_data_map_);
 
-  ubwc_policy_ = UBWCPolicy::GetInstance(format_data_map_);
+  if (Debug::GetInstance()->IsUBWCDisabled()) {
+    ubwc_policy_ = nullptr;
+    DLOGI("UBWC is disabled");
+  }
+  else {
+    ubwc_policy_ = UBWCPolicy::GetInstance(format_data_map_);
+  }
 
   GraphicsConstraintProvider *graphics_provider =
       GraphicsConstraintProvider::GetInstance(format_data_map_);
@@ -227,7 +233,7 @@ Error SnapConstraintManager::GetAllocationData(
   std::map<SnapConstraintProvider *, CapabilitySet> cap_map = GetCapabilities(*out_desc);
   auto err = Error::NONE;
 
-  bool ubwc_enabled = ubwc_policy_->IsUBWCAlloc(*out_desc);
+  bool ubwc_enabled = ubwc_policy_ ? ubwc_policy_->IsUBWCAlloc(*out_desc) : false;
   SetSnapPrivateFlags(out_desc->format, out_desc->usage, ubwc_enabled, out_priv_flags);
   out_ad->uncached = UseUncached(out_desc->format, out_desc->usage, ubwc_enabled);
 

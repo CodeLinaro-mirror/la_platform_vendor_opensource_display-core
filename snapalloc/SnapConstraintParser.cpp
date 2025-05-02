@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapConstraintParser.h"
@@ -114,16 +114,11 @@ static std::unordered_map<std::string, vendor_qti_hardware_display_common_PixelF
 
 static std::unordered_map<std::string, vendor_qti_hardware_display_common_PlaneLayoutComponentType>
     PlaneLayoutComponentTypeStringToEnum = {
-        {"Y", PLANE_LAYOUT_COMPONENT_TYPE_Y},
-        {"CB", PLANE_LAYOUT_COMPONENT_TYPE_CB},
-        {"CR", PLANE_LAYOUT_COMPONENT_TYPE_CR},
-        {"R", PLANE_LAYOUT_COMPONENT_TYPE_R},
-        {"G", PLANE_LAYOUT_COMPONENT_TYPE_G},
-        {"B", PLANE_LAYOUT_COMPONENT_TYPE_B},
-        {"RAW", PLANE_LAYOUT_COMPONENT_TYPE_RAW},
-        {"BLOB", PLANE_LAYOUT_COMPONENT_TYPE_BLOB},
-        {"A", PLANE_LAYOUT_COMPONENT_TYPE_A},
-        {"META", PLANE_LAYOUT_COMPONENT_TYPE_META},
+        {"Y", PLANE_LAYOUT_COMPONENT_TYPE_Y},     {"CB", PLANE_LAYOUT_COMPONENT_TYPE_CB},
+        {"CR", PLANE_LAYOUT_COMPONENT_TYPE_CR},   {"R", PLANE_LAYOUT_COMPONENT_TYPE_R},
+        {"G", PLANE_LAYOUT_COMPONENT_TYPE_G},     {"B", PLANE_LAYOUT_COMPONENT_TYPE_B},
+        {"RAW", PLANE_LAYOUT_COMPONENT_TYPE_RAW}, {"BLOB", PLANE_LAYOUT_COMPONENT_TYPE_BLOB},
+        {"A", PLANE_LAYOUT_COMPONENT_TYPE_A},     {"META", PLANE_LAYOUT_COMPONENT_TYPE_META},
 };
 
 bool SnapConstraintParser::StringToEnumType(
@@ -155,163 +150,1758 @@ bool SnapConstraintParser::StringToEnumType(
 
 int SnapConstraintParser::ParseFormats(
     std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> *format_data_map) {
-  std::string json_path = "/vendor/etc/display/formats.json";
-
-  std::ifstream ifs(json_path.c_str());
-  if (!ifs.is_open()) {
-    DLOGE("Error opening file");
-    return -1;
-  }
-
-  Json::Reader reader;
-  Json::Value input_data;
-  reader.parse(ifs, input_data);
-  auto format_data = input_data["format_data"];
-  for (Json::Value::const_iterator it = format_data.begin(); it != format_data.end(); ++it) {
-    auto format_data_set = format_data[it.index()];
-
-    vendor_qti_hardware_display_common_PixelFormat format;
-    if (!StringToEnumType(format_data_set["format"].asString(), &format)) {
-      DLOGE("%s: Could not find format %s in format list", __FUNCTION__,
-            format_data_set["format"].asString().c_str());
-      continue;
-    }
-    auto format_data_set_vals = format_data_set["data"];
-    FormatData data;
-    data.bits_per_pixel = format_data_set_vals["bits_per_pixel"].asUInt();
-
-    for (Json::Value::const_iterator it_planes = format_data_set_vals["planes"].begin();
-         it_planes != format_data_set_vals["planes"].end(); ++it_planes) {
-      auto plane_constraints_data = format_data_set_vals["planes"][it_planes.index()];
-      PlaneLayoutData plane_constraints;
-
-      plane_constraints.sample_increment_bits =
-          plane_constraints_data["sample_increment_bits"].asUInt();
-      plane_constraints.horizontal_subsampling =
-          plane_constraints_data["h_subsampling_factor"].asUInt();
-      plane_constraints.vertical_subsampling =
-          plane_constraints_data["v_subsampling_factor"].asUInt();
-
-      for (Json::Value::const_iterator it_plane_components =
-               plane_constraints_data["components"].begin();
-           it_plane_components != plane_constraints_data["components"].end();
-           ++it_plane_components) {
-        auto plane_component = plane_constraints_data["components"][it_plane_components.index()];
-
-        vendor_qti_hardware_display_common_PlaneLayoutComponentType component_type;
-        if (StringToEnumType(plane_component["component_type"].asString(), &component_type)) {
-          vendor_qti_hardware_display_common_PlaneLayoutComponent component;
-          component.type = component_type;
-          component.offset_in_bits = plane_component["offset_bits"].asUInt();
-          component.size_in_bits = plane_component["size_bits"].asUInt();
-          plane_constraints.components.push_back(component);
-        } else {
-          // Empty string valid for formats where plane layout is not queried (e.g., depth stencil formats)
-          if ((plane_component["component_type"].asString() != "")) {
-            DLOGE("Invalid component type %s in %s",
-                plane_component["component_type"].asString().c_str(), json_path.c_str());
-            continue;
-          }
-        }
-      }
-      data.planes.push_back(plane_constraints);
-    }
-
-    format_data_map->insert(std::make_pair(format, data));
-  }
-
-  if (format_data_map->empty()) {
-    DLOGE("Format map empty");
-    return -1;
-  }
-
+  *format_data_map = {
+      {YCrCb_420_SP,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_Y, 0, 8},
+             }},
+             8,
+             1,
+             1},
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_CR, 0, 8},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_CB, 8, 8},
+             }},
+             16,
+             2,
+             2},
+        },
+        12}},
+      {YCbCr_420_SP,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_Y, 0, 8},
+             }},
+             8,
+             1,
+             1},
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_CB, 0, 8},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_CR, 8, 8},
+             }},
+             16,
+             2,
+             2},
+        },
+        12}},
+      {YCBCR_P010,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_Y, 6, 10},
+             }},
+             16,
+             1,
+             1},
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_CB, 6, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_CR, 22, 10},
+             }},
+             32,
+             2,
+             2},
+        },
+        24}},
+      {RGBA_8888,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 8},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 8, 8},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 16, 8},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 24, 8},
+             }},
+             32,
+             1,
+             1},
+        },
+        32}},
+      {RGBX_8888,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 8},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 8, 8},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 16, 8},
+             }},
+             32,
+             1,
+             1},
+        },
+        32}},
+      {RGB_888,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 8},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 8, 8},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 16, 8},
+             }},
+             24,
+             1,
+             1},
+        },
+        24}},
+      {RGB_565,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 5},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 5, 6},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 11, 5},
+             }},
+             16,
+             1,
+             1},
+        },
+        16}},
+      {BGR_565,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 5},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 5, 6},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 11, 5},
+             }},
+             16,
+             1,
+             1},
+        },
+        16}},
+      {BGRA_8888,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 8},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 8, 8},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 16, 8},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 24, 8},
+             }},
+             32,
+             1,
+             1},
+        },
+        32}},
+      {RGBA_5551,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 5},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 5, 5},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 10, 5},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 15, 1},
+             }},
+             16,
+             1,
+             1},
+        },
+        16}},
+      {RGBA_4444,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 4},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 4, 4},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 8, 4},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 12, 4},
+             }},
+             16,
+             1,
+             1},
+        },
+        16}},
+      {R_8,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 8},
+             }},
+             8,
+             1,
+             1},
+        },
+        8}},
+      {RG_88,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 8},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 8, 8},
+             }},
+             16,
+             1,
+             1},
+        },
+        16}},
+      {RGBA_1010102,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 10, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 20, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 30, 2},
+             }},
+             32,
+             1,
+             1},
+        },
+        32}},
+      {RGBX_1010102,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 10, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 20, 10},
+             }},
+             32,
+             1,
+             1},
+        },
+        32}},
+      {ABGR_2101010,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 2},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 2, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 12, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 22, 10},
+             }},
+             32,
+             1,
+             1},
+        },
+        32}},
+      {RGBA_FP16,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 16},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 16, 16},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 32, 16},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 48, 16},
+             }},
+             64,
+             1,
+             1},
+        },
+        64}},
+      {YV12,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_Y, 0, 8},
+             }},
+             8,
+             1,
+             1},
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_CR, 0, 8},
+             }},
+             8,
+             2,
+             2},
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_CB, 0, 8},
+             }},
+             8,
+             2,
+             2},
+        },
+        12}},
+      {TP10,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_Y, 0, 10},
+             }},
+             32,
+             1,
+             1},
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_CB, 0, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_CR, 10, 10},
+             }},
+             24,
+             2,
+             2},
+        },
+        32}},
+      {NV21_ZSL,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_Y, 0, 8},
+             }},
+             8,
+             1,
+             1},
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_CR, 0, 8},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_CB, 8, 8},
+             }},
+             16,
+             2,
+             2},
+        },
+        12}},
+      {RAW8,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_RAW, 0, 8},
+             }},
+             8,
+             1,
+             1},
+        },
+        8}},
+      {RAW10,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_RAW, 0, 10},
+             }},
+             10,
+             1,
+             1},
+        },
+        10}},
+      {RAW12,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_RAW, 0, 12},
+             }},
+             12,
+             1,
+             1},
+        },
+        12}},
+      {RAW14,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_RAW, 0, 14},
+             }},
+             14,
+             1,
+             1},
+        },
+        14}},
+      {RAW16,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_RAW, 0, 16},
+             }},
+             16,
+             1,
+             1},
+        },
+        16}},
+      {RAW_OPAQUE,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_RAW, 0, 10},
+             }},
+             10,
+             1,
+             1},
+        },
+        10}},
+      {DEPTH_16,
+       {{
+            {{{}}, 16, 1, 1},
+        },
+        16}},
+      {DEPTH_24,
+       {{
+            {{{}}, 24, 1, 1},
+        },
+        24}},
+      {DEPTH_24_STENCIL_8,
+       {{
+            {{{}}, 32, 1, 1},
+        },
+        32}},
+      {DEPTH_32F,
+       {{
+            {{{}}, 32, 1, 1},
+        },
+        32}},
+      {DEPTH_32F_STENCIL_8,
+       {{
+            {{{}}, 40, 1, 1},
+        },
+        40}},
+      {STENCIL_8,
+       {{
+            {{{}}, 8, 1, 1},
+        },
+        8}},
+      {BLOB,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_BLOB, 0, 1},
+             }},
+             8,
+             1,
+             1},
+        },
+        8}},
+      {YCBCR_422_SP,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_Y, 0, 8},
+             }},
+             8,
+             1,
+             1},
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_CB, 0, 8},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_CR, 8, 8},
+             }},
+             16,
+             2,
+             1},
+        },
+        16}},
+      {YCBCR_422_I,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_Y, 0, 8},
+             }},
+             16,
+             1,
+             1},
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_CB, 8, 8},
+             }},
+             32,
+             2,
+             1},
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_CR, 24, 8},
+             }},
+             32,
+             2,
+             1},
+        },
+        16}},
+      {Y8,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_Y, 0, 8},
+             }},
+             8,
+             1,
+             1},
+        },
+        8}},
+      {Y16,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_Y, 0, 16},
+             }},
+             16,
+             1,
+             1},
+        },
+        16}},
+      {YCrCb_422_SP,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_Y, 0, 8},
+             }},
+             8,
+             1,
+             1},
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_CR, 0, 8},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_CB, 8, 8},
+             }},
+             16,
+             2,
+             1},
+        },
+        16}},
+      {BGRX_8888,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 8},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 8, 8},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 16, 8},
+             }},
+             32,
+             1,
+             1},
+        },
+        32}},
+      {ARGB_2101010,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 2},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 2, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 12, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 22, 10},
+             }},
+             32,
+             1,
+             1},
+        },
+        32}},
+      {XRGB_2101010,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 2, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 12, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 22, 10},
+             }},
+             32,
+             1,
+             1},
+        },
+        32}},
+      {ABGR_2101010,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 2},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 2, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 12, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 22, 10},
+             }},
+             32,
+             1,
+             1},
+        },
+        32}},
+      {XBGR_2101010,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 2, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 12, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 22, 10},
+             }},
+             32,
+             1,
+             1},
+        },
+        32}},
+      {BGRA_1010102,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 10, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 20, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 30, 2},
+             }},
+             32,
+             1,
+             1},
+        },
+        32}},
+      {BGRX_1010102,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 10, 10},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 20, 10},
+             }},
+             32,
+             1,
+             1},
+        },
+        32}},
+      {BGR_888,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 8},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 8, 8},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 16, 8},
+             }},
+             24,
+             1,
+             1},
+        },
+        24}},
+      {COMPRESSED_RGBA_ASTC_4x4_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_RGBA_ASTC_5x4_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_RGBA_ASTC_5x5_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_RGBA_ASTC_6x5_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_RGBA_ASTC_6x6_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_RGBA_ASTC_8x5_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_RGBA_ASTC_8x6_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_RGBA_ASTC_8x8_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_RGBA_ASTC_10x5_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_RGBA_ASTC_10x6_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_RGBA_ASTC_10x8_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_RGBA_ASTC_10x10_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_RGBA_ASTC_12x10_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_RGBA_ASTC_12x12_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_SRGB8_ALPHA8_ASTC_4x4_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_SRGB8_ALPHA8_ASTC_5x4_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_SRGB8_ALPHA8_ASTC_5x5_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_SRGB8_ALPHA8_ASTC_6x5_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_SRGB8_ALPHA8_ASTC_6x6_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_SRGB8_ALPHA8_ASTC_8x5_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_SRGB8_ALPHA8_ASTC_8x6_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_SRGB8_ALPHA8_ASTC_8x8_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_SRGB8_ALPHA8_ASTC_10x5_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_SRGB8_ALPHA8_ASTC_10x6_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_SRGB8_ALPHA8_ASTC_10x8_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_SRGB8_ALPHA8_ASTC_10x10_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_SRGB8_ALPHA8_ASTC_12x10_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {COMPRESSED_SRGB8_ALPHA8_ASTC_12x12_KHR,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_R, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_G, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_B, 0, 0},
+                 {PLANE_LAYOUT_COMPONENT_TYPE_A, 0, 0},
+             }},
+             0,
+             1,
+             1},
+        },
+        0}},
+      {YCrCb_422_I,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_Y, 0, 8},
+             }},
+             16,
+             1,
+             1},
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_CR, 8, 8},
+             }},
+             32,
+             2,
+             1},
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_CB, 24, 8},
+             }},
+             32,
+             2,
+             1},
+        },
+        16}},
+      {CbYCrY_422_I,
+       {{
+            {{{
+                 {PLANE_LAYOUT_COMPONENT_TYPE_Y, 0, 8},
+             }},
+             16,
+             2,
+             1},
+        },
+        16}},
+  };
   return 0;
 }
 
 int SnapConstraintParser::ParseAlignments(const std::string &json_path,
                                           std::map<vendor_qti_hardware_display_common_PixelFormat,
                                                    BufferConstraints> *constraint_set_map) {
-  std::ifstream ifs(json_path.c_str());
-
-  if (!ifs.is_open()) {
-    DLOGE("Error opening file");
-    return -1;
+  if (json_path == "/vendor/etc/display/camera_alignments.json") {
+    *constraint_set_map = {
+        {NV21_ZSL,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_Y}, ALIGNMENT, {64}, {64}, 4096, 0, 0},
+              {{PLANE_LAYOUT_COMPONENT_TYPE_CR, PLANE_LAYOUT_COMPONENT_TYPE_CB},
+               ALIGNMENT,
+               {64},
+               {64},
+               4096,
+               0,
+               0},
+          },
+          1}},
+        {RAW_OPAQUE,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_RAW}, ALIGNMENT, {80}, {1}, 4096, 0, 0},
+          },
+          1}},
+        {RAW10,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_RAW}, ALIGNMENT, {80}, {1}, 4096, 0, 0},
+          },
+          1}},
+        {RAW12,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_RAW}, ALIGNMENT, {48}, {1}, 4096, 0, 0},
+          },
+          1}},
+        {RAW14,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_RAW}, ALIGNMENT, {112}, {1}, 4096, 0, 0},
+          },
+          1}},
+    };
+    return 0;
   }
 
-  Json::Reader reader;
-  Json::Value input_data;
-  reader.parse(ifs, input_data);
-  auto constraint_sets = input_data["device"]["constraint_sets"];
-
-  for (Json::Value::const_iterator it_sets = constraint_sets.begin();
-       it_sets != constraint_sets.end(); ++it_sets) {
-    auto constraint_set = constraint_sets[it_sets.index()];
-    auto constraint_set_data = constraint_set["constraints"];
-
-    vendor_qti_hardware_display_common_PixelFormat format =
-        vendor_qti_hardware_display_common_PixelFormat::PIXEL_FORMAT_UNSPECIFIED;
-    if (!StringToEnumType(constraint_set["format"].asString(), &format)) {
-      DLOGE("%s: Could not find format %s in format list", __FUNCTION__,
-            constraint_set["format"].asString().c_str());
-      continue;
-    }
-
-    BufferConstraints data;
-    data.size_align_bytes = constraint_set_data["size_align_bytes"].asUInt();
-    data.modifier = 0;
-    if (constraint_set.isMember("modifier")) {
-      data.modifier = constraint_set_data["modifier"].asUInt();
-    }
-
-    for (Json::Value::const_iterator it_planes = constraint_set_data["planes"].begin();
-         it_planes != constraint_set_data["planes"].end(); ++it_planes) {
-      auto file_plane_constraints = constraint_set_data["planes"][it_planes.index()];
-      PlaneConstraints plane_constraints;
-      plane_constraints.alignment_type = ALIGNMENT;
-
-      plane_constraints.stride.horizontal_stride_align =
-          file_plane_constraints["horiz_stride_align_bytes"].asUInt();
-      plane_constraints.scanline.scanline_align = file_plane_constraints["scanline_align"].asUInt();
-      plane_constraints.size_align = file_plane_constraints["size_align_bytes"].asUInt();
-      if (file_plane_constraints.isMember("block_width_bytes")) {
-        plane_constraints.block_width = file_plane_constraints["block_width_bytes"].asUInt();
-      }
-
-      if (file_plane_constraints.isMember("block_height_bytes")) {
-        plane_constraints.block_height = file_plane_constraints["block_height_bytes"].asUInt();
-      }
-
-      if (file_plane_constraints.isMember("meta_planes")) {
-        plane_constraints.stride.horizontal_stride_align =
-            file_plane_constraints["meta_planes"]["horiz_stride_align_bytes"].asUInt();
-        plane_constraints.scanline.scanline_align =
-            file_plane_constraints["meta_planes"]["scanline_align"].asUInt();
-      }
-
-      for (Json::Value::const_iterator it_plane_components =
-               file_plane_constraints["components"].begin();
-           it_plane_components != file_plane_constraints["components"].end();
-           ++it_plane_components) {
-        auto plane_component = file_plane_constraints["components"][it_plane_components.index()];
-        vendor_qti_hardware_display_common_PlaneLayoutComponentType component_type;
-        if (StringToEnumType(plane_component["component_type"].asString(), &component_type)) {
-          plane_constraints.components.push_back(component_type);
-        } else {
-          DLOGE("Invalid component type %s in %s",
-                plane_component["component_type"].asString().c_str(), json_path.c_str());
-          continue;
-        }
-      }
-      data.planes.push_back(plane_constraints);
-    }
-
-    constraint_set_map->insert(std::make_pair(format, data));
+  if (json_path == "/vendor/etc/display/cpu_alignments.json") {
+    *constraint_set_map = {
+        {RGBA_8888,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B, PLANE_LAYOUT_COMPONENT_TYPE_A},
+               ALIGNMENT,
+               {256},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {RGB_888,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B},
+               ALIGNMENT,
+               {256},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {YV12,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_Y}, ALIGNMENT, {16}, {2}, 1, 0, 0},
+              {{PLANE_LAYOUT_COMPONENT_TYPE_CR}, ALIGNMENT, {16}, {2}, 1, 0, 0},
+              {{PLANE_LAYOUT_COMPONENT_TYPE_CB}, ALIGNMENT, {16}, {2}, 1, 0, 0},
+          },
+          4096}},
+    };
+    return 0;
   }
 
-  if (constraint_set_map->empty()) {
-    DLOGE("Format map empty");
+  if (json_path == "/vendor/etc/display/default_alignments.json") {
+    *constraint_set_map = {
+        {RGBA_8888,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B, PLANE_LAYOUT_COMPONENT_TYPE_A},
+               ALIGNMENT,
+               {256},
+               {4},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {RGB_888,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B},
+               ALIGNMENT,
+               {256},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {RGB_565,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B},
+               ALIGNMENT,
+               {256},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {BGR_565,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B},
+               ALIGNMENT,
+               {256},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {BGRA_8888,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B, PLANE_LAYOUT_COMPONENT_TYPE_A},
+               ALIGNMENT,
+               {256},
+               {4},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {RGBX_8888,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B},
+               ALIGNMENT,
+               {4},
+               {4},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {YCbCr_420_SP,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_Y}, ALIGNMENT, {64}, {2}, 1, 0, 0},
+              {{PLANE_LAYOUT_COMPONENT_TYPE_CB, PLANE_LAYOUT_COMPONENT_TYPE_CR},
+               ALIGNMENT,
+               {64},
+               {4},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {YCBCR_422_SP,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_Y}, ALIGNMENT, {16}, {1}, 1, 0, 0},
+              {{PLANE_LAYOUT_COMPONENT_TYPE_CB, PLANE_LAYOUT_COMPONENT_TYPE_CR},
+               ALIGNMENT,
+               {16},
+               {1},
+               1,
+               0,
+               0},
+          },
+          4096}},
+        {YCBCR_422_I,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_Y}, ALIGNMENT, {16}, {1}, 1, 0, 0},
+              {{PLANE_LAYOUT_COMPONENT_TYPE_CB}, ALIGNMENT, {16}, {1}, 1, 0, 0},
+              {{PLANE_LAYOUT_COMPONENT_TYPE_CR}, ALIGNMENT, {16}, {1}, 1, 0, 0},
+          },
+          4096}},
+        {YCrCb_420_SP,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_Y}, ALIGNMENT, {128}, {32}, 1, 0, 0},
+              {{PLANE_LAYOUT_COMPONENT_TYPE_CR, PLANE_LAYOUT_COMPONENT_TYPE_CB},
+               ALIGNMENT,
+               {128},
+               {16},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {RGBA_FP16,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B, PLANE_LAYOUT_COMPONENT_TYPE_A},
+               ALIGNMENT,
+               {256},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {RGBA_1010102,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B, PLANE_LAYOUT_COMPONENT_TYPE_A},
+               ALIGNMENT,
+               {256},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {YCBCR_P010,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_Y}, ALIGNMENT, {256}, {32}, 1, 0, 0},
+              {{PLANE_LAYOUT_COMPONENT_TYPE_CB, PLANE_LAYOUT_COMPONENT_TYPE_CR},
+               ALIGNMENT,
+               {256},
+               {16},
+               1,
+               0,
+               0},
+          },
+          4096}},
+        {NV21_ZSL,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_Y}, ALIGNMENT, {64}, {64}, 4096, 0, 0},
+              {{PLANE_LAYOUT_COMPONENT_TYPE_CR, PLANE_LAYOUT_COMPONENT_TYPE_CB},
+               ALIGNMENT,
+               {64},
+               {64},
+               4096,
+               0,
+               0},
+          },
+          1}},
+        {RAW8,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_RAW}, ALIGNMENT, {16}, {1}, 1, 0, 0},
+          },
+          1}},
+        {RAW16,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_RAW}, ALIGNMENT, {16}, {1}, 1, 0, 0},
+          },
+          2}},
+        {RAW10,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_RAW}, ALIGNMENT, {16}, {1}, 1, 0, 0},
+          },
+          4096}},
+        {RAW12,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_RAW}, ALIGNMENT, {16}, {1}, 1, 0, 0},
+          },
+          4096}},
+        {RAW14,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_RAW}, ALIGNMENT, {112}, {1}, 1, 0, 0},
+          },
+          4096}},
+        {YV12,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_Y}, ALIGNMENT, {16}, {2}, 1, 0, 0},
+              {{PLANE_LAYOUT_COMPONENT_TYPE_CR}, ALIGNMENT, {16}, {2}, 1, 0, 0},
+              {{PLANE_LAYOUT_COMPONENT_TYPE_CB}, ALIGNMENT, {16}, {2}, 1, 0, 0},
+          },
+          4096}},
+        {BLOB,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_BLOB}, ALIGNMENT, {1}, {1}, 1, 0, 0},
+          },
+          1}},
+        {Y8,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_Y}, ALIGNMENT, {16}, {1}, 1, 0, 0},
+          },
+          1}},
+        {Y16,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_Y}, ALIGNMENT, {16}, {1}, 1, 0, 0},
+          },
+          2}},
+        {YCrCb_422_SP,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_Y}, ALIGNMENT, {16}, {1}, 1, 0, 0},
+              {{PLANE_LAYOUT_COMPONENT_TYPE_CR, PLANE_LAYOUT_COMPONENT_TYPE_CB},
+               ALIGNMENT,
+               {16},
+               {1},
+               1,
+               0,
+               0},
+          },
+          4096}},
+        {BGRX_8888,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B},
+               ALIGNMENT,
+               {4},
+               {4},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {ARGB_2101010,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B, PLANE_LAYOUT_COMPONENT_TYPE_A},
+               ALIGNMENT,
+               {256},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {XRGB_2101010,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B},
+               ALIGNMENT,
+               {256},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {ABGR_2101010,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B, PLANE_LAYOUT_COMPONENT_TYPE_A},
+               ALIGNMENT,
+               {256},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {XBGR_2101010,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B},
+               ALIGNMENT,
+               {256},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {BGRA_1010102,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B, PLANE_LAYOUT_COMPONENT_TYPE_A},
+               ALIGNMENT,
+               {256},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {BGRX_1010102,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B},
+               ALIGNMENT,
+               {256},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {BGR_888,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B},
+               ALIGNMENT,
+               {256},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {YCrCb_422_I,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_Y}, ALIGNMENT, {16}, {1}, 1, 0, 0},
+              {{PLANE_LAYOUT_COMPONENT_TYPE_CB, PLANE_LAYOUT_COMPONENT_TYPE_CR},
+               ALIGNMENT,
+               {16},
+               {1},
+               1,
+               0,
+               0},
+          },
+          4096}},
+        {CbYCrY_422_I,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_Y}, ALIGNMENT, {16}, {1}, 1, 0, 0},
+          },
+          4096}},
+        {R_8,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R}, ALIGNMENT, {256}, {1}, 1, 0, 0},
+          },
+          1}},
+    };
+    return 0;
   }
-  return 0;
+
+  if (json_path == "/vendor/etc/display/display_alignments.json") {
+    *constraint_set_map = {
+        {RGBA_8888,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B, PLANE_LAYOUT_COMPONENT_TYPE_A},
+               ALIGNMENT,
+               {256},
+               {32},
+               1,
+               0,
+               0},
+          },
+          4096}},
+    };
+    return 0;
+  }
+
+  if (json_path == "/vendor/etc/display/graphics_alignments.json") {
+    *constraint_set_map = {
+        {RGBA_8888,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B, PLANE_LAYOUT_COMPONENT_TYPE_A},
+               ALIGNMENT,
+               {64},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {RGBX_8888,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B},
+               ALIGNMENT,
+               {64},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {RGB_888,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B},
+               ALIGNMENT,
+               {64},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {RGB_565,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B},
+               ALIGNMENT,
+               {64},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {BGR_565,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_B, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_R},
+               ALIGNMENT,
+               {64},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {BGRA_8888,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_B, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_A},
+               ALIGNMENT,
+               {64},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {RGBA_5551,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B, PLANE_LAYOUT_COMPONENT_TYPE_A},
+               ALIGNMENT,
+               {64},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {RGBA_4444,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B, PLANE_LAYOUT_COMPONENT_TYPE_A},
+               ALIGNMENT,
+               {64},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {R_8,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R}, ALIGNMENT, {64}, {1}, 1, 0, 0},
+          },
+          1}},
+        {RG_88,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G},
+               ALIGNMENT,
+               {64},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {RGBA_1010102,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B, PLANE_LAYOUT_COMPONENT_TYPE_A},
+               ALIGNMENT,
+               {64},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {RGBX_1010102,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B},
+               ALIGNMENT,
+               {64},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {ABGR_2101010,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_A, PLANE_LAYOUT_COMPONENT_TYPE_B,
+                PLANE_LAYOUT_COMPONENT_TYPE_G, PLANE_LAYOUT_COMPONENT_TYPE_R},
+               ALIGNMENT,
+               {64},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+        {RGBA_FP16,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B, PLANE_LAYOUT_COMPONENT_TYPE_A},
+               ALIGNMENT,
+               {64},
+               {1},
+               1,
+               0,
+               0},
+          },
+          1}},
+    };
+    return 0;
+  }
+
+  if (json_path == "/vendor/etc/display/ubwc_alignments.json") {
+    *constraint_set_map = {
+        {YCbCr_420_SP,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_Y}, ALIGNMENT, {64}, {16}, 1, 0, 0},
+              {{PLANE_LAYOUT_COMPONENT_TYPE_CR, PLANE_LAYOUT_COMPONENT_TYPE_CB},
+               ALIGNMENT,
+               {64},
+               {16},
+               1,
+               0,
+               0},
+          },
+          4096}},
+        {TP10,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_Y}, ALIGNMENT, {64}, {16}, 1, 0, 0},
+              {{PLANE_LAYOUT_COMPONENT_TYPE_CR, PLANE_LAYOUT_COMPONENT_TYPE_CB},
+               ALIGNMENT,
+               {64},
+               {16},
+               1,
+               0,
+               0},
+          },
+          4096}},
+        {RGBA_8888,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B, PLANE_LAYOUT_COMPONENT_TYPE_A},
+               ALIGNMENT,
+               {64},
+               {16},
+               1,
+               0,
+               0},
+          },
+          4096}},
+        {RGBX_8888,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B, PLANE_LAYOUT_COMPONENT_TYPE_A},
+               ALIGNMENT,
+               {64},
+               {16},
+               1,
+               64,
+               4},
+          },
+          4096}},
+        {RGBA_1010102,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B, PLANE_LAYOUT_COMPONENT_TYPE_A},
+               ALIGNMENT,
+               {64},
+               {16},
+               1,
+               0,
+               0},
+          },
+          4096}},
+        {RGB_565,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B},
+               ALIGNMENT,
+               {64},
+               {16},
+               1,
+               0,
+               0},
+          },
+          4096}},
+        {YCBCR_P010,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_Y}, ALIGNMENT, {64}, {16}, 1, 0, 0},
+              {{PLANE_LAYOUT_COMPONENT_TYPE_CR, PLANE_LAYOUT_COMPONENT_TYPE_CB},
+               ALIGNMENT,
+               {64},
+               {16},
+               1,
+               0,
+               0},
+          },
+          4096}},
+    };
+    return 0;
+  }
+
+  if (json_path == "/vendor/etc/display/video_alignments.json") {
+    *constraint_set_map = {
+        {YCrCb_420_SP,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_Y}, ALIGNMENT, {128}, {32}, 1, 0, 0},
+              {{PLANE_LAYOUT_COMPONENT_TYPE_CR, PLANE_LAYOUT_COMPONENT_TYPE_CB},
+               ALIGNMENT,
+               {128},
+               {16},
+               1,
+               0,
+               0},
+          },
+          4096}},
+        {RGBA_8888,
+         {0,
+          {
+              {{PLANE_LAYOUT_COMPONENT_TYPE_R, PLANE_LAYOUT_COMPONENT_TYPE_G,
+                PLANE_LAYOUT_COMPONENT_TYPE_B, PLANE_LAYOUT_COMPONENT_TYPE_A},
+               ALIGNMENT,
+               {256},
+               {32},
+               1,
+               0,
+               0},
+          },
+          4096}},
+    };
+    return 0;
+  }
+
+  DLOGE("Invalid json_path");
+  return -1;
 }
 
 }  // namespace snapalloc
