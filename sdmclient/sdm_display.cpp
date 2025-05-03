@@ -1970,7 +1970,6 @@ DisplayError SDMDisplay::CommitLayerStack(void) {
     // A commit is successfully submitted, start flushing on failure now
     // onwards.
     flush_on_error_ = true;
-    first_cycle_ = false;
   } else {
     if (error == kErrorShutDown) {
       shutdown_pending_ = true;
@@ -2019,6 +2018,7 @@ SDMDisplay::PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence) {
   flush_ = false;
   skip_commit_ = false;
   client_target_3_1_set_ = false;
+  first_cycle_ = false;
 
   if (display_pause_pending_) {
     DLOGI("Pause display %d-%d", sdm_id_, type_);
