@@ -1715,11 +1715,6 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
     info.second.cwb_id = DisplayId(layer_stack->cwb_id).GetConnId(info.first);
   }
   if (layer_stack->request_flags.trigger_refresh) {
-    for (auto& info : disp_layer_stack_->info) {
-      if (!disable_cwb_idle_fallback_ && info.second.output_buffer) {
-        cwb_fence_wait_ = true;
-      }
-    }
     layer_stack->output_buffer = nullptr;
   }
 
@@ -1876,18 +1871,6 @@ DisplayError DisplayBase::PerformHwCommit(std::map<uint32_t, HWLayersInfo> &hw_l
       return flush_err;
     }
   }
-
-  // TODO(user): Workaround for messenger app flicker issue in CWB idle fallback,
-  // to be removed when issue is fixed.
-  // O/P buffer has merged release fences, so check on index 0 only
-  if (cwb_fence_wait_ && hw_layers_info.begin()->second.output_buffer &&
-      (hw_layers_info.begin()->second.output_buffer->release_fence != nullptr)) {
-    if (Fence::Wait(hw_layers_info.begin()->second.output_buffer->release_fence) != kErrorNone) {
-      DLOGW("sync_wait error errno = %d, desc = %s", errno, strerror(errno));
-    }
-  }
-
-  cwb_fence_wait_ = false;
 
   error = PostCommit();
   if (error != kErrorNone) {
