@@ -45,7 +45,6 @@ Locker SDMTrustedUI::vm_release_locker_[kNumDisplays];
 Locker SDMTrustedUI::vm_reclaim_locker_[kNumDisplays];
 std::bitset<kNumDisplays> SDMTrustedUI::clients_waiting_for_vm_release_;
 std::bitset<kNumDisplays> SDMTrustedUI::clients_waiting_for_vm_reclaim_;
-static int tui_end_retry = 5;
 
 void SDMTrustedUI::Init(SDMDisplayBuilder *disp, Locker *locker,
                         int pluggable_lock_index) {
@@ -301,16 +300,14 @@ DisplayError SDMTrustedUI::TUITransitionEnd(int disp_id) {
     return kErrorNotSupported;
   }
 
-  if (!vm_reclaim_done_ && tui_end_retry) {
-    auto ret = WaitForVmReclaim(disp_id, 700);
+  if (!vm_reclaim_done_) {
+    auto ret = WaitForVmReclaim(disp_id, 1000);
     if (ret != kErrorNone) {
-      tui_end_retry--;
       DLOGE("Wait for vm reclaim failed, retry tui end once again");
       return ret;
     }
   }
 
-  tui_end_retry = 0;
   vm_reclaim_done_ = false;
   return TUITransitionEndLocked(disp_id);
 }
@@ -428,7 +425,6 @@ DisplayError SDMTrustedUI::TUITransitionUnPrepare(int disp_id) {
   // Reset tui session state variable.
   tui_start_success_ = false;
   tui_end_success_ = true;
-  tui_end_retry = 5;
   DLOGI("End of TUI session on display %d", disp_id);
   return kErrorNone;
 }
