@@ -183,6 +183,13 @@
 #define ANTI_AGING_RECALIB_TIMER_DIVIDER     DISPLAY_PROP("demura_recalib_timer_divider")
 #define ANTI_AGING_ENABLE_LOGGING            DISPLAY_PROP("antiaging_enable_logging")
 #define ANTI_AGING_DISABLE_AOD_HANDLER       DISPLAY_PROP("antiaging_disable_aod_handler")
+#define ENABLE_ANTI_AGING_SECONDARY                   DISPLAY_PROP("enable_antiaging_secondary")
+#define ANTI_AGING_SHORT_TIMER_SECONDARY              DISPLAY_PROP("demura_short_timer_secondary")
+#define ANTI_AGING_LONG_TIMER_SECONDARY               DISPLAY_PROP("demura_long_timer_secondary")
+#define ANTI_AGING_RECALIB_TIMER_SECONDARY            DISPLAY_PROP("demura_recalib_timer_secondary")
+#define ANTI_AGING_RECORD_TIMER_SECONDARY             DISPLAY_PROP("demura_record_timer_secondary")
+#define ANTI_AGING_IDLE_TIMER_SECONDARY               DISPLAY_PROP("demura_idle_timer_secondary")
+#define ANTI_AGING_RECALIB_TIMER_DIVIDER_SECONDARY    DISPLAY_PROP("demura_recalib_timer_divider_secondary")
 
 // PERF hint properties
 #define ENABLE_PERF_HINT_LARGE_COMP_CYCLE    DISPLAY_PROP("enable_perf_hint_large_comp_cycle")

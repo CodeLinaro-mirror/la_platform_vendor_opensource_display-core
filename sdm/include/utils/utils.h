@@ -29,7 +29,7 @@
 
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -59,13 +59,12 @@ class IdManager {
     std::lock_guard<std::mutex> lock(id_mutex_);
     active_ids_.clear();
   }
-  uint64_t CreateId(uint64_t new_id = 0) {
+  uint64_t LogId(uint64_t new_id) {
     std::lock_guard<std::mutex> lock(id_mutex_);
-    uint64_t id = (!new_id) ? (1 + GetMaxId()) : new_id;
-    active_ids_.insert(id);
-    return id;
+    active_ids_.insert(new_id);
+    return new_id;
   }
-  void DestroyId(uint64_t id) {
+  void EraseId(uint64_t id) {
     std::lock_guard<std::mutex> lock(id_mutex_);
     active_ids_.erase(id);
   }
@@ -74,13 +73,28 @@ class IdManager {
     return !(active_ids_.empty() || (*(active_ids_.rbegin()) < id) ||
              active_ids_.find(id) == active_ids_.end());
   }
-  uint64_t GetNextPossibleId() {
+  uint64_t GetNextPossibleId(bool next_to_max) {
     std::lock_guard<std::mutex> lock(id_mutex_);
-    return 1 + GetMaxId();
+    return (next_to_max) ? 1 + GetMaxId() : GetNonConflictingIdToIncrementalPath();
   }
 
  private:
   inline uint64_t GetMaxId() { return (active_ids_.empty() ? 0 : *(active_ids_.rbegin())); }
+  // find non-conflicting id to future path for incremental id.
+  uint64_t GetNonConflictingIdToIncrementalPath() {
+    auto possible_id = 0;
+    for (auto &id : active_ids_) {
+      if (id >= (UINT64_MAX - UINT8_MAX)) {
+        return GetMaxId() + 1;  // use next unreserved id in top range, if no thrown id available
+      } else if (possible_id < id) {
+        return possible_id;  // use thrown id, which will never be used by client again
+      } else if (possible_id == id) {
+        possible_id++;  // to check next id, whether it is thrown, if current id is reserved
+      }
+    }
+    // Consider Id-0 as valid for internal use, if external client shares non-zero incremental ids.
+    return (possible_id) ? (UINT64_MAX - UINT8_MAX) : 0;  // Use top range, if no thrown id found
+  }
 
   std::mutex id_mutex_;
   std::set<uint64_t> active_ids_;

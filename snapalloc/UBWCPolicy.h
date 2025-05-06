@@ -36,7 +36,9 @@ class UBWCPolicy {
    * @param: UBWCCapabilities containing UBWC support info
    * @return: AllocData to be used by memory allocation backend
    */
-  Error GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, AllocData *out_ad,
+  Error GetUBWCAlloc(BufferDescriptor desc,
+                     std::map<SnapConstraintProvider *, CapabilitySet> const &providers,
+                     UBWCCapabilities caps, AllocData *out_ad,
                      vendor_qti_hardware_display_common_BufferLayout *out_layout);
 
   void Init(std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map);

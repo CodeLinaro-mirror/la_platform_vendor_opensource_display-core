@@ -30,11 +30,10 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-*
-* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include <dlfcn.h>
 #include <drm/drm_fourcc.h>
@@ -654,6 +653,23 @@ void HWInfoDRM::MapPlaneToConnector(HWResourceInfo *hw_resource) {
 
 void HWInfoDRM::GetInitialDemuraInfo(HWResourceInfo *hw_resource) {
   drm_mgr_intf_->GetInitialDemuraInfo(&hw_resource->initial_demura_planes);
+}
+
+DisplayError HWInfoDRM::GetDemuraDoubleBufferCodebookFlags(bool *out) {
+  DisplayError ret = kErrorNone;
+
+  if (!out) {
+    DLOGE("Invalid out is nullptr");
+    return kErrorParameters;
+  }
+
+  DRMPanelFeatureInfo info = {};
+  bool flags = false;
+  info.prop_id = sde_drm::kDRMPanelFeatureDemuraInit;
+  info.prop_ptr = reinterpret_cast<uint64_t>(&flags);
+  drm_mgr_intf_->GetPanelFeature(&info);
+  *out = flags;
+  return ret;
 }
 
 void HWInfoDRM::PopulatePipeCaps(const sde_drm::DRMPlaneTypeInfo &info,

@@ -254,7 +254,9 @@ int UBWCPolicy::OffTargetAlloc(BufferDescriptor desc, AllocData *out_ad,
   return 0;
 }
 
-Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, AllocData *out_ad,
+Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc,
+                               std::map<SnapConstraintProvider *, CapabilitySet> const &providers,
+                               UBWCCapabilities caps, AllocData *out_ad,
                                vendor_qti_hardware_display_common_BufferLayout *out_layout) {
   (void)desc;
   (void)caps;
@@ -309,7 +311,9 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
           GetPixelFormatModifier(desc));
   mmm_color_format = mapper.MapPixelFormatWithMmmColorFormat(
       desc.format, desc.usage, pixel_format_modifier, true);  // true indicates ubwc is enabled
-  if (mmm_color_format != -1) {
+  bool use_adreno_for_size =
+      (providers.size() == 1) && (providers.begin()->first->GetProviderType() == kGraphics);
+  if (!use_adreno_for_size && mmm_color_format != -1) {
     // Double the number of planes to account for meta planes
     out_layout->plane_count = format_data.planes.size() * 2;
     if (IsYuv(desc.format)) {

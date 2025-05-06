@@ -982,8 +982,10 @@ void DRMPlane::InitAndParse(drmModePlane *plane) {
   ParseProperties();
 
   unique_ptr<DRMPPManager> pp_mgr(new DRMPPManager(fd_));
-  pp_mgr_ = std::move(pp_mgr);
-  pp_mgr_->Init(prop_mgr_, DRM_MODE_OBJECT_PLANE);
+  if (pp_mgr != nullptr) {
+    pp_mgr_ = std::move(pp_mgr);
+    pp_mgr_->Init(prop_mgr_, DRM_MODE_OBJECT_PLANE);
+  }
 }
 
 bool DRMPlane::ConfigureScalerLUT(drmModeAtomicReq *req, uint32_t dir_lut_blob_id,

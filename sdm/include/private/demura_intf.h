@@ -23,9 +23,8 @@
 */
 
 /*
- * ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- *
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -49,7 +48,6 @@
 
 namespace sdm {
 
-static const uint32_t kMaxPanelConfigSupported = 4;
 static const int kDemuraDefaultIdx = 0;
 
 template <typename T>

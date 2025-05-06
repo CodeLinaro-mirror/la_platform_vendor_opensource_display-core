@@ -23,9 +23,9 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
 #include "display_builtin.h"
@@ -1236,6 +1236,17 @@ DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
   panel_id_ = panel_id;
   DLOGI("panel_id 0x%lx", panel_id_);
 
+  PanelFeaturePropertyInfo demura_info;
+  bool double_buffer_codebook_supported = false;
+  demura_info.prop_id = kPanelFeatureDemuraInitCfg;
+  demura_info.prop_ptr = reinterpret_cast<uint64_t>(&double_buffer_codebook_supported);
+  ret = prop_intf_->GetPanelFeature(&demura_info);
+  if (ret) {
+    DLOGE("Failed to get panel feature, error = %d", ret);
+    return kErrorUndefined;
+  }
+  double_buffer_codebook_supported_ = double_buffer_codebook_supported;
+
   // Send Panel ID to parser manager before validating license
   // in case of DemuraTn is enabled with unity config.
   error = SendPanelIdToParserManager();
@@ -1377,6 +1388,7 @@ DisplayError DisplayBuiltIn::SendPanelIdToParserManager() {
 
   panel_ids_info->panel_ids.push_back(panel_id_);
   panel_ids_info->is_primary_display = IsPrimaryDisplayLocked();
+  panel_ids_info->double_buffer_codebook_supported = double_buffer_codebook_supported_;
   if ((ret = pm_intf_->SetParameter(kDemuraParserManagerParamPanelIds, in))) {
     DLOGE("Failed to set the panel ids to the parser manager");
     return kErrorResources;
@@ -4081,8 +4093,7 @@ DisplayError DisplayBuiltIn::SetDemuraConfig(int demura_idx) {
   }
 
   DLOGI("Setting the Demura Config, config = %d", demura_idx);
-
-  if (demura_idx < kDemuraDefaultIdx || demura_idx >= kMaxPanelConfigSupported) {
+  if (demura_idx < kDemuraDefaultIdx) {
     DLOGE("Invalid demura config index");
     return kErrorParameters;
   }
@@ -4769,17 +4780,54 @@ DisplayError DisplayBuiltIn::SetDemuraTnCWBSamplingPeriod(void *data) {
 }
 
 DisplayError DisplayBuiltIn::ExportDemuraFiles() {
-  if (!pm_intf_) {
-    DLOGW("Invalid parser manager intf");
+#if !defined(SDM_UNIT_TESTING) && !defined(TRUSTED_VM)
+  int ret = 0;
+  const std::string kConfigFilePath = "/mnt/vendor/persist/display/";
+  std::vector<std::string> configs = {"demura_config_", "demura_publickey_", "demura_signature_"};
+
+  if (!panel_id_) {
+    DLOGE("Invalid panel id %llx", panel_id_);
     return kErrorUndefined;
   }
 
-  GenericPayload in;
-  int ret = pm_intf_->SetParameter(kDemuraParserManagerExportDemuraFiles, in);
-  if (ret) {
-    DLOGE("Failed to export demura files, ret %d", ret);
+  if (!vm_file_xfer_intf_) {
+    DLOGE("Invalid xfer client intf");
     return kErrorUndefined;
   }
+
+  std::vector<std::string> filenames;
+  for (const std::string &config : configs) {
+    std::stringstream file_path;
+    file_path << kConfigFilePath << config << std::setfill('0') << std::setw(16) << std::hex
+              << panel_id_;
+
+    std::string filename = file_path.str();
+    std::ifstream file(filename);
+    if (!file.good()) {
+      DLOGE("File does not exist or is not readable: %s", filename.c_str());
+      return kErrorUndefined;
+    }
+
+    filenames.push_back(filename);
+  }
+
+  GenericPayload s_in;
+  VMFileXferStoreInput *s_ip = nullptr;
+  ret = s_in.CreatePayload<VMFileXferStoreInput>(s_ip);
+  if (ret || s_ip == nullptr) {
+    DLOGE("Failed to create input payload error = %d", ret);
+    return kErrorUndefined;
+  }
+
+  for (const std::string &filename : filenames) {
+    s_ip->local_file_path = filename;
+    ret = vm_file_xfer_intf_->SetParameter(kVMFileTransferParamsStore, s_in);
+    if (ret) {
+      DLOGE("Failed to store config file: %s", s_ip->local_file_path.c_str());
+      return kErrorUndefined;
+    }
+  }
+#endif
 
   return kErrorNone;
 }
@@ -4900,15 +4948,6 @@ int DisplayBuiltIn::StartVmFileServiceAndExportFiles() {
     DLOGI("Started kStartVmFileTransferService");
   }
 
-  // Export files
-  if (demura_prop_) {
-    error = ExportDemuraFiles();
-    if (error) {
-      DLOGE("Failed to export demura files, error %d", error);
-      return -EINVAL;
-    }
-  }
-
   error = ExportABCFiles();
   if (error) {
     DLOGE("Failed to export ABC files, error %d", error);
@@ -4936,6 +4975,14 @@ int DisplayBuiltIn::StartVmFileServiceAndExportFiles() {
     return ret;
   } else {
     DLOGI("Created VmFileXferClient");
+  }
+
+  // Export files
+  if (demura_prop_) {
+    error = ExportDemuraFiles();
+    if (error) {
+      DLOGE("Failed to export demura files, error %d", error);
+    }
   }
 
   return ret;
