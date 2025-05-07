@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #ifndef __SNAP_UTILS_H__
@@ -193,6 +193,10 @@ class MmmColorFormatMapper {
         if (ubwc_enabled) {
           return mmm_color_fmts::MMM_COLOR_FMT_P010_UBWC;
         }
+        if (modifier == PIXEL_FORMAT_MODIFIER_HEIF ||
+            modifier == PIXEL_FORMAT_MODIFIER_1K_ALIGNED) {
+          return -1;
+        }
         if (usage & SnapUsage::HW_IMAGE_ENCODER) {
           return mmm_color_fmts::MMM_COLOR_FMT_P010_512;
         }
@@ -204,6 +208,8 @@ class MmmColorFormatMapper {
             return mmm_color_fmts::MMM_COLOR_FMT_NV124R_UBWC;
           }
           return mmm_color_fmts::MMM_COLOR_FMT_NV12_UBWC;
+        } else if (modifier == PIXEL_FORMAT_MODIFIER_1K_ALIGNED) {
+          return -1;
         } else if (usage & SnapUsage::HW_IMAGE_ENCODER ||
                    (modifier == PIXEL_FORMAT_MODIFIER_HEIF)) {
           return mmm_color_fmts::MMM_COLOR_FMT_NV12_512;
