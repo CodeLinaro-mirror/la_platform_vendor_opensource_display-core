@@ -167,6 +167,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   std::map<PanelFeaturePropertyID, sde_drm::DRMPanelFeatureID> panel_feature_property_map_ {};
   bool use_hfi_path_ = false;
   bool hwio_path_switch_pending_ = false;
+  bool set_tui_none_ = false;
 };
 
 }  // namespace sdm

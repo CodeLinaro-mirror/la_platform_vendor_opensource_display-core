@@ -1335,9 +1335,11 @@ void HWPeripheralDRM::SetVMReqState() {
     if (aba_hist_en_)
       drm_atomic_intf_->Perform(sde_drm::DRMOps::DPPS_CACHE_FEATURE, token_.crtc_id,
                                 sde_drm::kFeatureAbaHistCtrl, 1);
-  } else if (tui_state_ == kTUIStateNone) {
+    set_tui_none_ = true;
+  } else if (tui_state_ == kTUIStateNone || set_tui_none_) {
     drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_VM_REQ_STATE, token_.crtc_id,
                               sde_drm::DRMVMRequestState::NONE);
+    set_tui_none_ = false;
   }
 }
 
