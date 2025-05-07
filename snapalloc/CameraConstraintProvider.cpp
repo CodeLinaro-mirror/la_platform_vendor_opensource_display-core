@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "CameraConstraintProvider.h"
@@ -9,7 +9,6 @@
 #include <string>
 
 #include "SnapConstraintDefs.h"
-#include "SnapConstraintParser.h"
 
 namespace snapalloc {
 CameraConstraintProvider *CameraConstraintProvider::instance_{nullptr};
@@ -29,7 +28,7 @@ CameraConstraintProvider *CameraConstraintProvider::GetInstance(
 void CameraConstraintProvider::Init(
     std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map) {
   lib_ = ::dlopen("libcamxexternalformatutils.so", RTLD_NOW);
-  SnapConstraintParser *parser = SnapConstraintParser::GetInstance();
+  parser_ = SnapConstraintParser::GetInstance();
   if (lib_) {
     DLOGD_IF(enable_logs, "Camera lib is available");
 
@@ -68,11 +67,11 @@ void CameraConstraintProvider::Init(
     if (!format_data_map.empty()) {
       format_data_map_ = format_data_map;
     } else {
-      parser->ParseFormats(&format_data_map_);
+      parser_->ParseFormats(&format_data_map_);
     }
   } else {
     DLOGW("Camera lib is not available - read json file");
-    parser->ParseAlignments("/vendor/etc/display/camera_alignments.json", &constraint_set_map_);
+    parser_->ParseAlignments("/vendor/etc/display/camera_alignments.json", &constraint_set_map_);
   }
 }
 
@@ -703,11 +702,10 @@ int CameraConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConstr
     DLOGD_IF(enable_logs, "Camera constraint set map is empty");
     return -1;
   }
-  if (constraint_set_map_.find(desc.format) != constraint_set_map_.end()) {
-    *out = constraint_set_map_.at(desc.format);
-  } else {
-    DLOGD_IF(enable_logs, "Camera could not find entry for format %lu",
-             static_cast<uint64_t>(desc.format));
+
+  if (!(parser_->GetBufferConstraints(constraint_set_map_, desc, out))) {
+    DLOGD_IF(enable_logs, "Camera could not find entry for format %lu & modifier %d",
+             static_cast<uint64_t>(desc.format), GetPixelFormatModifier(desc));
   }
   return 0;
 }
