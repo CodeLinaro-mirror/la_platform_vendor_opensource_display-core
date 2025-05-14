@@ -101,6 +101,13 @@ void SnapConstraintManager::GetImplDefinedFormat(
       } else if (format == vendor_qti_hardware_display_common_PixelFormat::YCBCR_420_888) {
         *out_format = vendor_qti_hardware_display_common_PixelFormat::YCbCr_420_SP;
         *out_modifier = PIXEL_FORMAT_MODIFIER_VENUS;
+      } else if (usage & vendor_qti_hardware_display_common_BufferUsage::QTI_PRIVATE_WFD &&
+                 usage & vendor_qti_hardware_display_common_BufferUsage::QTI_PRIVATE_10BIT) {
+        if (usage & vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC) {
+          *out_format = vendor_qti_hardware_display_common_PixelFormat::TP10;
+        } else {
+          *out_format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_P010;
+        }
       } else {
         *out_format = vendor_qti_hardware_display_common_PixelFormat::YCbCr_420_SP;
         *out_modifier = PIXEL_FORMAT_MODIFIER_ENCODEABLE;
