@@ -284,6 +284,8 @@
 
 // Scale support for non-primary display, Auto use case
 #define ENABLE_SCALE_FOR_ALL_DISPLAYS        DISPLAY_PROP("enable_scale_for_all_displays")
+// Disable client querying luts
+#define DISABLE_QUERY_LUTS                DISPLAY_PROP("disable_query_luts")
 
 // Add all other.properties above
 // End of property
