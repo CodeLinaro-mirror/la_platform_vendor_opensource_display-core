@@ -23,7 +23,7 @@
 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *
 * Changes from Qualcomm Innovation Center are provided under the following license:
-* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 // clang-format on
@@ -399,6 +399,85 @@ struct LayerRect {
   }
 };
 
+// This enum represents Cwb downscale modes.
+enum DownscaleMode {
+  kDownscaleDefault,           //!< Prefer valid downscale rectangle config, else use
+                               //!< downscale mode use Only divisor.
+  kDownscaleByRationalFactor,  //!< Use multiplier and divisor both for width and height.
+  kDownscalePercentageFactor,  //!< Apply percentage on width and height.
+  kDownscaleUseOnlyDivisor,    //!< Use only divisor for both width and  height
+};
+
+/*! @brief This structure defines flags and parameters associated with a CWB request/process
+  control and output considerations. The 1-bit flag can be set to ON(1) or OFF(0) and multi-bit
+  flag considered as integer parameter value.
+
+  @sa CwbControlParams
+*/
+struct CwbControlParams {
+  union {
+    struct {
+      uint32_t request_validated : 1;  //!< This flag shall be set on successful validation of
+                                       //!< CWB request or its configuration.
+
+      uint32_t needs_downscale : 1;  //!< This flag shall be set while CWB request validation,
+                                     //!< if it needs downscaled output.
+
+      uint32_t dnsc_configured : 1;  //!< This flag shall be set by resource manager, if DNSC
+                                     //!< configuration is requested and configured.
+
+      uint32_t secure_buffer : 1;  //!< This flag shall be set while CWB request validation,
+                                   //!< if CWB output buffer is secured.
+
+      uint32_t needs_1x_downscale : 1;  //!< This flag shall be set while CWB request picked to
+                                        //!< process w/o downscale, but WB allocated for downscale.
+
+      uint32_t reserved : 3;  //!< Reserved 3 bits for future enhancement boolean flags.
+
+      uint32_t priority : 4;  //!< This parameter shall be set by the client to indicate
+                              //!< CWB request processing priority level in particular
+                              //!< client category. Currently, no support enabled.
+
+      uint32_t downscale_mode : 2;  //!< This parameter shall be set by the client to specify
+                                    //!< parameter interpretation for downscaling, if needed.
+
+      uint32_t img_h_center_align : 1;  //!< This flag shall be set by the client to indicate that
+                                        //!< the output image must be aligned horizontally centered
+                                        //!< in output buffer.
+
+      uint32_t img_v_center_align : 1;  //!< This flag shall be set by the client to indicate that
+                                        //!< the output image must be aligned vertically centered
+                                        //!< in output buffer.
+
+      uint32_t dnsc_x_divisor : 4;  //!< This parameter shall be set by client for downscale
+                                    //!< as per downscale mode specified. By default consider
+                                    //!< as output width divisor with value 1 (on Zero).
+
+      uint32_t dnsc_x_multiplier : 4;  //!< This parameter shall be set by client for downscale
+                                       //!< as per downscale mode specified. By default consider
+                                       //!< as output width multiplier with value 1 (on Zero).
+
+      uint32_t dnsc_y_divisor : 4;  //!< This parameter shall be set by client for downscale
+                                    //!< as per downscale mode specified. By default consider
+                                    //!< as output height divisor with value 1 (on Zero).
+
+      uint32_t dnsc_y_multiplier : 4;  //!< This parameter shall be set by client for downscale
+                                       //!< as per downscale mode specified. By default consider
+                                       //!< as output height multiplier with value 1 (on Zero).
+    };
+
+    struct {
+      uint32_t internal_control_flags : 8;     //!< Internal control flags.
+      uint32_t client_control_flags : 8;       //!< Client control flags.
+      uint32_t dnsc_x_divisor_or_percent : 8;  //!< Downscaling percentage or divisor of width.
+      uint32_t dnsc_y_divisor_or_percent : 8;  //!< Downscaling percentage or divisor of height.
+    };
+
+    uint32_t value = 0;  //!< For initialization purpose only.
+                         //!< Client shall not refer to it directly.
+  };
+};
+
 /*! @brief This enum represents the Tappoints for CWB that are supported by the hardware. */
 enum CwbTapPoint {
   kLmTapPoint,      // This is set by client to use Layer Mixer output for CWB.
@@ -415,11 +494,15 @@ struct CwbConfig {
                                                      //!< from app layers in CWB ROI.
   LayerRect cwb_roi = {};                            //!< Client specified ROI rect for CWB.
   LayerRect cwb_full_rect = {};                      //!< Same as Output buffer Rect (unaligned).
+  LayerRect cwb_downscaled_rect = {};                //!< Rect for downscaled output for CWB.
   CwbTapPoint tap_point = CwbTapPoint::kLmTapPoint;  //!< Client specified tap point for CWB.
   void *dither_info = nullptr;                       //!< Pointer to the cwb dither setting.
   bool avoid_refresh = false;                        //!< Whether to avoid additional refresh for
                                                      //!< CWB Request, by default refresh occurs
                                                      //!< for each CWB request to process it.
+  CwbControlParams cwb_control_params;               //!< More control parameters for CWB.
+  uint32_t downscale_x = 1;                          //!< Downscale factor for CWB output width.
+  uint32_t downscale_y = 1;                          //!< Downscale factor for CWB output height.
 };
 
 class LayerBufferObject {

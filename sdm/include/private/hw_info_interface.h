@@ -58,6 +58,7 @@ class HWInfoInterface {
       std::map<uint32_t, uint8_t> *required_demura_fetch_cnt) = 0;
   virtual DisplayError GetPanelBootParamString(std::string *panel_boot_param_string) = 0;
   virtual uint32_t GetMaxMixerCount() = 0;
+  virtual uint32_t GetMaxDNSCBlurBlockCount() = 0;
   virtual uint32_t GetCoreId() = 0;
   virtual DisplayError GetDemuraDoubleBufferCodebookFlags(bool *out) = 0;
 

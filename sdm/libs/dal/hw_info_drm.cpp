@@ -1283,6 +1283,14 @@ uint32_t HWInfoDRM::GetMaxMixerCount() {
   return drm_mgr_intf_->GetCrtcCount();
 }
 
+uint32_t HWInfoDRM::GetMaxDNSCBlurBlockCount() {
+#ifdef FEATURE_DNSC_BLUR
+  return 1;
+#else
+  return 0;
+#endif
+}
+
 int HWInfoDRM::GetConnectorTypeforTMDS(uint32_t encoder_id, sde_drm::DRMEncoderInfo info) {
   sde_drm::DRMConnectorsInfo conns_info = {};
   int drm_err = drm_mgr_intf_->GetConnectorsInfo(&conns_info);

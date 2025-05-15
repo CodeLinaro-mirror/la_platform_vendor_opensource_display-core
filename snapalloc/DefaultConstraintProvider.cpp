@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "DefaultConstraintProvider.h"
@@ -6,8 +6,6 @@
 #include <dlfcn.h>
 #include <fstream>
 #include <iostream>
-
-#include "SnapConstraintParser.h"
 
 namespace snapalloc {
 DefaultConstraintProvider *DefaultConstraintProvider::instance_{nullptr};
@@ -26,8 +24,8 @@ DefaultConstraintProvider *DefaultConstraintProvider::GetInstance(
 
 void DefaultConstraintProvider::Init(
     std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map) {
-  SnapConstraintParser *parser = SnapConstraintParser::GetInstance();
-  parser->ParseAlignments("/vendor/etc/display/default_alignments.json", &constraint_set_map_);
+  parser_ = SnapConstraintParser::GetInstance();
+  parser_->ParseAlignments("/vendor/etc/display/default_alignments.json", &constraint_set_map_);
 }
 
 int DefaultConstraintProvider::GetCapabilities(BufferDescriptor desc, CapabilitySet *out) {
@@ -45,11 +43,9 @@ int DefaultConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConst
     DLOGD_IF(enable_logs, "Default constraint set map is empty");
     return -1;
   }
-  if (constraint_set_map_.find(desc.format) != constraint_set_map_.end()) {
-    *out = constraint_set_map_.at(desc.format);
-  } else {
-    DLOGD_IF(enable_logs, "Default could not find entry for format %lu",
-             static_cast<uint64_t>(desc.format));
+  if (!(parser_->GetBufferConstraints(constraint_set_map_, desc, out))) {
+    DLOGD_IF(enable_logs, "Default could not find entry for format %lu & modifier %d",
+             static_cast<uint64_t>(desc.format), GetPixelFormatModifier(desc));
   }
   return 0;
 }

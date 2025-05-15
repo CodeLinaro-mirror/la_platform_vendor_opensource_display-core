@@ -29,15 +29,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
-
-/*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -158,44 +150,8 @@ void HWVirtualDRM::ConfigureDNSC(HWLayersInfo *hw_layers_info) {
     topology_control_ |= UINT32(sde_drm::DRMTopologyControl::DNSC_BLUR);
   }
 
-  HWDNSCInfo& dnsc = hw_layers_info->dnsc_cfg;
-  dnsc_cfg_ = {};
-
-  if (dnsc.enabled) {
-    dnsc_cfg_.flags = dnsc.flags;
-    dnsc_cfg_.num_blocks = dnsc.num_blocks;
-
-    dnsc_cfg_.src_width = dnsc.src_width;
-    dnsc_cfg_.src_height = dnsc.src_height;
-    dnsc_cfg_.dst_width = dnsc.dst_width;
-    dnsc_cfg_.dst_height = dnsc.dst_height;
-
-    dnsc_cfg_.flags_h = dnsc.flags_h;
-    dnsc_cfg_.flags_v = dnsc.flags_v;
-
-    dnsc_cfg_.phase_init_h = dnsc.pcmn_data.phase_init_h;
-    dnsc_cfg_.phase_step_h = dnsc.pcmn_data.phase_step_h;
-    dnsc_cfg_.phase_init_v = dnsc.pcmn_data.phase_init_v;
-    dnsc_cfg_.phase_step_v = dnsc.pcmn_data.phase_step_v;
-
-    dnsc_cfg_.norm_h = dnsc.gaussian_data.norm_h;
-    dnsc_cfg_.ratio_h = dnsc.gaussian_data.ratio_h;
-    dnsc_cfg_.norm_v = dnsc.gaussian_data.norm_v;
-    dnsc_cfg_.ratio_v = dnsc.gaussian_data.ratio_v;
-
-    for (int i = 0; i < DNSC_BLUR_COEF_NUM && i < dnsc.gaussian_data.coef_hori.size(); i++) {
-      dnsc_cfg_.coef_hori[i] = dnsc.gaussian_data.coef_hori[i];
-    }
-
-    for (int i = 0; i < DNSC_BLUR_COEF_NUM && i < dnsc.gaussian_data.coef_vert.size(); i++) {
-      dnsc_cfg_.coef_vert[i] = dnsc.gaussian_data.coef_vert[i];
-    }
-  }
-
   uint32_t conn_id = token_.conn_id;
-  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_CACHE_STATE, conn_id, dnsc.cache_state);
-  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_EARLY_FENCE_LINE, conn_id, dnsc.early_fence_line);
-  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_DNSC_BLR, conn_id, &dnsc_cfg_);
+  ConfigureDNSCbase(hw_layers_info, conn_id, dnsc_cfg_);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_WB_USAGE_TYPE, conn_id, usage_mode);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_FRAME_TRIGGER, conn_id, trigger_mode);
 #endif

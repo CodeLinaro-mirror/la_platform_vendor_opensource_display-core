@@ -24,7 +24,7 @@
 
 /*
 * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -193,6 +193,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError HandleSecureEvent(SecureEvent secure_event, bool *needs_refresh);
   virtual DisplayError ValidateCwbRoiWithOutputBuffer(const LayerBuffer &output_buffer,
                                                       CwbConfig &cwb_config);
+  virtual bool ValidateCwbConfigForDownscale(const LayerBuffer &output_buffer,
+                                             CwbConfig &cwb_config);
   virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config);
   virtual DisplayError PostHandleSecureEvent(SecureEvent secure_event) {
     return kErrorNotSupported;
@@ -267,6 +269,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual void NotifyCwbDone(int32_t status, const LayerBuffer& buffer);
   virtual void Refresh();
   virtual void OnCwbTeardown(bool sync_teardown);
+  virtual DisplayError OnCwbValidation(const LayerBuffer &output_buffer, CwbConfig &cwb_config);
   virtual bool HandleCwbTeardown();
   virtual uint32_t GetAvailableMixerCount();
   virtual DisplayError SetDemuraState(int state) { return kErrorNotSupported; }

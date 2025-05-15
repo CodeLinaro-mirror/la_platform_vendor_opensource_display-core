@@ -1,915 +1,1343 @@
 {
-    "device" : {
-        "name" : "default",
-        "constraint_sets" : [
+    "device": {
+        "name": "default",
+        "constraint_sets": [
             {
-                "format" : "RGBA_8888",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "RGBA_8888",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "R"
-                                },
-                                {
-                                    "component_type" : "G"
-                                },
-                                {
-                                    "component_type" : "B"
-                                },
-                                {
-                                    "component_type" : "A"
+                                    "components": [
+                                        {
+                                            "component_type": "R"
+                                        },
+                                        {
+                                            "component_type": "G"
+                                        },
+                                        {
+                                            "component_type": "B"
+                                        },
+                                        {
+                                            "component_type": "A"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 4,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 256,
-                            "scanline_align" : 4,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "RGB_888",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "RGB_888",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "R"
-                                },
-                                {
-                                    "component_type" : "G"
-                                },
-                                {
-                                    "component_type" : "B"
+                                    "components": [
+                                        {
+                                            "component_type": "R"
+                                        },
+                                        {
+                                            "component_type": "G"
+                                        },
+                                        {
+                                            "component_type": "B"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 256,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "RGB_565",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "RGB_565",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "R"
-                                },
-                                {
-                                    "component_type" : "G"
-                                },
-                                {
-                                    "component_type" : "B"
+                                    "components": [
+                                        {
+                                            "component_type": "R"
+                                        },
+                                        {
+                                            "component_type": "G"
+                                        },
+                                        {
+                                            "component_type": "B"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 256,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "BGR_565",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "BGR_565",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "R"
-                                },
-                                {
-                                    "component_type" : "G"
-                                },
-                                {
-                                    "component_type" : "B"
+                                    "components": [
+                                        {
+                                            "component_type": "R"
+                                        },
+                                        {
+                                            "component_type": "G"
+                                        },
+                                        {
+                                            "component_type": "B"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 256,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "BGRA_8888",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "BGRA_8888",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "R"
-                                },
-                                {
-                                    "component_type" : "G"
-                                },
-                                {
-                                    "component_type" : "B"
-                                },
-                                {
-                                    "component_type" : "A"
+                                    "components": [
+                                        {
+                                            "component_type": "R"
+                                        },
+                                        {
+                                            "component_type": "G"
+                                        },
+                                        {
+                                            "component_type": "B"
+                                        },
+                                        {
+                                            "component_type": "A"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 4,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 256,
-                            "scanline_align" : 4,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "RGBX_8888",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "RGBX_8888",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "R"
-                                },
-                                {
-                                    "component_type" : "G"
-                                },
-                                {
-                                    "component_type" : "B"
+                                    "components": [
+                                        {
+                                            "component_type": "R"
+                                        },
+                                        {
+                                            "component_type": "G"
+                                        },
+                                        {
+                                            "component_type": "B"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 4,
+                                    "scanline_align": 4,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 4,
-                            "scanline_align" : 4,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "YCbCr_420_SP",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "YCbCr_420_SP",
+                "variants": [
+                    {
+                        "modifier": 1,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
                                 {
-                                    "component_type" : "Y"
-                                }
-                            ],
-                            "horiz_stride_align_bytes" : 64,
-                            "scanline_align" : 2,
-                            "size_align_bytes" : 1
-                        },
-                        {
-                            "components": [
-                                {
-                                    "component_type" : "CB"
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 128,
+                                    "scanline_align": 32,
+                                    "size_align_bytes": 1
                                 },
                                 {
-                                    "component_type" : "CR"
+                                    "components": [
+                                        {
+                                            "component_type": "CB"
+                                        },
+                                        {
+                                            "component_type": "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 128,
+                                    "scanline_align": 16,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 64,
-                            "scanline_align" : 4,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    },
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 64,
+                                    "scanline_align": 2,
+                                    "size_align_bytes": 1
+                                },
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "CB"
+                                        },
+                                        {
+                                            "component_type": "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 64,
+                                    "scanline_align": 4,
+                                    "size_align_bytes": 1
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "modifier": 10,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 512,
+                                    "scanline_align": 512,
+                                    "size_align_bytes": 1
+                                },
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "CB"
+                                        },
+                                        {
+                                            "component_type": "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 512,
+                                    "scanline_align": 256,
+                                    "size_align_bytes": 1
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "modifier" : 16,
+                        "constraints" : {
+                            "size_align_bytes" : 4096,
+                            "planes" : [
+                                {
+                                    "components": [
+                                        {
+                                            "component_type" : "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes" : 1024,
+                                    "scanline_align" : 1024,
+                                    "size_align_bytes": 1
+                                },
+                                {
+                                    "components": [
+                                        {
+                                            "component_type" : "CB"
+                                        },
+                                        {
+                                            "component_type" : "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes" : 1024,
+                                    "scanline_align" : 512,
+                                    "size_align_bytes": 1
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "modifier" : 11,
+                        "constraints" : {
+                            "size_align_bytes" : 4096,
+                            "planes" : [
+                                {
+                                    "components": [
+                                        {
+                                            "component_type" : "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes" : 512,
+                                    "scanline_align" : 512,
+                                    "size_align_bytes": 1
+                                },
+                                {
+                                    "components": [
+                                        {
+                                            "component_type" : "CB"
+                                        },
+                                        {
+                                            "component_type" : "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes" : 512,
+                                    "scanline_align" : 256,
+                                    "size_align_bytes": 1
+                                }
+                            ]
+                        }
+                    }
+                ]
             },
             {
-                "format" : "YCBCR_422_SP",
-                "constraints" : {
-                    "size_align_bytes" : 4096,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "YCBCR_422_SP",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
                                 {
-                                    "component_type" : "Y"
-                                }
-                            ],
-                            "horiz_stride_align_bytes" :16,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
-                        },
-                        {
-                            "components": [
-                                {
-                                    "component_type" : "CB"
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 16,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 },
                                 {
-                                    "component_type" : "CR"
+                                    "components": [
+                                        {
+                                            "component_type": "CB"
+                                        },
+                                        {
+                                            "component_type": "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 16,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "YCBCR_422_I",
-                "constraints" : {
-                    "size_align_bytes" : 4096,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "YCBCR_422_I",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
                                 {
-                                    "component_type" : "Y"
-                                }
-                            ],
-                            "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
-                        },
-                        {
-                            "components": [
+                                    "components": [
+                                        {
+                                            "component_type" : "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes" : 16,
+                                    "scanline_align" : 1,
+                                    "size_align_bytes" : 1
+                                },
                                 {
-                                    "component_type" : "CB"
-                                }
-                            ],
-                            "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
-                        },
-                        {
-                            "components": [
+                                    "components": [
+                                        {
+                                            "component_type" : "CB"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes" : 16,
+                                    "scanline_align" : 1,
+                                    "size_align_bytes" : 1
+                                },
                                 {
-                                    "component_type" : "CR"
+                                    "components": [
+                                        {
+                                            "component_type" : "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes" : 16,
+                                    "scanline_align" : 1,
+                                    "size_align_bytes" : 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "YCrCb_420_SP",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "YCrCb_420_SP",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "Y"
-                                }
-                            ],
-                            "horiz_stride_align_bytes" : 128,
-                            "scanline_align" : 32,
-                            "size_align_bytes" : 1
-                        },
-                        {
-                            "components": [
-                                {
-                                    "component_type" : "CR"
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 128,
+                                    "scanline_align": 32,
+                                    "size_align_bytes": 1
                                 },
                                 {
-                                    "component_type" : "CB"
+                                    "components": [
+                                        {
+                                            "component_type": "CR"
+                                        },
+                                        {
+                                            "component_type": "CB"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 128,
+                                    "scanline_align": 16,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 128,
-                            "scanline_align" : 16,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "RGBA_FP16",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "RGBA_FP16",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "R"
-                                },
-                                {
-                                    "component_type" : "G"
-                                },
-                                {
-                                    "component_type" : "B"
-                                },
-                                {
-                                    "component_type" : "A"
+                                    "components": [
+                                        {
+                                            "component_type": "R"
+                                        },
+                                        {
+                                            "component_type": "G"
+                                        },
+                                        {
+                                            "component_type": "B"
+                                        },
+                                        {
+                                            "component_type": "A"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 256,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "RGBA_1010102",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "RGBA_1010102",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "R"
-                                },
-                                {
-                                    "component_type" : "G"
-                                },
-                                {
-                                    "component_type" : "B"
-                                },
-                                {
-                                    "component_type" : "A"
+                                    "components": [
+                                        {
+                                            "component_type": "R"
+                                        },
+                                        {
+                                            "component_type": "G"
+                                        },
+                                        {
+                                            "component_type": "B"
+                                        },
+                                        {
+                                            "component_type": "A"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 256,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "YCBCR_P010",
-                "constraints" : {
-                    "size_align_bytes" : 4096,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "YCBCR_P010",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
                                 {
-                                    "component_type" : "Y"
-                                }
-                            ],
-                            "horiz_stride_align_bytes" : 256,
-                            "scanline_align" : 32,
-                            "size_align_bytes" : 1
-                        },
-                        {
-                            "components": [
-                                {
-                                    "component_type" : "CB"
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 32,
+                                    "size_align_bytes": 1
                                 },
                                 {
-                                    "component_type" : "CR"
+                                    "components": [
+                                        {
+                                            "component_type": "CB"
+                                        },
+                                        {
+                                            "component_type": "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 16,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 256,
-                            "scanline_align" : 16,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    },
+                    {
+                        "modifier": 1,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 32,
+                                    "size_align_bytes": 1
+                                },
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "CB"
+                                        },
+                                        {
+                                            "component_type": "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 16,
+                                    "size_align_bytes": 1
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "modifier": 11,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 1024,
+                                    "scanline_align": 512,
+                                    "size_align_bytes": 1
+                                },
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "CB"
+                                        },
+                                        {
+                                            "component_type": "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 1024,
+                                    "scanline_align": 256,
+                                    "size_align_bytes": 1
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "modifier": 10,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 1024,
+                                    "scanline_align": 512,
+                                    "size_align_bytes": 1
+                                },
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "CB"
+                                        },
+                                        {
+                                            "component_type": "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 1024,
+                                    "scanline_align": 256,
+                                    "size_align_bytes": 1
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "modifier": 16,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 2048,
+                                    "scanline_align": 1024,
+                                    "size_align_bytes": 1
+                                },
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "CB"
+                                        },
+                                        {
+                                            "component_type": "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 2048,
+                                    "scanline_align": 512,
+                                    "size_align_bytes": 1
+                                }
+                            ]
+                        }
+                    }
+                ]
             },
             {
                 "format" : "YCBCR_P210",
-                "constraints" : {
-                    "size_align_bytes" : 4096,
-                    "planes" : [
-                        {
-                            "components": [
+                "variants":[
+                    {
+                        "modifier" : 0,
+                        "constraints" : {
+                            "size_align_bytes" : 4096,
+                            "planes" : [
                                 {
-                                    "component_type" : "Y"
-                                }
-                            ],
-                            "horiz_stride_align_bytes" : 256,
-                            "scanline_align" : 16,
-                            "size_align_bytes" : 1
-                        },
-                        {
-                            "components": [
-                                {
-                                    "component_type" : "CB"
+                                    "components": [
+                                        {
+                                            "component_type" : "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes" : 256,
+                                    "scanline_align" : 16,
+                                    "size_align_bytes" : 1
                                 },
                                 {
-                                    "component_type" : "CR"
+                                    "components": [
+                                        {
+                                            "component_type" : "CB"
+                                        },
+                                        {
+                                            "component_type" : "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes" : 256,
+                                    "scanline_align" : 16,
+                                    "size_align_bytes" : 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 256,
-                            "scanline_align" : 16,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "NV21_ZSL",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "NV21_ZSL",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "Y"
-                                }
-                            ],
-                            "horiz_stride_align_bytes" : 64,
-                            "scanline_align" : 64,
-                            "size_align_bytes" : 4096
-                        },
-                        {
-                            "components": [
-                                {
-                                    "component_type" : "CR"
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 64,
+                                    "scanline_align": 64,
+                                    "size_align_bytes": 4096
                                 },
                                 {
-                                    "component_type" : "CB"
+                                    "components": [
+                                        {
+                                            "component_type": "CR"
+                                        },
+                                        {
+                                            "component_type": "CB"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 64,
+                                    "scanline_align": 64,
+                                    "size_align_bytes": 4096
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 64,
-                            "scanline_align" : 64,
-                            "size_align_bytes" : 4096
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "RAW8",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "RAW8",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "RAW"
+                                    "components": [
+                                        {
+                                            "component_type": "RAW"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 16,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "RAW16",
-                "constraints" : {
-                    "size_align_bytes" : 2,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "RAW16",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 2,
+                            "planes": [
                                 {
-                                    "component_type" : "RAW"
+                                    "components": [
+                                        {
+                                            "component_type": "RAW"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 16,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "RAW10",
-                "constraints" : {
-                    "size_align_bytes" : 4096,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "RAW10",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
                                 {
-                                    "component_type" : "RAW"
+                                    "components": [
+                                        {
+                                            "component_type": "RAW"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 16,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "RAW12",
-                "constraints" : {
-                    "size_align_bytes" : 4096,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "RAW12",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
                                 {
-                                    "component_type" : "RAW"
+                                    "components": [
+                                        {
+                                            "component_type": "RAW"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 16,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "RAW14",
-                "constraints" : {
-                    "size_align_bytes" : 4096,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "RAW14",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
                                 {
-                                    "component_type" : "RAW"
+                                    "components": [
+                                        {
+                                            "component_type": "RAW"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 112,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 112,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "YV12",
-                "constraints" : {
-                    "size_align_bytes" : 4096,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "YV12",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
                                 {
-                                    "component_type" : "Y"
-                                }
-                            ],
-                            "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
-                        },
-                        {
-                            "components": [
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 16,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
+                                },
                                 {
-                                    "component_type" : "CR"
-                                }
-                            ],
-                            "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
-                        },
-                        {
-                            "components": [
+                                    "components": [
+                                        {
+                                            "component_type": "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 16,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
+                                },
                                 {
-                                    "component_type" : "CB"
+                                    "components": [
+                                        {
+                                            "component_type": "CB"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 16,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "BLOB",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "BLOB",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "BLOB"
+                                    "components": [
+                                        {
+                                            "component_type": "BLOB"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 1,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 1,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "Y8",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "Y8",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "Y"
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 16,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "Y16",
-                "constraints" : {
-                    "size_align_bytes" : 2,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "Y16",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 2,
+                            "planes": [
                                 {
-                                    "component_type" : "Y"
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 16,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "YCrCb_422_SP",
-                "constraints" : {
-                    "size_align_bytes" : 4096,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "YCrCb_422_SP",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
                                 {
-                                    "component_type" : "Y"
-                                }
-                            ],
-                            "horiz_stride_align_bytes" :16,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
-                        },
-                        {
-                            "components": [
-                                {
-                                    "component_type" : "CR"
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 16,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 },
                                 {
-                                    "component_type" : "CB"
+                                    "components": [
+                                        {
+                                            "component_type": "CR"
+                                        },
+                                        {
+                                            "component_type": "CB"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 16,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "BGRX_8888",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "BGRX_8888",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "R"
-                                },
-                                {
-                                    "component_type" : "G"
-                                },
-                                {
-                                    "component_type" : "B"
+                                    "components": [
+                                        {
+                                            "component_type": "R"
+                                        },
+                                        {
+                                            "component_type": "G"
+                                        },
+                                        {
+                                            "component_type": "B"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 4,
+                                    "scanline_align": 4,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 4,
-                            "scanline_align" : 4,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "ARGB_2101010",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "ARGB_2101010",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "R"
-                                },
-                                {
-                                    "component_type" : "G"
-                                },
-                                {
-                                    "component_type" : "B"
-                                },
-                                {
-                                    "component_type" : "A"
+                                    "components": [
+                                        {
+                                            "component_type": "R"
+                                        },
+                                        {
+                                            "component_type": "G"
+                                        },
+                                        {
+                                            "component_type": "B"
+                                        },
+                                        {
+                                            "component_type": "A"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 256,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "XRGB_2101010",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "XRGB_2101010",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "R"
-                                },
-                                {
-                                    "component_type" : "G"
-                                },
-                                {
-                                    "component_type" : "B"
+                                    "components": [
+                                        {
+                                            "component_type": "R"
+                                        },
+                                        {
+                                            "component_type": "G"
+                                        },
+                                        {
+                                            "component_type": "B"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 256,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "ABGR_2101010",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "ABGR_2101010",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "R"
-                                },
-                                {
-                                    "component_type" : "G"
-                                },
-                                {
-                                    "component_type" : "B"
-                                },
-                                {
-                                    "component_type" : "A"
+                                    "components": [
+                                        {
+                                            "component_type": "R"
+                                        },
+                                        {
+                                            "component_type": "G"
+                                        },
+                                        {
+                                            "component_type": "B"
+                                        },
+                                        {
+                                            "component_type": "A"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 256,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "XBGR_2101010",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "XBGR_2101010",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "R"
-                                },
-                                {
-                                    "component_type" : "G"
-                                },
-                                {
-                                    "component_type" : "B"
+                                    "components": [
+                                        {
+                                            "component_type": "R"
+                                        },
+                                        {
+                                            "component_type": "G"
+                                        },
+                                        {
+                                            "component_type": "B"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 256,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "BGRA_1010102",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "BGRA_1010102",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "R"
-                                },
-                                {
-                                    "component_type" : "G"
-                                },
-                                {
-                                    "component_type" : "B"
-                                },
-                                {
-                                    "component_type" : "A"
+                                    "components": [
+                                        {
+                                            "component_type": "R"
+                                        },
+                                        {
+                                            "component_type": "G"
+                                        },
+                                        {
+                                            "component_type": "B"
+                                        },
+                                        {
+                                            "component_type": "A"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 256,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "BGRX_1010102",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "BGRX_1010102",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "R"
-                                },
-                                {
-                                    "component_type" : "G"
-                                },
-                                {
-                                    "component_type" : "B"
+                                    "components": [
+                                        {
+                                            "component_type": "R"
+                                        },
+                                        {
+                                            "component_type": "G"
+                                        },
+                                        {
+                                            "component_type": "B"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 256,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "BGR_888",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "BGR_888",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "R"
-                                },
-                                {
-                                    "component_type" : "G"
-                                },
-                                {
-                                    "component_type" : "B"
+                                    "components": [
+                                        {
+                                            "component_type": "R"
+                                        },
+                                        {
+                                            "component_type": "G"
+                                        },
+                                        {
+                                            "component_type": "B"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 256,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "YCrCb_422_I",
-                "constraints" : {
-                    "size_align_bytes" : 4096,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "YCrCb_422_I",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
                                 {
-                                    "component_type" : "Y"
-                                }
-                            ],
-                            "horiz_stride_align_bytes" :16,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
-                        },
-                        {
-                            "components": [
-                                {
-                                    "component_type" : "CB"
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 16,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 },
                                 {
-                                    "component_type" : "CR"
+                                    "components": [
+                                        {
+                                            "component_type": "CB"
+                                        },
+                                        {
+                                            "component_type": "CR"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 16,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 16,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "CbYCrY_422_I",
-                "constraints" : {
-                    "size_align_bytes" : 4096,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "CbYCrY_422_I",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
                                 {
-                                    "component_type" : "Y"
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 16,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" :16,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             },
             {
-                "format" : "R_8",
-                "constraints" : {
-                    "size_align_bytes" : 1,
-                    "planes" : [
-                        {
-                            "components": [
+                "format": "R_8",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
                                 {
-                                    "component_type" : "R"
+                                    "components": [
+                                        {
+                                            "component_type": "R"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 256,
+                                    "scanline_align": 1,
+                                    "size_align_bytes": 1
                                 }
-                            ],
-                            "horiz_stride_align_bytes" : 256,
-                            "scanline_align" : 1,
-                            "size_align_bytes" : 1
+                            ]
                         }
-                    ]
-                }
+                    }
+                ]
             }
         ]
     }

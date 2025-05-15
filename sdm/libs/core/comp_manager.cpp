@@ -24,8 +24,7 @@
 
 /*
 * ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-*
-* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -1102,6 +1101,11 @@ void CompManager::TriggerCwbTeardown(int32_t display_id, bool sync_teardown) {
   callback_map_[display_id]->OnCwbTeardown(sync_teardown);
 }
 
+DisplayError CompManager::ValidateCwbRequest(int32_t display_id, const LayerBuffer &output_buffer,
+                                             CwbConfig &cwb_config) {
+  return callback_map_[display_id]->OnCwbValidation(output_buffer, cwb_config);
+}
+
 bool CompManager::HasPendingCwbRequest(Handle display_ctx) {
   std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
 
@@ -1167,6 +1171,12 @@ bool CompManager::IsMirroredOfAnyDisplay(int32_t display_id, const LayerStack *l
   }
 
   return false;
+}
+
+void CompManager::LoadCwbHwDnscConfig(int32_t core_id, HWLayersInfo *info) {
+  if (resource_intf_) {
+    resource_intf_->Perform(ResourceInterface::kCmdGetCwbHwDnscConfig, core_id, info);
+  }
 }
 
 bool CompManager::IsActiveDisplay(int32_t display_id) {

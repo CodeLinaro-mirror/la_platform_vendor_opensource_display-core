@@ -29,8 +29,7 @@
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the
  * following license:
- *
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <utils/constants.h>
@@ -1302,15 +1301,18 @@ DisplayError SDMServices::SetFrameDumpConfig(SDMParcel *input_parcel) {
           static_cast<CwbTapPoint>(input_parcel->readInt32());
     }
     if (input_parcel->dataPosition() != input_parcel->dataSize()) {
-      std::bitset<32> bit_mask_cwb_flag = UINT32(input_parcel->readInt32());
+      // Load CWB control operations
+      auto cflag = UINT32(input_parcel->readInt32());
       // Option to include PU ROI in CWB ROI, and retrieve it from corresponding
       // bit of CWB flag.
-      cwb_config.pu_as_cwb_roi =
-          static_cast<bool>(bit_mask_cwb_flag[kCwbFlagPuAsCwbROI]);
+      cwb_config.pu_as_cwb_roi = BIT_TO_BOOL(cflag, kCwbFlagPuAsCwbROI);
       // Option to avoid additional refresh to process pending CWB requests, and
       // retrieve it from corresponding bit of CWB flag.
-      cwb_config.avoid_refresh =
-          static_cast<bool>(bit_mask_cwb_flag[kCwbFlagAvoidRefresh]);
+      cwb_config.avoid_refresh = BIT_TO_BOOL(cflag, kCwbFlagAvoidRefresh);
+      // Load input control flag to CWB config control flags.
+      cwb_config.cwb_control_params.value = cflag;
+      // Reset internal control flags
+      cwb_config.cwb_control_params.internal_control_flags = 0;
     }
 
     LayerRect &cwb_roi = cwb_config.cwb_roi;

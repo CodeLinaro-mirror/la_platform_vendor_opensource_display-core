@@ -63,6 +63,7 @@ class HWInfoDRM : public HWInfoInterface {
       std::map<uint32_t, uint8_t> *required_demura_fetch_cnt);
   virtual DisplayError GetPanelBootParamString(std::string *panel_boot_param_string);
   virtual uint32_t GetMaxMixerCount();
+  virtual uint32_t GetMaxDNSCBlurBlockCount();
   virtual uint32_t GetCoreId() { return core_id_; }
   virtual DisplayError GetDemuraDoubleBufferCodebookFlags(bool *out);
 

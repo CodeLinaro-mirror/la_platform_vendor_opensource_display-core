@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #ifndef __GRAPHICS_CONSTRAINT_PROVIDER_H__
@@ -8,6 +8,7 @@
 #include <mutex>
 
 #include "SnapConstraintProvider.h"
+#include "SnapConstraintParser.h"
 #include "SnapUtils.h"
 
 typedef enum {
@@ -134,9 +135,11 @@ class GraphicsConstraintProvider : public SnapConstraintProvider {
   ~GraphicsConstraintProvider(){};
   static std::mutex graphics_provider_mutex_;
   static GraphicsConstraintProvider *instance_;
+  SnapConstraintParser *parser_ = nullptr;
 
   void *lib_ = nullptr;
-  std::map<vendor_qti_hardware_display_common_PixelFormat, BufferConstraints> constraint_set_map_;
+  std::unordered_map<SnapFormatDescriptor, BufferConstraints, SnapFormatDescriptorHash>
+      constraint_set_map_;
   std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map_;
   void GetAlignedWidthAndHeight(int width, int height, int format, int usage,
                                 unsigned int *aligned_w, unsigned int *aligned_h, bool ubwc_enabled,
