@@ -294,9 +294,10 @@
 
 // Disable Ambient HDR
 #define DISABLE_AMBIENT_HDR               DISPLAY_PROP("disable_ambient_hdr")
-
 // HFI commit path support
 #define ENABLE_HFI_PATH                   DISPLAY_PROP("enable_hfi_path")
+// Disable client querying luts
+#define DISABLE_QUERY_LUTS                DISPLAY_PROP("disable_query_luts")
 
 // Add all other.properties above
 // End of property
