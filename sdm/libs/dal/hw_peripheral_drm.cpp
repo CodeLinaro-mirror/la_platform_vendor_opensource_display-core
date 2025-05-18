@@ -1073,7 +1073,7 @@ DisplayError HWPeripheralDRM::GetPanelBrightness(int *level) {
     return kErrorParameters;
   }
 
-  if (enable_brightness_drm_prop_) {
+  if (enable_brightness_drm_prop_ && current_brightness_ != -1) {
     *level = current_brightness_;
     return kErrorNone;
   }
@@ -1105,7 +1105,7 @@ DisplayError HWPeripheralDRM::GetPanelBrightness(int *level) {
   }
 
   Sys::close_(fd);
-
+  current_brightness_ = *level;
   return kErrorNone;
 }
 
