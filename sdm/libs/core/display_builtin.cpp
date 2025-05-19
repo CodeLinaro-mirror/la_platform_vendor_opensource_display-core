@@ -783,12 +783,13 @@ DisplayError DisplayBuiltIn::SetupSPR() {
   int spr_bypass_prop_value = 0;
   int spr_disable_value = 0;
   Debug::GetProperty(ENABLE_SPR, &spr_prop_value);
-  Debug::GetProperty(ENABLE_SPR_BYPASS, &spr_bypass_prop_value);
 
   if (IsPrimaryDisplay()) {
     Debug::Get()->GetProperty(DISABLE_SPR_PRIMARY, &spr_disable_value);
+    Debug::GetProperty(ENABLE_SPR_BYPASS, &spr_bypass_prop_value);
   } else {
     Debug::Get()->GetProperty(DISABLE_SPR_SECONDARY, &spr_disable_value);
+    Debug::GetProperty(ENABLE_SPR_BYPASS_SECONDARY, &spr_bypass_prop_value);
   }
 
   if (spr_prop_value && !spr_disable_value) {
