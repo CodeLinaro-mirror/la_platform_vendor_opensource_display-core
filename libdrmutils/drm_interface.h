@@ -66,6 +66,10 @@
 #ifndef __DRM_INTERFACE_H__
 #define __DRM_INTERFACE_H__
 
+#ifndef TARGET_INCLUDES_NEO
+#include <display/drm/msm_drm_aiqe.h>
+#endif
+
 #include <map>
 #include <string>
 #include <utility>
@@ -76,9 +80,7 @@
 
 #include "xf86drm.h"
 #include "xf86drmMode.h"
-#include <display/drm/msm_drm_aiqe.h>
 #include <display/drm/msm_drm_pp.h>
-#include <display/drm/msm_drm_aiqe.h>
 #include <display/drm/sde_drm.h>
 #include <drm/msm_drm.h>
 namespace sde_drm {

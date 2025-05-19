@@ -258,13 +258,9 @@ DisplayError SDMTrustedUI::TUITransitionStart(int disp_id) {
 
     DLOGI("Waiting for device assign");
     auto ret = WaitForVmRelease(target_display, timeout_ms);
-    if (ret == kErrorHardware) {
-      DLOGW("Unwind TUI");
-      TUITransitionEndLocked(target_display);
-      return ret;
-    }
     if (ret != kErrorNone) {
       DLOGE("Device assign failed with error %d", ret);
+      TUITransitionEndLocked(target_display);
       return ret;
     }
   }

@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #ifndef __SNAP_METADATA_MANAGER_DEFS_H__
@@ -104,6 +104,7 @@ struct SnapMetadata {
   bool is_format_SMPTE2094_10 = false;
   std::vector<uint8_t> custom_content_metadata;
   vendor_qti_hardware_display_common_ThreeDimensionalRefInfo three_dimensional_ref_info;
+  uint32_t viewId;
 };
 }  // namespace snapalloc
 
