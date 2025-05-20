@@ -23,10 +23,10 @@
 */
 
 /*
-* ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include <stdio.h>
 #include <malloc.h>
@@ -560,7 +560,11 @@ DisplayError DisplayBase::SetupPanelFeatureFactory() {
 
   int demuratn_enable = 0;
   GetDemuraTnFactory get_demuratn_factory_ptr = nullptr;
-  Debug::Get()->GetProperty(ENABLE_ANTI_AGING, &demuratn_enable);
+  if (IsPrimaryDisplay()) {
+    Debug::Get()->GetProperty(ENABLE_ANTI_AGING, &demuratn_enable);
+  } else {
+    Debug::Get()->GetProperty(ENABLE_ANTI_AGING_SECONDARY, &demuratn_enable);
+  }
   if (demuratn_enable) {
     if (!extension_lib_.Sym(
             GET_DEMURATN_FACTORY,
@@ -1709,13 +1713,12 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
   for (auto& info : disp_layer_stack_->info) {
     info.second.output_buffer = layer_stack->output_buffer;
     info.second.cwb_id = DisplayId(layer_stack->cwb_id).GetConnId(info.first);
+    info.second.hw_cwb_config = layer_stack->cwb_config;
+    if (info.second.cwb_id > 0) {
+      comp_manager_->LoadCwbHwDnscConfig(info.first, &info.second);
+    }
   }
   if (layer_stack->request_flags.trigger_refresh) {
-    for (auto& info : disp_layer_stack_->info) {
-      if (!disable_cwb_idle_fallback_ && info.second.output_buffer) {
-        cwb_fence_wait_ = true;
-      }
-    }
     layer_stack->output_buffer = nullptr;
   }
 
@@ -1873,18 +1876,6 @@ DisplayError DisplayBase::PerformHwCommit(std::map<uint32_t, HWLayersInfo> &hw_l
     }
   }
 
-  // TODO(user): Workaround for messenger app flicker issue in CWB idle fallback,
-  // to be removed when issue is fixed.
-  // O/P buffer has merged release fences, so check on index 0 only
-  if (cwb_fence_wait_ && hw_layers_info.begin()->second.output_buffer &&
-      (hw_layers_info.begin()->second.output_buffer->release_fence != nullptr)) {
-    if (Fence::Wait(hw_layers_info.begin()->second.output_buffer->release_fence) != kErrorNone) {
-      DLOGW("sync_wait error errno = %d, desc = %s", errno, strerror(errno));
-    }
-  }
-
-  cwb_fence_wait_ = false;
-
   error = PostCommit();
   if (error != kErrorNone) {
     DLOGE("Post Commit failed %d", error);
@@ -1893,6 +1884,11 @@ DisplayError DisplayBase::PerformHwCommit(std::map<uint32_t, HWLayersInfo> &hw_l
 
   cwb_active_ = false;
   cwb_output_buf_ = {};
+  for (auto &[core, info] : hw_layers_info) {
+    info.output_buffer = nullptr;
+    info.cwb_id = -1;
+    info.dnsc_cfg = {};
+  }
 
   DLOGI_IF(kTagDisplay, "Exiting commit for display: %d-%d", display_id_, display_type_);
 
@@ -4966,12 +4962,6 @@ DisplayError DisplayBase::ConfigureCwbForIdleFallback(LayerStack *layer_stack) {
   comp_manager_->HandleCwbFrequencyBoost(true);
 
   cwb_configured_ = true;
-  error = ValidateCwbConfigInfo(disp_layer_stack_->stack_info.hw_cwb_config,
-                                layer_stack->output_buffer->format);
-  if (error != kErrorNone) {
-    DLOGE("CWB_config validation failed.");
-    return error;
-  }
 
   return error;
 }
@@ -5032,15 +5022,101 @@ DisplayError DisplayBase::ValidateCwbRoiWithOutputBuffer(const LayerBuffer &outp
   return kErrorNone;
 }
 
-DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config) {
-  ClientLock lock(disp_mutex_);
+bool DisplayBase::ValidateCwbConfigForDownscale(const LayerBuffer &output_buffer,
+                                                CwbConfig &cwb_config) {
+  auto &ds_rect = cwb_config.cwb_downscaled_rect;
+  auto width = UINT32(ds_rect.right - ds_rect.left);
+  auto height = UINT32(ds_rect.bottom - ds_rect.top);
+  auto full_frame_width = UINT32(cwb_config.cwb_full_rect.right - cwb_config.cwb_full_rect.left);
+  auto full_frame_height = UINT32(cwb_config.cwb_full_rect.bottom - cwb_config.cwb_full_rect.top);
+  auto &cflags = cwb_config.cwb_control_params;
+  cflags.needs_downscale = 0;
+  if (cflags.downscale_mode == kDownscaleDefault ||
+      cflags.downscale_mode == kDownscaleUseOnlyDivisor) {
+    const auto max_byte_limit = MAX_VALUE_LIMIT(BITS_PER_BYTE);
+    if (!cflags.dnsc_x_divisor_or_percent) {
+      auto &dnsc_x = cwb_config.downscale_x;
+      cflags.dnsc_x_divisor_or_percent = (dnsc_x && dnsc_x <= max_byte_limit) ? dnsc_x : 1;
+    }
 
+    if (!cflags.dnsc_y_divisor_or_percent) {
+      auto &dnsc_y = cwb_config.downscale_y;
+      cflags.dnsc_y_divisor_or_percent = (dnsc_y && dnsc_y <= max_byte_limit) ? dnsc_y : 1;
+    }
+  } else if (cflags.downscale_mode == kDownscaleByRationalFactor) {
+    cflags.dnsc_x_multiplier += (!cflags.dnsc_x_multiplier);
+    cflags.dnsc_x_divisor += (!cflags.dnsc_x_divisor);
+    cflags.dnsc_y_multiplier += (!cflags.dnsc_y_multiplier);
+    cflags.dnsc_y_divisor += (!cflags.dnsc_y_divisor);
+  } else {
+    uint32_t pwidth = cflags.dnsc_x_divisor_or_percent;
+    uint32_t pheight = cflags.dnsc_y_divisor_or_percent;
+    (pwidth <= 0 || pwidth >= 100) && (cflags.dnsc_x_divisor_or_percent = 100);
+    (pheight <= 0 || pheight >= 100) && (cflags.dnsc_y_divisor_or_percent = 100);
+  }
+
+  // Check whether client really requested for downscaling.
+  if (cflags.downscale_mode == kDownscaleDefault) {
+    if ((cflags.dnsc_x_divisor_or_percent == 1 && cflags.dnsc_y_divisor_or_percent == 1) &&
+        (!width || !height || (width == full_frame_width && height == full_frame_height))) {
+      ds_rect = LayerRect(0.0f, 0.0f, 0.0f, 0.0f);
+      return false;
+    } else if (!width || !height || (width == full_frame_width && height == full_frame_height)) {
+      cflags.downscale_mode = kDownscaleUseOnlyDivisor;
+    }
+  }
+
+  if (cflags.downscale_mode == kDownscaleUseOnlyDivisor) {
+    if (cflags.dnsc_x_divisor_or_percent == 1 && cflags.dnsc_y_divisor_or_percent == 1) {
+      return false;
+    }
+    width = full_frame_width / cflags.dnsc_x_divisor_or_percent;
+    height = full_frame_height / cflags.dnsc_y_divisor_or_percent;
+  } else if (cflags.downscale_mode == kDownscaleByRationalFactor) {
+    if ((cflags.dnsc_x_divisor == 1 && cflags.dnsc_y_divisor == 1) ||
+        (cflags.dnsc_y_divisor <= cflags.dnsc_y_multiplier &&
+         cflags.dnsc_x_divisor <= cflags.dnsc_x_multiplier)) {
+      return false;
+    }
+    width = (full_frame_width * cflags.dnsc_x_multiplier) / cflags.dnsc_x_divisor;
+    height = (full_frame_height * cflags.dnsc_y_multiplier) / cflags.dnsc_y_divisor;
+  } else if (cflags.downscale_mode == kDownscalePercentageFactor) {
+    if (cflags.dnsc_x_divisor_or_percent == 100 && cflags.dnsc_y_divisor_or_percent == 100) {
+      return false;
+    }
+    width = (full_frame_width * cflags.dnsc_x_divisor_or_percent) / 100;
+    height = (full_frame_height * cflags.dnsc_y_divisor_or_percent) / 100;
+  }
+
+  // Validate width and height
+  (width > full_frame_width) && (width = full_frame_width);
+  (width > output_buffer.width) && (width = output_buffer.width);
+  (height > full_frame_height) && (height = full_frame_height);
+  (height > output_buffer.height) && (height = output_buffer.height);
+
+  // Validate output offset
+  (UINT32(ds_rect.left + width) > output_buffer.width) && (ds_rect.left = 0.0f);
+  (UINT32(ds_rect.top + height) > output_buffer.height) && (ds_rect.top = 0.0f);
+
+  ds_rect.right = ds_rect.left + width;
+  ds_rect.bottom = ds_rect.top + height;
+
+  cflags.needs_downscale = 1;
+
+  if (cwb_config.cwb_roi != cwb_config.cwb_full_rect) {
+    DLOGW("CWB ROI is not supported with downscale, so fallback to full frame downscaled ROI.");
+    cwb_config.cwb_roi = cwb_config.cwb_full_rect;
+  }
+
+  return true;
+}
+
+DisplayError DisplayBase::OnCwbValidation(const LayerBuffer &output_buffer, CwbConfig &cwb_config) {
   if (!HasConcurrentWriteback()) {
     return kErrorNotSupported;
   }
 
   DisplayError error = kErrorNone;
-  CwbConfig cwb_config = config;
 
   // Configure default tap point, in case of invalid configured tap point.
   if (cwb_config.tap_point < CwbTapPoint::kLmTapPoint ||
@@ -5056,22 +5132,28 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
     return error;
   }
 
-  if (!IsValid(config.cwb_roi) && !config.pu_as_cwb_roi) {
+  if (!IsValid(cwb_config.cwb_roi) && !cwb_config.pu_as_cwb_roi) {
     // If Cwb client doesn't set Cwb config in config, then we consider full frame ROI.
     DLOGW("Layerstack.cwb_config isn't set by CWB client. Thus, falling back to Full frame ROI.");
     cwb_config.cwb_roi = cwb_config.cwb_full_rect;
   }
 
-  error = ValidateCwbConfigInfo(&cwb_config, output_buffer.format);
-  if (error != kErrorNone) {
-    DLOGE("CWB_config validation failed.");
-    return error;
-  }
+  if (!ValidateCwbConfigForDownscale(output_buffer, cwb_config)) {
+    error = ValidateCwbConfigInfo(&cwb_config, output_buffer.format);
+    if (error != kErrorNone) {
+      DLOGE("CWB_config validation failed.");
+      return error;
+    }
 
-  error = ValidateCwbRoiWithOutputBuffer(output_buffer, cwb_config);
-  if (error != kErrorNone) {
-    DLOGW("Buffer validation failed");
-    return error;
+    error = ValidateCwbRoiWithOutputBuffer(output_buffer, cwb_config);
+    if (error != kErrorNone) {
+      DLOGW("Buffer validation failed");
+      return error;
+    }
+  } else if (!IsRgbFormat(output_buffer.format)) {
+    DLOGW("CWB downscaling is not supported for YUV formatted output for display %d-%d",
+          display_id_, display_type_);
+    return kErrorNotSupported;
   }
 
   if (!enable_client_control_cwb_refresh_) {
@@ -5101,8 +5183,15 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
       return kErrorNotSupported;
     }
   }
+  cwb_config.cwb_control_params.request_validated = 1;
 
-  error = comp_manager_->CaptureCwb(display_comp_ctx_, output_buffer, cwb_config);
+  return kErrorNone;
+}
+
+DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config) {
+  ClientLock lock(disp_mutex_);
+
+  auto error = comp_manager_->CaptureCwb(display_comp_ctx_, output_buffer, config);
   if (error != kErrorNone) {
     DLOGW("CWB request rejected for display %d-%d (Display Error code: %d).", display_id_,
           display_type_, error);

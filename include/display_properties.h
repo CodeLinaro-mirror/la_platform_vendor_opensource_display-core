@@ -28,10 +28,10 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __DISPLAY_PROPERTIES_H__
 #define __DISPLAY_PROPERTIES_H__
@@ -183,6 +183,13 @@
 #define ANTI_AGING_RECALIB_TIMER_DIVIDER     DISPLAY_PROP("demura_recalib_timer_divider")
 #define ANTI_AGING_ENABLE_LOGGING            DISPLAY_PROP("antiaging_enable_logging")
 #define ANTI_AGING_DISABLE_AOD_HANDLER       DISPLAY_PROP("antiaging_disable_aod_handler")
+#define ENABLE_ANTI_AGING_SECONDARY                   DISPLAY_PROP("enable_antiaging_secondary")
+#define ANTI_AGING_SHORT_TIMER_SECONDARY              DISPLAY_PROP("demura_short_timer_secondary")
+#define ANTI_AGING_LONG_TIMER_SECONDARY               DISPLAY_PROP("demura_long_timer_secondary")
+#define ANTI_AGING_RECALIB_TIMER_SECONDARY            DISPLAY_PROP("demura_recalib_timer_secondary")
+#define ANTI_AGING_RECORD_TIMER_SECONDARY             DISPLAY_PROP("demura_record_timer_secondary")
+#define ANTI_AGING_IDLE_TIMER_SECONDARY               DISPLAY_PROP("demura_idle_timer_secondary")
+#define ANTI_AGING_RECALIB_TIMER_DIVIDER_SECONDARY    DISPLAY_PROP("demura_recalib_timer_divider_secondary")
 
 // PERF hint properties
 #define ENABLE_PERF_HINT_LARGE_COMP_CYCLE    DISPLAY_PROP("enable_perf_hint_large_comp_cycle")
@@ -271,6 +278,7 @@
 #define HAL_REFRESH_HEADROOM                 DISPLAY_PROP("hal_refresh_headroom")
 #define BUILTIN_MIRRORING                    DISPLAY_PROP("builtin_mirroring")
 #define BUILTIN_PRESENTATION                 DISPLAY_PROP("builtin_presentation")
+#define DISABLE_DYNAMIC_SPLIT                DISPLAY_PROP("disable_dynamic_split")
 #define DISABLE_FP16_SUPPORT                 DISPLAY_PROP("disable_fp16_support")
 #define LSR_VARIANT                          DISPLAY_PROP("lsr_variant")
 #define ENABLE_SPLIT_VOTE                    DISPLAY_PROP("enable_split_vote")
@@ -285,6 +293,9 @@
 
 // Disable Ambient HDR
 #define DISABLE_AMBIENT_HDR               DISPLAY_PROP("disable_ambient_hdr")
+
+// HFI commit path support
+#define ENABLE_HFI_PATH                   DISPLAY_PROP("enable_hfi_path")
 
 // Add all other.properties above
 // End of property

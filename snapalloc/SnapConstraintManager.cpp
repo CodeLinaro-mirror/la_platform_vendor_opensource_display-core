@@ -247,7 +247,7 @@ Error SnapConstraintManager::GetAllocationData(
       }
     }
     ubwc_caps_.version = ubwc_version;
-    err = ubwc_policy_->GetUBWCAlloc(*out_desc, ubwc_caps_, out_ad, out_layout);
+    err = ubwc_policy_->GetUBWCAlloc(*out_desc, cap_map, ubwc_caps_, out_ad, out_layout);
   } else {
     if (ubwc_disabled_prop) {
       // Reset UBWC bit for UBWC disabled case
@@ -532,7 +532,7 @@ Error SnapConstraintManager::AlignmentToAlignedConstraints(BufferDescriptor desc
           OVERFLOW_ERR_RETURN(desc.width, (format_data.planes[0].sample_increment_bits / 8),
                               OverflowType::MUL);
           plane.stride.horizontal_stride =
-              ALIGN(desc.width * format_data.planes[0].sample_increment_bits / 8,
+              ALIGN(desc.width * (format_data.planes[0].sample_increment_bits / 8),
                     alignment.planes[i].stride.horizontal_stride_align);
         }
         if ((IsYuv(desc.format)) &&

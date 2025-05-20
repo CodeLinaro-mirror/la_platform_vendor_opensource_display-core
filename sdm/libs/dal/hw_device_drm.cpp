@@ -29,7 +29,7 @@
 
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -92,6 +92,7 @@
 #endif
 
 #define DEST_SCALAR_OVERFETCH_SIZE 5
+#define OFFSET_ALIGN(x, align) ((x) - ((x) % (align)))
 
 using drm_utils::DRMLibLoader;
 using drm_utils::DRMMaster;
@@ -804,8 +805,18 @@ void HWDeviceDRM::GetCWBCapabilities() {
     DLOGW("DRM Driver error %d while getting Connectors info.", ret);
     return;
   }
+
+  uint32_t max_dnsc_blocks = (!hw_info_intf_) ? 0 : hw_info_intf_->GetMaxDNSCBlurBlockCount();
   for (auto &iter : conns_info) {
     if (iter.second.type == DRM_MODE_CONNECTOR_VIRTUAL) {
+      if (dnsc_associated_wb_ids_.size() < max_dnsc_blocks) {
+        dnsc_associated_wb_ids_.push_back(iter.first);
+      }
+
+      if (max_dnsc_blocks && dnsc_associated_wb_ids_.size() < max_dnsc_blocks) {
+        continue;
+      }
+
       has_cwb_crop_ = static_cast<bool>(iter.second.modes[current_mode_index_].has_cwb_crop);
       has_dedicated_cwb_ =
           static_cast<bool>(iter.second.modes[current_mode_index_].has_dedicated_cwb);
@@ -1551,6 +1562,7 @@ DisplayError HWDeviceDRM::Doze(const HWQosData &qos_data, SyncPoints *sync_point
   sync_points->release_fence = Fence::Create(release_fence_fd, "release_doze");
   DLOGD_IF(kTagDriverConfig, "RELEASE fence: fd: %d", INT(release_fence_fd));
 
+  pending_power_state_ = kPowerStateNone;
   last_power_mode_ = DRMPowerMode::DOZE;
 
   return kErrorNone;
@@ -2102,6 +2114,7 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
     }
   }
 
+  bool active_state_toggled = false;
   if (first_cycle_) {
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_TOPOLOGY_CONTROL, token_.conn_id,
                               topology_control_);
@@ -2118,15 +2131,18 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_ACTIVE, token_.crtc_id, 1);
     if (GetDRMPowerMode(pending_power_state_, &power_mode) == kErrorNone) {
       drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_POWER_MODE, token_.conn_id, power_mode);
+      active_state_toggled =
+          ((last_power_mode_ == DRMPowerMode::OFF) && (power_mode != DRMPowerMode::OFF));
       last_power_mode_ = power_mode;
     }
   }
 
   // Set CRTC mode, only if display config changes
-  if (first_cycle_ || vrefresh_ || update_mode_) {
+  if (first_cycle_ || (!active_state_toggled && (vrefresh_ || update_mode_))) {
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_MODE, token_.crtc_id, &current_mode.mode);
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_DSC_MODE, token_.conn_id,
                               current_mode.curr_compression_mode);
+    update_mode_ = false;
   }
 
   if (!validate && (hw_layers_info->common_info->set_idle_time_ms >= 0)) {
@@ -2408,7 +2424,6 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
   panel_compression_changed_ = 0;
   reset_planes_luts_ = false;
   first_cycle_ = false;
-  update_mode_ = false;
   pending_power_state_ = kPowerStateNone;
   pending_cwb_teardown_ = false;
   // Inherently a real commit ensures null commit properties have happened, so update the member
@@ -3631,11 +3646,102 @@ uint64_t HWDeviceDRM::GetSupportedBitClkRate(uint32_t new_mode_index,
   }
 }
 
+#ifdef FEATURE_DNSC_BLUR
+void HWDeviceDRM::ConfigureDNSCbase(HWLayersInfo *hw_layers_info, uint32_t conn_id,
+                                    struct sde_drm_dnsc_blur_cfg &dnsc_cfg) {
+  HWDNSCInfo &dnsc = hw_layers_info->dnsc_cfg;
+  dnsc_cfg = {};
+
+  if (dnsc.enabled) {
+    dnsc_cfg.flags = dnsc.flags;
+    dnsc_cfg.num_blocks = dnsc.num_blocks;
+
+    dnsc_cfg.src_width = dnsc.src_width;
+    dnsc_cfg.src_height = dnsc.src_height;
+    dnsc_cfg.dst_width = dnsc.dst_width;
+    dnsc_cfg.dst_height = dnsc.dst_height;
+
+    dnsc_cfg.flags_h = dnsc.flags_h;
+    dnsc_cfg.flags_v = dnsc.flags_v;
+
+    dnsc_cfg.phase_init_h = dnsc.pcmn_data.phase_init_h;
+    dnsc_cfg.phase_step_h = dnsc.pcmn_data.phase_step_h;
+    dnsc_cfg.phase_init_v = dnsc.pcmn_data.phase_init_v;
+    dnsc_cfg.phase_step_v = dnsc.pcmn_data.phase_step_v;
+
+    dnsc_cfg.norm_h = dnsc.gaussian_data.norm_h;
+    dnsc_cfg.ratio_h = dnsc.gaussian_data.ratio_h;
+    dnsc_cfg.norm_v = dnsc.gaussian_data.norm_v;
+    dnsc_cfg.ratio_v = dnsc.gaussian_data.ratio_v;
+
+    for (int i = 0; i < DNSC_BLUR_COEF_NUM && i < dnsc.gaussian_data.coef_hori.size(); i++) {
+      dnsc_cfg.coef_hori[i] = dnsc.gaussian_data.coef_hori[i];
+    }
+
+    for (int i = 0; i < DNSC_BLUR_COEF_NUM && i < dnsc.gaussian_data.coef_vert.size(); i++) {
+      dnsc_cfg.coef_vert[i] = dnsc.gaussian_data.coef_vert[i];
+    }
+  }
+
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_CACHE_STATE, conn_id, dnsc.cache_state);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_EARLY_FENCE_LINE, conn_id, dnsc.early_fence_line);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_DNSC_BLR, conn_id, &dnsc_cfg);
+}
+#endif
+
+bool HWDeviceDRM::ConfigureDNSCforCwb(HWLayersInfo *hw_layers_info) {
+#ifdef FEATURE_DNSC_BLUR
+  if (!hw_layers_info->dnsc_cfg.enabled) {
+    if (cwb_config_[core_id_].enabled_dnsc) {
+      auto &cfg = cwb_config_[core_id_];
+      cfg.dnsc_cfg = {};
+      drm_atomic_intf_->Perform(DRMOps::CONNECTOR_DNSC_BLR, cfg.token.conn_id, &cfg.dnsc_cfg);
+    }
+    return false;
+  }
+
+  uint32_t conn_id = cwb_config_[core_id_].token.conn_id;
+  auto it = std::find(dnsc_associated_wb_ids_.begin(), dnsc_associated_wb_ids_.end(), conn_id);
+  if (it == dnsc_associated_wb_ids_.end()) {
+    DLOGW("WB block (%d) doesn't support downscaling for display %d-%d", conn_id, display_id_,
+          disp_type_);
+    return false;
+  } else {
+    auto wb_index = std::distance(dnsc_associated_wb_ids_.begin(), it);
+    DLOGV_IF(kTagDriverConfig, "WB%u is using DNSC_blur for CWB at display %d-%d", wb_index,
+             display_id_, disp_type_);
+  }
+  ConfigureDNSCbase(hw_layers_info, conn_id, cwb_config_[core_id_].dnsc_cfg);
+  auto topology_control = UINT32(sde_drm::DRMTopologyControl::DNSC_BLUR);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_TOPOLOGY_CONTROL, conn_id, topology_control);
+  cwb_config_[core_id_].enabled_dnsc = true;
+  return true;
+#else
+  return false;
+#endif
+}
+
+void HWDeviceDRM::DeconfigureDNSCfromCwb(void) {
+  if (cwb_config_[core_id_].enabled_dnsc) {
+    uint32_t conn_id = cwb_config_[core_id_].token.conn_id;
+    auto &dnsc_cfg = cwb_config_[core_id_].dnsc_cfg;
+    dnsc_cfg = {};
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_CACHE_STATE, conn_id, 0);
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_EARLY_FENCE_LINE, conn_id, 0);
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_DNSC_BLR, conn_id, &dnsc_cfg);
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_TOPOLOGY_CONTROL, conn_id, 0);
+    cwb_config_[core_id_].enabled_dnsc = false;
+    DLOGV_IF(kTagDriverConfig, "Deconfigured DNSC from WB(%d) for display %d-%d", conn_id,
+             display_id_, disp_type_);
+  }
+}
+
 bool HWDeviceDRM::SetupConcurrentWriteback(const HWLayersInfo &hw_layer_info, bool validate,
                                            int64_t *release_fence_fd) {
   bool enable = hw_resource_.has_concurrent_writeback && hw_layer_info.output_buffer &&
                 (hw_layer_info.cwb_id != -1) && !pending_cwb_teardown_;
-  if (!(enable || cwb_config_[core_id_].enabled)) {  // the frame is neither cwb setup nor cwb teardown frame
+  // the frame is neither cwb setup nor cwb teardown frame
+  if (!(enable || cwb_config_[core_id_].enabled)) {
     return false;
   }
 
@@ -3659,6 +3765,7 @@ bool HWDeviceDRM::SetupConcurrentWriteback(const HWLayersInfo &hw_layer_info, bo
       }
     } else {
       // Tear down the Concurrent Writeback topology.
+      DeconfigureDNSCfromCwb();
       drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, cwb_config_[core_id_].token.conn_id, 0);
       DLOGI("Tear down the Concurrent Writeback topology");
     }
@@ -3748,9 +3855,35 @@ void HWDeviceDRM::ConfigureConcurrentWriteback(const HWLayersInfo &hw_layer_info
 
   sde_drm::DRMRect cwb_dst = full_frame;
   LayerRect cwb_roi = cwb_config->cwb_roi;
+  if (ConfigureDNSCforCwb(const_cast<HWLayersInfo *>(&hw_layer_info))) {
+    auto &dnsc_cfg = cwb_config_[core_id_].dnsc_cfg;
+    auto &ds_rect = cwb_config->cwb_downscaled_rect;
+    auto &cparams = cwb_config->cwb_control_params;
+    if (cparams.img_h_center_align) {
+      cwb_dst.left = UINT32((output_buffer->width - dnsc_cfg.dst_width) / 2);
+    } else if (UINT32(ds_rect.left) + dnsc_cfg.dst_width <= output_buffer->width) {
+      cwb_dst.left = UINT32(ds_rect.left);
+    } else {
+      cwb_dst.left = 0;
+    }
 
-  if (has_cwb_crop_) {  // If CWB ROI feature is supported, then set WB connector's roi_v1 property
-    // to PU ROI and DST_* properties to CWB ROI. Else, set DST_* properties to full frame ROI.
+    if (cparams.img_v_center_align) {
+      cwb_dst.top = UINT32((output_buffer->height - dnsc_cfg.dst_height) / 2);
+    } else if (UINT32(ds_rect.top) + dnsc_cfg.dst_height < output_buffer->height) {
+      cwb_dst.top = UINT32(ds_rect.top);
+    } else {
+      cwb_dst.top = 0;
+    }
+    cwb_dst.left = OFFSET_ALIGN(cwb_dst.left, 16);
+    cwb_dst.top = OFFSET_ALIGN(cwb_dst.top, 16);
+    cwb_dst.right = cwb_dst.left + dnsc_cfg.dst_width;
+    cwb_dst.bottom = cwb_dst.top + dnsc_cfg.dst_height;
+    DLOGV_IF(kTagDriverConfig, "CWB downscale Dest_Rect(%d, %d, %d, %d) for Source WxH (%d, %d)",
+             cwb_dst.left, cwb_dst.top, cwb_dst.right, cwb_dst.bottom, full_frame.right,
+             full_frame.bottom);
+  } else if (has_cwb_crop_) {  // If CWB ROI feature is supported, then set WB connector's roi_v1
+    // property to PU ROI and DST_* properties to CWB ROI. Else, set DST_* properties to full
+    // frame ROI.
     bool is_full_frame_update = IsFullFrameUpdate(hw_layer_info);
     // Set WB connector's roi_v1 property to PU_ROI.
     if (is_full_frame_update) {

@@ -106,7 +106,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   virtual DisplayError SetBppMode(uint32_t bpp);
   virtual DisplayError SetRefreshRate(uint32_t refresh_rate);
   virtual DisplayError SetFrameTrigger(FrameTriggerMode mode);
-  virtual DisplayError SetPanelBrightness(int level);
+  virtual DisplayError SetPanelBrightness(int level, bool apply_immediately);
   virtual DisplayError GetPanelBrightness(int *level);
   virtual void GetHWPanelMaxBrightness();
   virtual DisplayError SetBLScale(uint32_t level);
@@ -116,6 +116,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   void SetDestScalarData(const HWLayersInfo &hw_layer_info);
   virtual uint32_t GetAVRStep(uint32_t config_index);
   virtual bool IsVRRSupported();
+  virtual DisplayError setDriverCommitPath(DriverCommitPath path);
 
  private:
   void InitDestScaler();
@@ -164,6 +165,8 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   bool ltm_hist_en_ = false;
   bool aba_hist_en_ = false;
   std::map<PanelFeaturePropertyID, sde_drm::DRMPanelFeatureID> panel_feature_property_map_ {};
+  bool use_hfi_path_ = false;
+  bool hwio_path_switch_pending_ = false;
 };
 
 }  // namespace sdm

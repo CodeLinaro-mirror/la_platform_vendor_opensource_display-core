@@ -107,6 +107,8 @@ enum PipeType {
   kPipeTypeRGB,
   kPipeTypeDMA,
   kPipeTypeCursor,
+  kPipeTypeCSC,
+  kPipeTypeRepro,
 };
 
 enum HWSubBlockType {
@@ -114,6 +116,8 @@ enum HWSubBlockType {
   kHWRGBPipe,
   kHWDMAPipe,
   kHWCursorPipe,
+  kHWCSCPipe,
+  kHWReproPipe,
   kHWRotatorInput,
   kHWRotatorOutput,
   kHWWBIntfOutput,
@@ -413,6 +417,8 @@ struct HWResourceInfo {
   uint32_t num_vig_pipe = 0;
   uint32_t num_rgb_pipe = 0;
   uint32_t num_cursor_pipe = 0;
+  uint32_t num_csc_pipe = 0;
+  uint32_t num_repro_pipe = 0;
   uint32_t num_blending_stages = 0;
   uint32_t num_solidfill_stages = 0;
   uint32_t max_scale_up = 1;

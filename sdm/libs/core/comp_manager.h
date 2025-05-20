@@ -24,8 +24,7 @@
 
 /*
 * ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-*
-* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -56,6 +55,7 @@ class CompManagerEventHandler {
   virtual void NotifyCwbDone(int32_t status, const LayerBuffer& buffer) = 0;
   virtual void Refresh() = 0;
   virtual void OnCwbTeardown(bool sync_teardown) = 0;
+  virtual DisplayError OnCwbValidation(const LayerBuffer &output_buffer, CwbConfig &cwb_config) = 0;
 };
 
 class CompManager : public CwbCallback {
@@ -141,6 +141,8 @@ class CompManager : public CwbCallback {
   virtual void NotifyCwbDone(int32_t display_id, int32_t status, const LayerBuffer& buffer);
   virtual void TriggerRefresh(int32_t display_id);
   virtual void TriggerCwbTeardown(int32_t display_id, bool sync_teardown);
+  virtual DisplayError ValidateCwbRequest(int32_t display_id, const LayerBuffer &output_buffer,
+                                          CwbConfig &cwb_config);
   std::string Dump(Handle display_ctx);
   uint32_t GetMixerCount(DisplayId display_id);
   uint32_t GetActiveDisplayCount();
@@ -150,6 +152,7 @@ class CompManager : public CwbCallback {
   DisplayError SetSprIntf(Handle display_ctx, std::shared_ptr<SPRIntf> intf);
   bool IsMirroredOfAnyDisplay(int32_t display_id, const LayerStack *layer_stack,
                               int32_t *out_src_display);
+  void LoadCwbHwDnscConfig(int32_t core_id, HWLayersInfo *info);
   bool IsActiveDisplay(int32_t display_id);
   bool IsGPUHWAvailable();
 

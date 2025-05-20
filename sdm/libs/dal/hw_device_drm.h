@@ -29,38 +29,8 @@
 
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
- *
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted (subject to the limitations in the
- * disclaimer below) provided that the following conditions are met:
- *
- *    * Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
- *
- *    * Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
- *      disclaimer in the documentation and/or other materials provided
- *      with the distribution.
- *
- *    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
- *      contributors may be used to endorse or promote products derived
- *      from this software without specific prior written permission.
- *
- * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
- * GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
- * HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
- * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #ifndef __HW_DEVICE_DRM_H__
@@ -102,7 +72,11 @@ struct SDECsc {
 
 struct HWCwbConfig {
   bool enabled = false;
+  bool enabled_dnsc = false;
   sde_drm::DRMDisplayToken token = {};  // display token to be used for virtual connector while CWB
+#ifdef FEATURE_DNSC_BLUR
+  struct sde_drm_dnsc_blur_cfg dnsc_cfg = {};  //DNSC config for downscaling CWB output
+#endif
 };
 
 class HWDeviceDRM : public HWInterface {
@@ -137,6 +111,12 @@ class HWDeviceDRM : public HWInterface {
   virtual DisplayError Validate(HWLayersInfo *hw_layers_info);
   virtual DisplayError Commit(HWLayersInfo *hw_layers_info);
   virtual DisplayError Flush(HWLayersInfo *hw_layers_info);
+#ifdef FEATURE_DNSC_BLUR
+  virtual void ConfigureDNSCbase(HWLayersInfo *hw_layers_info, uint32_t conn_id,
+                                 struct sde_drm_dnsc_blur_cfg &dnsc_cfg);
+#endif
+  virtual bool ConfigureDNSCforCwb(HWLayersInfo *hw_layers_info);
+  virtual void DeconfigureDNSCfromCwb(void);
   DisplayError SetupConcurrentWritebackModes(int32_t writeback_id);
   bool SetupConcurrentWriteback(const HWLayersInfo &hw_layer_info, bool validate,
                                 int64_t *release_fence_fd);
@@ -151,7 +131,9 @@ class HWDeviceDRM : public HWInterface {
   virtual DisplayError SetDisplayMode(const HWDisplayMode hw_display_mode);
   virtual DisplayError SetBppMode(uint32_t bpp);
   virtual DisplayError SetRefreshRate(uint32_t refresh_rate);
-  virtual DisplayError SetPanelBrightness(int level) { return kErrorNotSupported; }
+  virtual DisplayError SetPanelBrightness(int level, bool apply_immediately) {
+    return kErrorNotSupported;
+  }
   virtual DisplayError GetHWScanInfo(HWScanInfo *scan_info);
   virtual DisplayError GetVideoFormat(uint32_t config_index, uint32_t *video_format);
   virtual DisplayError GetMaxCEAFormat(uint32_t *max_cea_format);
@@ -214,6 +196,7 @@ class HWDeviceDRM : public HWInterface {
                                              uint32_t frame_interval_ns);
   virtual bool IsVRRSupported() { return false; }
   virtual void DisplayEarlyWakeUp();
+  virtual DisplayError setDriverCommitPath(DriverCommitPath path) { return kErrorNotSupported; }
 
   enum {
     kHWEventVSync,
@@ -396,6 +379,7 @@ class HWDeviceDRM : public HWInterface {
   bool has_cwb_dither_ = false;     // virtual connector supports CWB Dither feature.
   uint32_t transfer_time_updated_ = 0;
   std::unordered_map<uint32_t, HWCwbConfig> cwb_config_;
+  std::vector<uint32_t> dnsc_associated_wb_ids_ = {};
   // cwb state lock. Set before accesing or updating cwb_config_
   static std::unordered_map<uint32_t, std::mutex> cwb_state_lock_;
   bool force_tonemapping_ = false;

@@ -116,7 +116,10 @@ void GetColorMetadataFromColorMode(SDMColorMode mode, Dataspace &ds) {
 ConcurrencyMgr::ConcurrencyMgr() {}
 
 ConcurrencyMgr::~ConcurrencyMgr() {
-  Deinit();
+  // client can call deinit themselves, so check to avoid double deinit call
+  if (is_composer_up_) {
+    Deinit();
+  }
 }
 
 int ConcurrencyMgr::GetDisplayIndex(int dpy) {
@@ -805,6 +808,11 @@ void ConcurrencyMgr::RegisterCompositorCallback(SDMCompositorCbIntf *cb, bool en
   } else {
     GetPendingHotplug(pending_hotplugs);
 
+    if (!services_) {
+      services_ = new SDMServices(this, buffer_allocator_, socket_handler_);
+      services_->Init(disp_, buffer_allocator_, locker_, tui_);
+    }
+
     if (sdm_display_[SDM_DISPLAY_PRIMARY]) {
       DLOGI("Hotplugging primary...");
       Hotplug(SDM_DISPLAY_PRIMARY, true);
@@ -1385,19 +1393,6 @@ void ConcurrencyMgr::HandleSecureSession() {
     return;
   }
 
-  // If there are any ongoing non-secure virtual displays, we need to destroy
-  // them.
-  bool is_active_virtual_display = false;
-  for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_VIRTUAL)) {
-    if (map_info.disp_type == kVirtual) {
-      is_active_virtual_display = true;
-      client_id = map_info.client_id;
-    }
-  }
-  if (is_active_virtual_display) {
-    disp_->DestroyVirtualDisplay(client_id);
-  }
-
   // If it is called during primary prepare/commit, we need to pause any ongoing
   // commit on external/virtual display.
   bool found_active_secure_display = false;
@@ -1771,8 +1766,8 @@ DisplayError ConcurrencyMgr::GetDisplayBrightnessSupport(Display display,
   return kErrorNone;
 }
 
-DisplayError ConcurrencyMgr::SetDisplayBrightness(Display display,
-                                                  float brightness) {
+DisplayError ConcurrencyMgr::SetDisplayBrightness(Display display, float brightness,
+                                                  bool performing_commit) {
   if (display >= kNumDisplays) {
     return kErrorParameters;
   }
@@ -1781,7 +1776,7 @@ DisplayError ConcurrencyMgr::SetDisplayBrightness(Display display,
     return kErrorParameters;
   }
 
-  return (INT32(sdm_display_[display]->SetPanelBrightness(brightness)))
+  return (INT32(sdm_display_[display]->SetPanelBrightness(brightness, !performing_commit)))
              ? kErrorNotSupported
              : kErrorNone;
 }

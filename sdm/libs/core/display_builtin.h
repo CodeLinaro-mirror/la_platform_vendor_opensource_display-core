@@ -23,8 +23,8 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -200,7 +200,8 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError GetRefreshRateRange(uint32_t *min_refresh_rate,
                                    uint32_t *max_refresh_rate) override;
   DisplayError SetRefreshRate(uint32_t refresh_rate, bool final_rate, bool idle_screen) override;
-  DisplayError SetPanelBrightness(float brightness, bool return_error = false) override;
+  DisplayError SetPanelBrightness(float brightness, bool apply_immediately,
+                                  bool return_error = false) override;
   DisplayError GetPanelBrightness(float *brightness) override;
   DisplayError GetPanelBrightnessFromLevel(float level, float *brightness);
   DisplayError GetPanelBrightnessLevel(int *level) override;
@@ -410,7 +411,7 @@ class DisplayBuiltIn : public DisplayBase,
   std::shared_ptr<DemuraIntf> demura_ = nullptr;
   bool demuratn_enabled_ = false;
   std::shared_ptr<DemuraTnCoreUvmIntf> demuratn_ = nullptr;
-  uint64_t panel_id_;
+  uint64_t panel_id_ = 0;
   std::vector<Layer> demura_layer_ = {};
   bool demura_intended_ = false;
   bool demura_dynamic_enabled_ = true;
@@ -454,6 +455,8 @@ class DisplayBuiltIn : public DisplayBase,
   bool demura_calib_files_reloaded_ = false;
   VmFileXferClientFactIntfExtn *factory_extn_ = nullptr;
   std::shared_ptr<FeatureLicenseIntf> feat_license_intf_ = nullptr;
+  bool hfi_path_supported_ = false;
+  bool double_buffer_codebook_supported_ = false;
 };
 
 }  // namespace sdm

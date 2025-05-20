@@ -30,11 +30,10 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-*
-* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include <dlfcn.h>
 #include <drm/drm_fourcc.h>
@@ -539,6 +538,23 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
         }
         hw_resource->num_cursor_pipe++;
         break;
+      // TODO: populate for csc and repro pipe type
+      /* case DRMPlaneType::CSC:
+        name = "CSC";
+        pipe_caps.type = kPipeTypeCSC;
+        if (!hw_resource->num_csc_pipe ) {
+          PopulateSupportedFmts(kHWCSCPipe, pipe_obj.second, hw_resource);
+        }
+        hw_resource->num_csc_pipe++;
+        break;
+      case DRMPlaneType::REPRO:
+        name = "REPRO";
+        pipe_caps.type = kPipeTypeRepro;
+        if (!hw_resource->num_repro_pipe ) {
+          PopulateSupportedFmts(kHWReproPipe, pipe_obj.second, hw_resource);
+        }
+        hw_resource->num_repro_pipe++;
+        break; */
       default:
         continue;  // Not adding any other pipe type
     }
@@ -637,6 +653,23 @@ void HWInfoDRM::MapPlaneToConnector(HWResourceInfo *hw_resource) {
 
 void HWInfoDRM::GetInitialDemuraInfo(HWResourceInfo *hw_resource) {
   drm_mgr_intf_->GetInitialDemuraInfo(&hw_resource->initial_demura_planes);
+}
+
+DisplayError HWInfoDRM::GetDemuraDoubleBufferCodebookFlags(bool *out) {
+  DisplayError ret = kErrorNone;
+
+  if (!out) {
+    DLOGE("Invalid out is nullptr");
+    return kErrorParameters;
+  }
+
+  DRMPanelFeatureInfo info = {};
+  bool flags = false;
+  info.prop_id = sde_drm::kDRMPanelFeatureDemuraInit;
+  info.prop_ptr = reinterpret_cast<uint64_t>(&flags);
+  drm_mgr_intf_->GetPanelFeature(&info);
+  *out = flags;
+  return ret;
 }
 
 void HWInfoDRM::PopulatePipeCaps(const sde_drm::DRMPlaneTypeInfo &info,
@@ -1047,8 +1080,8 @@ DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
         ((0 == iter.first) || (iter.first > INT32_MAX)) ? -1 :
                               (int32_t)DisplayId(core_id_, iter.first).GetDisplayId();
 
-    // loopback connector are internal, Used for CAC loopback
-    if (iter.second.has_cac_loopback) {
+    // skip virtual internal connectors
+    if (iter.second.has_cac_loopback || iter.second.is_wb_csc || iter.second.is_wb_repro) {
       continue;
     }
 
@@ -1248,6 +1281,14 @@ DisplayError HWInfoDRM::GetPanelBootParamString(std::string *panel_boot_param_st
 
 uint32_t HWInfoDRM::GetMaxMixerCount() {
   return drm_mgr_intf_->GetCrtcCount();
+}
+
+uint32_t HWInfoDRM::GetMaxDNSCBlurBlockCount() {
+#ifdef FEATURE_DNSC_BLUR
+  return 1;
+#else
+  return 0;
+#endif
 }
 
 int HWInfoDRM::GetConnectorTypeforTMDS(uint32_t encoder_id, sde_drm::DRMEncoderInfo info) {

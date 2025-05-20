@@ -309,7 +309,7 @@ void DRMConnectorManager::Init(drmModeRes *resource) {
       conn->InitAndParse(libdrm_conn);
       DRMConnectorInfo info;
       conn->GetInfo(&info);
-      conn->SetloopbackConnector(info);
+      conn->SetConnectorIdentifier(info);
       connector_pool_[resource->connectors[i]] = std::move(conn);
     } else {
       DRM_LOGE("Critical error: drmModeGetConnector() failed for connector %u.",
@@ -463,14 +463,14 @@ static bool IsTVConnector(uint32_t type) {
 }
 
 int DRMConnectorManager::Reserve(DRMDisplayType disp_type, DRMDisplayToken *token,
-                                 bool has_cac_loopback) {
+                                 DRMConnectorIdentifier identifier) {
   lock_guard<mutex> lock(lock_);
   int ret = -ENODEV;
   token->conn_id = 0;
 
   for (auto &conn : connector_pool_) {
     if (conn.second->GetStatus() == DRMStatus::FREE &&
-        has_cac_loopback == conn.second->IsLoopbackConnector()) {
+        identifier == conn.second->GetConnectorIdentifier()) {
       uint32_t conn_type;
       conn.second->GetType(&conn_type);
       if ((disp_type == DRMDisplayType::PERIPHERAL &&
@@ -693,6 +693,7 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
   const string dpu_ctl_op_sync = "dpu_ctl_op_sync=";
   const string dms_type = "dms_vid support=";
   const string has_cac_loopback = "has_cac_loopback=";
+  const string wb_opmode = "wb_opmode=";
 
   while (std::getline(stream, line)) {
     if (line.find(pixel_formats) != string::npos) {
@@ -742,6 +743,10 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
       info->dpu_ctl_op_sync = (string(line, dpu_ctl_op_sync.length()) == "true");
     } else if (line.find(has_cac_loopback) != string::npos) {
       info->has_cac_loopback = std::stoi(string(line, has_cac_loopback.length()));
+    } else if (line.find(wb_opmode) != string::npos) {
+      string wb_type = string(line, wb_opmode.length());
+      info->is_wb_repro = (wb_type == "repro");
+      info->is_wb_csc = (wb_type == "csc");
     } else if (line.find(dms_type) != string::npos) {
       info->dms_type = DMSType::DMS_VID_DISABLED;
       if (string(line, dms_type.length()) == "dms-vid-seamless") {
@@ -1629,4 +1634,14 @@ void DRMConnector::Dump() {
   }
 }
 
+void DRMConnector::SetConnectorIdentifier(const DRMConnectorInfo &info) {
+  identifier_ = DRMConnectorIdentifier::DPU;
+  if (info.has_cac_loopback) {
+    identifier_ = DRMConnectorIdentifier::CAC_LOOPBACK;
+  } else if (info.is_wb_repro) {
+    identifier_ = DRMConnectorIdentifier::LSR_REPRO;
+  } else if (info.is_wb_csc) {
+    identifier_ = DRMConnectorIdentifier::LSR_CSC;
+  }
+}
 }  // namespace sde_drm

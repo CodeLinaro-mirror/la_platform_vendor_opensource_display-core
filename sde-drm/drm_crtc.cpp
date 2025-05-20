@@ -30,7 +30,7 @@
 /*
 * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 *
-* Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -64,6 +64,8 @@ using std::lock_guard;
 using std::pair;
 using std::vector;
 
+#define __CLASS__ "DRMCrtcManager"
+
 // CRTC Security Levels
 static uint8_t SECURE_NON_SECURE = 0;
 static uint8_t SECURE_ONLY = 1;
@@ -86,6 +88,25 @@ static uint8_t CACHE_STATE_ENABLED = 1;
 static uint8_t VM_REQ_STATE_NONE = 0;
 static uint8_t VM_REQ_STATE_RELEASE = 1;
 static uint8_t VM_REQ_STATE_ACQUIRE = 2;
+
+// Driver commit paths
+static uint8_t MSM_DISP_OP_HWIO = 0;
+static uint8_t MSM_DISP_OP_HFI = 1;
+
+static void PopulateDriverCommitPaths(drmModePropertyRes *prop) {
+  static bool driver_commit_paths_populated = false;
+  if (!driver_commit_paths_populated) {
+    for (auto i = 0; i < prop->count_enums; i++) {
+      string enum_name(prop->enums[i].name);
+      if (enum_name == "hw_op_mode_hwio") {
+        MSM_DISP_OP_HWIO = prop->enums[i].value;
+      } else if (enum_name == "hw_op_mode_hfi") {
+        MSM_DISP_OP_HFI = prop->enums[i].value;
+      }
+    }
+    driver_commit_paths_populated = true;
+  }
+}
 
 static void PopulateSecurityLevels(drmModePropertyRes *prop) {
   static bool security_levels_populated = false;
@@ -171,8 +192,6 @@ static void PopulateVMRequestStates(drmModePropertyRes *prop) {
     idle_pc_state_populated = true;
   }
 }
-
-#define __CLASS__ "DRMCrtcManager"
 
 void DRMCrtcManager::Init(drmModeRes *resource) {
   lock_guard<mutex> lock(lock_);
@@ -358,6 +377,10 @@ void DRMCrtc::ParseProperties() {
       DRM_LOGD("DRMProperty %s missing from global property mapping", info->name);
       drmModeFreeProperty(info);
       continue;
+    }
+
+    if (prop_enum == DRMProperty::COMMIT_PATH) {
+      PopulateDriverCommitPaths(info);
     }
 
     if (prop_enum == DRMProperty::NOISE_LAYER_V1) {
@@ -698,6 +721,19 @@ void DRMCrtc::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
   uint32_t obj_id = drm_crtc_->crtc_id;
 
   switch (code) {
+    case DRMOps::CRTC_SET_COMMIT_PATH: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::COMMIT_PATH)) {
+        return;
+      }
+      int32_t path = va_arg(args, int32_t);
+      uint32_t commit_path = MSM_DISP_OP_HWIO;
+      if (path == MSM_DISP_OP_HFI) {
+        commit_path = MSM_DISP_OP_HFI;
+      }
+      AddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::COMMIT_PATH), commit_path, true,
+                  tmp_prop_val_map_);
+    } break;
+
     case DRMOps::CRTC_SET_MODE: {
       drmModeModeInfo *mode = va_arg(args, drmModeModeInfo *);
       uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::MODE_ID);

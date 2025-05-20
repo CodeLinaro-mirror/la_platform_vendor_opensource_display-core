@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -28,7 +28,9 @@ class HWInfoDefault : public HWInfoInterface {
       std::map<uint32_t, uint8_t> *required_demura_fetch_cnt);
   virtual DisplayError GetPanelBootParamString(std::string *panel_boot_param_string);
   virtual uint32_t GetMaxMixerCount();
+  virtual uint32_t GetMaxDNSCBlurBlockCount() { return 0; }
   virtual uint32_t GetCoreId() { return 0; }
+  virtual DisplayError GetDemuraDoubleBufferCodebookFlags(bool *out) { return kErrorNotSupported; }
 };
 
 }  // namespace sdm
