@@ -116,6 +116,7 @@ int VideoConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferConst
                    "plane_layout.scanline.scanline %d",
                    plane_layout.stride.horizontal_stride, plane_layout.scanline.scanline);
           plane_layout.size_align = 1;
+          break;
         default:
           break;
       }

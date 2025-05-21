@@ -27,10 +27,8 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <errno.h>
@@ -1531,6 +1529,13 @@ DisplayError SDMDisplay::VSync(const DisplayEventVSync &vsync) {
   SDMDebugHandler::ATRACE_INT("VsyncPeriod", INT32(vsync_period));
   callbacks_->OnVsync(id_, vsync.timestamp, vsync_period);
 
+  return kErrorNone;
+}
+
+DisplayError SDMDisplay::PFlip(int fd, unsigned int sequence,
+                               unsigned int tv_sec, unsigned int tv_usec,
+                               void *data)
+{
   return kErrorNone;
 }
 

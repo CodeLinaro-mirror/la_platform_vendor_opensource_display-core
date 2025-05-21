@@ -103,6 +103,7 @@ int DisplayConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCon
           plane_layout.stride.horizontal_stride = mapper.GetUVStride(mmm_color_format, desc.width);
           plane_layout.scanline.scanline = mapper.GetUVScanlines(mmm_color_format, desc.height);
           plane_layout.size_align = 1;
+          break;
         default:
           break;
       }

@@ -30,9 +30,8 @@
 */
 
 /*
-* ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-*
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -129,6 +128,7 @@ static HWQseedStepVersion GetQseedStepVersion(sde_drm::QSEEDStepVersion drm_vers
       break;
     case sde_drm::QSEEDStepVersion::V3LITE_V9:
       sdm_version = kQseed3litev9;
+      break;
     case sde_drm::QSEEDStepVersion::V3LITE_V10:
       sdm_version = kQseed3litev10;
       break;
@@ -978,10 +978,25 @@ void HWInfoDRM::GetSDMFormat(uint32_t drm_format, uint64_t drm_format_modifier,
 }
 
 DisplayError HWInfoDRM::GetFirstDisplayInterfaceType(HWDisplayInterfaceInfo *hw_disp_info) {
+  HWDisplaysInfo hw_displays_info;
+  DisplayError error = kErrorNone;
+
   hw_disp_info->type = kBuiltIn;
   hw_disp_info->is_connected = true;
 
-  return kErrorNone;
+  error = GetDisplaysStatus(&hw_displays_info);
+  if (error == kErrorNone) {
+    for (auto &iter : hw_displays_info) {
+      auto &info = iter.second;
+      if (info.is_primary) {
+        hw_disp_info->type = info.display_type;
+        hw_disp_info->is_connected = info.is_connected;
+        break;
+      }
+    }
+  }
+
+  return error;
 }
 
 DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {

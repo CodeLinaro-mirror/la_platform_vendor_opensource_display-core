@@ -20,6 +20,7 @@ cc_library_headers {
       "display_debug_headers",
       "common_interface_headers",
       "snapalloc_interface_headers",
+      "qti_display_kernel_headers",
   ],
   export_header_lib_headers: [
       "libhardware_headers",
@@ -27,5 +28,6 @@ cc_library_headers {
       "display_debug_headers",
       "common_interface_headers",
       "snapalloc_interface_headers",
+      "qti_display_kernel_headers",
   ],
 }
