@@ -269,22 +269,6 @@ Error SnapMetadataManager::ThreeDimensionalRefInfoHelper(SnapMetadata *metadata,
   } else if (in_set != nullptr) {
     metadata->three_dimensional_ref_info =
         *static_cast<vendor_qti_hardware_display_common_ThreeDimensionalRefInfo *>(in_set);
-    if (bufferid_view_map_.find(handle->id()) != bufferid_view_map_.end()) {
-      DLOGD_IF(enable_logs, "%s: buf id: %d exists in map", __FUNCTION__, handle->id());
-      auto &entry = bufferid_view_map_.at(handle->id());
-      ViewMapping mapping_entry = {
-          .left_id = (metadata->three_dimensional_ref_info.threedRefDispInfo[0]).left_view_id,
-          .right_id = (metadata->three_dimensional_ref_info.threedRefDispInfo[0]).right_view_id};
-      entry.second = mapping_entry;
-    } else {
-      DLOGD_IF(enable_logs, "%s: buf id: %d does not exists in map. Creating new entry",
-               __FUNCTION__, handle->id());
-      ViewMapping mapping_entry = {
-          .left_id = (metadata->three_dimensional_ref_info.threedRefDispInfo[0]).left_view_id,
-          .right_id = (metadata->three_dimensional_ref_info.threedRefDispInfo[0]).right_view_id};
-      std::pair<uint32_t, ViewMapping> entry = {0, mapping_entry};
-      bufferid_view_map_.emplace(std::make_pair(handle->id(), entry));
-    }
     return Error::NONE;
   }
   return Error::BAD_VALUE;
@@ -297,16 +281,6 @@ Error SnapMetadataManager::ViewIdHelper(SnapMetadata *metadata, SnapHandleIntern
     return Error::NONE;
   } else if (in_set != nullptr) {
     metadata->viewId = *static_cast<uint32_t *>(in_set);
-    if (bufferid_view_map_.find(handle->id()) != bufferid_view_map_.end()) {
-      DLOGD_IF(enable_logs, "%s: buf id: %d exists in map", __FUNCTION__, handle->id());
-      auto &entry = bufferid_view_map_.at(handle->id());
-      entry.first = metadata->viewId;
-    } else {
-      DLOGD_IF(enable_logs, "%s: buf id: %d does not exists in map. Creating new entry",
-               __FUNCTION__, handle->id());
-      std::pair<uint32_t, ViewMapping> entry = {metadata->viewId, {}};
-      bufferid_view_map_.emplace(std::make_pair(handle->id(), entry));
-    }
     return Error::NONE;
   }
   return Error::BAD_VALUE;
@@ -1490,62 +1464,70 @@ void SnapMetadataManager::UnmapAndReset(SnapHandleInternal *hnd) {
 
 Error SnapMetadataManager::GetViewToImport(SnapHandleInternal *hnd, const uint32_t view_requested,
                                            uint32_t *view) {
-  // Get BufID
-  uint32_t buf_id_index_0 = hnd->id();
-  // Init with default order 0-L & 1-R
-  uint32_t view_id_from_metadata =
-      vendor_qti_hardware_display_common_QtiViews::PRIV_VIEW_MASK_PRIMARY;
-  uint32_t left_id_from_sei = vendor_qti_hardware_display_common_QtiViews::PRIV_VIEW_MASK_PRIMARY;
+  SnapMetadata *metadata = reinterpret_cast<SnapMetadata *>(hnd->base_metadata());
+  if (metadata == nullptr) {
+    DLOGW_IF("%s: Invalid metadata address", __FUNCTION__);
+    return Error::BAD_VALUE;
+  }
+
+  if (!metadata->isVendorMetadataSet[GET_VENDOR_METADATA_STATUS_INDEX(VIEW_ID)]) {
+    DLOGW_IF(enable_logs, "ViewID not set. Returning requested view: %d", view_requested);
+    *view = view_requested;
+    return Error::UNSUPPORTED;
+  }
+
+  if (!metadata
+           ->isVendorMetadataSet[GET_VENDOR_METADATA_STATUS_INDEX(THREE_DIMENSIONAL_REF_INFO)]) {
+    DLOGW_IF(enable_logs, "SEI metadata not set. Returning requested view: %d", view_requested);
+    *view = view_requested;
+    return Error::UNSUPPORTED;
+  }
+
+  uint32_t view_id_from_metadata = metadata->viewId;
+  uint32_t left_id_from_sei =
+      (metadata->three_dimensional_ref_info.threedRefDispInfo[0]).left_view_id;
   uint32_t right_id_from_sei =
-      vendor_qti_hardware_display_common_QtiViews::PRIV_VIEW_MASK_SECONDARY;
-  DLOGD_IF(enable_logs, "BufferId of metahandle %d", buf_id_index_0);
+      (metadata->three_dimensional_ref_info.threedRefDispInfo[0]).right_view_id;
 
-  // Based on buf_id get viewId, SEI_left_id, SEI_right_id
-  if (bufferid_view_map_.find(buf_id_index_0) != bufferid_view_map_.end()) {
-    auto entry = bufferid_view_map_.at(buf_id_index_0);
-    view_id_from_metadata = entry.first;
-    left_id_from_sei = entry.second.left_id;
-    right_id_from_sei = entry.second.right_id;
-  } else {
-    DLOGW_IF(enable_logs, "Buffer_view_sei data mapping not found. Returning requested view: %d",
+  if (left_id_from_sei == right_id_from_sei) {
+    DLOGW_IF(enable_logs,
+             "left_id_from_sei and right_id_from_sei set to same view which is invalid. Returning "
+             "requested view: %d",
              view_requested);
     *view = view_requested;
     return Error::UNSUPPORTED;
   }
 
-  if (view_id_from_metadata == 0 || (left_id_from_sei == 0 && right_id_from_sei == 0)) {
-    DLOGW_IF(enable_logs, "ViewID or SEI metadata not set. Returning requested view: %d",
-             view_requested);
-    *view = view_requested;
-    return Error::UNSUPPORTED;
-  }
+  /*
+  Ex: As per allocation order Metahandle points to buf_0/primary_view/left
+  buf_0 -> view_id_from_metadata:x, left_id_from_sei = y, right_id_from_sei = x
+  We deduce
+  view_id_from_metadata(x) == right_id_from_sei(x) => view_at_buf_index_0 = Right/Secondary/~base_view
 
-  // Get the view_id for requested view
-  uint32_t view_to_compare = view_requested;
-  if (view_requested == vendor_qti_hardware_display_common_QtiViews::PRIV_VIEW_MASK_PRIMARY) {
-    view_to_compare = left_id_from_sei;
-    DLOGD_IF(enable_logs, "View to compare is left as requested is primary");
-  } else if (view_requested ==
-             vendor_qti_hardware_display_common_QtiViews::PRIV_VIEW_MASK_SECONDARY) {
-    view_to_compare = right_id_from_sei;
-    DLOGD_IF(enable_logs, "view to compare is right as requested is secondary");
-  }
-
-  if (view_id_from_metadata == view_to_compare) {
-    DLOGD_IF(enable_logs, "view set in metadata is same as buf_index 0. returning primary view");
-    *view = vendor_qti_hardware_display_common_QtiViews::PRIV_VIEW_MASK_PRIMARY;
+  1) view_requested (Left)
+      view_requested(L) != view_at_buf_index_0(R) => return ~base_view/secondary/buf_1
+  2) view_requested(Right)
+      view_requested(R) == view_at_buf_index_0(R) => return base_view/primary/left/buf_0
+  */
+  uint32_t view_at_buf_index_0;
+  if (view_id_from_metadata == left_id_from_sei) {
+    view_at_buf_index_0 = hnd->view();
   } else {
-    DLOGD_IF(enable_logs,
-             "view set in metadata is not same as buf_index 0. returning secondary view");
-    *view = vendor_qti_hardware_display_common_QtiViews::PRIV_VIEW_MASK_SECONDARY;
+    view_at_buf_index_0 = hnd->getViewInfo() & (~hnd->view());
+  }
+
+  if (view_requested == view_at_buf_index_0) {
+    *view = hnd->view();
+  } else {
+    *view = hnd->getViewInfo() & (~hnd->view());
   }
 
   DLOGD_IF(
       enable_logs,
       "view_requested %d view_id_from_metadata %d , left_id_from_sei %d, right_id_from_sei %d, "
-      "view_to_compare %d, view returned %d",
-      view_requested, view_id_from_metadata, left_id_from_sei, right_id_from_sei, view_to_compare,
-      *view);
+      "view_at_buf_index_0 %d, view returned %d",
+      view_requested, view_id_from_metadata, left_id_from_sei, right_id_from_sei,
+      view_at_buf_index_0, *view);
 
   return Error::NONE;
 }
