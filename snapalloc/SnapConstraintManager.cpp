@@ -260,12 +260,21 @@ Error SnapConstraintManager::GetAllocationData(
   }
 
   // Final buffer size must be aligned at minimum to page size
-  vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
-      static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
-          GetPixelFormatModifier(*out_desc));
-  auto align = GetDataAlignment(out_desc->format, out_desc->usage, pixel_format_modifier);
-  OVERFLOW_ERR_RETURN(ALIGN(out_ad->size, align), out_desc->layerCount, OverflowType::MUL);
-  out_ad->size = ALIGN(out_ad->size, align) * out_desc->layerCount;
+  bool graphicsContentProvider = false;
+  for(const auto &provider : cap_map) {
+    if (provider.first->GetProviderType() == kGraphics) {
+      graphicsContentProvider = true;
+      break;
+     }
+  }
+    if(!graphicsContentProvider) {
+      vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
+          static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
+              GetPixelFormatModifier(*out_desc));
+      auto align = GetDataAlignment(out_desc->format, out_desc->usage, pixel_format_modifier);
+      OVERFLOW_ERR_RETURN(ALIGN(out_ad->size, align), out_desc->layerCount, OverflowType::MUL);
+      out_ad->size = ALIGN(out_ad->size, align) * out_desc->layerCount;
+    }
 
   return err;
 }
