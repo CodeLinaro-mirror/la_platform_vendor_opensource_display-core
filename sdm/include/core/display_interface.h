@@ -282,6 +282,7 @@ struct DisplayConfigGroupInfo {
   uint32_t avr_step = 0;  //!< AVR Step fps of the display panel.
   bool fsc_panel = false;       //!< If the display panel is fsd panel
   uint32_t num_fsc_fields = 0;  //!< Panel's fsc fields if panel is fsc panel
+  bool allowed_vrr_mode_switch = false;
 
   bool operator==(const DisplayConfigGroupInfo& info) const {
     return ((x_pixels == info.x_pixels) && (y_pixels == info.y_pixels) && (x_dpi == info.x_dpi) &&
@@ -303,7 +304,8 @@ struct DisplayConfigVariableInfo : public DisplayConfigGroupInfo {
             (h_total == info.h_total) && (v_total == info.v_total) && (x_dpi == info.x_dpi) &&
             (y_dpi == info.y_dpi) && (fps == info.fps) &&
             (vsync_period_ns == info.vsync_period_ns) && (is_yuv == info.is_yuv) &&
-            (smart_panel == info.smart_panel) && (early_ept_timeout == info.early_ept_timeout));
+            (smart_panel == info.smart_panel) && (early_ept_timeout == info.early_ept_timeout) &&
+            (avr_step == info.avr_step));
   }
 };
 

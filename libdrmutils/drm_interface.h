@@ -701,6 +701,13 @@ enum struct DRMOps {
    *      uint32_t - Commit path, 1 for HFI, 0 for HWIO
    */
   CRTC_SET_COMMIT_PATH,
+
+  /*
+   * Op: Sets emsync fps
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - Emsync Fps
+   */
+  CONNECTOR_SET_EMSYNC_FPS,
 };
 
 enum struct DRMRotation {
@@ -1023,6 +1030,7 @@ struct DRMSubModeInfo {
   DRMTopology topology;
   std::vector<uint64_t> dyn_bitclk_list;
   uint32_t bpp_mode;
+  std::vector<uint32_t> emsync_fps_list;
 };
 
 enum DynamicFrontPorchType {
@@ -1069,6 +1077,8 @@ struct DRMModeInfo {
   uint32_t avr_step_fps = 0;
   uint32_t early_ept_timeout;
   bool vhm_support = false;
+  bool is_virtual_config = false;
+  int32_t parent_config_index = -1;
 };
 
 /* Per Connector Info*/
@@ -1114,6 +1124,7 @@ struct DRMConnectorInfo {
   bool fsc_panel = false;
   uint32_t num_fsc_fields = 0;
   bool dpu_dma_enabled = false;
+  bool emsync_switch_enabled = false;
 };
 
 // All DRM Connectors as map<Connector_id , connector_info>

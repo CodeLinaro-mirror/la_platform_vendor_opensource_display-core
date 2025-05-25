@@ -3192,6 +3192,7 @@ DisplayError DisplayBuiltIn::SetActiveConfig(uint32_t index) {
     avr_step_ = hw_intf_->GetAVRStep(index);
     SetQSyncMode(avr_step_ ? kQSyncModeContinuous : kQSyncModeNone);
     SetAVRStepState(avr_step_ != 0);
+    SetAvrStepFpsState(index, avr_step_ != 0);
   }
 
   auto error = DisplayBase::SetActiveConfig(index);
@@ -4541,6 +4542,33 @@ DisplayError DisplayBuiltIn::SetSsrcMode(const std::string &mode) {
   return ret;
 }
 #endif
+
+DisplayError DisplayBuiltIn::SetAvrStepFpsState(uint32_t index, bool enable) {
+  ClientLock lock(disp_mutex_);
+
+  if (enable && (client_ctx_.hw_panel_info.mode == kModeVideo)) {
+    if (!client_ctx_.hw_panel_info.qsync_support || (qsync_mode_ != kQSyncModeContinuous)) {
+      DLOGW("AVR Step fps switch is not supported.");
+      return kErrorNotSupported;
+    }
+  }
+
+  uint32_t active_index = 0;
+  uint32_t to_avr_step_fps = hw_intf_->GetAVRStep(index);
+  dpu_core_mux_->GetActiveConfig(&active_index);
+  uint32_t curr_avr_step_fps = hw_intf_->GetAVRStep(active_index);
+
+  if (to_avr_step_fps == curr_avr_step_fps) {
+    DLOGI("AVR Step fps already set in requested fps %d", to_avr_step_fps);
+    return kErrorNone;
+  }
+
+  needs_avr_update_.set(kUpdateAVRStepFpsFlag);
+  validated_ = false;
+  event_handler_->Refresh();
+
+  return kErrorNone;
+}
 
 DisplayError DisplayBuiltIn::SetAVRStepState(bool enable) {
   ClientLock lock(disp_mutex_);
