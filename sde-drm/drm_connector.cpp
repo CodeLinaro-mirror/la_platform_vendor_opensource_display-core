@@ -348,6 +348,18 @@ static inline vector<uint64_t> GetBitClkRates(const string &bitclk_rates) {
   return dyn_bitclk_list;
 }
 
+static inline vector<uint32_t> GetEmSyncFpsList(const string &emsync_fps_list) {
+  stringstream line(emsync_fps_list);
+  string emsync_fps{};
+  vector<uint32_t> em_sync_fps_list{};
+
+  DRM_LOGI("Setting em sync fps list: %s", emsync_fps_list.c_str());
+  while (line >> emsync_fps) {
+    em_sync_fps_list.push_back(std::stoi(emsync_fps));
+  }
+  return em_sync_fps_list;
+}
+
 static inline vector<uint32_t> GetFpValues(const string &fp_list) {
   stringstream line(fp_list);
   string fp {};
@@ -715,6 +727,7 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
   const string fsc_panel = "is fsc panel=";
   const string num_fsc_fields = "num fsc fields=";
   const string dpu_dma_enabled = "dpu_dma_enabled=";
+  const string emsync_switch_enabled = "emsync_switch_enabled=";
 
   while (std::getline(stream, line)) {
     if (line.find(pixel_formats) != string::npos) {
@@ -781,6 +794,8 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
       info->num_fsc_fields = std::stoi(string(line, num_fsc_fields.length()));
     } else if (line.find(dpu_dma_enabled) != string::npos) {
       info->dpu_dma_enabled = (std::stoi(string(line, dpu_dma_enabled.length())) == 1);
+    } else if (line.find(emsync_switch_enabled) != string::npos) {
+      info->emsync_switch_enabled = (string(line, emsync_switch_enabled.length()) == "true");
     }
   }
 
@@ -862,6 +877,7 @@ void DRMConnector::ParseModeProperties(uint64_t blob_id, DRMConnectorInfo *info)
   const string avr_step_fps = "avr_step_fps=";
   const string early_ept_timeout = "early_ept_timeout=";
   const string vhm_support = "has_vhm_support=";
+  const string emsync_fps_list = "emsync_fps_list=";
 
   DRMModeInfo *mode_item = &info->modes.at(0);
   DRMSubModeInfo *submode_item = NULL;
@@ -981,6 +997,14 @@ void DRMConnector::ParseModeProperties(uint64_t blob_id, DRMConnectorInfo *info)
       mode_item->early_ept_timeout = std::stoi(string(line, early_ept_timeout.length()));
     } else if (line.find(vhm_support) != string::npos) {
       mode_item->vhm_support = (std::stoi(string(line, vhm_support.length())) == 1);
+    } else if (line.find(emsync_fps_list) != string::npos) {
+      if (!submode_item) {
+        DRMSubModeInfo submode = {};
+        mode_item->sub_modes.push_back(submode);
+        submode_item = &mode_item->sub_modes.at(submode_index++);
+        submode_index = 0;
+      }
+      submode_item->emsync_fps_list = GetEmSyncFpsList(string(line, emsync_fps_list.length()));
     }
   }
 
@@ -1624,6 +1648,16 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::USECASE_IDX),
                                usecase_idx);
       DRM_LOGD("Connector %d: Setting usecase idx = %d", obj_id, usecase_idx);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_EMSYNC_FPS: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::EMSYNC_FPS)) {
+        return;
+      }
+      uint32_t avr_step_fps = va_arg(args, uint32_t);
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::EMSYNC_FPS),
+                               avr_step_fps);
+      DRM_LOGD("Connector %d: Setting Avr Step Fps = %d", obj_id, avr_step_fps);
     } break;
 
     default:
