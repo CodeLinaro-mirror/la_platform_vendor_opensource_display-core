@@ -1011,7 +1011,7 @@ Error SnapMetadataManager::ReservedRegionHelper(SnapMetadata *metadata, SnapHand
                                                 BufferDescriptor *buf_des) {
   if (out_get != nullptr) {
     vendor_qti_hardware_display_common_ReservedRegion snap_reserved_region;
-    snap_reserved_region.size = handle->reserved_size();
+    snap_reserved_region.size = static_cast<uint32_t>(handle->reserved_size());
     snap_reserved_region.reserved_region_addr.addressPointer = handle->reserved_region_base();
     *static_cast<vendor_qti_hardware_display_common_ReservedRegion *>(out_get) =
         snap_reserved_region;
