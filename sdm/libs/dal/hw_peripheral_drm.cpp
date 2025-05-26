@@ -700,7 +700,7 @@ DisplayError HWPeripheralDRM::HandleSecureEvent(SecureEvent secure_event,
         tui_state_ = kTUIStateStart;
       }
       ControlIdlePowerCollapse(false /* enable */, false /* synchronous */);
-      if (hw_panel_info_.mode != kModeCommand) {
+      if (hw_panel_info_.mode != kModeCommand && !hw_panel_info_.vhm_support) {
         SetQOSData(qos_data);
         SetVMReqState();
         SetIdlePCState();
@@ -721,7 +721,8 @@ DisplayError HWPeripheralDRM::HandleSecureEvent(SecureEvent secure_event,
       }
       ResetPropertyCache();
       ControlIdlePowerCollapse(true /* enable */, false /* synchronous */);
-      if (hw_panel_info_.mode != kModeCommand || pending_power_state_ == kPowerStateOff) {
+      if ((hw_panel_info_.mode != kModeCommand && !hw_panel_info_.vhm_support) ||
+          pending_power_state_ == kPowerStateOff) {
         SetQOSData(qos_data);
         SetVMReqState();
         SetIdlePCState();
