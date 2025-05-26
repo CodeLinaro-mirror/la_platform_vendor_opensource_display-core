@@ -665,7 +665,7 @@ DisplayError HWInfoDRM::GetDemuraDoubleBufferCodebookFlags(bool *out) {
 
   DRMPanelFeatureInfo info = {};
   bool flags = false;
-  info.prop_id = sde_drm::kDRMPanelFeatureDemuraInit;
+  info.prop_id = sde_drm::kDRMPanelFeatureDemuraDoubleBufferCbFlags;
   info.prop_ptr = reinterpret_cast<uint64_t>(&flags);
   drm_mgr_intf_->GetPanelFeature(&info);
   *out = flags;
