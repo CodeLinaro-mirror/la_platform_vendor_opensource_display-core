@@ -81,6 +81,9 @@
 #ifndef DRM_FORMAT_MOD_QCOM_FSC_TILE
 #define DRM_FORMAT_MOD_QCOM_FSC_TILE fourcc_mod_code(QCOM, 0x20)
 #endif
+#ifndef DRM_FORMAT_MOD_QCOM_DMA
+#define DRM_FORMAT_MOD_QCOM_DMA fourcc_mod_code(QCOM, 0x400)
+#endif
 
 #define __CLASS__ "HWInfoDRM"
 
@@ -1015,13 +1018,15 @@ void HWInfoDRM::GetSDMFormat(uint32_t drm_format, uint64_t drm_format_modifier,
                                          DRM_FORMAT_MOD_QCOM_DX)) {
         fmts.push_back(kFormatYCbCr420P010Ubwc);
       } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_COMPRESSED) {
-         fmts.push_back(kFormatYCbCr420SPVenusUbwc);
+        fmts.push_back(kFormatYCbCr420SPVenusUbwc);
       } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_DX) {
         fmts.push_back(kFormatYCbCr420P010);
         fmts.push_back(kFormatYCbCr420P010Venus);
+      } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_DMA) {
+        fmts.push_back(kFormatNV12Y);
       } else {
-         fmts.push_back(kFormatYCbCr420SemiPlanarVenus);
-         fmts.push_back(kFormatYCbCr420SemiPlanar);
+        fmts.push_back(kFormatYCbCr420SemiPlanarVenus);
+        fmts.push_back(kFormatYCbCr420SemiPlanar);
       }
       break;
     case DRM_FORMAT_NV21:

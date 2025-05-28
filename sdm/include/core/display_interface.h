@@ -1589,6 +1589,12 @@ class DisplayInterface {
   */
   virtual DisplayError SetRGBASplit(int32_t split_enable) = 0;
 
+  /*! @brief Method to check if dpu dma mode is enabled for display
+
+    @return \link bool \endlink
+  */
+  virtual bool IsDpuDmaModeEnabled() = 0;
+
  protected:
   virtual ~DisplayInterface() { }
 };

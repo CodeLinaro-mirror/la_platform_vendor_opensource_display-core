@@ -320,6 +320,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
     return kErrorNotSupported;
   }
   DisplayError SetRGBASplit(int32_t split_enable);
+  virtual bool IsDpuDmaModeEnabled();
 
  protected:
   struct DisplayMutex {

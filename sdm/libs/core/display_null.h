@@ -94,6 +94,7 @@ class DisplayNull : public DisplayInterface {
                                              uint32_t frame_interval_ns) {
     return kErrorNotSupported;
   }
+  virtual bool IsDpuDmaModeEnabled() { return false; }
 
   MAKE_NO_OP(CommitOrPrepare(LayerStack *))
   MAKE_NO_OP(PrePrepare(LayerStack *))

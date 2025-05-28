@@ -148,6 +148,8 @@ public:
  virtual DisplayError SetABCMode(string mode_name);
  virtual DisplayError SetAIScalerMode(uint32_t mode_id);
  virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data);
+ virtual DisplayError SetDpuDmaMode();
+ virtual bool IsDmaModeIncompatible(LayerComposition composition);
 
 private:
  SDMDisplayBuiltIn(CoreInterface *core_intf, BufferAllocator *buffer_allocator,
@@ -235,6 +237,9 @@ private:
 
  // Defer ABC reconfiguration
  bool abc_defer_reconfig_ = false;
+
+ // Whether the DPU DMA mode is enabled.
+ bool dpu_dma_enabled_ = false;
 };
 
 } // namespace sdm

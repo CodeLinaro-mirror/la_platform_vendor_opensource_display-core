@@ -100,6 +100,9 @@
 #ifndef SDE_SYSCACHE_LLCC_DISP_RIGHT
 #define SDE_SYSCACHE_LLCC_DISP_RIGHT 2
 #endif
+#ifndef DRM_FORMAT_MOD_QCOM_DMA
+#define DRM_FORMAT_MOD_QCOM_DMA fourcc_mod_code(QCOM, 0x400)
+#endif
 
 #define DEST_SCALAR_OVERFETCH_SIZE 5
 #define OFFSET_ALIGN(x, align) ((x) - ((x) % (align)))
@@ -360,6 +363,10 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
     case kFormatYCbCr422P210Ubwc:
       *drm_format = DRM_FORMAT_P210;
       *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_DX;
+      break;
+    case kFormatNV12Y:
+      *drm_format = DRM_FORMAT_NV12;
+      *drm_format_modifier = DRM_FORMAT_MOD_QCOM_DMA;
       break;
     default:
       DLOGW("Unsupported format %s", GetFormatString(format));
@@ -1110,6 +1117,7 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
   hw_panel_info_.dynamic_fps = connector_info_.dynamic_fps;
   hw_panel_info_.qsync_support = connector_info_.qsync_support;
   hw_panel_info_.has_cwb_crop = has_cwb_crop_;
+  hw_panel_info_.dpu_dma_enabled = connector_info_.dpu_dma_enabled;
   if (connector_info_.dms_type == sde_drm::DMSType::DMS_VID_SEAMLESS) {
     hw_panel_info_.dms_type = kDMSVIDSeamless;
   } else if (connector_info_.dms_type == sde_drm::DMSType::DMS_VID_NON_SEAMLESS) {

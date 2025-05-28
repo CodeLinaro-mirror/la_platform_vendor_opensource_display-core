@@ -714,6 +714,7 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
   const string wb_opmode = "wb_opmode=";
   const string fsc_panel = "is fsc panel=";
   const string num_fsc_fields = "num fsc fields=";
+  const string dpu_dma_enabled = "dpu_dma_enabled=";
 
   while (std::getline(stream, line)) {
     if (line.find(pixel_formats) != string::npos) {
@@ -778,6 +779,8 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
       info->fsc_panel = (string(line, fsc_panel.length()) == "true");
     } else if (line.find(num_fsc_fields) != string::npos) {
       info->num_fsc_fields = std::stoi(string(line, num_fsc_fields.length()));
+    } else if (line.find(dpu_dma_enabled) != string::npos) {
+      info->dpu_dma_enabled = (std::stoi(string(line, dpu_dma_enabled.length())) == 1);
     }
   }
 

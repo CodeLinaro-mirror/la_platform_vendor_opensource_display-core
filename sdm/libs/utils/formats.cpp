@@ -191,6 +191,7 @@ const char *GetFormatString(const LayerBufferFormat &format) {
   case kFormatRGBA8888UbwcLossy8To5:    return "RGBA_8888_UBWC_LOSSY_8_TO_5";
   case kFormatYCbCr422P210:             return "Y_CBCR_422_P210";
   case kFormatYCbCr422P210Ubwc:         return "Y_CBCR_422_P210_UBWC";
+  case kFormatNV12Y:                    return "NV12_Y";
   default:                              return "UNKNOWN";
   }
 }
@@ -271,6 +272,7 @@ float GetBufferFormatBpp(LayerBufferFormat format) {
     case kFormatA8:
     case kFormatC8:
     case kFormatC8Ubwc:
+    case kFormatNV12Y:
       return 1.0f;
     default:
       return 0.0f;
