@@ -171,6 +171,7 @@
 #define DEMURA_CONFIG_FILE_RENAME_ALLOWED    DISPLAY_PROP("demura_config_file_rename_allowed")
 #define DEMURA_MULTICONFIG_COUNT_PRIMARY     DISPLAY_PROP("demura_multiconfig_count_primary")
 #define DEMURA_MULTICONFIG_COUNT_SECONDARY   DISPLAY_PROP("demura_multiconfig_count_secondary")
+#define DEMURA_CONFIG_FILE_COPY_TO_QMCS_BYPASS  DISPLAY_PROP("demura_config_file_copy_to_qmcs_bypass")
 
 // Panel Feature DemuraTn Properties
 #define ENABLE_ANTI_AGING                    DISPLAY_PROP("enable_antiaging")
