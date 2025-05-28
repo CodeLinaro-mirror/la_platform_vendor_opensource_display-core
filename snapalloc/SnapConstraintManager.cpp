@@ -529,10 +529,11 @@ Error SnapConstraintManager::AlignmentToAlignedConstraints(BufferDescriptor desc
               ALIGN(desc.width, alignment.planes[i].stride.horizontal_stride_align) *
               (format_data.bits_per_pixel / 8);
         } else {
-          OVERFLOW_ERR_RETURN(desc.width, (format_data.planes[0].sample_increment_bits / 8),
+          // 8.0f to handle for formats whose bpp is not aligned with 8 ex:raw10 has 10 bpp
+          OVERFLOW_ERR_RETURN(desc.width, (format_data.planes[0].sample_increment_bits / 8.0f),
                               OverflowType::MUL);
           plane.stride.horizontal_stride =
-              ALIGN(desc.width * (format_data.planes[0].sample_increment_bits / 8),
+              ALIGN(desc.width * (format_data.planes[0].sample_increment_bits / 8.0f),
                     alignment.planes[i].stride.horizontal_stride_align);
         }
         if ((IsYuv(desc.format)) &&
