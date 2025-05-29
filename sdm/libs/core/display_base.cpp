@@ -205,6 +205,7 @@ DisplayError DisplayBase::Init() {
     return kErrorResources;
   }
 
+  active_config_index_ = active_index;
   active_refresh_rate_ = client_ctx_.display_attributes.fps;
 
   windowed_display_ =
@@ -2145,7 +2146,15 @@ DisplayError DisplayBase::GetRealConfig(uint32_t index, DisplayConfigVariableInf
 
 DisplayError DisplayBase::GetActiveConfig(uint32_t *index) {
   ClientLock lock(disp_mutex_);
-  return dpu_core_mux_->GetActiveConfig(index);
+  auto ret = dpu_core_mux_->GetActiveConfig(index);
+
+  // If the active config is different between SDM and DAL, it indicates that the mode has not been
+  // updated in SDM. To resolve this, return kErrorConfigMismatch to allow SDMClient to initiate a
+  // mode switch within SDM.
+  if (*index != active_config_index_) {
+    return kErrorConfigMismatch;
+  }
+  return ret;
 }
 
 DisplayError DisplayBase::GetVSyncState(bool *enabled) {
@@ -2402,6 +2411,7 @@ DisplayError DisplayBase::SetActiveConfig(uint32_t index) {
 
   avoid_qsync_mode_change_ = true;
 
+  active_config_index_ = index;
   active_refresh_rate_ = client_ctx.display_attributes.fps;
 
   return ReconfigureDisplay();

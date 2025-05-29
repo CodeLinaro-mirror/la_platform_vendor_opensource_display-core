@@ -65,6 +65,12 @@
 * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /*! @file sdm_types.h
   @brief This file contains miscellaneous data types used across display interfaces.
 */
@@ -120,6 +126,7 @@ enum DisplayError {
   kSeamlessNotAllowed,    //!< Seemless switch between configs not allowed.
   kErrorDeviceBusy,       //!< Device is currently busy with other tasks.
   kErrorTryAgain,         //!< Try the task again.
+  kErrorConfigMismatch,   //!< Inform client when config index between SDM and DAL are different
 };
 
 /*! @brief This structure is defined for client and library compatibility check purpose only. This
