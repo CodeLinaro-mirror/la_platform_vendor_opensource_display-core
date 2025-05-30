@@ -39,3 +39,8 @@ libsdmcore_la_CFLAGS = $(COMMON_CFLAGS) -DLOG_TAG=\"SDM\"
 libsdmcore_la_CPPFLAGS = $(AM_CPPFLAGS) -DPP_DRM_ENABLE
 libsdmcore_la_LIBADD = ../utils/libsdmutils.la ../dal/libsdmdal.la -ldl -ldisplaydebug
 libsdmcore_la_LDFLAGS = -shared -avoid-version
+
+if RT_SCHEDULE
+    libsdmcore_la_CPPFLAGS += -DRT_SCHEDULE
+    libsdmcore_la_LIBADD += -lcompresmgr_client
+endif
