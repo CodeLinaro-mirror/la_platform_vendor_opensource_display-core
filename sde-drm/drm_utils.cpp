@@ -52,11 +52,11 @@ using std::vector;
 namespace sde_drm {
 
 void ParseFormats(const string &line, vector<pair<uint32_t, uint64_t>> *formats) {
-  // Match fourcc strings like RA24 or those with modifier like RA24/5/1. The
-  // digit after first / is vendor code, the digit after second / is modifier
-  // code.
-  regex exp_base("[[:alnum:]]{4}(/[[:digit:]]/([[:digit:]]){1,3})?");
-  regex exp_modifier("[[:alnum:]]{4}(/[[:digit:]]/([[:digit:]]){1,3})");
+  // Match fourcc strings like RA24 or C8<space><space> or those with modifier like
+  // RA24/5/1 or C8<space><space>/5/1. The digit after first / is vendor code, the digit
+  // after second / is modifier code.
+  regex exp_base("[[:alnum:]]{2}([[:alnum:]]{2}|[[:space:]]{2})(/[[:digit:]]/([[:digit:]]){1,3})?");
+  regex exp_mod("[[:alnum:]]{2}([[:alnum:]]{2}|[[:space:]]{2})(/[[:digit:]]/([[:digit:]]){1,3})");
   string tmp_line = line;
   std::smatch str_match;  // Resultant match
   while (std::regex_search(tmp_line, str_match, exp_base)) { //clang_sa_ignore[core.CallAndMessage]
@@ -64,7 +64,7 @@ void ParseFormats(const string &line, vector<pair<uint32_t, uint64_t>> *formats)
     string final_format_str = {};
     uint64_t modifier = 0;
 
-    if (std::regex_match(matched_sub_str, exp_modifier)) { //clang_sa_ignore[core.CallAndMessage]
+    if (std::regex_match(matched_sub_str, exp_mod)) {  //clang_sa_ignore[core.CallAndMessage]
       // Here we try to parse formats with vendor code and modifier like
       // RA24/5/1
 
