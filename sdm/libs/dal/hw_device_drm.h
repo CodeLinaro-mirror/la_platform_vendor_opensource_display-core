@@ -396,6 +396,7 @@ class HWDeviceDRM : public HWInterface {
  private:
   void GetCWBCapabilities();
   void GetCWBDitherVersion(DRMPPFeatureInfo *info);
+  void UpdateDisplayAttributesForFSC(HWDisplayAttributes *display_attributes);
 
   std::string interface_str_ = "DSI";
   bool autorefresh_ = false;

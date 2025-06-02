@@ -275,6 +275,7 @@ enum struct DRMProperty {
   PREFILL_SIZE,
   PREFILL_TIME,
   SYS_CACHE_TYPE,
+  BUFFER_MODE,
 
   // Insert above
   MAX
