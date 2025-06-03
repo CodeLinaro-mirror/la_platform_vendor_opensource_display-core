@@ -1536,6 +1536,12 @@ class DisplayInterface {
   */
   virtual void TriggerIdleTimeout() = 0;
 
+  /*! @brief Method to enable the RGB|A split on this display
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetRGBASplit(int32_t split_enable) = 0;
+
  protected:
   virtual ~DisplayInterface() { }
 };

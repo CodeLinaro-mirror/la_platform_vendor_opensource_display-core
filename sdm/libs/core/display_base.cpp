@@ -838,6 +838,7 @@ DisplayError DisplayBase::BuildLayerStackStats(LayerStack *layer_stack) {
   stack_info.gpu_target_index = -1;
   stack_info.stitch_target_index = -1;
   stack_info.noise_layer_index = -1;
+  stack_info.rgba_split_enable = rgba_split_enable_;
 
   disp_layer_stack_->stack = layer_stack;
   stack_info.common_info.flags = layer_stack->flags;
@@ -2500,6 +2501,7 @@ std::string DisplayBase::Dump() {
   os << " h_total: " << display_attributes.h_total;
   os << " clk: " << display_attributes.clock_khz;
   os << " Topology: " << display_attributes.topology;
+  os << " RGBA Split Mode enable: " << rgba_split_enable_;
   os << std::noboolalpha;
 
   os << "\nCurrent Color Mode: " << current_color_mode_.c_str();
@@ -5240,6 +5242,17 @@ DisplayError DisplayBase::ValidateExtendedDisplayResolutions(
     return kErrorNotSupported;
 
   *fin_disp_res = extended_res;
+  return kErrorNone;
+}
+
+DisplayError DisplayBase::SetRGBASplit(int enable) {
+  ClientLock lock(disp_mutex_);
+
+  DLOGI("RGBASplit enable: %d on display %d-%d", enable, display_id_, display_type_);
+  rgba_split_enable_ = enable;
+  validated_ = false;
+  event_handler_->Refresh();
+
   return kErrorNone;
 }
 

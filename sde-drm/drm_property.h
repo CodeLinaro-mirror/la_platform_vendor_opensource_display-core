@@ -265,6 +265,7 @@ enum struct DRMProperty {
   FRAME_INTERVAL,
   USECASE_IDX,
   BRIGHTNESS,
+  COLOR_MASK_OVERRIDE,
 
   // Insert above
   MAX

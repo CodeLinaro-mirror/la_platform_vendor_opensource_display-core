@@ -58,6 +58,7 @@ enum {
   SDM_SERVICE_SET_PANEL_BRIGHTNESS = 3,           // Provides ability to set the panel brightness
   SDM_SERVICE_CONNECT_SDM_CLIENT = 4,             // Connect to qservice
   SDM_SERVICE_SCREEN_REFRESH = 5,                 // Refresh screen through SF invalidate
+  SDM_SERVICE_RGBA_SPLIT = 6,                     // Splits RGBA into parts(Ex: RGB|A)
   SDM_SERVICE_GET_DISPLAY_VISIBLE_REGION = 11,    // Get the visibleRegion for dpy
   SDM_SERVICE_SET_SECONDARY_DISPLAY_STATUS = 12,  // Sets secondary display status
   SDM_SERVICE_SET_MAX_PIPES_PER_MIXER = 13,       // Set max pipes per mixer for MDPComp
@@ -189,6 +190,7 @@ public:
                                    uint32_t factor_out);
   DisplayError SetActiveConfigIndex(int disp_id, uint32_t config);
   DisplayError SetIdleTimeout(int value);
+  DisplayError SetRGBASplit(int disp_id, int enable);
   DisplayError SetCameraLaunchStatus(int camera_status);
   DisplayError DisplayBWTransactionPending(bool *state);
   DisplayError GetDisplayMaxBrightness(uint32_t display,
@@ -244,6 +246,7 @@ private:
 
   DisplayError DynamicDebug(SDMParcel *input_parcel);
   DisplayError SetIdleTimeout(SDMParcel *input_parcel);
+  DisplayError SetRGBASplit(SDMParcel *input_parcel);
   DisplayError SetFrameDumpConfig(SDMParcel *input_parcel);
   DisplayError SetMaxMixerStages(SDMParcel *input_parcel);
   DisplayError SetDisplayMode(SDMParcel *input_parcel);
@@ -324,6 +327,7 @@ private:
       {SDM_SERVICE_DYNAMIC_DEBUG, &SDMServices::DynamicDebug},
       {SDM_SERVICE_SCREEN_REFRESH, &SDMServices::RefreshScreen},
       {SDM_SERVICE_SET_IDLE_TIMEOUT, &SDMServices::SetIdleTimeout},
+      {SDM_SERVICE_RGBA_SPLIT, &SDMServices::SetRGBASplit},
       {SDM_SERVICE_SET_FRAME_DUMP_CONFIG, &SDMServices::SetFrameDumpConfig},
       {SDM_SERVICE_SET_MAX_PIPES_PER_MIXER, &SDMServices::SetMaxMixerStages},
       {SDM_SERVICE_SET_DISPLAY_MODE, &SDMServices::SetDisplayMode},

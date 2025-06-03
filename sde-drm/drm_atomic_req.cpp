@@ -142,7 +142,8 @@ int DRMAtomicReq::Perform(DRMOps opcode, uint32_t obj_id, ...) {
     case DRMOps::PLANE_SET_UCSC_IGC_CONFIG:
     case DRMOps::PLANE_SET_UCSC_CSC_CONFIG:
     case DRMOps::PLANE_SET_UCSC_GC_CONFIG:
-    case DRMOps::PLANE_SET_UCSC_ALPHA_DITHER_CONFIG: {
+    case DRMOps::PLANE_SET_UCSC_ALPHA_DITHER_CONFIG:
+    case DRMOps::PLANE_SET_COLOR_MASK_OVERRIDE: {
       drm_mgr_->GetPlaneMgr()->Perform(opcode, obj_id, drm_atomic_req_, args);
     } break;
     case DRMOps::CRTC_SET_POST_PROC:
