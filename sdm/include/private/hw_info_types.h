@@ -267,6 +267,13 @@ enum HWDMSType {
   kDMSVIDNonSeamless,
 };
 
+enum HWReserveColor {
+  kRed = 1 << 0,
+  kGreen = 1 << 1,
+  kBlue = 1 << 2,
+  kAlpha = 1 << 3,
+};
+
 typedef std::map<HWSubBlockType, std::vector<LayerBufferFormat>> FormatsMap;
 typedef std::map<LayerBufferFormat, float> CompRatioMap;
 
@@ -957,6 +964,7 @@ struct RCLayersInfo {
 
 struct LayerExt {
   std::vector<LayerRect> excl_rects = {};  // list of exclusion rects
+  int32_t rgba_split = 0;                  // AGBR in order BIT(3) BIT(2) BIT(1) BIT(0)
 };
 
 typedef std::tuple<std::string, int32_t, int8_t> FetchResource;
@@ -1106,6 +1114,7 @@ struct LayerStackInfo {
   CacConfig cac_config = {};
   Handle comp_stack = nullptr;
   SelfRefreshState self_refresh_state = kSelfRefreshNone;
+  int32_t rgba_split_enable = 0;
 };
 
 struct HWLayersInfo {

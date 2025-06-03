@@ -9,6 +9,7 @@
 #include <tinyxml2.h>
 #include <fstream>
 
+#include "sdm_debugger.h"
 #include "sdm_display_resolution_extn.h"
 
 #define __CLASS__ "SDMDisplayResolutionExtn"
@@ -50,6 +51,9 @@ DisplayError SDMDisplayResolutionExtn::GetExtendedDisplayResolutions(uint32_t pa
     DLOGE("No target configuration specified");
     return error;
   }
+
+  int32_t rgba_split_support = 0;
+  SDMDebugHandler::Get()->GetProperty(RGBA_SPLIT_SUPPORT, &rgba_split_support);
 
   bool configuration_found = false;
   while (target_node != nullptr) {
@@ -110,6 +114,13 @@ DisplayError SDMDisplayResolutionExtn::GetExtendedDisplayResolutions(uint32_t pa
             if ((floor(res_x) == res_x) && (floor(res_y) == res_y) && (UINT32(res_x) % 2 == 0) &&
                 (UINT32(res_y) % 2 == 0) && ((p_width / res_x) == (p_height / res_y))) {
               extended_disp_res->push_back(std::make_pair(UINT32(res_x), UINT32(res_y)));
+            } else if (rgba_split_support && (floor(res_x) == res_x) && (floor(res_y) == res_y) &&
+                       (UINT32(res_x) % 2 == 0) && (UINT32(res_y) % 2 == 0) &&
+                       (((p_width / res_x) == 2) && ((p_height / res_y) == 1))) {
+              // Allow a virtual mode x_res = p_width / 2 and y_res = p_height(RGBA Split Feature
+              DLOGI("Mode for RGBA Split Feature: x_res = %d y_res = %d panel w = %d panel h = %d",
+                    res_x, res_y, p_width, p_height);
+              extended_disp_res->push_back(std::make_pair(UINT32(res_x), UINT32(res_y)));
             } else {
               DLOGI("scaling resolution: %f x %f is invalid", res_x, res_y);
             }
@@ -130,4 +141,4 @@ DisplayError SDMDisplayResolutionExtn::GetExtendedDisplayResolutions(uint32_t pa
   return error;
 }
 
-} // namespace sdm
+}  // namespace sdm

@@ -122,6 +122,7 @@ using sde_drm::DRMOps;
 using sde_drm::DRMPowerMode;
 using sde_drm::DRMPPFeatureInfo;
 using sde_drm::DRMRect;
+using sde_drm::DRMReserveColor;
 using sde_drm::DRMRotation;
 using sde_drm::DRMSecureMode;
 using sde_drm::DRMSecurityLevel;
@@ -1914,6 +1915,19 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
           }
           SetBlending(layer_blend, &blending);
           drm_atomic_intf_->Perform(DRMOps::PLANE_SET_BLEND_TYPE, pipe_id, blending);
+
+          if (hw_layers_info->layer_exts.size() && hw_layers_info->layer_exts.at(i).rgba_split) {
+            DLOGI_IF(kTagDriverConfig,
+                     "RGBA Split Layer[%d] Blend(curr) = %d being set to opaque,"
+                     " rgba_split = %d",
+                     i, blending, hw_layers_info->layer_exts.at(i).rgba_split);
+            drm_atomic_intf_->Perform(DRMOps::PLANE_SET_BLEND_TYPE, pipe_id, DRMBlendType::OPAQUE);
+            drm_atomic_intf_->Perform(DRMOps::PLANE_SET_ALPHA, pipe_id, 0xffff);
+            if (hw_layers_info->layer_exts.at(i).rgba_split == UINT32(DRMReserveColor::ALPHA)) {
+              drm_atomic_intf_->Perform(DRMOps::PLANE_SET_COLOR_MASK_OVERRIDE, pipe_id,
+                                        DRMReserveColor::ALPHA);
+            }
+          }
 
           DRMRect src = {};
           SetRect(pipe_info->src_roi, &src);
