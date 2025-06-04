@@ -152,6 +152,7 @@
 // SPR
 #define ENABLE_SPR                           DISPLAY_PROP("enable_spr")
 #define ENABLE_SPR_BYPASS                    DISPLAY_PROP("enable_spr_bypass")
+#define ENABLE_SPR_BYPASS_SECONDARY          DISPLAY_PROP("enable_spr_bypass_secondary")
 #define ENABLE_MEMORY_MAPPING                DISPLAY_PROP("enable_memory_mapping")
 #define DISABLE_SPR_PRIMARY                  DISPLAY_PROP("disable_spr_primary")
 #define DISABLE_SPR_SECONDARY                DISPLAY_PROP("disable_spr_secondary")

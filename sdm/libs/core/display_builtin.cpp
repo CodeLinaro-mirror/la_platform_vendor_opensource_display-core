@@ -80,6 +80,7 @@ static uint64_t GetTimeInMs(struct timespec ts) {
   return (ts.tv_sec * 1000 + (ts.tv_nsec + 500000) / 1000000);
 }
 
+#ifndef TARGET_INCLUDES_NEO
 DisplayError DisplayBuiltIn::SetupAiqe() {
   int value = 0;
   char value_str[200] = {0};
@@ -191,6 +192,7 @@ DisplayError DisplayBuiltIn::SetupAiqe() {
 
   return kErrorNone;
 }
+#endif
 
 DisplayError DisplayBuiltIn::Init() {
   ClientLock lock(disp_mutex_);
@@ -435,7 +437,9 @@ DisplayError DisplayBuiltIn::Init() {
 
   NoiseInit();
   InitCWBBuffer();
+#ifndef TARGET_INCLUDES_NEO
   SetupAiqe();
+#endif
 
   left_frame_roi_.resize(core_count_);
   right_frame_roi_.resize(core_count_);
@@ -512,8 +516,10 @@ DisplayError DisplayBuiltIn::PrePrepare(LayerStack *layer_stack) {
   uint32_t new_mixer_height = 0;
   uint32_t display_width = client_ctx_.display_attributes.x_pixels;
   uint32_t display_height = client_ctx_.display_attributes.y_pixels;
+#ifndef TARGET_INCLUDES_NEO
   GenericPayload bool_payload;
   bool *force_update = nullptr;
+#endif
 
   DisplayError error = HandleDemuraLayer(layer_stack);
   if (error != kErrorNone) {
@@ -563,6 +569,7 @@ DisplayError DisplayBuiltIn::PrePrepare(LayerStack *layer_stack) {
     }
   }
 
+#ifndef TARGET_INCLUDES_NEO
   if (ssrc_feature_enabled_) {
     if (bool_payload.CreatePayload(force_update) != 0) {
       DLOGE("Unable to create force update payload");
@@ -575,6 +582,7 @@ DisplayError DisplayBuiltIn::PrePrepare(LayerStack *layer_stack) {
       return kErrorNotSupported;
     }
   }
+#endif
 
   return kErrorNotValidated;
 }
@@ -775,12 +783,13 @@ DisplayError DisplayBuiltIn::SetupSPR() {
   int spr_bypass_prop_value = 0;
   int spr_disable_value = 0;
   Debug::GetProperty(ENABLE_SPR, &spr_prop_value);
-  Debug::GetProperty(ENABLE_SPR_BYPASS, &spr_bypass_prop_value);
 
   if (IsPrimaryDisplay()) {
     Debug::Get()->GetProperty(DISABLE_SPR_PRIMARY, &spr_disable_value);
+    Debug::GetProperty(ENABLE_SPR_BYPASS, &spr_bypass_prop_value);
   } else {
     Debug::Get()->GetProperty(DISABLE_SPR_SECONDARY, &spr_disable_value);
+    Debug::GetProperty(ENABLE_SPR_BYPASS_SECONDARY, &spr_bypass_prop_value);
   }
 
   if (spr_prop_value && !spr_disable_value) {
@@ -4199,6 +4208,7 @@ DisplayError DisplayBuiltIn::PanelBacklightInfo(
   return event_proxy_info_.PanelBacklightInfo(client_name, enable, cb_intf);
 }
 
+#ifndef TARGET_INCLUDES_NEO
 DisplayError DisplayBuiltIn::EnableCopr(bool en) {
   DisplayError ret = kErrorNone;
 
@@ -4227,6 +4237,7 @@ DisplayError DisplayBuiltIn::GetCoprStats(std::vector<int> *stats) {
     DLOGE("Failed to get COPR stats ret %d", ret);
   return ret;
 }
+#endif
 
 DisplayError DisplayBuiltIn::GetScalerCount(uint32_t *scaler_count) {
   int enable_ai_scaler = 0;
@@ -4333,6 +4344,7 @@ EventProxyInfo::PanelOprInfo(const std::string &client_name, bool enable,
   return kErrorNone;
 }
 
+#ifndef TARGET_INCLUDES_NEO
 DisplayError EventProxyInfo::EnableCopr(const std::string &client_name, bool enable,
                                         SdmDisplayCbInterface<CoprEventPayload> *cb_intf) {
   if (!event_proxy_intf_.get()) {
@@ -4385,6 +4397,7 @@ int CoprInfo::Notify(const CoprEventPayload &payload) {
 
   return 0;
 }
+#endif
 
 DisplayError EventProxyInfo::SetPaHistCollection(
     const std::string &client_name, bool enable,
@@ -4474,6 +4487,7 @@ DisplayError EventProxyInfo::PanelBacklightInfo(
   return kErrorNone;
 }
 
+#ifndef TARGET_INCLUDES_NEO
 DisplayError DisplayBuiltIn::SetSsrcMode(const std::string &mode) {
   DisplayError ret = kErrorNotSupported;
 
@@ -4497,6 +4511,7 @@ DisplayError DisplayBuiltIn::SetSsrcMode(const std::string &mode) {
   needs_validate_ = true;
   return ret;
 }
+#endif
 
 DisplayError DisplayBuiltIn::SetAVRStepState(bool enable) {
   ClientLock lock(disp_mutex_);

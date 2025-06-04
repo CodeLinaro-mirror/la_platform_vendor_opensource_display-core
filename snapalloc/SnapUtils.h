@@ -204,9 +204,11 @@ class MmmColorFormatMapper {
       }
       case SnapPixelFormat::YCbCr_420_SP: {
         if (ubwc_enabled) {
+#ifndef TARGET_INCLUDES_NEO
           if (modifier == PIXEL_FORMAT_MODIFIER_4R) {
             return mmm_color_fmts::MMM_COLOR_FMT_NV124R_UBWC;
           }
+#endif
           return mmm_color_fmts::MMM_COLOR_FMT_NV12_UBWC;
         } else if (modifier == PIXEL_FORMAT_MODIFIER_1K_ALIGNED) {
           return -1;
@@ -228,12 +230,14 @@ class MmmColorFormatMapper {
       case SnapPixelFormat::TP10: {
         return mmm_color_fmts::MMM_COLOR_FMT_NV12_BPP10_UBWC;
       }
+#ifndef TARGET_INCLUDES_NEO
       case SnapPixelFormat::YCBCR_P210: {
         if (ubwc_enabled) {
           return mmm_color_fmts::MMM_COLOR_FMT_P210_UBWC;
         }
         return mmm_color_fmts::MMM_COLOR_FMT_P210;
       }
+#endif
       default:
         return -1;
     }

@@ -4305,7 +4305,8 @@ DisplayError DisplayBase::HandleSecureEvent(SecureEvent secure_event, bool *need
       }
       vsync_enable_pending_ = true;
     }
-    *needs_refresh = (client_ctx_.hw_panel_info.mode == kModeCommand);
+    *needs_refresh =
+        (client_ctx_.hw_panel_info.mode == kModeCommand || client_ctx_.hw_panel_info.vhm_support);
     DisablePartialUpdateOneFrameInternal();
     err = master_hw_events_intf_->SetEventState(HWEvent::BACKLIGHT_EVENT, true);
     if (err != kErrorNone) {
