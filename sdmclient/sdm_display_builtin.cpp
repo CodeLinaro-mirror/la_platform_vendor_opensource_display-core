@@ -1969,6 +1969,10 @@ DisplayError SDMDisplayBuiltIn::GetCoprStats(std::vector<int> *stats) {
   return display_intf_->GetCoprStats(stats);
 }
 
+DisplayError SDMDisplayBuiltIn::SetStcFeatureConfig(void *data) {
+  return display_intf_->SetStcFeatureConfig(data);
+}
+
 void SDMDisplayBuiltIn::InitializePerfHints() {
   // First, detect that boot has reached complete stage
   if (!boot_completed_time_) {

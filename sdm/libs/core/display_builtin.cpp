@@ -5978,6 +5978,27 @@ int DisplayBuiltIn::Notify(const TvmServiceCbEvent &event) {
   return 0;
 }
 
+DisplayError DisplayBuiltIn::SetStcFeatureConfig(void *data) {
+  ClientLock lock(disp_mutex_);
+  if (!color_mgr_) {
+    return kErrorNotSupported;
+  }
+  if (!data) {
+    DLOGE("Invalid parameters");
+    return kErrorParameters;
+  }
+
+  DisplayError ret = kErrorNone;
+  ret = color_mgr_->SetStcFeatureConfig(data);
+  if (ret != kErrorNone) {
+    DLOGE("Failed to set stc feature config, ret = %d on display %d-%d", ret, display_id_,
+          display_type_);
+    return ret;
+  }
+
+  return ret;
+}
+
 DisplayError DisplayBuiltIn::SwitchToDAC(void *data) {
   int ret = 0;
 

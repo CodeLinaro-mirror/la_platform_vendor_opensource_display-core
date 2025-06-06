@@ -2818,6 +2818,10 @@ DisplayError ConcurrencyMgr::GetPanelFeatureConfig(Display display, int32_t type
   return CallDisplayFunction(display, &SDMDisplay::GetPanelFeatureConfig, type, data, data_size);
 }
 
+DisplayError ConcurrencyMgr::SetStcFeatureConfig(Display display, void *data) {
+  return CallDisplayFunction(display, &SDMDisplay::SetStcFeatureConfig, data);
+}
+
 DisplayError ConcurrencyMgr::SetQrtcFeatureConfig(Display display, int32_t type, void *data) {
   return CallDisplayFunction(display, &SDMDisplay::SetQrtcFeatureConfig, type, data);
 }

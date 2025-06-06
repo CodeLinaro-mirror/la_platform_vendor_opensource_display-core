@@ -198,6 +198,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(GetCoprStats(std::vector<int> *stats))
   MAKE_NO_OP(GetScalerCount(uint32_t *scaler_count));
   MAKE_NO_OP(DumpDemuraSurface(const char *dir_path, uint32_t frame_index))
+  MAKE_NO_OP(SetStcFeatureConfig(void *));
   MAKE_NO_OP(setDriverCommitPath(const int path))
   MAKE_NO_OP(SetRGBASplit(int enable));
   MAKE_NO_OP(SetClientTargetCapability(const std::bitset<kClientCapabilityMax> &));
