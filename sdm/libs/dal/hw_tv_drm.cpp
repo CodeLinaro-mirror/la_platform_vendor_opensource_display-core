@@ -63,9 +63,8 @@
  */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -269,6 +268,7 @@ DisplayError HWTVDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_GET_RETIRE_FENCE, token_.conn_id, &retire_fence_fd);
 
   if (cwb_config_[core_id_].enabled) {
+    DeconfigureDNSCfromCwb();
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, cwb_config_[core_id_].token.conn_id, 0);
     DLOGI("Teardown CWB on %d-%d", display_id_, disp_type_);
   }

@@ -598,6 +598,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   uint32_t idle_active_ms_ = 0;
   int32_t mirror_src_display_id_ = -1;
   bool needs_mirror_source_validation_ = false;
+  bool wb_downscale_supports_ = false;
   bool enable_ai_scaler_ = false;
   uint64_t next_expected_present_ = 0;
 };
