@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapMetadataManager.h"
@@ -20,7 +20,13 @@ SnapMetadataManager::~SnapMetadataManager() {}
 SnapMetadataManager::SnapMetadataManager() {
   constraint_mgr_ = SnapConstraintManager::GetInstance();
   mem_allocator_ = SnapMemAllocator::GetInstance();
-  ubwc_policy_ = UBWCPolicy::GetInstance();
+
+  if (Debug::GetInstance()->IsUBWCDisabled()) {
+    ubwc_policy_ = nullptr;
+  }
+  else {
+    ubwc_policy_ = UBWCPolicy::GetInstance();
+  }
 }
 
 SnapMetadataManager *SnapMetadataManager::GetInstance() {
@@ -141,7 +147,7 @@ Error SnapMetadataManager::PixelFormatFourCCHelper(SnapMetadata *metadata,
   if (buf_des != nullptr) {
     uint32_t drm_format = 0;
     uint64_t drm_format_modifier = 0;
-    bool ubwc_enable = ubwc_policy_->IsUBWCAlloc(*buf_des);
+    bool ubwc_enable = ubwc_policy_ ? ubwc_policy_->IsUBWCAlloc(*buf_des) : false;
     if (ubwc_enable) {
       GetDRMFormat(buf_des->format, buf_des->usage, PRIV_FLAGS_UBWC_ALIGNED, &drm_format,
                    &drm_format_modifier);
@@ -170,7 +176,7 @@ Error SnapMetadataManager::DRMPixelFormatModifierHelper(SnapMetadata *metadata,
   if (buf_des != nullptr) {
     uint32_t drm_format = 0;
     uint64_t drm_format_modifier = 0;
-    bool ubwc_enable = ubwc_policy_->IsUBWCAlloc(*buf_des);
+    bool ubwc_enable = ubwc_policy_ ? ubwc_policy_->IsUBWCAlloc(*buf_des) : false;
     if (ubwc_enable) {
       GetDRMFormat(buf_des->format, buf_des->usage, PRIV_FLAGS_UBWC_ALIGNED, &drm_format,
                    &drm_format_modifier);
@@ -281,7 +287,7 @@ Error SnapMetadataManager::CompressionHelper(SnapMetadata *metadata, SnapHandleI
                                              BufferDescriptor *buf_des) {
   // TODO - can't be returned as pointer
   if (buf_des != nullptr) {
-    bool ubwc_enable = ubwc_policy_->IsUBWCAlloc(*buf_des);
+    bool ubwc_enable = ubwc_policy_ ? ubwc_policy_->IsUBWCAlloc(*buf_des) : false;
     int64_t qti_compression = vendor_qti_hardware_display_common_Compression::COMPRESSION_NONE;
     if (ubwc_enable) {
       qti_compression = ubwc_policy_->GetUBWCScheme(buf_des->format, buf_des->usage);
@@ -296,7 +302,7 @@ Error SnapMetadataManager::CompressionHelper(SnapMetadata *metadata, SnapHandleI
                              .height = handle->aligned_height(),
                              .layerCount = static_cast<int32_t>(handle->layer_count()),
                              .reservedSize = static_cast<long>(handle->reserved_size())};
-    bool ubwc_enable = ubwc_policy_->IsUBWCAlloc(desc);
+    bool ubwc_enable = ubwc_policy_ ? ubwc_policy_->IsUBWCAlloc(desc) : false;
     int64_t qti_compression = vendor_qti_hardware_display_common_Compression::COMPRESSION_NONE;
     if (ubwc_enable) {
       qti_compression = ubwc_policy_->GetUBWCScheme(handle->format(), handle->usage());
@@ -1026,7 +1032,7 @@ Error SnapMetadataManager::IsUBWCHelper(SnapMetadata *metadata, SnapHandleIntern
                                         void *in_set, void *out_get, BufferDescriptor *buf_des) {
   if (buf_des != nullptr) {
     int64_t is_ubwc = 0;
-    if (ubwc_policy_->IsUBWCAlloc(*buf_des)) {
+    if (ubwc_policy_ && ubwc_policy_->IsUBWCAlloc(*buf_des)) {
       is_ubwc = 1;
     }
     *static_cast<int64_t *>(out_get) = is_ubwc;
@@ -1046,7 +1052,7 @@ Error SnapMetadataManager::IsTileRenderedHelper(SnapMetadata *metadata, SnapHand
                                                 BufferDescriptor *buf_des) {
   if (buf_des != nullptr) {
     int64_t is_tile_rendered = 0;
-    if (ubwc_policy_->IsUBWCAlloc(*buf_des)) {
+    if (ubwc_policy_ && ubwc_policy_->IsUBWCAlloc(*buf_des)) {
       is_tile_rendered = 1;
     }
     if (IsTileRendered(buf_des->format)) {
@@ -1125,7 +1131,7 @@ uint32_t SnapMetadataManager::GetCustomContentMetadataSize(
 Error SnapMetadataManager::InitializeMetadata(
     SnapHandleInternal *hnd, BufferDescriptor in_desc, BufferDescriptor out_desc,
     const AllocData ad, vendor_qti_hardware_display_common_BufferLayout *layout) {
-  bool ubwc_enable = ubwc_policy_->IsUBWCAlloc(out_desc);
+  bool ubwc_enable = ubwc_policy_ ? ubwc_policy_->IsUBWCAlloc(out_desc) : false;
   auto err = Error::NONE;
 
   GraphicsConstraintProvider *graphics_provider = GraphicsConstraintProvider::GetInstance();
@@ -1281,7 +1287,7 @@ int SnapMetadataManager::GetDRMFormat(vendor_qti_hardware_display_common_PixelFo
                                       int flags, uint32_t *drm_format,
                                       uint64_t *drm_format_modifier) {
   vendor_qti_hardware_display_common_Compression qti_compression =
-      ubwc_policy_->GetUBWCScheme(format, usage);
+      ubwc_policy_ ? ubwc_policy_->GetUBWCScheme(format, usage) : COMPRESSION_NONE;
   SnapFormatUsageDescriptor format_usage_desc = {.format = format,
                                                  .compression_type = qti_compression};
   if (snap_to_drm_format_.find(format_usage_desc) != snap_to_drm_format_.end()) {
