@@ -199,6 +199,9 @@ class HWDeviceDRM : public HWInterface {
   virtual bool IsVRRSupported() { return false; }
   virtual void DisplayEarlyWakeUp();
   virtual DisplayError setDriverCommitPath(DriverCommitPath path) { return kErrorNotSupported; }
+  virtual uint32_t GetMaxPrivacyRegionsSupported() {
+    return 0;
+  }
 
   enum {
     kHWEventVSync,
@@ -281,6 +284,7 @@ class HWDeviceDRM : public HWInterface {
     return;
   };
   void SetCacType(const HWPipeCacMode &cac_mode, sde_drm::DRMCacMode *target);
+  void SetPrivacyRegionsData(std::vector<PrivacyRegion> *privacy_regions);
 
   class Registry {
    public:
@@ -392,6 +396,9 @@ class HWDeviceDRM : public HWInterface {
   int cached_brightness_level_ = -1;
   int current_brightness_ = -1;
   int32_t loopback_conn_id_ = -1;
+#ifdef MAX_PRIVACY_LAYERS
+  sde_drm_privacy_layer_v1 privacy_layer_data_ = {};
+#endif
 
  private:
   void GetCWBCapabilities();
