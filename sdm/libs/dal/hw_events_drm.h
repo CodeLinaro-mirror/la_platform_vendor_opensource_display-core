@@ -29,7 +29,7 @@
 
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
   SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -115,7 +115,7 @@ class HWEventsDRM : public HWEventsInterface {
   vector<HWEventData> event_data_list_{};
   vector<pollfd> poll_fds_{};
   pthread_t event_thread_{};
-  std::string event_thread_name_ = "SDM_EventThread";
+  std::string event_thread_name_ = "SDM_Evt";
   bool exit_threads_ = false;
   uint32_t vsync_index_ = UINT32_MAX;
   uint32_t histogram_index_ = UINT32_MAX;
