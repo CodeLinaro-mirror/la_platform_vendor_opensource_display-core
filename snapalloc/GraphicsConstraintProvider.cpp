@@ -226,7 +226,8 @@ int GraphicsConstraintProvider::GetCapabilities(BufferDescriptor desc, Capabilit
   return 0;
 }
 
-int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferConstraints *data) {
+int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferConstraints *data,
+                                                 bool is_ubwc_supported_by_gpu) {
   vendor_qti_hardware_display_common_PixelFormat snap_format = desc.format;
   int format = static_cast<uint64_t>(snap_format);
   uint64_t pixel_format_modifier = GetPixelFormatModifier(desc);
@@ -246,7 +247,7 @@ int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCo
 
     plane_layout.size_align = 1;  // GetGpuPixelAlignment();
 
-    tile_enabled = IsTileRendered(snap_format);
+    tile_enabled = IsTileRendered(snap_format) ? true : is_ubwc_supported_by_gpu;
     unsigned int aligned_w, aligned_h = 0;
     if (format_data.bits_per_pixel % 8 != 0)
       DLOGW("Bpp is float: %f", static_cast<float>(format_data.bits_per_pixel) / 8.0f);
@@ -340,7 +341,7 @@ int GraphicsConstraintProvider::GetConstraints(BufferDescriptor desc, BufferCons
     DLOGI("Using graphics libs for alignment calculations");
     BufferConstraints data;
     int status = 0;
-    status = BuildConstraints(desc, &data);
+    status = BuildConstraints(desc, &data, false);
     if (status != Error::NONE) {
       DLOGW("Error while getting constraints from graphics libs");
       return status;

@@ -1912,7 +1912,7 @@ DisplayError ConcurrencyMgr::SetActiveConfigWithConstraints(
 }
 
 DisplayError ConcurrencyMgr::WaitForCommitDoneAsync(uint64_t display, int client_id) {
-  std::chrono::milliseconds span(2000);
+  std::chrono::milliseconds span(200);
   if (commit_done_future_[display].valid()) {
     std::future_status status =
         commit_done_future_[display].wait_for(std::chrono::milliseconds(0));
@@ -1928,7 +1928,7 @@ DisplayError ConcurrencyMgr::WaitForCommitDoneAsync(uint64_t display, int client
                  this, display, client_id);
   if (commit_done_future_[display].wait_for(span) ==
       std::future_status::timeout) {
-    return kErrorTimeOut;
+    return kErrorNone;
   }
 
   return commit_done_future_[display].get();

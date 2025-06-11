@@ -275,6 +275,10 @@ static uint8_t CAC_FETCH = 0x2;
 static uint8_t CAC_LOOPBACK_UNPACK = 0x4;
 static uint8_t CAC_LOOPBACK_FETCH = 0x8;
 
+// Buffer Type
+static uint8_t BUFFER_INDEPENDENT = 0;
+static uint8_t BUFFER_SINGLE = 1;
+
 static void SetRect(DRMRect &source, drm_clip_rect *target) {
   target->x1 = uint16_t(source.left);
   target->y1 = uint16_t(source.top);
@@ -366,6 +370,21 @@ static void PopulateMultiRectModes(drmModePropertyRes *prop) {
       }
     }
     multirect_modes_populated = true;
+  }
+}
+
+static void PopulateBufferModes(drmModePropertyRes *prop) {
+  static bool buffer_modes_populated = false;
+  if (!buffer_modes_populated) {
+    for (auto i = 0; i < prop->count_enums; i++) {
+      string enum_name(prop->enums[i].name);
+      if (enum_name == "independent") {
+        BUFFER_INDEPENDENT = prop->enums[i].value;
+      } else if (enum_name == "single") {
+        BUFFER_SINGLE = prop->enums[i].value;
+      }
+    }
+    buffer_modes_populated = true;
   }
 }
 
@@ -882,6 +901,8 @@ void DRMPlane::ParseProperties() {
       PopulateUcscIgcMode(info);
     } else if (prop_enum == DRMProperty::SDE_SSPP_UCSC_GC_V1) {
       PopulateUcscGcMode(info);
+    } else if (prop_enum == DRMProperty::BUFFER_MODE) {
+      PopulateBufferModes(info);
     }
 
     if ((prop_enum == DRMProperty::ALPHA) && info->values) {
@@ -1167,6 +1188,45 @@ bool DRMPlane::SetFp16UnmultConfig(drmModeAtomicReq *req, uint32_t unmult_en) {
   }
 
   AddProperty(req, drm_plane_->plane_id, prop_id, unmult_en, false /* cache */, tmp_prop_val_map_);
+
+  return true;
+}
+
+bool DRMPlane::SetPrefillSize(drmModeAtomicReq *req, uint32_t prefill_size) {
+  auto prop_id = prop_mgr_.GetPropertyId(DRMProperty::PREFILL_SIZE);
+  if (!prop_id) {
+    return false;
+  }
+
+  AddProperty(req, drm_plane_->plane_id, prop_id, prefill_size, true /* cache */,
+              tmp_prop_val_map_);
+  DRM_LOGV("Plane %d: Setting prefill size %d", drm_plane_->plane_id, prefill_size);
+
+  return true;
+}
+
+bool DRMPlane::SetPrefillTime(drmModeAtomicReq *req, uint32_t prefill_time) {
+  auto prop_id = prop_mgr_.GetPropertyId(DRMProperty::PREFILL_TIME);
+  if (!prop_id) {
+    return false;
+  }
+
+  AddProperty(req, drm_plane_->plane_id, prop_id, prefill_time, true /* cache */,
+              tmp_prop_val_map_);
+  DRM_LOGV("Plane %d: Setting prefill time %d", drm_plane_->plane_id, prefill_time);
+
+  return true;
+}
+
+bool DRMPlane::SetSysCacheType(drmModeAtomicReq *req, uint32_t sys_cache_type) {
+  auto prop_id = prop_mgr_.GetPropertyId(DRMProperty::SYS_CACHE_TYPE);
+  if (!prop_id) {
+    return false;
+  }
+
+  AddProperty(req, drm_plane_->plane_id, prop_id, sys_cache_type, true /* cache */,
+              tmp_prop_val_map_);
+  DRM_LOGV("Plane %d: Setting sys cache %d", drm_plane_->plane_id, sys_cache_type);
 
   return true;
 }
@@ -1606,6 +1666,15 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       DRMCacMode cac_mode = (DRMCacMode)va_arg(args, uint32_t);
       SetCacType(req, cac_mode);
     } break;
+    case DRMOps::PLANES_SET_PREFILL_SIZE: {
+      uint32_t config = va_arg(args, uint32_t);
+      SetPrefillSize(req, config);
+    } break;
+
+    case DRMOps::PLANES_SET_PREFILL_TIME: {
+      uint32_t config = va_arg(args, uint32_t);
+      SetPrefillTime(req, config);
+    } break;
 
 #ifdef UCSC_SUPPORTED
     case DRMOps::PLANE_SET_UCSC_UNMULT_CONFIG: {
@@ -1707,6 +1776,31 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
                ucsc_alpha_dither ? "Setting" : "Resetting");
     } break;
 #endif
+
+    case DRMOps::PLANES_SET_SYS_CACHE_TYPE: {
+      uint32_t config = va_arg(args, uint32_t);
+      SetSysCacheType(req, config);
+    } break;
+
+    case DRMOps::PLANES_BUFFER_MODE: {
+      int buffer = va_arg(args, int);
+      uint32_t buffer_mode = BUFFER_INDEPENDENT;
+      switch (buffer) {
+        case (int)DRMBufferMode::INDEPENDENT:
+          buffer_mode = BUFFER_INDEPENDENT;
+          break;
+        case (int)DRMBufferMode::SINGLE:
+          buffer_mode = BUFFER_SINGLE;
+          break;
+        default:
+          DRM_LOGE("Invalid buffer mode %d to set on plane %d", buffer, obj_id);
+          break;
+      }
+
+      prop_id = prop_mgr_.GetPropertyId(DRMProperty::BUFFER_MODE);
+      AddProperty(req, obj_id, prop_id, buffer_mode, true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("Plane %d: Setting buffer mode %d", obj_id, buffer_mode);
+    } break;
 
     default:
       DRM_LOGE("Invalid opcode %d for DRM Plane %d", code, obj_id);

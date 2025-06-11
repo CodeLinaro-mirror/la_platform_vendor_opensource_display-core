@@ -272,6 +272,10 @@ enum struct DRMProperty {
   BRIGHTNESS,
   FLUSH_SYNC_EN,
   COMMIT_PATH,
+  PREFILL_SIZE,
+  PREFILL_TIME,
+  SYS_CACHE_TYPE,
+  BUFFER_MODE,
 
   // Insert above
   MAX

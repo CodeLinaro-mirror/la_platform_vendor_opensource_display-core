@@ -28,11 +28,10 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 /*
-* ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-*
-* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include <fcntl.h>
 #include <display/drm/sde_drm.h>
@@ -1224,6 +1223,8 @@ void HWPeripheralDRM::CreatePanelFeaturePropertyMap() {
   panel_feature_property_map_[kPanelFeatureABCCfg] = sde_drm::kDRMPanelFeatureABC;
   panel_feature_property_map_[kPanelFeatureDemuraBacklight] =
       sde_drm::kDRMPanelFeatureDemuraBacklight;
+  panel_feature_property_map_[kPanelFeatureDemuraDoubleBufferCbFlags] =
+      sde_drm::kDRMPanelFeatureDemuraDoubleBufferCbFlags;
 }
 
 int HWPeripheralDRM::GetPanelFeature(PanelFeaturePropertyInfo *feature_info) {
@@ -1236,7 +1237,7 @@ int HWPeripheralDRM::GetPanelFeature(PanelFeaturePropertyInfo *feature_info) {
   }
 
   auto it = panel_feature_property_map_.find(feature_info->prop_id);
-  if (it ==  panel_feature_property_map_.end()) {
+  if (it == panel_feature_property_map_.end()) {
     DLOGE("Failed to find prop-map entry for id %d", feature_info->prop_id);
     return -EINVAL;
   }
@@ -1271,6 +1272,8 @@ int HWPeripheralDRM::GetPanelFeature(PanelFeaturePropertyInfo *feature_info) {
     case kPanelFeatureDemuraPanelId:
       drm_feature.obj_type = DRM_MODE_OBJECT_CONNECTOR;
       drm_feature.obj_id =  token_.conn_id;
+      break;
+    case kPanelFeatureDemuraDoubleBufferCbFlags:
       break;
     default:
       DLOGE("obj id population for property %d not implemented", feature_info->prop_id);
@@ -1348,9 +1351,11 @@ void HWPeripheralDRM::SetVMReqState() {
     if (aba_hist_en_)
       drm_atomic_intf_->Perform(sde_drm::DRMOps::DPPS_CACHE_FEATURE, token_.crtc_id,
                                 sde_drm::kFeatureAbaHistCtrl, 1);
-  } else if (tui_state_ == kTUIStateNone) {
+    set_tui_none_ = true;
+  } else if (tui_state_ == kTUIStateNone || set_tui_none_) {
     drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_VM_REQ_STATE, token_.crtc_id,
                               sde_drm::DRMVMRequestState::NONE);
+    set_tui_none_ = false;
   }
 }
 

@@ -90,6 +90,16 @@
 #ifndef DRM_FORMAT_MOD_QCOM_LOSSY_2_1
 #define DRM_FORMAT_MOD_QCOM_LOSSY_2_1 fourcc_mod_code(QCOM, 0x200)
 #endif
+#ifndef DRM_FORMAT_MOD_QCOM_FSC_TILE
+#define DRM_FORMAT_MOD_QCOM_FSC_TILE fourcc_mod_code(QCOM, 0x20)
+#endif
+
+#ifndef SDE_SYSCACHE_LLCC_DISP_LEFT
+#define SDE_SYSCACHE_LLCC_DISP_LEFT 1
+#endif
+#ifndef SDE_SYSCACHE_LLCC_DISP_RIGHT
+#define SDE_SYSCACHE_LLCC_DISP_RIGHT 2
+#endif
 
 #define DEST_SCALAR_OVERFETCH_SIZE 5
 #define OFFSET_ALIGN(x, align) ((x) - ((x) % (align)))
@@ -98,6 +108,8 @@ using drm_utils::DRMLibLoader;
 using drm_utils::DRMMaster;
 using drm_utils::DRMResMgr;
 using sde_drm::DRMBlendType;
+using sde_drm::DRMBufferMode;
+using sde_drm::DRMCacheState;
 using sde_drm::DRMCacMode;
 using sde_drm::DRMConnectorInfo;
 using sde_drm::DRMCrtcInfo;
@@ -260,6 +272,14 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
     case kFormatXBGR2101010:
       *drm_format = DRM_FORMAT_RGBX1010102;
       *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      break;
+    case kFormatC8Ubwc:
+      *drm_format = DRM_FORMAT_C8;
+      *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_FSC_TILE;
+      break;
+    case kFormatC8:
+      *drm_format = DRM_FORMAT_C8;
+      *drm_format_modifier = DRM_FORMAT_MOD_QCOM_FSC_TILE;
       break;
     case kFormatYCbCr420SemiPlanar:
       *drm_format = DRM_FORMAT_NV12;
@@ -943,6 +963,8 @@ DisplayError HWDeviceDRM::PopulateDisplayAttributes(uint32_t index) {
   display_attributes_[index].fps = mode.vrefresh;
   display_attributes_[index].vsync_period_ns =
     UINT32(1000000000L / display_attributes_[index].fps);
+  display_attributes_[index].fsc_panel = connector_info_.fsc_panel;
+  display_attributes_[index].num_fsc_fields = connector_info_.num_fsc_fields;
 
   /*
               Active                 Front           Sync           Back
@@ -988,6 +1010,8 @@ DisplayError HWDeviceDRM::PopulateDisplayAttributes(uint32_t index) {
   display_attributes_[index].avr_step = connector_info_.modes[index].avr_step_fps;
   display_attributes_[index].early_ept_timeout = connector_info_.modes[index].early_ept_timeout;
 
+  UpdateDisplayAttributesForFSC(&display_attributes_[index]);
+
   DLOGI(
       "Display %d-%d attributes[%d]: WxH: %dx%d, DPI: %fx%f, FPS: %d, LM_SPLIT: %d, V_BACK_PORCH:"
       " %d, V_FRONT_PORCH: %d [RFI Adjusted : %s], V_PULSE_WIDTH: %d, V_TOTAL: %d, H_TOTAL: %d,"
@@ -1003,6 +1027,23 @@ DisplayError HWDeviceDRM::PopulateDisplayAttributes(uint32_t index) {
       mixer_attributes_.split_type, display_attributes_[index].avr_step);
 
   return kErrorNone;
+}
+
+void HWDeviceDRM::UpdateDisplayAttributesForFSC(HWDisplayAttributes *display_attributes) {
+  if (!display_attributes->fsc_panel) {
+    return;
+  }
+
+  // Populate display attributes at  W / 3 x 3 * Fields.
+  // Mixer attributes will also be configured
+  display_attributes->x_pixels /= display_attributes->num_fsc_fields;
+  display_attributes->y_pixels *= display_attributes->num_fsc_fields;
+  uint32_t v_active = display_attributes->v_total - display_attributes->v_front_porch -
+                      display_attributes->v_back_porch - display_attributes->v_pulse_width;
+  display_attributes->v_total =
+      display_attributes->v_front_porch + (v_active * display_attributes->num_fsc_fields) +
+      display_attributes->v_back_porch + display_attributes->v_pulse_width;
+  display_attributes->h_total /= display_attributes->num_fsc_fields;
 }
 
 void HWDeviceDRM::PopulateHWPanelInfo() {
@@ -1117,6 +1158,8 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
     hw_panel_info_.qsync_fps = hw_panel_info_.min_fps;
   }
 
+  hw_panel_info_.fsc_panel = connector_info_.fsc_panel;
+  hw_panel_info_.num_fsc_fields = connector_info_.num_fsc_fields;
   hw_panel_info_.is_primary_panel = connector_info_.is_primary;
   hw_panel_info_.is_pluggable = 0;
   hw_panel_info_.hdr_enabled = connector_info_.panel_hdr_prop.hdr_enabled;
@@ -1730,6 +1773,10 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
     ResetROI();
   }
 
+  if (hw_layers_info->common_info->flags.system_cache) {
+    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_CACHE_STATE, token_.crtc_id, DRMCacheState::ENABLED);
+  }
+
 #ifdef TRUSTED_VM
   if (first_cycle_) {
     drm_atomic_intf_->Perform(sde_drm::DRMOps::RESET_PANEL_FEATURES, 0 /* argument is not used */);
@@ -1922,7 +1969,7 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
 
           uint32_t config = 0;
           SetSrcConfig(layer.input_buffer, hw_rotator_session->mode, &config);
-          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_SRC_CONFIG, pipe_id, config);;
+          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_SRC_CONFIG, pipe_id, config);
 
           if (hw_scale_) {
             SDEScaler scaler_output = {};
@@ -1943,6 +1990,51 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
           drm_atomic_intf_->Perform(DRMOps::PLANE_SET_MULTIRECT_MODE, pipe_id, multirect_mode);
 
           SetSsppTonemapFeatures(pipe_info);
+
+          if (hw_panel_info_.fsc_panel) {
+            // prefill size will be ZERO for all the fields
+            drm_atomic_intf_->Perform(DRMOps::PLANES_SET_PREFILL_SIZE, pipe_id, 0);
+
+            /*INFO:
+            field_prefill = v_active * (i % num_fsc_fields); // R field v_active is ZERO
+            don't program field_prefill exactly so reduce some prefill i.e 40 lines
+
+            prefill = (fps_ms / v_total) * (v_fp + v_pw + field_prefill - kEarlyPrefil);
+            */
+
+            float fps_ms = (1000 / FLOAT(display_attributes_[index].fps)) * 1000;
+            int num_fsc_fields = hw_panel_info_.num_fsc_fields;
+            int v_front_porch = display_attributes_[index].v_front_porch / num_fsc_fields;
+            int v_pulse_width = display_attributes_[index].v_pulse_width / num_fsc_fields;
+            int v_active = display_attributes_[index].y_pixels / num_fsc_fields;
+            int v_back_porch = display_attributes_[index].v_back_porch / num_fsc_fields;
+
+            int v_total =
+                display_attributes_[index].y_pixels + v_front_porch + v_back_porch + v_pulse_width;
+            int field_prefill = v_active * (i % num_fsc_fields);
+            uint64_t prefill_time =
+                (fps_ms / v_total) * (v_front_porch + v_pulse_width + field_prefill - kEarlyPrefil);
+
+            // For R field, prefill will be ZERO
+            prefill_time = (i % num_fsc_fields) ? prefill_time : 0;
+
+            DLOGI_IF(kTagDriverConfig,
+                     "fps_ms:%f, v_total:%d, v_front_porch:%d, v_pulse_width:%d"
+                     "v_active:%d, num_fsc_fields:%d, v_back_porch:%d, kEarlyPrefil:%d, i:%d",
+                     fps_ms, v_total, v_front_porch, v_pulse_width, v_active, num_fsc_fields,
+                     v_back_porch, kEarlyPrefil, i);
+            DLOGI_IF(kTagDriverConfig, "field:%d and prefill %" PRIu64 "\n", i, prefill_time);
+            drm_atomic_intf_->Perform(DRMOps::PLANES_SET_PREFILL_TIME, pipe_id, prefill_time);
+            drm_atomic_intf_->Perform(DRMOps::PLANES_BUFFER_MODE, pipe_id, DRMBufferMode::SINGLE);
+            // Set the cache type.
+            if (i < num_fsc_fields) {
+              drm_atomic_intf_->Perform(DRMOps::PLANES_SET_SYS_CACHE_TYPE, pipe_id,
+                                        SDE_SYSCACHE_LLCC_DISP_LEFT);
+            } else {
+              drm_atomic_intf_->Perform(DRMOps::PLANES_SET_SYS_CACHE_TYPE, pipe_id,
+                                        SDE_SYSCACHE_LLCC_DISP_RIGHT);
+            }
+          }
         } else if (update_luts) {
           if (force_tonemapping_) {
             sde_drm::DRMFp16Config fp16_config = {};
@@ -3077,6 +3169,7 @@ void HWDeviceDRM::UpdateMixerAttributes() {
                                      ? hw_panel_info_.split_info.left_split
                                      : mixer_attributes_.width;
   mixer_attributes_.split_type = kNoSplit;
+
   if (display_attributes_[index].is_device_split) {
     mixer_attributes_.split_type = kDualSplit;
     if (display_attributes_[index].topology == kQuadLMMerge ||

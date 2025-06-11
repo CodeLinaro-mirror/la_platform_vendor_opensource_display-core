@@ -134,6 +134,14 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
     err = metadata_mgr_->InitializeMetadata(hnd, desc.format, out_desc, ad, &layout);
     if (err != Error::NONE) {
       DLOGE("Failed to initialize metadata for hnd %lu", hnd->id());
+    } else if (desc.usage & QTI_PRIVATE_MULTI_VIEW_INFO) {
+      SnapHandleInternal *hndSec = hnd->CreateViewHandle(PRIV_VIEW_MASK_SECONDARY);
+      err = metadata_mgr_->InitializeMetadata(hndSec, desc.format, out_desc, ad, &layout);
+      if (err != Error::NONE) {
+        DLOGE("Failed to initialize metadata for secondary hnd %lu", hndSec->id());
+      }
+      hndSec->closeFds();
+      free(hndSec);
     }
 
     handles->emplace_back(hnd);

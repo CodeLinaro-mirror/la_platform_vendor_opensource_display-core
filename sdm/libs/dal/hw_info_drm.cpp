@@ -78,6 +78,9 @@
 #ifndef DRM_FORMAT_MOD_QCOM_LOSSY_2_1
 #define DRM_FORMAT_MOD_QCOM_LOSSY_2_1 fourcc_mod_code(QCOM, 0x200)
 #endif
+#ifndef DRM_FORMAT_MOD_QCOM_FSC_TILE
+#define DRM_FORMAT_MOD_QCOM_FSC_TILE fourcc_mod_code(QCOM, 0x20)
+#endif
 
 #define __CLASS__ "HWInfoDRM"
 
@@ -665,7 +668,7 @@ DisplayError HWInfoDRM::GetDemuraDoubleBufferCodebookFlags(bool *out) {
 
   DRMPanelFeatureInfo info = {};
   bool flags = false;
-  info.prop_id = sde_drm::kDRMPanelFeatureDemuraInit;
+  info.prop_id = sde_drm::kDRMPanelFeatureDemuraDoubleBufferCbFlags;
   info.prop_ptr = reinterpret_cast<uint64_t>(&flags);
   drm_mgr_intf_->GetPanelFeature(&info);
   *out = flags;
@@ -1038,6 +1041,13 @@ void HWInfoDRM::GetSDMFormat(uint32_t drm_format, uint64_t drm_format_modifier,
         fmts.push_back(kFormatYCbCr422P210Ubwc);
       } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_DX) {
         fmts.push_back(kFormatYCbCr422P210);
+      }
+      break;
+    case DRM_FORMAT_C8:
+      if (drm_format_modifier == (DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_FSC_TILE)) {
+        fmts.push_back(kFormatC8Ubwc);
+      } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_FSC_TILE) {
+        fmts.push_back(kFormatC8);
       }
       break;
     default:
