@@ -997,6 +997,7 @@ enum UpdateType {
   kUpdateFBObject,   // Indicates that the FrameBuffer Object has been updated.
   kChangeCwbConfig,  // Indicates either CWB buffer attached/detached to stack or size changed.
   kHalSelfRefresh,   // Indicates that it is HAL Self-Refresh Commit.
+  kUpdatePrivacyRegions, // Indicates that the privacy regions have been updated.
   kUpdateMax,
 };
 
@@ -1164,6 +1165,7 @@ struct HWLayersInfo {
   HWDNSCInfo dnsc_cfg = {};
   SelfRefreshState self_refresh_state = kSelfRefreshNone;
   BufferInfo dummy_loopback_cac_info = {};
+  std::vector<PrivacyRegion> privacy_regions_ = {};
 };
 
 struct DispLayerStack {

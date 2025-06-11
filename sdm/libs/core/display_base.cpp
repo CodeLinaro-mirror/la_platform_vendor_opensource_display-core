@@ -1976,6 +1976,7 @@ DisplayError DisplayBase::PostCommit() {
     clearstack_.store(false);
   }
 
+  mixer_resolution_updated_ = false;
   return error;
 }
 
@@ -3304,6 +3305,7 @@ DisplayError DisplayBase::SetMixerResolution(uint32_t width, uint32_t height) {
   req_mixer_width_ = width;
   req_mixer_height_ = height;
 
+  mixer_resolution_updated_ = true;
   return kErrorNone;
 }
 
@@ -5341,6 +5343,7 @@ DisplayError DisplayBase::DisableDestinationScalar() {
   comp_manager_->GetDSConfig(display_comp_ctx_, &hw_layers_info);
   hw_intf_->SetDestScalarData(hw_layers_info);
 
+  mixer_resolution_updated_ = true;
   return kErrorNone;
 }
 

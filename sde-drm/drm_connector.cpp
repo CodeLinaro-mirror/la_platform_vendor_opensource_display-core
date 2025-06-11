@@ -26,7 +26,6 @@
 * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
 /*
  * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
@@ -698,6 +697,7 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
   const string num_fsc_fields = "num fsc fields=";
   const string dpu_dma_enabled = "dpu_dma_enabled=";
   const string emsync_switch_enabled = "emsync_switch_enabled=";
+  const string privacy_layer_support = "privacy layer support=";
 
   while (std::getline(stream, line)) {
     if (line.find(pixel_formats) != string::npos) {
@@ -766,6 +766,8 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
       info->dpu_dma_enabled = (std::stoi(string(line, dpu_dma_enabled.length())) == 1);
     } else if (line.find(emsync_switch_enabled) != string::npos) {
       info->emsync_switch_enabled = (string(line, emsync_switch_enabled.length()) == "true");
+    } else if (line.find(privacy_layer_support) != string::npos) {
+      info->is_privacy_layers_supported = (string(line, privacy_layer_support.length()) == "true");
     }
   }
 
@@ -1627,6 +1629,21 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::EMSYNC_FPS),
                                avr_step_fps);
       DRM_LOGD("Connector %d: Setting Avr Step Fps = %d", obj_id, avr_step_fps);
+    }
+
+    case DRMOps::CONNECTOR_SET_PRIVACY_REGIONS: {
+#ifdef MAX_PRIVACY_LAYERS
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::PRIVACY_REGIONS)) {
+        return;
+      }
+      uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::PRIVACY_REGIONS);
+      sde_drm_privacy_layer_v1 *privacy_layers = va_arg(args, sde_drm_privacy_layer_v1 *);
+      int ret = drmModeAtomicAddProperty(req, obj_id, prop_id,
+                                         reinterpret_cast<uint64_t>(privacy_layers));
+      if (ret < 0) {
+        DLOGW("Failed to configure privacy layer to DRM");
+      }
+#endif
     } break;
 
     default:

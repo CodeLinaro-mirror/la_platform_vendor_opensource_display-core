@@ -1765,6 +1765,8 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
   bool buffer_update = hw_layers_info->common_info->updates_mask.test(kSwapBuffers);
   bool fb_update = hw_layers_info->common_info->updates_mask.test(kUpdateFBObject);
   bool self_refresh = hw_layers_info->common_info->updates_mask.test(kHalSelfRefresh);
+  bool privacy_regions_update =
+      hw_layers_info->common_info->updates_mask.test(kUpdatePrivacyRegions);
   bool update_config = resource_update || buffer_update || tui_state_ == kTUIStateEnd ||
                        hw_layers_info->common_info->flags.geometry_changed || fb_update ||
                        self_refresh;
@@ -2324,6 +2326,10 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
 
   if (hw_panel_info_.mode == kModeCommand) {
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_AUTOREFRESH, token_.conn_id, autorefresh_);
+  }
+
+  if (privacy_regions_update) {
+    SetPrivacyRegionsData(&hw_layers_info->privacy_regions_);
   }
 }
 
@@ -4297,6 +4303,26 @@ void HWDeviceDRM::DisplayEarlyWakeUp() {
   if (result < 0) {
     DLOGW("MSM_DISPLAY_HINT IOCTL failed! error: %d", result);
   }
+}
+
+void HWDeviceDRM::SetPrivacyRegionsData(std::vector<PrivacyRegion> *privacy_regions) {
+#ifdef MAX_PRIVACY_LAYERS
+  DLOGI_IF(kTagDriverConfig, "Send %u privacy regions to drm", privacy_regions->size());
+  sde_privacy privacy_list[privacy_regions->size()];
+  for (size_t i = 0; i < privacy_regions->size(); i++) {
+    PrivacyRegion region = privacy_regions->at(i);
+    privacy_list[i].corner_radius = INT(region.corner_radius);
+    privacy_list[i].left = region.rect.left;
+    privacy_list[i].top = region.rect.top;
+    privacy_list[i].right = region.rect.right;
+    privacy_list[i].bottom = region.rect.bottom;
+  }
+
+  privacy_layer_data_.no_of_layers = privacy_regions->size();
+  memcpy(privacy_layer_data_.privacy_list, privacy_list, sizeof(privacy_list));
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_PRIVACY_REGIONS, token_.conn_id,
+                            &privacy_layer_data_);
+#endif
 }
 
 }  // namespace sdm

@@ -708,6 +708,13 @@ enum struct DRMOps {
    *      uint32_t - Emsync Fps
    */
   CONNECTOR_SET_EMSYNC_FPS,
+
+  /*
+   * Op: Sets the privacy regions on the connector
+   * Arg: uint32_t - Connector ID
+   *      PrivacyRegions - Consolidated privacy regions
+   */
+  CONNECTOR_SET_PRIVACY_REGIONS,
 };
 
 enum struct DRMRotation {
@@ -1125,6 +1132,7 @@ struct DRMConnectorInfo {
   uint32_t num_fsc_fields = 0;
   bool dpu_dma_enabled = false;
   bool emsync_switch_enabled = false;
+  bool is_privacy_layers_supported = false;
 };
 
 // All DRM Connectors as map<Connector_id , connector_info>

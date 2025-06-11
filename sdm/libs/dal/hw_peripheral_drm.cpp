@@ -1463,4 +1463,17 @@ DisplayError HWPeripheralDRM::setDriverCommitPath(DriverCommitPath path) {
   return kErrorNone;
 }
 
+uint32_t HWPeripheralDRM::GetMaxPrivacyRegionsSupported() {
+#ifdef MAX_PRIVACY_LAYERS
+  DLOGI("is_privacy_layer_supported %d, MAX_PRIVACY_LAYERS %d",
+        connector_info_.is_privacy_layers_supported, MAX_PRIVACY_LAYERS);
+  if (connector_info_.is_privacy_layers_supported) {
+    return MAX_PRIVACY_LAYERS;
+  }
+#endif
+
+  DLOGI("is_privacy_layer_supported %d", connector_info_.is_privacy_layers_supported);
+  return 0;
+}
+
 }  // namespace sdm

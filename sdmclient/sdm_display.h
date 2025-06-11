@@ -760,6 +760,7 @@ public:
   int idle_active_ms_ = 0;
   uint32_t frame_interval_ns_ = 0;  // FrameInterval for current frame
   bool is_poms_mode_ = false;
+  bool pending_privregions_update_ = false;
 };
 
 inline DisplayError SDMDisplay::Perform(uint32_t operation, ...) {
