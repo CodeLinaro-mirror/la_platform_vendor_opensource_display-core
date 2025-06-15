@@ -110,13 +110,6 @@ SDMDisplayBuiltIn::SDMDisplayBuiltIn(CoreInterface *core_intf, BufferAllocator *
       layer_stitch_task_(*this) {}
 
 DisplayError SDMDisplayBuiltIn::Init() {
-  cpu_hint_ = new CPUHint();
-  if (cpu_hint_->Init(static_cast<SDMDebugHandler *>(SDMDebugHandler::Get()), callbacks_) !=
-      kErrorNone) {
-    delete cpu_hint_;
-    cpu_hint_ = NULL;
-  }
-
   layer_stack_.flags.use_metadata_refresh_rate = true;
   int disable_metadata_dynfps = 0;
   SDMDebugHandler::Get()->GetProperty(DISABLE_METADATA_DYNAMIC_FPS_PROP,
@@ -381,32 +374,14 @@ DisplayError SDMDisplayBuiltIn::SetPowerMode(SDMPowerMode mode, bool teardown) {
            : (mode == SDMPowerMode::POWER_MODE_DOZE) ? "DOZE"
                                                      : "DOZE_SUSPEND",
            sdm_id_, type_);
-  if (cpu_hint_) {
-    switch (mode) {
-    case SDMPowerMode::POWER_MODE_DOZE:
-    case SDMPowerMode::POWER_MODE_DOZE_SUSPEND:
-      // Perf hal doesn't differentiate b/w doze and doze-suspend, so send doze
-      // hint for both.
-      cpu_hint_->ReqEvent(kPerfHintDisplayDoze);
-      break;
-    case SDMPowerMode::POWER_MODE_ON:
-      if (abc_defer_reconfig_) {
-        DisplayError error = display_intf_->SetABCReconfig();
-        if (error != kErrorNone) {
-          DLOGE("Failed to Reconfig ABC feature, error = %d", error);
-        }
 
-        abc_defer_reconfig_ = false;
-      }
-
-      cpu_hint_->ReqEvent(kPerfHintDisplayOn);
-      break;
-    case SDMPowerMode::POWER_MODE_OFF:
-      cpu_hint_->ReqEvent(kPerfHintDisplayOff);
-      break;
-    default:
-      break;
+  HandlePowerModeHint(mode);
+  if (mode == SDMPowerMode::POWER_MODE_ON && abc_defer_reconfig_) {
+    DisplayError error = display_intf_->SetABCReconfig();
+    if (error != kErrorNone) {
+      DLOGE("Failed to Reconfig ABC feature, error = %d", error);
     }
+    abc_defer_reconfig_ = false;
   }
 
   if (mode != SDMPowerMode::POWER_MODE_OFF) {
@@ -1507,33 +1482,29 @@ DisplayError SDMDisplayBuiltIn::PostInit() {
 }
 
 bool SDMDisplayBuiltIn::NeedsLargeCompPerfHint() {
-  if (!cpu_hint_) {
-    DLOGV_IF(kTagResources, "CPU hint is not initialized");
-    return false;
-  }
-
   if (active_refresh_rate_ < 90) {
+    DLOGV_IF(kTagResources, "Current fps %d doesn't qualify for large comp hint",
+             active_refresh_rate_);
     return false;
   }
 
+  std::string trace;
   if (large_comp_hint_threshold_ > 0 &&
       sdm_layer_stack_->layer_set_.size() >= large_comp_hint_threshold_) {
-    DLOGV_IF(
-        kTagResources,
-        "Number of app layers %d meet requirement %d. Set perf hint for large "
-        "comp cycle",
-        sdm_layer_stack_->layer_set_.size(), large_comp_hint_threshold_);
+    trace = "app layers " + to_string(sdm_layer_stack_->layer_set_.size()) + " threshold " +
+            to_string(large_comp_hint_threshold_);
+    DTRACE_BEGIN(trace.c_str());
+    DTRACE_END();
     return true;
   }
 
   // Send hints when the device is in multi-display or when a skip layer is
   // present.
   if (layer_stack_.flags.skip_present || is_multi_display_) {
-    DLOGV_IF(
-        kTagResources,
-        "Found skip_layer:%d or is_multidisplay:%d. Set perf hint for large "
-        "comp cycle",
-        layer_stack_.flags.skip_present, is_multi_display_);
+    trace = "skip layer " + to_string(layer_stack_.flags.skip_present) + " multidisplay " +
+            to_string(is_multi_display_);
+    DTRACE_BEGIN(trace.c_str());
+    DTRACE_END();
     return true;
   }
 
@@ -1567,10 +1538,9 @@ bool SDMDisplayBuiltIn::NeedsLargeCompPerfHint() {
 
   // Send hints when the number of GPU layers reaches the threshold for the
   // active refresh rate.
-  DLOGV_IF(
-      kTagResources,
-      "Reached max GPU layers for %dfps. Set perf hint for large comp cycle",
-      active_refresh_rate_);
+  trace = "gpu layers " + to_string(gpu_layer_count) + " fps " + to_string(active_refresh_rate_);
+  DTRACE_BEGIN(trace.c_str());
+  DTRACE_END();
   return true;
 }
 
@@ -1654,7 +1624,11 @@ DisplayError SDMDisplayBuiltIn::CommitOrPrepare(
                                             out_num_types, out_num_requests,
                                             needs_commit);
 
-  if (perf_hint_large_comp_cycle_) {
+  if (enable_perf_hints_) {
+    InitializePerfHints();
+  }
+
+  if (cpu_hint_ && perf_hint_large_comp_cycle_) {
     bool needs_hint = NeedsLargeCompPerfHint();
     HandleLargeCompositionHint(!needs_hint);
   }
@@ -1854,48 +1828,49 @@ DisplayError SDMDisplayBuiltIn::SetAIScalerMode(uint32_t mode_id) {
 }
 
 void SDMDisplayBuiltIn::HandleLargeCompositionHint(bool release) {
-  if (!cpu_hint_) {
-    return;
+  int tid = gettid();
+  bool updated_tid = (sdm_tid_ != tid);
+  nsecs_t current_time = callbacks_->SystemTime(SYSTEM_TIME_MONOTONIC);
+  std::string trace;
+
+  if (release && hint_start_time_ == 0 && updated_tid) {
+    trace = "SDM's tid " + to_string(sdm_tid_) + " is updated to " + to_string(tid) +
+            ", send ReqHint()";
+    DLOGV_IF(kTagResources, "%s", trace.c_str());
+    DTRACE_BEGIN(trace.c_str());
+    DTRACE_END();
+
+    int ret = cpu_hint_->ReqHint(kSDM, tid);
+    if (!ret) {
+      sdm_tid_ = tid;
+    }
   }
 
-  int tid = gettid();
+  // For long term large composition hint, release or acquire handle after 100 milliseconds to
+  // avoid resending hints in animation launch use cases and others. Return immediately when
+  // there's no active hints and hint isn't needed.
+  if ((release && hint_start_time_ == 0) ||
+      (hint_start_time_ != 0 &&
+       nanoseconds_to_milliseconds(current_time - hint_start_time_) < elapse_time_threshold_)) {
+    return;
+  }
 
   if (release) {
-    if (sdm_tid_ != tid) {
-      DLOGV_IF(kTagResources, "SDM's tid:%d is updated to :%d", sdm_tid_, tid);
-      int ret = cpu_hint_->ReqHint(kSDM, tid);
-      if (!ret) {
-        sdm_tid_ = tid;
-      }
-    }
+    DTRACE_BEGIN("Release LargeCompositionHint");
+    DTRACE_END();
 
-    // For long term large composition hint, release the acquired handle after
-    // 100 milliseconds to avoid resending hints in animation launch use cases
-    // and others.
-    if (hint_release_start_time_ == 0) {
-      hint_release_start_time_ = callbacks_->SystemTime(SYSTEM_TIME_MONOTONIC);
-    }
-
-    nsecs_t current_time = callbacks_->SystemTime(SYSTEM_TIME_MONOTONIC);
-    if (nanoseconds_to_milliseconds(current_time - hint_release_start_time_) >=
-        elapse_time_threshold_) {
-      cpu_hint_->ReqHintRelease();
-    }
-    return;
-  }
-
-  if (sdm_tid_ != tid) {
-    DLOGV_IF(kTagResources, "SDM's tid:%d is updated to :%d", sdm_tid_, tid);
-    cpu_hint_->ReqHintsOffload(kPerfHintLargeCompCycle, tid);
-    sdm_tid_ = tid;
+    cpu_hint_->ReqHintRelease();
+    // Reset time when large composition hint is active
+    hint_start_time_ = 0;
   } else {
+    DTRACE_BEGIN("Send LargeCompositionHint");
+    DTRACE_END();
     // Sending tid as 0 indicates to Perf HAL that SDM's tid is unchanged for
     // the current frame
-    cpu_hint_->ReqHintsOffload(kPerfHintLargeCompCycle, 0);
+    cpu_hint_->ReqHintsOffload(kPerfHintLargeCompCycle, (updated_tid) ? tid : 0);
+    hint_start_time_ = current_time;
+    sdm_tid_ = tid;
   }
-
-  // Reset time when large composition hint is active
-  hint_release_start_time_ = 0;
 }
 
 void SDMDisplayBuiltIn::ReqPerfHintRelease() {
@@ -1950,6 +1925,68 @@ DisplayError SDMDisplayBuiltIn::EnableCopr(bool en) {
 
 DisplayError SDMDisplayBuiltIn::GetCoprStats(std::vector<int> *stats) {
   return display_intf_->GetCoprStats(stats);
+}
+
+void SDMDisplayBuiltIn::InitializePerfHints() {
+  // First, detect that boot has reached complete stage
+  if (!boot_completed_time_) {
+    int value = 0;
+    SDMDebugHandler::Get()->GetProperty("vendor.post_boot.parsed", &value);
+    bool boot_done = (value == 1);
+    boot_completed_time_ = boot_done ? callbacks_->SystemTime(SYSTEM_TIME_MONOTONIC) : 0;
+    return;
+  }
+
+  // Allow perf hal to initialize and boot up for 100ms after boot completed. At time T+100ms,
+  // check if perf hints will be enabled/disabled.
+  if (enable_perf_hints_ && !cpu_hint_) {
+    nsecs_t current_time = callbacks_->SystemTime(SYSTEM_TIME_MONOTONIC);
+    if (nanoseconds_to_milliseconds(current_time - boot_completed_time_) > elapse_time_threshold_) {
+      int value = 0;
+      SDMDebugHandler::Get()->GetProperty("vendor.mpctl.init.complete", &value);
+      enable_perf_hints_ = (value == 1);
+
+      if (enable_perf_hints_) {
+        cpu_hint_ = new CPUHint();
+        if (cpu_hint_->Init(static_cast<SDMDebugHandler *>(SDMDebugHandler::Get()), callbacks_) !=
+            kErrorNone) {
+          delete cpu_hint_;
+          cpu_hint_ = NULL;
+          DLOGW("CPU Hints failed to initialize");
+          return;
+        }
+        DLOGI("Perf hints enabled");
+      } else {
+        DLOGI("Perf hints disabled");
+      }
+
+      // Reset to indicate perf hints initialization is done
+      enable_perf_hints_ = false;
+    }
+  }
+}
+
+void SDMDisplayBuiltIn::HandlePowerModeHint(SDMPowerMode mode) {
+  if (!cpu_hint_) {
+    return;
+  }
+
+  switch (mode) {
+    case SDMPowerMode::POWER_MODE_ON:
+      cpu_hint_->ReqEvent(kPerfHintDisplayOn);
+      break;
+    case SDMPowerMode::POWER_MODE_OFF:
+      cpu_hint_->ReqEvent(kPerfHintDisplayOff);
+      break;
+    case SDMPowerMode::POWER_MODE_DOZE:
+    case SDMPowerMode::POWER_MODE_DOZE_SUSPEND:
+      // Perf hal doesn't differentiate b/w doze and doze-suspend, so send doze
+      // hint for both.
+      cpu_hint_->ReqEvent(kPerfHintDisplayDoze);
+      break;
+    default:
+      break;
+  }
 }
 
 } // namespace sdm
