@@ -28,8 +28,8 @@
  */
 
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -4066,9 +4066,10 @@ bool SDMDisplay::NotifyIdleNow() {
 DisplayError SDMDisplay::GetSDMActiveConfig(bool get_real_config, Config *config_index) {
   Config real_config;
   DisplayError error = display_intf_->GetActiveConfig(&real_config);
-  if (error != kErrorNone) {
+  if (error != kErrorNone && error != kErrorConfigMismatch) {
     return error;
   }
+
   *config_index = real_config;
 
   if (get_real_config) {
@@ -4163,9 +4164,9 @@ DisplayError SDMDisplay::FinalizeDisplayConfig(bool check_pending_config, Config
   auto &info = variable_config_map_[new_config];
   Config new_real_config = (info.is_virtual_config) ? info.parent_config_index : new_config;
   Config current_real_config = 0;
-  display_intf_->GetActiveConfig(&current_real_config);
-  if (current_real_config != new_real_config) {
-    auto error = display_intf_->SetActiveConfig(new_real_config);
+  auto error = display_intf_->GetActiveConfig(&current_real_config);
+  if (current_real_config != new_real_config || error == kErrorConfigMismatch) {
+    error = display_intf_->SetActiveConfig(new_real_config);
     if (error != kErrorNone) {
       DLOGW(
           "Failed to set new real config:%d from current real config:%d! Error: %d"
