@@ -27,8 +27,8 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <algorithm>
@@ -1627,6 +1627,11 @@ ConcurrencyMgr::SetReadbackBuffer(uint64_t display, void *buffer,
 
 DisplayError ConcurrencyMgr::HandleCwbCallBack(int display_index, void *buffer,
                                                const CwbConfig &cwb_config) {
+  // Add bounds checking to prevent out-of-bounds access
+  if (display_index < 0 || display_index >= sdm_display_.size()) {
+    return kErrorParameters;
+  }
+
   SCOPE_LOCK(locker_[display_index]);
 
   // Get display instance using display type.
