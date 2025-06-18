@@ -625,6 +625,20 @@ DisplayError DisplayBuiltIn::Prepare(LayerStack *layer_stack) {
   error = DisplayBase::Prepare(layer_stack);
   if (error != kErrorNone) {
     return error;
+  } else {
+    if (!disp_layer_stack_->stack->flags.default_strategy && previous_frame_default_strategy_) {
+      DLOGI("Strategy has been changed to extern support from default, enabling demura");
+      previous_frame_default_strategy_ = false;
+      if (demura_intended_) {
+        int ret = SetDemuraIntfStatus(true);
+        if (ret) {
+          DLOGE("Failed to set demura intf status. Error:%d", ret);
+        }
+      }
+    }
+    if (disp_layer_stack_->stack->flags.default_strategy) {
+      previous_frame_default_strategy_ = true;
+    }
   }
 
   UpdateQsyncConfig();
