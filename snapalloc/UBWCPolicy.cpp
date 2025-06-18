@@ -454,8 +454,10 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc,
     vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
         static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
             GetPixelFormatModifier(desc));
+    bool is_ubwc_supported_by_gpu = false;
     if (graphics_provider_->IsUBWCSupportedByGPU(desc.format, pixel_format_modifier)) {
       int size = 0;
+      is_ubwc_supported_by_gpu = true;
       if (graphics_provider_ != nullptr) {
         vendor_qti_hardware_display_common_GraphicsMetadata graphics_metadata;
 
@@ -470,7 +472,7 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc,
       // Plane layout
       BufferConstraints data;
       int status = 0;
-      status = graphics_provider_->BuildConstraints(desc, &data);
+      status = graphics_provider_->BuildConstraints(desc, &data, is_ubwc_supported_by_gpu);
       if (status != 0) {
         DLOGE("Error while getting constraints from graphics libs");
         return Error::NO_RESOURCES;

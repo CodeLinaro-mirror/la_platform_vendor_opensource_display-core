@@ -205,6 +205,7 @@ DisplayError DisplayBase::Init() {
     return kErrorResources;
   }
 
+  active_config_index_ = active_index;
   active_refresh_rate_ = client_ctx_.display_attributes.fps;
 
   windowed_display_ =
@@ -1953,8 +1954,11 @@ DisplayError DisplayBase::PostCommit() {
   CacheFrameBuffer();
 
   for (auto& info : disp_layer_stack_->info) {
-    for (auto &hw_layer : info.second.hw_layers) {
-      CloseFd(&hw_layer.input_buffer.planes[0].fd);
+    // TODO: Need to clean up and add generic logic
+    if (!client_ctx_.display_attributes.fsc_panel) {
+      for (auto &hw_layer : info.second.hw_layers) {
+        CloseFd(&hw_layer.input_buffer.planes[0].fd);
+      }
     }
   }
 
@@ -2142,7 +2146,15 @@ DisplayError DisplayBase::GetRealConfig(uint32_t index, DisplayConfigVariableInf
 
 DisplayError DisplayBase::GetActiveConfig(uint32_t *index) {
   ClientLock lock(disp_mutex_);
-  return dpu_core_mux_->GetActiveConfig(index);
+  auto ret = dpu_core_mux_->GetActiveConfig(index);
+
+  // If the active config is different between SDM and DAL, it indicates that the mode has not been
+  // updated in SDM. To resolve this, return kErrorConfigMismatch to allow SDMClient to initiate a
+  // mode switch within SDM.
+  if (*index != active_config_index_) {
+    return kErrorConfigMismatch;
+  }
+  return ret;
 }
 
 DisplayError DisplayBase::GetVSyncState(bool *enabled) {
@@ -2399,6 +2411,7 @@ DisplayError DisplayBase::SetActiveConfig(uint32_t index) {
 
   avoid_qsync_mode_change_ = true;
 
+  active_config_index_ = index;
   active_refresh_rate_ = client_ctx.display_attributes.fps;
 
   return ReconfigureDisplay();
@@ -3628,6 +3641,11 @@ DisplayError DisplayBase::SetCompositionState(LayerComposition composition_type,
 void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
   if (!layer_stack) {
     DLOGW("Invalid layer stack found");
+    return;
+  }
+
+  if (client_ctx_.display_attributes.fsc_panel) {
+    DLOGW("fsd panel, no need to update buffers fds");
     return;
   }
 

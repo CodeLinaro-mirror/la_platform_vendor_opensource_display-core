@@ -249,11 +249,7 @@ class SnapMetadataManager {
                                       BufferDescriptor *buf_des = nullptr);
   Error ViewIdHelper(SnapMetadata *metadata, SnapHandleInternal *handle, void *in_set = nullptr,
                      void *out_get = nullptr, BufferDescriptor *buf_des = nullptr);
-  struct ViewMapping {
-    uint32_t left_id;
-    uint32_t right_id;
-  };
-  std::unordered_map<uint64_t, std::pair<uint32_t, ViewMapping>> bufferid_view_map_ = {};
+
   struct DRMFormatDescriptor {
     uint32_t drm_format;
     uint64_t drm_modifier;

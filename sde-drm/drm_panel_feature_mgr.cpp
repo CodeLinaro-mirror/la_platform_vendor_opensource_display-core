@@ -470,6 +470,17 @@ void DRMPanelFeatureMgr::GetPanelFeatureInfo(DRMPanelFeatureInfo *info) {
   if (info->prop_id > kDRMPanelFeatureMax) {
     DRM_LOGE("Invalid feature id %d", info->prop_id);
     return;
+  } else if (info->prop_id == kDRMPanelFeatureDemuraDoubleBufferCbFlags) {
+    if (!info->prop_ptr) {
+      DRM_LOGE("Invalid prop_ptr is nullptr, prop_id %d", info->prop_id);
+      return;
+    }
+
+    // Starting from version 4, the double buffer codebook is supported
+    bool *double_buffer_codebook_supported = reinterpret_cast<bool *>(info->prop_ptr);
+    *double_buffer_codebook_supported =
+        (feature_info_tbl_[kDRMPanelFeatureDemuraInit].version >= 4 ? true : false);
+    return;
   }
 
   DRMProperty prop_enum = drm_property_map_[info->prop_id];
@@ -482,12 +493,6 @@ void DRMPanelFeatureMgr::GetPanelFeatureInfo(DRMPanelFeatureInfo *info) {
   // memory is not allocated by client - populate default property info
   if (!info->prop_ptr) {
     *info = feature_info_tbl_[info->prop_id];
-    return;
-  } else if (info->prop_id == kDRMPanelFeatureDemuraInit) {
-    // Starting from version 4, the double buffer codebook is supported
-    bool *double_buffer_codebook_supported = reinterpret_cast<bool *>(info->prop_ptr);
-    *double_buffer_codebook_supported =
-        (feature_info_tbl_[info->prop_id].version >= 4 ? true : false);
     return;
   }
 

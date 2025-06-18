@@ -92,6 +92,8 @@ class HWDeviceDRM : public HWInterface {
   }
 
  protected:
+  const int kEarlyPrefil = 40;
+
   // From HWInterface
   virtual DisplayError GetDisplayId(int32_t *display_id);
   virtual DisplayError GetActiveConfig(uint32_t *active_config);
@@ -213,6 +215,7 @@ class HWDeviceDRM : public HWInterface {
   static const int kMaxStringLength = 1024;
   static const int kNumPhysicalDisplays = 2;
   static const int kMaxSysfsCommandLength = 12;
+  static const int kPixelThroughput = 3;
 
   DisplayError SetFormat(const LayerBufferFormat &source, uint32_t *target);
   DisplayError SetStride(HWDeviceType device_type, LayerBufferFormat format, uint32_t width,
@@ -393,6 +396,7 @@ class HWDeviceDRM : public HWInterface {
  private:
   void GetCWBCapabilities();
   void GetCWBDitherVersion(DRMPPFeatureInfo *info);
+  void UpdateDisplayAttributesForFSC(HWDisplayAttributes *display_attributes);
 
   std::string interface_str_ = "DSI";
   bool autorefresh_ = false;

@@ -339,7 +339,7 @@ DisplayError SDMTrustedUI::TUITransitionEndLocked(int disp_id) {
   // Add check for internal state for bailing out (needs_refresh to false)
   if (needs_refresh) {
     DLOGI("Waiting for device unassign");
-    DisplayError ret = cb_->WaitForCommitDone(target_display, kClientTrustedUI);
+    DisplayError ret = cb_->WaitForCommitDoneAsync(target_display, kClientTrustedUI);
     if (ret != 0) {
       if (ret != kErrorTimeOut) {
         DLOGE("Device unassign failed with error %d", ret);

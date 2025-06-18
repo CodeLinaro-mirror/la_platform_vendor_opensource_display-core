@@ -128,7 +128,8 @@ class GraphicsConstraintProvider : public SnapConstraintProvider {
   uint32_t AdrenoGetAlignedGpuBufferSize(void *metadata_blob);
   bool IsUBWCSupportedByGPU(vendor_qti_hardware_display_common_PixelFormat format,
                             vendor_qti_hardware_display_common_PixelFormatModifier modifier);
-  int BuildConstraints(BufferDescriptor desc, BufferConstraints *data);
+  int BuildConstraints(BufferDescriptor desc, BufferConstraints *data,
+                       bool is_ubwc_supported_by_gpu);
 
  private:
   GraphicsConstraintProvider(){};
