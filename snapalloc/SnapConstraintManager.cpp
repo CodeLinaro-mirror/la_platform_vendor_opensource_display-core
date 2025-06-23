@@ -473,6 +473,14 @@ Error SnapConstraintManager::AlignmentToAlignedConstraints(BufferDescriptor desc
           plane.stride.horizontal_stride =
               ALIGN(desc.width, alignment.planes[i].stride.horizontal_stride_align) *
               (format_data.bits_per_pixel / 8);
+        } else if (format_data.planes[0].sample_increment_bits % 8 != 0) {
+          // 8.0f to handle for formats whose bpp is not aligned with 8 ex:raw10 has 10 bpp
+          OVERFLOW_ERR_RETURN(static_cast<uint64_t>(desc.width),
+                              (format_data.planes[0].sample_increment_bits / 8.0f));
+          // TODO: Need to avoid overflow here.
+          plane.stride.horizontal_stride =
+              ALIGN(desc.width * format_data.planes[0].sample_increment_bits / 8,
+                    alignment.planes[i].stride.horizontal_stride_align);
         } else {
           OVERFLOW_ERR_RETURN(desc.width, (format_data.planes[0].sample_increment_bits / 8));
           plane.stride.horizontal_stride =
