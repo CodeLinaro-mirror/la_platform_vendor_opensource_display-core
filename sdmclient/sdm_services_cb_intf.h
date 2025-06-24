@@ -27,12 +27,11 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #ifndef __SDM_SERVICES_CB_INTF_H__
 #define __SDM_SERVICES_CB_INTF_H__
 
@@ -59,7 +58,7 @@ public:
                                         int32_t int_enabled) = 0;
   virtual DisplayError SetDimmingMinBl(Display display, int32_t min_bl) = 0;
   virtual DisplayError SetDisplayBrightness(Display display,
-                                            float brightness) = 0;
+                                            float brightness, bool perform_commit) = 0;
   virtual DisplayError GetDisplayPortId(uint32_t disp_id, int *port_id) = 0;
   virtual std::mutex *GetLumMutex() = 0;
   virtual DisplayError SetPanelFeatureConfig(Display display, int32_t type, void *data) = 0;

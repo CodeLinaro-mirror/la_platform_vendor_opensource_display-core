@@ -141,17 +141,19 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
     uint32_t flags = {};
   };
 
+#ifndef TARGET_INCLUDES_NEO
   struct AIScalerCache {
     struct drm_msm_ai_scaler scaler_data = {};
   };
+  struct drm_msm_ai_scaler sde_ai_scaler_cfg_ = {};
+  std::vector<AIScalerCache> ai_scaler_cache_ = {};
+#endif
 
   sde_drm_dest_scaler_data sde_dest_scalar_data_ = {};
-  struct drm_msm_ai_scaler sde_ai_scaler_cfg_ = {};
   std::vector<SDEScaler> scalar_data_ = {};
   sde_drm::DRMIdlePCState idle_pc_state_ = sde_drm::DRMIdlePCState::NONE;
   bool idle_pc_enabled_ = true;
   std::vector<DestScalarCache> dest_scalar_cache_ = {};
-  std::vector<AIScalerCache> ai_scaler_cache_ = {};
   drm_msm_ad4_roi_cfg ad4_roi_cfg_ = {};
   bool needs_ds_update_ = false;
   bool needs_ai_scaler_update_ = false;

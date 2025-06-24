@@ -153,12 +153,14 @@ static PPBlock GetPPBlock(const HWToneMapLut &lut_type) {
 
 static uint64_t GetDRMModifier(uint64_t default_modifier, HWCacColorComponent cac_color) {
   switch (cac_color) {
+#ifndef TARGET_INCLUDES_NEO
     case kCacRed:
       return DRM_FORMAT_MOD_QCOM_CAC_R;
     case kCacGreen:
       return DRM_FORMAT_MOD_QCOM_CAC_G;
     case kCacBlue:
       return DRM_FORMAT_MOD_QCOM_CAC_B;
+#endif
     default:
       return default_modifier;
   }
@@ -1529,6 +1531,7 @@ DisplayError HWDeviceDRM::Doze(const HWQosData &qos_data, SyncPoints *sync_point
   sync_points->release_fence = Fence::Create(release_fence_fd, "release_doze");
   DLOGD_IF(kTagDriverConfig, "RELEASE fence: fd: %d", INT(release_fence_fd));
 
+  pending_power_state_ = kPowerStateNone;
   last_power_mode_ = DRMPowerMode::DOZE;
 
   return kErrorNone;
@@ -2079,6 +2082,7 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
     }
   }
 
+  bool active_state_toggled = false;
   if (first_cycle_) {
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_TOPOLOGY_CONTROL, token_.conn_id,
                               topology_control_);
@@ -2095,15 +2099,18 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_ACTIVE, token_.crtc_id, 1);
     if (GetDRMPowerMode(pending_power_state_, &power_mode) == kErrorNone) {
       drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_POWER_MODE, token_.conn_id, power_mode);
+      active_state_toggled =
+          ((last_power_mode_ == DRMPowerMode::OFF) && (power_mode != DRMPowerMode::OFF));
       last_power_mode_ = power_mode;
     }
   }
 
   // Set CRTC mode, only if display config changes
-  if (first_cycle_ || vrefresh_ || update_mode_) {
+  if (first_cycle_ || (!active_state_toggled && (vrefresh_ || update_mode_))) {
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_MODE, token_.crtc_id, &current_mode.mode);
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_DSC_MODE, token_.conn_id,
                               current_mode.curr_compression_mode);
+    update_mode_ = false;
   }
 
   if (!validate && (hw_layers_info->common_info->set_idle_time_ms >= 0)) {
@@ -2385,7 +2392,6 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
   panel_compression_changed_ = 0;
   reset_planes_luts_ = false;
   first_cycle_ = false;
-  update_mode_ = false;
   pending_power_state_ = kPowerStateNone;
   pending_cwb_teardown_ = false;
   // Inherently a real commit ensures null commit properties have happened, so update the member

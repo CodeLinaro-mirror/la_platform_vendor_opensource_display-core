@@ -63,6 +63,10 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef TARGET_INCLUDES_NEO
+#include "display/drm/msm_drm_aiqe.h"
+#endif
+
 #include "drm_panel_feature_mgr.h"
 
 #include <drm_logger.h>
@@ -75,7 +79,6 @@
 #include <string>
 #include <tuple>
 
-#include "display/drm/msm_drm_aiqe.h"
 #include <utils/debug.h>
 #include <display_properties.h>
 
@@ -204,6 +207,7 @@ void DRMPanelFeatureMgr::Init(int fd, drmModeRes* res) {
                           1,
                           sizeof(drm_msm_dem_cfg0_param2),
                           0};
+#ifndef TARGET_INCLUDES_NEO
   feature_info_tbl_[kDRMPanelFeatureAiqeSSRCConfig] =
       DRMPanelFeatureInfo{kDRMPanelFeatureAiqeSSRCConfig,
                           DRM_MODE_OBJECT_CRTC,
@@ -232,14 +236,17 @@ void DRMPanelFeatureMgr::Init(int fd, drmModeRes* res) {
       kDRMPanelFeatureAiqeMdnieIPC, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, sizeof(uint64_t), 0};
   feature_info_tbl_[kDRMPanelFeatureAiqeCopr] = DRMPanelFeatureInfo{
       kDRMPanelFeatureAiqeCopr, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, sizeof(uint64_t), 0};
+#endif
   feature_info_tbl_[kDRMPanelFeatureABC] =
       DRMPanelFeatureInfo{kDRMPanelFeatureABC, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, 64, 0};
   feature_info_tbl_[kDRMPanelFeatureDemuraBacklight] = DRMPanelFeatureInfo{
       kDRMPanelFeatureDemuraBacklight, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, sizeof(uint32_t), 0};
 
   int value = 0;
+#ifndef TARGET_INCLUDES_NEO
   sdm::Debug::Get()->GetProperty(ENABLE_AI_SCALER_PROP, &value);
   enable_ai_scaler_ = (value > 0);
+#endif
 
   value = 0;
   sdm::Debug::Get()->GetProperty(ENABLE_ABC, &value);

@@ -1754,6 +1754,7 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
     master_hw_events_intf_->SetEventState(HWEvent::HISTOGRAM, true);
     master_hw_events_intf_->SetEventState(HWEvent::MMRM, true);
     master_hw_events_intf_->SetEventState(HWEvent::VM_RELEASE_EVENT, true);
+    master_hw_events_intf_->SetEventState(HWEvent::VM_RECLAIM_EVENT, true);
     registered_hw_events_ = true;
   }
 
@@ -4299,7 +4300,8 @@ DisplayError DisplayBase::HandleSecureEvent(SecureEvent secure_event, bool *need
       }
       vsync_enable_pending_ = true;
     }
-    *needs_refresh = (client_ctx_.hw_panel_info.mode == kModeCommand);
+    *needs_refresh =
+        (client_ctx_.hw_panel_info.mode == kModeCommand || client_ctx_.hw_panel_info.vhm_support);
     DisablePartialUpdateOneFrameInternal();
     err = master_hw_events_intf_->SetEventState(HWEvent::BACKLIGHT_EVENT, true);
     if (err != kErrorNone) {

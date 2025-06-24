@@ -66,7 +66,7 @@
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -183,6 +183,7 @@ void HWScaleDRM::SetScalerV2(const HWScaleData &scale_data, sde_drm_scaler_v2 *s
     scaler->src_height[i] = plane.src_height;
 
     // cac params
+#ifndef TARGET_INCLUDES_NEO
     scaler->cac_cfg.cac_le_phase_init2_x[i] = plane.cac_le_phase_init2_x;
     scaler->cac_cfg.cac_le_phase_init2_y[i] = plane.cac_le_phase_init2_y;
     scaler->cac_cfg.cac_re_phase_init2_y[i] = plane.cac_re_phase_init2_y;
@@ -197,6 +198,7 @@ void HWScaleDRM::SetScalerV2(const HWScaleData &scale_data, sde_drm_scaler_v2 *s
     scaler->cac_cfg.cac_le_inc_skip_y[i] = plane.cac_le_inc_skip_y;
     scaler->cac_cfg.cac_re_inc_skip_x[i] = plane.cac_re_inc_skip_y;
     scaler->cac_cfg.cac_re_inc_skip_y[i] = plane.cac_re_inc_skip_y;
+#endif
   }
 
   scaler->dst_width = scale_data.dst_width;
@@ -247,6 +249,7 @@ void HWScaleDRM::SetScalerV2(const HWScaleData &scale_data, sde_drm_scaler_v2 *s
   scaler->pre_downscale_y_1 = scale_data.src_y_pre_down_scale_1;
 #endif
 
+#ifndef TARGET_INCLUDES_NEO
   // cac params
   scaler->cac_cfg.cac_mode = scale_data.cac_mode;
   scaler->cac_cfg.cac_dst_uv_w = scale_data.cac_dst_uv_w;
@@ -261,6 +264,7 @@ void HWScaleDRM::SetScalerV2(const HWScaleData &scale_data, sde_drm_scaler_v2 *s
   scaler->cac_cfg.cac_asym_phase_step_v = scale_data.cac_asym_phase_step_v;
   scaler->cac_cfg.cac_re_phase_step_v = scale_data.cac_re_phase_step_v;
   scaler->cac_cfg.cac_re_asym_phase_step_v = scale_data.cac_re_asym_phase_step_v;
+#endif
 
   return;
 }

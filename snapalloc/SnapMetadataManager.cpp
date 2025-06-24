@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapMetadataManager.h"
@@ -310,7 +310,7 @@ Error SnapMetadataManager::CompressionHelper(SnapMetadata *metadata, SnapHandleI
                              .width = handle->aligned_width_in_pixels(),
                              .height = handle->aligned_height(),
                              .layerCount = static_cast<int32_t>(handle->layer_count()),
-                             .reservedSize = handle->reserved_size()};
+                             .reservedSize = static_cast<long>(handle->reserved_size())};
     UBWCPolicy *ubwc_policy = UBWCPolicy::GetInstance();
     bool ubwc_enable = ubwc_policy->IsUBWCAlloc(desc);
     int64_t qti_compression = vendor_qti_hardware_display_common_Compression::COMPRESSION_NONE;
@@ -385,7 +385,7 @@ Error SnapMetadataManager::PlaneLayoutsHelper(SnapMetadata *metadata, SnapHandle
                                .width = handle->unaligned_width(),
                                .height = handle->unaligned_height(),
                                .layerCount = static_cast<int32_t>(handle->layer_count()),
-                               .reservedSize = handle->reserved_size()};
+                               .reservedSize = static_cast<long>(handle->reserved_size())};
       static vendor_qti_hardware_display_common_KeyValuePair modifier = {
           .key = "interlaced", .value = static_cast<uint64_t>(1)};
       desc.additionalOptions.emplace_back(modifier);
@@ -971,7 +971,7 @@ Error SnapMetadataManager::ReservedRegionHelper(SnapMetadata *metadata, SnapHand
                                                 BufferDescriptor *buf_des) {
   if (out_get != nullptr) {
     vendor_qti_hardware_display_common_ReservedRegion snap_reserved_region;
-    snap_reserved_region.size = handle->reserved_size();
+    snap_reserved_region.size = static_cast<uint32_t>(handle->reserved_size());
     snap_reserved_region.reserved_region_addr.addressPointer = handle->reserved_region_base();
     *static_cast<vendor_qti_hardware_display_common_ReservedRegion *>(out_get) =
         snap_reserved_region;
@@ -1341,7 +1341,7 @@ Error SnapMetadataManager::GetCustomDimensions(SnapHandleInternal *hnd, SnapMeta
                                .width = hnd->aligned_width_in_pixels(),
                                .height = hnd->aligned_height(),
                                .layerCount = static_cast<int32_t>(hnd->layer_count()),
-                               .reservedSize = hnd->reserved_size()};
+                               .reservedSize = static_cast<long>(hnd->reserved_size())};
       static vendor_qti_hardware_display_common_KeyValuePair modifier = {
           .key = "interlaced", .value = static_cast<uint64_t>(1)};
       desc.additionalOptions.emplace_back(modifier);

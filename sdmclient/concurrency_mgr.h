@@ -27,8 +27,8 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #ifndef __CONCURRENCY_MGR_H__
@@ -416,7 +416,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   GetDisplayCapabilities(Display display,
                          vector<SDMDisplayCapability> *capabilities);
   DisplayError GetDisplayBrightnessSupport(Display display, bool *outSupport);
-  DisplayError SetDisplayBrightness(Display display, float brightness);
+  DisplayError SetDisplayBrightness(Display display, float brightness, bool performing_commit);
   DisplayError WaitForResources(bool wait_for_resources,
                                 Display active_builtin_id,
                                 Display display_id) override;
@@ -491,6 +491,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                                     uint32_t refresh_rate,
                                     uint32_t qsync_refresh_rate);
   virtual void VmReleaseDone(Display display);
+  virtual void VmReclaimDone(Display display);
   virtual DisplayError NotifyCwbDone(int dpy_index, int32_t status,
                                      uint64_t handle_id);
   virtual int NotifyIdleStatus(bool idle_status);

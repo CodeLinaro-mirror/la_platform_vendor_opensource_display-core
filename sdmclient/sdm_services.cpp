@@ -27,12 +27,11 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #include <utils/constants.h>
 
 #include <algorithm>
@@ -1537,10 +1536,10 @@ DisplayError SDMServices::SetDisplayBrightness(SDMParcel *input_parcel,
   int level = input_parcel->readInt32();
   DisplayError ret = kErrorNone;
   if (level == 0) {
-    ret = cb_->SetDisplayBrightness(display, -1.0f);
+    ret = cb_->SetDisplayBrightness(display, -1.0f, false);
   } else {
     ret = cb_->SetDisplayBrightness(
-        display, (level - 1) / (static_cast<float>(max_brightness_level - 1)));
+        display, (level - 1) / (static_cast<float>(max_brightness_level - 1)), false);
   }
   if (ret != kErrorNone) {
     return ret;
@@ -1706,7 +1705,7 @@ DisplayError SDMServices::QdcmCMDHandler(SDMParcel *input_parcel,
           ret = kErrorParameters;
         } else {
           auto err = cb_->SetDisplayBrightness(static_cast<Display>(display_id),
-                                               *brightness);
+                                               *brightness, false);
           if (err != kErrorNone) {
             ret = kErrorNotSupported;
           }
