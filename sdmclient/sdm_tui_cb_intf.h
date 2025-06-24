@@ -27,13 +27,14 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #ifndef __SDM_TUI_CB_INTF_H__
 #define __SDM_TUI_CB_INTF_H__
 
+#include <shared_mutex>
 #include <utils/locker.h>
 
 #include "sdm_display.h"
@@ -51,7 +52,12 @@ public:
   virtual DisplayError NotifyTUIDone(int ret, int disp_id, SDMTUIEventType event_type) = 0;
   virtual DisplayError TeardownConcurrentWriteback(Display display) = 0;
 
-  std::mutex tui_mutex_;
+  // Shared mutex used to synchronize TUI transitions with SF command
+  // execution. SF binder threads acquire it in shared mode (allowing
+  // concurrent execution across displays). TUI acquires it exclusively in
+  // TUITransitionPrepare to wait for all in-flight commands to complete and
+  // to prevent new commands from starting before HandleSecureEvent is called.
+  std::shared_mutex tui_mutex_;
 };
 
 } // namespace sdm

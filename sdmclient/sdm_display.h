@@ -43,6 +43,7 @@
 #include <bitset>
 #include <core/buffer_sync_handler.h>
 #include <core/core_interface.h>
+#include <core/sdm_types.h>
 #include <map>
 #include <private/color_params.h>
 #include <queue>
