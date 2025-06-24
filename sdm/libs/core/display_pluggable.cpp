@@ -156,9 +156,28 @@ DisplayError DisplayPluggable::Init() {
     }
   }
 
+  /* If the panel feature is not supported, do not create event_intf to avoid the display
+   * being incorrectly released.
+   */
+  if (prop_intf_) {
+    error = event_proxy_info_.Init(client_ctx_.hw_panel_info.panel_name, this,
+                                   extension_lib_, prop_intf_);
+    if (error != kErrorNone) {
+      DLOGW("Failed to initialize event proxy info");
+      event_proxy_info_.Deinit();
+    }
+  }
+
   current_refresh_rate_ = client_ctx_.hw_panel_info.max_fps;
 
   return error;
+}
+
+DisplayError DisplayPluggable::Deinit() {
+  ClientLock lock(disp_mutex_);
+
+  event_proxy_info_.Deinit();
+  return DisplayBase::Deinit();
 }
 
 DisplayError DisplayPluggable::GetStcColorModes(snapdragoncolor::ColorModeList *mode_list) {
@@ -652,8 +671,33 @@ bool DisplayPluggable::IsPrimaryDisplay() {
   return DisplayBase::IsPrimaryDisplay();
 }
 
+DisplayError DisplayPluggable::SetPaHistCollection(
+    const std::string &client_name, bool enable,
+    SdmDisplayCbInterface<PaHistCollectionPayload> *cb_intf) {
+  return event_proxy_info_.SetPaHistCollection(client_name, enable, cb_intf);
+}
+
+DisplayError DisplayPluggable::GetPaHistBins(std::array<uint32_t, HIST_BIN_SIZE> *buf) {
+  return event_proxy_info_.GetPaHistBins(buf);
+}
+
 DisplayError DisplayPluggable::GetPanelBrightnessBasePath(std::string *base_path) {
   return dpu_core_mux_->GetPanelBrightnessBasePath(base_path);
+}
+
+DisplayError DisplayPluggable::NotifyDisplayCalibrationMode(bool in_calibration) {
+  ClientLock lock(disp_mutex_);
+  if (!color_mgr_) {
+    return kErrorNotSupported;
+  }
+
+  DisplayError ret = kErrorNone;
+  ret = color_mgr_->NotifyDisplayCalibrationMode(in_calibration);
+  if (ret != kErrorNone) {
+    DLOGE("Failed to notify QDCM Mode status, ret = %d state = %d", ret, in_calibration);
+  }
+
+  return ret;
 }
 
 }  // namespace sdm
