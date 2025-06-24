@@ -26,11 +26,13 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 /*
  * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #include "sdm_layers.h"
 #include "sdm_debugger.h"
 #include <UBWCVersion.h>
@@ -146,6 +148,15 @@ SDMLayer::~SDMLayer() {
     if (buffer_fd_ >= 0) {
       ::close(buffer_fd_);
     }
+
+    // Delete luts if they are still valid
+    if (layer_->lut_3d.lutEntries != nullptr) {
+      delete[] layer_->lut_3d.lutEntries;
+    }
+    if (layer_->lut_3d.gridEntries != nullptr) {
+      delete[] layer_->lut_3d.gridEntries;
+    }
+
     delete layer_;
   }
   id_mgr_.EraseId(id_);

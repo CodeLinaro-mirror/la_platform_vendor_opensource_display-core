@@ -26,11 +26,13 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #ifndef __CONCURRENCY_MGR_H__
 #define __CONCURRENCY_MGR_H__
 
@@ -447,6 +449,8 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                                   uint32_t *out_num_elements,
                                   LayerId *out_layers,
                                   int32_t *out_layer_requests);
+  DisplayError GetDisplayLuts(Display display,
+                              std::unique_ptr<std::vector<std::pair<LayerId, Lut3d *>>> &out_luts);
   DisplayError GetReleaseFences(Display display, uint32_t *out_num_elements,
                                 LayerId *out_layers,
                                 std::vector<shared_ptr<Fence>> *out_fences);
