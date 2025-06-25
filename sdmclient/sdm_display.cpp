@@ -819,8 +819,9 @@ void SDMDisplay::BuildLayerStack() {
     layer->flags = {}; // Reset earlier flags
     SDMCompositionType requested_composition = sdm_layer->GetClientRequestedCompositionType();
 
-    // Mark all layers to skip, when client target handle is NULL
-    if (!client_target_->GetSDMLayer()->input_buffer.buffer_id) {
+    // Mark all layers to skip, when client target handle is NULL in default draw
+    if ((!client_target_->GetSDMLayer()->input_buffer.buffer_id) &&
+        (draw_method_ == kDrawDefault)) {
       layer->flags.skip = true;
       DLOGV_IF(kTagClient,
                "Layer [%" PRIu64
