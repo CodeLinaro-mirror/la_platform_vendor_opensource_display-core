@@ -193,6 +193,8 @@
 #define ANTI_AGING_IDLE_TIMER_SECONDARY               DISPLAY_PROP("demura_idle_timer_secondary")
 #define ANTI_AGING_RECALIB_TIMER_DIVIDER_SECONDARY    DISPLAY_PROP("demura_recalib_timer_divider_secondary")
 #define ANTI_AGING_SERVICE_RETRY_WAIT_TIME            DISPLAY_PROP("antiaging_service_retry_wait_time")
+#define ANTI_AGING_DISABLE_CWB_DOWNSCALING_PRIMARY    DISPLAY_PROP("antiaging_disable_cwb_downscaling_primary")
+#define ANTI_AGING_DISABLE_CWB_DOWNSCALING_SECONDARY  DISPLAY_PROP("antiaging_disable_cwb_downscaling_secondary")
 
 // PERF hint properties
 #define ENABLE_PERF_HINT_LARGE_COMP_CYCLE    DISPLAY_PROP("enable_perf_hint_large_comp_cycle")
