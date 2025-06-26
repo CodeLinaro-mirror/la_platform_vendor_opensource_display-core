@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <utils/debug.h>
 
@@ -184,18 +184,20 @@ void SDMDisplayBuilder::Init(Locker *locker) {
 
   // Init slots in accordance to h/w capability.
   uint32_t disp_count = UINT32(std::min(max_pluggable, kNumPluggable));
-  Display base_id = qdutilsDisplayType::DISPLAY_EXTERNAL;
+  Display base_id = SDM_DISPLAY_EXTERNAL;
   map_info_pluggable_.resize(disp_count);
   for (auto &map_info : map_info_pluggable_) {
     map_info.client_id = base_id++;
   }
 
+  base_id = SDM_DISPLAY_BUILTIN_2;
   disp_count = UINT32(std::min(max_builtin, kNumBuiltIn));
   map_info_builtin_.resize(disp_count);
   for (auto &map_info : map_info_builtin_) {
     map_info.client_id = base_id++;
   }
 
+  base_id = SDM_DISPLAY_VIRTUAL;
   disp_count = UINT32(std::min(max_virtual, kNumVirtual));
   map_info_virtual_.resize(disp_count);
   for (auto &map_info : map_info_virtual_) {
