@@ -351,6 +351,7 @@ DisplayError HWInfoDRM::GetHWResourceInfo(HWResourceInfo *hw_resource) {
           hw_resource->dyn_bw_info.total_bw_limit[index],
           hw_resource->dyn_bw_info.pipe_bw_limit[index]);
   }
+  DLOGI("Has demura single rec support = %d", hw_resource->support_demura_with_single_rec);
 
   if (!hw_resource_) {
     hw_resource_ = new HWResourceInfo();
@@ -483,6 +484,7 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
 
   MapPlaneToConnector(hw_resource);
   GetInitialDemuraInfo(hw_resource);
+  hw_resource->support_demura_with_single_rec = GetSupportDemuraWithSingleRec();
   for (auto &pipe_obj : planes) {
     if (max_vig_pipes && max_dma_pipes) {
       uint32_t master_plane_id = pipe_obj.second.master_plane_id;
@@ -662,6 +664,15 @@ void HWInfoDRM::MapPlaneToConnector(HWResourceInfo *hw_resource) {
 
 void HWInfoDRM::GetInitialDemuraInfo(HWResourceInfo *hw_resource) {
   drm_mgr_intf_->GetInitialDemuraInfo(&hw_resource->initial_demura_planes);
+}
+
+bool HWInfoDRM::GetSupportDemuraWithSingleRec() {
+  DRMPanelFeatureInfo info = {};
+  bool flags = false;
+  info.prop_id = sde_drm::kDRMPanelFeatureDemuraSupportSingleRecFlags;
+  info.prop_ptr = reinterpret_cast<uint64_t>(&flags);
+  drm_mgr_intf_->GetPanelFeature(&info);
+  return flags;
 }
 
 DisplayError HWInfoDRM::GetDemuraDoubleBufferCodebookFlags(bool *out) {

@@ -683,7 +683,10 @@ DisplayError CoreImpl::ReserveDemuraResources(
       // When req_cnt == 1 (Single LM topology usecase), pass rect number
       // based on the index of demura instance.
       int8_t preferred_rect = -1;
-      if (req_cnt == 1) {
+      if (hw_resource_[0].support_demura_with_single_rec) {
+        preferred_rect = 0;
+        DLOGI("[%u] Supports single rect. Requesting Demura rect %d", req.first, preferred_rect);
+      } else if (req_cnt == 1) {
         int8_t demura_instance_index = -1;
         HWDisplayInfo &info = hw_displays_info_[req.first];
         for (int i = 0; i < hw_resource_[0].demura_count; ++i) {

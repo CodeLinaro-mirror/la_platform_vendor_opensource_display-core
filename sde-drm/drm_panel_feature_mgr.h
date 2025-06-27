@@ -97,6 +97,7 @@ class DRMPanelFeatureMgr : public DRMPanelFeatureMgrIntf {
   void ParseDemuraResources(drmModePropertyRes *prop, uint64_t value, DRMPanelFeatureInfo *info);
   void ApplyDirtyFeature(drmModeAtomicReq *req, const DRMDisplayToken &token,
                          DRMPanelFeatureInfo &info);
+  void ParseCapabilities(uint32_t blob_id);
 
   std::mutex lock_;
   int dev_fd_ = -1;
@@ -110,6 +111,7 @@ class DRMPanelFeatureMgr : public DRMPanelFeatureMgrIntf {
   std::map<uint32_t /* obj_id */, DRMPanelFeatureID> apply_in_null_commit_ {};
   bool enable_ai_scaler_ = false;
   bool enable_abc_ = false;
+  bool has_demura_single_rect_support_ = false;
 };
 
 }  // namespace sde_drm
