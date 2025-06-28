@@ -427,9 +427,8 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
     vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
         static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
             GetPixelFormatModifier(desc));
-    if (graphics_provider_->IsUBWCSupportedByGPU(desc.format, pixel_format_modifier)) {
+    if (graphics_provider_ && graphics_provider_->IsUBWCSupportedByGPU(desc.format, pixel_format_modifier)) {
       int size = 0;
-      if (graphics_provider_ != nullptr) {
         vendor_qti_hardware_display_common_GraphicsMetadata graphics_metadata;
 
         int ret = graphics_provider_->GetInitialMetadata(desc, &graphics_metadata, true);
@@ -438,7 +437,6 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
           if (size > 0)
             out_ad->size = size;
         }
-      }
 
       // Plane layout
       BufferConstraints data;
