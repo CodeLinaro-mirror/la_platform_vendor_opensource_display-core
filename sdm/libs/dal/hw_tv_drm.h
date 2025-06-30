@@ -21,6 +21,11 @@
 * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+/*
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
+*/
 
 #ifndef __HW_TV_DRM_H__
 #define __HW_TV_DRM_H__
@@ -43,6 +48,7 @@ class HWTVDRM : public HWDeviceDRM {
                    HWInfoInterface *hw_info_intf);
 
  protected:
+  virtual DisplayError Init();
   virtual DisplayError SetDisplayAttributes(uint32_t index);
   virtual DisplayError GetConfigIndex(char *mode, uint32_t *index);
   virtual DisplayError PowerOff(bool teardown, SyncPoints *sync_points);
@@ -55,11 +61,27 @@ class HWTVDRM : public HWDeviceDRM {
   virtual DisplayError PowerOn(const HWQosData &qos_data, SyncPoints *sync_points);
   virtual DisplayError Deinit();
   virtual DisplayError Flush(HWLayersInfo *hw_layers_info);
+  void SetDestScalarData(const HWLayersInfo &hw_layer_info);
 
  private:
+  void InitDestScaler();
+  void SetDestScalarData(const DestScaleInfoMap dest_scale_info_map);
+  void ResetDestScalarCache();
+  void CacheDestScalarData();
+
   DisplayError UpdateHDRMetaData(HWLayersInfo *hw_layers_info);
   void DumpHDRMetaData(HWHDRLayerInfo::HDROperation operation);
   void InitMaxHDRMetaData();
+
+  struct DestScalarCache {
+    SDEScaler scalar_data = {};
+    uint32_t flags = {};
+  };
+
+  sde_drm_dest_scaler_data sde_dest_scalar_data_ = {};
+  std::vector<SDEScaler> scalar_data_ = {};
+  std::vector<DestScalarCache> dest_scalar_cache_ = {};
+  bool needs_ds_update_ = false;
 
   const float kDefaultMinLuminance = 0.02f;
   const float kDefaultMaxLuminance = 500.0f;

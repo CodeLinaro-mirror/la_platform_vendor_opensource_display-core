@@ -23,8 +23,8 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -504,10 +504,6 @@ DisplayError DisplayBuiltIn::PrePrepare(LayerStack *layer_stack) {
   disp_layer_stack_->stack_info.spr_enable = spr_enable_;
 
   AppendCWBLayer(layer_stack);
-  // Do not skip validate if needs update PP features.
-  if (color_mgr_) {
-    needs_validate_ |= color_mgr_->IsValidateNeeded();
-  }
 
   error = DisplayBase::PrePrepare(layer_stack);
   if (error == kErrorNone || error == kErrorNeedsLutRegen) {

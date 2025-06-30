@@ -23,8 +23,8 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -472,6 +472,13 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   QSyncMode qsync_mode_ = kQSyncModeNone;
   std::bitset<kUpdateAVRFlagMax> needs_avr_update_ = {};
   bool force_lm_to_fb_config_ = false;
+  bool trigger_idle_timeout_ = false;
+  /* enable_qdcm_colormodes_on_external_ = 0 means not use qdcm calibration
+   * enable_qdcm_colormodes_on_external_ = 1 means use qdcm xml calibration
+   * enable_qdcm_colormodes_on_external_ = 2 means use STC qdcm calibration
+   * set STC path as default method of get color modes
+   */
+  int enable_qdcm_colormodes_on_external_ = QdcmOnExternal::STC_QDCM;
 
   static Locker display_power_reset_lock_;
   static bool display_power_reset_pending_;

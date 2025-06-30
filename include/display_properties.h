@@ -103,6 +103,7 @@
 #define QDCM_MODE_COMBINE_PROP               DISPLAY_PROP("qdcm.mode_combine")
 #define DISABLE_STC_DIMMING_PROP             DISPLAY_PROP("disable_stc_dimming")
 #define PREFER_MULTIRECT_PROP                DISPLAY_PROP("prefer_multirect")
+#define ENABLE_QDCM_COLORMODES_ON_EXTERNAL   DISPLAY_PROP("qdcm.enable_colormodes_on_external")
 #define DROP_SKEWED_VSYNC                    DISPLAY_PROP("drop_skewed_vsync")
 #define DISABLE_FAST_PATH                    DISPLAY_PROP("disable_fast_path")
 #define DISABLE_SYSTEM_LOAD_CHECK            DISPLAY_PROP("disable_system_load_check")

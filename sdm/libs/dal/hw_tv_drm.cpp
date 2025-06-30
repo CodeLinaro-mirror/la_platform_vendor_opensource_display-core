@@ -63,9 +63,8 @@
  */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -155,6 +154,46 @@ HWTVDRM::HWTVDRM(int32_t display_id, BufferAllocator *buffer_allocator,
   core_id_ = hw_info_intf->GetCoreId();
 }
 
+DisplayError HWTVDRM::Init() {
+  DisplayError ret = HWDeviceDRM::Init();
+  if (ret != kErrorNone) {
+    DLOGE("Init failed for %s", device_name_);
+    return ret;
+  }
+
+  InitDestScaler();
+
+  return kErrorNone;
+}
+
+void HWTVDRM::InitDestScaler() {
+  if (hw_resource_.hw_dest_scalar_info.count) {
+    // Do all destination scaler block resource allocations here.
+    dest_scaler_blocks_used_ = 1;
+    if (kQuadSplit == mixer_attributes_.split_type) {
+      dest_scaler_blocks_used_ = 4;
+    } else if (kDualSplit == mixer_attributes_.split_type) {
+      dest_scaler_blocks_used_ = 2;
+    }
+    if (hw_resource_.hw_dest_scalar_info.count >=
+        (hw_dest_scaler_blocks_used_[core_id_] + dest_scaler_blocks_used_)) {
+      // Enough destination scaler blocks available so update the static counter.
+      hw_dest_scaler_blocks_used_[core_id_] += dest_scaler_blocks_used_;
+    } else {
+      dest_scaler_blocks_used_ = 0;
+    }
+    scalar_data_.resize(dest_scaler_blocks_used_);
+    dest_scalar_cache_.resize(dest_scaler_blocks_used_);
+    // Update crtc (layer-mixer) configuration info.
+    mixer_attributes_.dest_scaler_blocks_used = dest_scaler_blocks_used_;
+  }
+
+  topology_control_ = UINT32(sde_drm::DRMTopologyControl::DSPP);
+  if (dest_scaler_blocks_used_) {
+    topology_control_ |= UINT32(sde_drm::DRMTopologyControl::DEST_SCALER);
+  }
+}
+
 DisplayError HWTVDRM::SetDisplayAttributes(uint32_t index) {
   if (index >= connector_info_.modes.size()) {
     DLOGE("Invalid mode index %d mode size %d", index, UINT32(connector_info_.modes.size()));
@@ -213,7 +252,13 @@ DisplayError HWTVDRM::Flush(HWLayersInfo *hw_layers_info) {
                               &hdr_metadata_);
   }
 
-  return HWDeviceDRM::Flush(hw_layers_info);
+  DisplayError err = HWDeviceDRM::Flush(hw_layers_info);
+  if (err != kErrorNone) {
+    return err;
+  }
+
+  ResetDestScalarCache();
+  return kErrorNone;
 }
 
 DisplayError HWTVDRM::Deinit() {
@@ -341,6 +386,7 @@ void HWTVDRM::PopulateHWPanelInfo() {
 }
 
 DisplayError HWTVDRM::Commit(HWLayersInfo *hw_layers_info) {
+  SetDestScalarData(*hw_layers_info);
   DisplayError error = UpdateHDRMetaData(hw_layers_info);
   if (error != kErrorNone) {
     return error;
@@ -358,9 +404,97 @@ DisplayError HWTVDRM::Commit(HWLayersInfo *hw_layers_info) {
     hw_layers_info->output_buffer->release_fence = Fence::Create(INT(cwb_fence_fd), "release_cwb");
   }
 
+  CacheDestScalarData();
   PostCommitConcurrentWriteback(hw_layers_info->output_buffer);
 
   return error;
+}
+
+void HWTVDRM::ResetDestScalarCache() {
+  if (dest_scaler_blocks_used_ > 0) {
+    for (uint32_t j = 0; j < scalar_data_.size(); j++) {
+      dest_scalar_cache_[j] = {};
+    }
+  }
+}
+
+void HWTVDRM::SetDestScalarData(const HWLayersInfo &hw_layer_info) {
+  if (dest_scaler_blocks_used_ > 0) {
+    SetDestScalarData(hw_layer_info.dest_scale_info_map);
+  }
+}
+
+void HWTVDRM::SetDestScalarData(const DestScaleInfoMap dest_scale_info_map) {
+  if (!hw_scale_ || !dest_scaler_blocks_used_) {
+    return;
+  }
+
+  for (uint32_t i = 0; i < dest_scaler_blocks_used_; i++) {
+    auto it = dest_scale_info_map.find(i);
+
+    if (it == dest_scale_info_map.end()) {
+      continue;
+    }
+
+    HWDestScaleInfo *dest_scale_info = it->second;
+    SDEScaler *scale = &scalar_data_[i];
+    hw_scale_->SetScaler(dest_scale_info->scale_data, scale);
+
+    sde_drm_dest_scaler_cfg *dest_scalar_data = &sde_dest_scalar_data_.ds_cfg[i];
+    dest_scalar_data->flags = 0;
+    if (scale->scaler_v2.enable) {
+      dest_scalar_data->flags |= SDE_DRM_DESTSCALER_ENABLE;
+    }
+    if (scale->scaler_v2.de.enable) {
+      dest_scalar_data->flags |= SDE_DRM_DESTSCALER_ENHANCER_UPDATE;
+    }
+    if (dest_scale_info->scale_update) {
+      dest_scalar_data->flags |= SDE_DRM_DESTSCALER_SCALE_UPDATE;
+    }
+    if (hw_panel_info_.partial_update) {
+      dest_scalar_data->flags |= SDE_DRM_DESTSCALER_PU_ENABLE;
+    }
+    dest_scalar_data->index = i;
+    dest_scalar_data->lm_width = dest_scale_info->mixer_width;
+    dest_scalar_data->lm_height = dest_scale_info->mixer_height;
+    dest_scalar_data->scaler_cfg = reinterpret_cast<uint64_t>(&scale->scaler_v2);
+    switch (dest_scale_info->mixer_merge_mode) {
+      case kDestScalerSinglePipe:
+        dest_scalar_data->merge_mode = DEST_SCALER_SINGLE_PIPE;
+        break;
+      case kDestScalerDualPipe:
+        dest_scalar_data->merge_mode = DEST_SCALER_DUAL_PIPE;
+        break;
+      case kDestScalerQuadPipe:
+        dest_scalar_data->merge_mode = DEST_SCALER_QUAD_PIPE;
+        break;
+      default:
+        DLOGI("Invalid destination scaler merge mode");
+        break;
+    }
+
+    if (std::memcmp(&dest_scalar_cache_[i].scalar_data, scale, sizeof(SDEScaler)) ||
+        dest_scalar_cache_[i].flags != dest_scalar_data->flags) {
+      needs_ds_update_ = true;
+    }
+  }
+
+  if (needs_ds_update_) {
+    sde_dest_scalar_data_.num_dest_scaler = UINT32(dest_scale_info_map.size());
+    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_DEST_SCALER_CONFIG, token_.crtc_id,
+                              reinterpret_cast<uint64_t>(&sde_dest_scalar_data_));
+  }
+}
+
+void HWTVDRM::CacheDestScalarData() {
+  if ((dest_scaler_blocks_used_ > 0) && needs_ds_update_) {
+    // Cache the destination scalar data during commit
+    for (uint32_t i = 0; i < sde_dest_scalar_data_.num_dest_scaler; i++) {
+      dest_scalar_cache_[i].flags = sde_dest_scalar_data_.ds_cfg[i].flags;
+      dest_scalar_cache_[i].scalar_data = scalar_data_[i];
+    }
+    needs_ds_update_ = false;
+  }
 }
 
 DisplayError HWTVDRM::UpdateHDRMetaData(HWLayersInfo *hw_layers_info) {
