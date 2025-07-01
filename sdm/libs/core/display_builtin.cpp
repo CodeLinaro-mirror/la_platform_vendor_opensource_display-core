@@ -1144,6 +1144,7 @@ void DisplayBuiltIn::PreCommit(LayerStack *layer_stack) {
 DisplayError DisplayBuiltIn::SetupABCFeature() {
   DemuraInputConfig input_cfg;
   input_cfg.secure_session = false;
+  bool is_udc_supported = true;
   std::string brightness_base;
   hw_intf_->GetPanelBrightnessBasePath(&brightness_base);
   input_cfg.brightness_path = brightness_base + "brightness";
@@ -1177,8 +1178,15 @@ DisplayError DisplayBuiltIn::SetupABCFeature() {
     return kErrorResources;
   }
 
+  for (auto info_intf = hw_info_intf_.Begin(); info_intf != hw_info_intf_.End(); info_intf++) {
+    HWResourceInfo hw_resource_info = HWResourceInfo();
+    info_intf->second->GetHWResourceInfo(&hw_resource_info);
+    uint32_t core_id = hw_resource_info.core_id;
+    DLOGI("core [%d] is_udc_supported [%d]", core_id, hw_resource_info.is_udc_supported);
+    is_udc_supported &= hw_resource_info.is_udc_supported;
+  }
   std::unique_ptr<DemuraIntf> abc_intf =
-      abc_factory_->CreateABCIntf(input_cfg, prop_intf_, buffer_allocator_, this);
+      abc_factory_->CreateABCIntf(input_cfg, prop_intf_, buffer_allocator_, this, is_udc_supported);
   if (!abc_intf) {
     DLOGE("Unable to create abc_intf on Display %d-%d", display_id_, display_type_);
     return kErrorMemory;

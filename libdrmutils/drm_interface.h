@@ -1049,6 +1049,7 @@ struct DRMCrtcInfo {
   DDRVersion ddr_version = DDRVersion::kDDRVersionNone;
   bool has_cesta = false;
   uint32_t ai_scaler_count = 0;
+  bool is_udc_supported = true;
 };
 
 enum struct DRMPlaneType {
