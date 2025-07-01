@@ -20,7 +20,6 @@
 #define kNiobeSocId2 652
 #define kNiobeSocName "niobe"
 #define kCanoeSocId 660
-#define kCanoeSocId1 685
 #define kCanoeSocName "canoe"
 
 #endif  // __SOC_INFO_H__
