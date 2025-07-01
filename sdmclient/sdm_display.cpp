@@ -4379,4 +4379,21 @@ DisplayError SDMDisplay::SetRGBASplit(int32_t split_enable) {
   return error;
 }
 
+// Set Privacy Regions and Corner Radius on the given layer.
+void SDMDisplay::SetPrivacyRegionsData(uint32_t layer_id, float corner_radius,
+                                       const std::vector<PrivacyRegion> &privacy_regions) {
+  const auto map_layer = sdm_layer_stack_->layer_map_.find(layer_id);
+  if (map_layer == sdm_layer_stack_->layer_map_.end()) {
+    DLOGW("Display [%" PRIu64 "]-[%" PRIu64 "] SetPrivacyRegions: Failed to find layer %d!", id_,
+          type_, layer_id);
+    return;
+  }
+
+  CornerRadius radius = {corner_radius, corner_radius};
+  const auto layer = map_layer->second;
+  DLOGI("Set PrivacyRegions data on Layer %d", layer_id);
+  layer->SetLayerPrivacyRegions(privacy_regions);
+  layer->SetLayerCornerRadius(radius);
+}
+
 }  // namespace sdm
