@@ -370,7 +370,7 @@ class DisplayBuiltIn : public DisplayBase,
   int StartVmFileServiceAndExportFiles();
   int CreateServiceManager();
   int HandleTvmServiceEvent(const TvmServiceCbEvent &event);
-  DisplayError DisabelDemuraForHandOff();
+  DisplayError DisableDemuraForHandOff();
   DisplayError ValidateDemuraLicense();
 
   const uint32_t kPuTimeOutMs = 1000;

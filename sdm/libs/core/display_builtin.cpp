@@ -354,7 +354,15 @@ DisplayError DisplayBuiltIn::Init() {
     abc_prop_ = abc_tvm_enabled_;
 #endif
 
-    DisabelDemuraForHandOff();
+    // Get demura count from HW info
+    uint32_t demura_cnt = 0;
+    for (int i = 0; i < core_count_; i++) {
+      demura_cnt = std::max(demura_cnt, hw_resource_info_[i].demura_count);
+    }
+    // Disable demura only when demura block is available
+    if (demura_cnt > 0) {
+      DisableDemuraForHandOff();
+    }
     Debug::Get()->GetProperty(ENABLE_DEMURA, &demura_prop_);
     if (demura_prop_) {  // Create parser manager for demura
       pm_intf_ = pf_factory_->CreateDemuraParserManager(ipc_intf_, buffer_allocator_);
@@ -5384,7 +5392,7 @@ int DisplayBuiltIn::Notify(const TvmServiceCbEvent &event) {
   return 0;
 }
 
-DisplayError DisplayBuiltIn::DisabelDemuraForHandOff() {
+DisplayError DisplayBuiltIn::DisableDemuraForHandOff() {
   if (!prop_intf_) {
     DLOGE("prop_intf_ is nullptr");
     return kErrorParameters;
