@@ -457,7 +457,7 @@ class DisplayBuiltIn : public DisplayBase,
   std::shared_ptr<VMFileXferIntf> vm_file_xfer_intf_ = nullptr;
   bool demura_allowed_ = false;
   bool demuratn_allowed_ = false;
-  int demura_prop_ = 0;
+  bool demura_enable_ = false;
   bool demura_calib_files_reloaded_ = false;
   VmFileXferClientFactIntfExtn *factory_extn_ = nullptr;
   std::shared_ptr<FeatureLicenseIntf> feat_license_intf_ = nullptr;
