@@ -463,6 +463,7 @@ class DisplayBuiltIn : public DisplayBase,
   std::shared_ptr<FeatureLicenseIntf> feat_license_intf_ = nullptr;
   bool hfi_path_supported_ = false;
   bool double_buffer_codebook_supported_ = false;
+  bool previous_frame_default_strategy_ = false;
 };
 
 }  // namespace sdm
