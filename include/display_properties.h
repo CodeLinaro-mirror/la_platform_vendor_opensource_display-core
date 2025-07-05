@@ -256,6 +256,7 @@
 #define WINDOW_RECT_PROP                     DISPLAY_PROP("window_rect")
 #define WINDOW_RECT_PROP_SECONDARY           DISPLAY_PROP("window_rect_secondary")
 #define ENABLE_WINDOW_RECT_MASK              DISPLAY_PROP("enable_window_rect_mask")
+#define DISABLE_RC_OFFSET_FLIP               DISPLAY_PROP("disable_rc_offset_flip")
 #define DISABLE_IDLE_TIME_HDR                DISPLAY_PROP("disable_idle_time_hdr")
 #define DISABLE_IDLE_TIME_VIDEO              DISPLAY_PROP("disable_idle_time_video")
 #define DISABLE_IDLE_FPS_SWITCH              DISPLAY_PROP("disable_idle_fps_switch")
