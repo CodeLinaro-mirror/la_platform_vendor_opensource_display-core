@@ -5145,7 +5145,10 @@ DisplayError DisplayBuiltIn::CleanupDemuraConfig(void *data, DemuraTnCleanupType
 }
 
 bool DisplayBuiltIn::GetDemuraTnUserCtrl() {
-  std::ifstream in(kDemuraTnUserCtrlFile, std::ios::binary);
+  std::stringstream ss_id;
+  ss_id << "_" << std::setfill('0') << std::setw(16) << std::hex << panel_id_;
+  std::string filename = kDemuraTnUserCtrlFile + ss_id.str();
+  std::ifstream in(filename, std::ios::binary);
   if (!in.is_open()) {
     return false;
   }
@@ -5171,8 +5174,10 @@ bool DisplayBuiltIn::GetDemuraTnUserCtrl() {
 
 int DisplayBuiltIn::UpdateDemuraTnUserCtrl(bool user_ctrl) {
   int ret = 0;
-  std::ofstream out(kDemuraTnUserCtrlFile, std::ios::binary | std::ios::trunc);
-
+  std::stringstream ss_id;
+  ss_id << "_" << std::setfill('0') << std::setw(16) << std::hex << panel_id_;
+  std::string filename = kDemuraTnUserCtrlFile + ss_id.str();
+  std::ofstream out(filename, std::ios::binary | std::ios::trunc);
   if (out.fail()) {
     DLOGW("Failed to open the file %s %s", kDemuraTnUserCtrlFile.c_str(), strerror(errno));
     return -ENOENT;
