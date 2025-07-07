@@ -168,7 +168,8 @@ DisplayError DisplayBase::Init() {
       if (!core_id_[i]) {
         continue;
       }
-      disp_layer_stacks_[disp_index].info.insert(std::pair<uint32_t, HWLayersInfo>(i, {}));
+      disp_layer_stacks_[disp_index].info.insert(
+          std::pair<uint32_t, HWLayersInfo>(i, HWLayersInfo()));
     }
   }
 
