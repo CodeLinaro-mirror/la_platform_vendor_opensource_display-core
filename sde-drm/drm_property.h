@@ -64,6 +64,12 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #ifndef __DRM_PROPERTY_H__
 #define __DRM_PROPERTY_H__
 
@@ -239,6 +245,7 @@ enum struct DRMProperty {
   EARLY_FENCE_LINE,
   DNSC_BLR,
   WB_USAGE_TYPE,
+  WB_CSC_CONFIG,
   SDE_SSPP_FP16_IGC_V1,
   SDE_SSPP_FP16_GC_V1,
   SDE_SSPP_FP16_CSC_V1,

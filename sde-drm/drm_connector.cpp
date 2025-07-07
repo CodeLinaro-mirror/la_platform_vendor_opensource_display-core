@@ -133,6 +133,24 @@ static uint8_t DRM_MODE_COLORIMETRY_DCI_P3_RGB_THEATER = 12;
 static uint8_t CACHE_STATE_DISABLED = 0;
 static uint8_t CACHE_STATE_ENABLED = 1;
 
+static struct sde_drm_csc_v1 WBCsc[CscTypeMax] {
+  [RGB2YUV601L] =
+      {
+          {0x04180, 0x08100, 0x01900, 0xfda80, 0xfb600, 0x07080, 0x07080, 0xfa280, 0xfee00},
+          {0x00, 0x00, 0x00},
+          {0x0040, 0x0200, 0x0200},
+          {0x000, 0x3ff, 0x000, 0x3ff, 0x000, 0x3ff},
+          {0x040, 0x3ac, 0x040, 0x3c0, 0x040, 0x3c0},
+  },
+  [RGB2YUV2020L] = {
+      {0x03980, 0x09480, 0x00c80, 0xfe080, 0xfaf00, 0x07000, 0x07000, 0xf9880, 0xff680},
+      {0x00, 0x00, 0x00},
+      {0x0040, 0x0200, 0x0200},
+      {0x000, 0x3ff, 0x000, 0x3ff, 0x000, 0x3ff},
+      {0x040, 0x3ac, 0x040, 0x3c0, 0x040, 0x3c0},
+  },
+};
+
 static void PopulatePowerModes(drmModePropertyRes *prop) {
   for (auto i = 0; i < prop->count_enums; i++) {
     string enum_name(prop->enums[i].name);
@@ -1528,6 +1546,40 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       } else {
         DRM_LOGD("Connector %d: Setting wb_usage_mode %d", obj_id, wb_usage_mode);
       }
+    } break;
+
+    case DRMOps::CONNECTOR_WB_CSC_CONFIG: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::WB_CSC_CONFIG)) {
+        return;
+      }
+      uint64_t wb_csc_cfg = va_arg(args, uint32_t);
+      uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::WB_CSC_CONFIG);
+      if (wb_csc_cfg > CscTypeMax) {
+        return;
+      }
+      if (wb_csc_cfg == CscTypeMax) {
+        if (!wb_blob_id_) {
+          return;
+        }
+        drmModeDestroyPropertyBlob(fd_, wb_blob_id_);
+        wb_blob_id_ = 0;
+        drmModeAtomicAddProperty(req, obj_id, prop_id, wb_blob_id_);
+      } else {
+        if (wb_csc_cfg_used_ == wb_csc_cfg) {
+          return;
+        }
+        if (wb_blob_id_) {
+          drmModeDestroyPropertyBlob(fd_, wb_blob_id_);
+          wb_blob_id_ = 0;
+        }
+        sde_drm_csc_v1 wb_csc_copy = WBCsc[wb_csc_cfg];
+        sde_drm_csc_v1 *wb_csc = &wb_csc_copy;
+        drmModeCreatePropertyBlob(fd_, reinterpret_cast<void *>(wb_csc), sizeof(sde_drm_csc_v1),
+                                  &wb_blob_id_);
+        drmModeAtomicAddProperty(req, obj_id, prop_id, wb_blob_id_);
+      }
+      wb_csc_cfg_used_ = wb_csc_cfg;
+      DRM_LOGD("Connector %d: Setting WB Csc Cfg %d", obj_id, wb_csc_cfg);
     } break;
 
     case DRMOps::CONNECTOR_SET_CACHE_STATE: {

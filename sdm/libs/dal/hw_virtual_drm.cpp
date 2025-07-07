@@ -89,6 +89,18 @@ void HWVirtualDRM::ConfigureWbConnectorSecureMode(bool secure) {
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_FB_SECURE_MODE, token_.conn_id, secure_mode);
 }
 
+void HWVirtualDRM::SetWbCSC() {
+  sde_drm::DRMWBCSCConfig wb_csc_cfg = sde_drm::DRMWBCSCConfig::RGB2YUV601L;
+
+  if (blend_space_.primaries == QtiColorPrimaries_BT2020) {
+    wb_csc_cfg = sde_drm::DRMWBCSCConfig::RGB2YUV2020L;
+  }
+
+  DLOGV_IF(kTagDriverConfig, "Set WB CSC config: %d for blend space primaries: %d, transfer: %d",
+           wb_csc_cfg, blend_space_.primaries, blend_space_.transfer);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_WB_CSC_CONFIG, token_.conn_id, wb_csc_cfg);
+}
+
 void HWVirtualDRM::InitializeConfigs() {
   display_attributes_.resize(connector_info_.modes.size());
   for (uint32_t i = 0; i < connector_info_.modes.size(); i++) {
@@ -177,6 +189,7 @@ DisplayError HWVirtualDRM::Commit(HWLayersInfo *hw_layers_info) {
   ConfigureWbConnectorSecureMode(output_buffer->flags.secure);
   ConfigureDNSC(hw_layers_info);
   ConfigureWbConnectorDestRect(hw_layers_info->iwe_enabled);
+  SetWbCSC();
   // Reset the ROI which may have been previously set by CWB. Need revisit when ROI enabled on
   // virtual.
   ResetROI();
@@ -221,6 +234,7 @@ DisplayError HWVirtualDRM::Validate(HWLayersInfo *hw_layers_info) {
   ConfigureWbConnectorFbId(fb_id);
   ConfigureWbConnectorDestRect();
   ConfigureWbConnectorSecureMode(output_buffer->flags.secure);
+  SetWbCSC();
 
   return HWDeviceDRM::Validate(hw_layers_info);
 }
@@ -324,6 +338,7 @@ DisplayError HWVirtualDRM::Deinit() {
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_EARLY_FENCE_LINE, conn_id, 0);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_DNSC_BLR, conn_id, &dnsc_cfg_);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_WB_USAGE_TYPE, conn_id, usage_mode);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_WB_CSC_CONFIG, conn_id, 0);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_FRAME_TRIGGER, conn_id, trigger_mode);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_TOPOLOGY_CONTROL, conn_id, 0);
 #endif
