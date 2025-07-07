@@ -61,7 +61,7 @@
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -120,9 +120,15 @@ class DisplayVirtual : public DisplayBase {
     return kErrorNotSupported;
   }
 
-  virtual DisplayError GetColorModeCount(uint32_t *mode_count);
   virtual DisplayError colorSamplingOn();
   virtual DisplayError colorSamplingOff();
+
+  // Color mode APIs
+  virtual DisplayError InitializeColorModes();
+  virtual DisplayError GetColorModeCount(uint32_t *mode_count);
+  virtual DisplayError GetColorModes(uint32_t *mode_count, std::vector<std::string> *color_modes);
+  virtual DisplayError GetColorModeAttr(const std::string &color_mode, AttrVal *attr);
+  virtual DisplayError SetColorMode(const std::string &color_mode);
 
  protected:
   float set_max_lum_ = -1.0;
