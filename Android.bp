@@ -1,3 +1,12 @@
+soong_namespace {
+  imports: [
+      "hardware/qcom/monaco/display",
+      "device/qcom/monaco",
+      "vendor/qcom/opensource/monaco/commonsys-intf/display",
+      "vendor/qcom/proprietary/monaco",
+      "vendor/qcom/opensource/monaco/display-intf",
+    ],
+}
 cc_library_headers {
   name: "display_core_headers",
   vendor: true,
