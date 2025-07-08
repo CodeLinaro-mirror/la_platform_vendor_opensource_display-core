@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include <unistd.h>
@@ -251,13 +251,13 @@ Error SnapAllocCore::Release(SnapHandle *hnd) {
   std::lock_guard<std::mutex> lock(buffer_lock_);
   SnapHandleInternal *snap_hnd_cast = static_cast<SnapHandleInternal *>(hnd);
   auto buf = GetBufferFromHandleLocked(hnd);
-  DLOGD_IF(enable_logs, "line %d snap_hnd_cast id %lu ref count %d vs buf ref count %d", __LINE__,
-           snap_hnd_cast->id(), snap_hnd_cast->GetRefCount(), buf->GetRefCount());
 
   if (buf == nullptr) {
     DLOGE("Could not find handle: %p", hnd);
     return Error::BAD_BUFFER;
   }
+  DLOGD_IF(enable_logs, "line %d snap_hnd_cast id %lu ref count %d vs buf ref count %d", __LINE__,
+           snap_hnd_cast->id(), snap_hnd_cast->GetRefCount(), buf->GetRefCount());
 
   if (buf->DecRef()) {
     DLOGD_IF(enable_logs, "line %d snap_hnd_cast id %lu ref count %d vs buf ref count %d", __LINE__,
