@@ -1725,6 +1725,14 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
       }
     }
 
+    // map handle ids to luts so client can retrieve it through getLuts call
+    // used in screenshot layer during rotation, suspend resume, etc.
+    if (layer->lut_3d.lutEntries != nullptr) {
+      buffer_luts_[layer->input_buffer.handle_id] = &layer->lut_3d;
+    } else if (buffer_luts_.find(layer->input_buffer.handle_id) != buffer_luts_.end()) {
+      buffer_luts_.erase(layer->input_buffer.handle_id);
+    }
+
     // Update the changes list only if the requested composition is different
     // from SDM comp type
     if (requested_composition != device_composition) {
@@ -1875,6 +1883,36 @@ DisplayError SDMDisplay::GetDisplayLuts(
 
   for (auto it = display_luts_.begin(); it != display_luts_.end(); it++) {
     out_luts->push_back(std::make_pair(it->first, it->second));
+  }
+
+  return kErrorNone;
+}
+
+DisplayError SDMDisplay::GetBufferLuts(const std::vector<SnapHandle *> &buffers,
+                                       std::unique_ptr<std::vector<Lut3d *>> &out_luts) {
+  if (sdm_layer_stack_->layer_set_.empty()) {
+    return kErrorNone;
+  }
+
+  if (out_luts == nullptr) {
+    return kErrorNotSupported;
+  }
+
+  if (!validate_done_) {
+    DLOGW("Display is not validated");
+    return kErrorNeedsValidate;
+  }
+
+  uint32_t num_elements = buffers.size();
+  for (uint32_t i = 0; i < num_elements; i++) {
+    uint64_t handle_id = 0;
+    GetMetadata(buffers.at(i), MetadataType::BUFFER_ID, &handle_id, snapmapper_);
+    auto it = buffer_luts_.find(handle_id);
+    if (it != buffer_luts_.end()) {
+      out_luts->push_back(it->second);
+    } else {
+      out_luts->push_back(nullptr);
+    }
   }
 
   return kErrorNone;
