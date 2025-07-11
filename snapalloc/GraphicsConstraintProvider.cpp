@@ -382,12 +382,14 @@ bool GraphicsConstraintProvider::IsUBWCSupportedByGPU(
   return false;
 }
 
-bool GraphicsConstraintProvider::IsFormatSupportedByGPU(
-    vendor_qti_hardware_display_common_PixelFormat format,
-    vendor_qti_hardware_display_common_PixelFormatModifier modifier) {
+bool GraphicsConstraintProvider::IsFormatSupportedByGPU(BufferDescriptor desc) {
   if (LINK_adreno_isFormatSupportedByGPU) {
-    ADRENOPIXELFORMAT gpu_format = GetGpuPixelFormat(format, modifier);
-    return LINK_adreno_isFormatSupportedByGPU(gpu_format);
+    uint64_t pixel_format_modifier = GetPixelFormatModifier(desc);
+    ADRENOPIXELFORMAT gpu_format = GetGpuPixelFormat(
+        static_cast<vendor_qti_hardware_display_common_PixelFormat>(desc.format),
+        static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(pixel_format_modifier));
+    char* desc_name = desc.name;
+    return LINK_adreno_isFormatSupportedByGPU(gpu_format, desc.usage, desc_name);
   }
 
   return true;
