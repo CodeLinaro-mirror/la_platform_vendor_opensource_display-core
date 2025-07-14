@@ -554,6 +554,11 @@ DisplayError SDMServices::SetCameraLaunchStatus(int camera_status) {
 }
 
 DisplayError SDMServices::DisplayBWTransactionPending(bool *state) {
+  if (!cb_) {
+    DLOGW("SDMServices::cb_ is null — cannot query display");
+    return kErrorHardware;
+  }
+
   auto sdm_display = cb_->GetDisplayFromClientId(SDM_DISPLAY_PRIMARY);
   if (!sdm_display) {
     DLOGW("Display = %d is not connected.", SDM_DISPLAY_PRIMARY);
