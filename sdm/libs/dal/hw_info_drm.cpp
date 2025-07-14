@@ -30,11 +30,10 @@
 */
 
 /*
-* ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-*
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include <dlfcn.h>
 #include <drm/drm_fourcc.h>
@@ -79,6 +78,9 @@
 #ifndef DRM_FORMAT_MOD_QCOM_LOSSY_2_1
 #define DRM_FORMAT_MOD_QCOM_LOSSY_2_1 fourcc_mod_code(QCOM, 0x200)
 #endif
+#ifndef DRM_FORMAT_MOD_QCOM_FSC_TILE
+#define DRM_FORMAT_MOD_QCOM_FSC_TILE fourcc_mod_code(QCOM, 0x20)
+#endif
 
 #define __CLASS__ "HWInfoDRM"
 
@@ -105,19 +107,6 @@ namespace sdm {
 static HWQseedStepVersion GetQseedStepVersion(sde_drm::QSEEDStepVersion drm_version) {
   HWQseedStepVersion sdm_version;
   switch (drm_version) {
-    case sde_drm::QSEEDStepVersion::V2:
-    default:
-      sdm_version = kQseed3v2;
-      break;
-    case sde_drm::QSEEDStepVersion::V3:
-      sdm_version = kQseed3v3;
-      break;
-    case sde_drm::QSEEDStepVersion::V4:
-      sdm_version = kQseed3v4;
-      break;
-    case sde_drm::QSEEDStepVersion::V3LITE_V4:
-      sdm_version = kQseed3litev4;
-      break;
     case sde_drm::QSEEDStepVersion::V3LITE_V5:
       sdm_version = kQseed3litev5;
       break;
@@ -129,8 +118,14 @@ static HWQseedStepVersion GetQseedStepVersion(sde_drm::QSEEDStepVersion drm_vers
       break;
     case sde_drm::QSEEDStepVersion::V3LITE_V9:
       sdm_version = kQseed3litev9;
+      [[fallthrough]];
     case sde_drm::QSEEDStepVersion::V3LITE_V10:
       sdm_version = kQseed3litev10;
+      [[fallthrough]];
+    case sde_drm::QSEEDStepVersion::V3LITE_V11:
+      [[fallthrough]];
+    default:
+      sdm_version = kQseed3litev11;
       break;
   }
   return sdm_version;
@@ -168,7 +163,10 @@ DisplayError HWInfoDRM::Init() {
     DRMMaster *drm_master = {};
     int dev_fd = -1;
     DRMMaster::GetInstance(&drm_master, core_id_);
-    if (!drm_master) {
+    if (!drm_master && core_id_ == 0) {
+      DLOGE("Failed to acquire DRMMaster instance %d", core_id_);
+      return kErrorCriticalResource;
+    } else if (!drm_master) {
       DLOGI("Failed to acquire DRMMaster instance %d", core_id_);
       return kErrorCriticalResource;
     }
@@ -400,6 +398,8 @@ void HWInfoDRM::GetSystemInfo(HWResourceInfo *hw_resource) {
     hw_resource->ddr_version = kDDRVersion5;
   } else if (info.ddr_version == sde_drm::DDRVersion::kDDRVersion5x) {
     hw_resource->ddr_version = kDDRVersion5x;
+  } else {
+    hw_resource->ddr_version = kDDRVersionNone;
   }
 
   for (int index = 0; index < kBwModeMax; index++) {
@@ -501,7 +501,9 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
         continue;
       }
     }
-
+    if (hw_resource->cac_version != kCacVersionNone) {
+      PopulateCacSupportedFormat(pipe_obj.second, hw_resource);
+    }
     // TODO(user): Move pipe caps to pipe_caps structure per pipe. Set default for now.
     // currently copying values to hw_resource!
     HWPipeCaps pipe_caps;
@@ -514,6 +516,9 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
           hw_resource->max_pipe_width_dma = pipe_obj.second.max_linewidth;
           PopulateSupportedFmts(kHWDMAPipe, pipe_obj.second, hw_resource);
           PopulatePipeBWCaps(pipe_obj.second, hw_resource);
+          if (!hw_resource->num_vig_pipe) {
+            PopulatePipeCaps(pipe_obj.second, hw_resource);
+          }
         }
         hw_resource->num_dma_pipe++;
         break;
@@ -536,6 +541,23 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
         }
         hw_resource->num_cursor_pipe++;
         break;
+      // TODO: populate for csc and repro pipe type
+      /* case DRMPlaneType::CSC:
+        name = "CSC";
+        pipe_caps.type = kPipeTypeCSC;
+        if (!hw_resource->num_csc_pipe ) {
+          PopulateSupportedFmts(kHWCSCPipe, pipe_obj.second, hw_resource);
+        }
+        hw_resource->num_csc_pipe++;
+        break;
+      case DRMPlaneType::REPRO:
+        name = "REPRO";
+        pipe_caps.type = kPipeTypeRepro;
+        if (!hw_resource->num_repro_pipe ) {
+          PopulateSupportedFmts(kHWReproPipe, pipe_obj.second, hw_resource);
+        }
+        hw_resource->num_repro_pipe++;
+        break; */
       default:
         continue;  // Not adding any other pipe type
     }
@@ -636,6 +658,23 @@ void HWInfoDRM::GetInitialDemuraInfo(HWResourceInfo *hw_resource) {
   drm_mgr_intf_->GetInitialDemuraInfo(&hw_resource->initial_demura_planes);
 }
 
+DisplayError HWInfoDRM::GetDemuraDoubleBufferCodebookFlags(bool *out) {
+  DisplayError ret = kErrorNone;
+
+  if (!out) {
+    DLOGE("Invalid out is nullptr");
+    return kErrorParameters;
+  }
+
+  DRMPanelFeatureInfo info = {};
+  bool flags = false;
+  info.prop_id = sde_drm::kDRMPanelFeatureDemuraDoubleBufferCbFlags;
+  info.prop_ptr = reinterpret_cast<uint64_t>(&flags);
+  drm_mgr_intf_->GetPanelFeature(&info);
+  *out = flags;
+  return ret;
+}
+
 void HWInfoDRM::PopulatePipeCaps(const sde_drm::DRMPlaneTypeInfo &info,
                                  HWResourceInfo *hw_resource) {
   hw_resource->max_pipe_width = info.max_linewidth;
@@ -666,6 +705,24 @@ void HWInfoDRM::PopulatePipeBWCaps(const sde_drm::DRMPlaneTypeInfo &info,
       hw_resource->dyn_bw_info.pipe_bw_limit[index] = info.max_pipe_bandwidth_high / kKiloUnit;
     }
   }
+}
+
+void HWInfoDRM::PopulateCacSupportedFormat(const sde_drm::DRMPlaneTypeInfo &info,
+                                           HWResourceInfo *hw_resource) {
+  if (hw_resource->cac_supported_formats.size()) {
+    return;
+  }
+  if (!info.cac_mode.test(sde_drm::CAC_MODE_UNPACK_BIT) &&
+      !info.cac_mode.test(sde_drm::CAC_MODE_LOOPBACK_UNPACK_BIT)) {
+    return;
+  }
+
+  vector<LayerBufferFormat> cac_sdm_formats;
+  for (auto &fmts : info.cac_formats_supported) {
+    GetSDMFormat(fmts.first, fmts.second, &cac_sdm_formats);
+  }
+
+  hw_resource->cac_supported_formats = std::move(cac_sdm_formats);
 }
 
 void HWInfoDRM::PopulateSupportedFmts(HWSubBlockType sub_blk_type,
@@ -767,6 +824,14 @@ void HWInfoDRM::GetSDMFormat(uint32_t v4l2_format, LayerBufferFormat *sdm_format
     case SDE_PIX_FMT_Y_CBCR_H2V2_TP10_UBWC:  *sdm_format = kFormatYCbCr420TP10Ubwc;     break;
     case SDE_PIX_FMT_Y_CBCR_H2V2_P010_UBWC:  *sdm_format = kFormatYCbCr420P010Ubwc;     break;
     case SDE_PIX_FMT_Y_CBCR_H2V2_P010_VENUS: *sdm_format = kFormatYCbCr420P010Venus;    break;
+#ifndef TARGET_INCLUDES_NEO
+    case SDE_PIX_FMT_Y_CBCR_H2V1_P210:
+      *sdm_format = kFormatYCbCr422P210;
+      break;
+    case SDE_PIX_FMT_Y_CBCR_H2V1_P210_UBWC:
+      *sdm_format = kFormatYCbCr422P210Ubwc;
+      break;
+#endif
     default: *sdm_format = kFormatInvalid;
   }
 }
@@ -971,6 +1036,20 @@ void HWInfoDRM::GetSDMFormat(uint32_t drm_format, uint64_t drm_format_modifier,
                          ? kFormatRGBA16161616FUbwc
                          : kFormatRGBA16161616F);
       break;
+    case DRM_FORMAT_P210:
+      if (drm_format_modifier == (DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_DX)) {
+        fmts.push_back(kFormatYCbCr422P210Ubwc);
+      } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_DX) {
+        fmts.push_back(kFormatYCbCr422P210);
+      }
+      break;
+    case DRM_FORMAT_C8:
+      if (drm_format_modifier == (DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_FSC_TILE)) {
+        fmts.push_back(kFormatC8Ubwc);
+      } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_FSC_TILE) {
+        fmts.push_back(kFormatC8);
+      }
+      break;
     default:
       break;
   }
@@ -1013,8 +1092,8 @@ DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
         ((0 == iter.first) || (iter.first > INT32_MAX)) ? -1 :
                               (int32_t)DisplayId(core_id_, iter.first).GetDisplayId();
 
-    // loopback connector are internal, Used for CAC loopback
-    if (iter.second.has_cac_loopback) {
+    // skip virtual internal connectors
+    if (iter.second.has_cac_loopback || iter.second.is_wb_csc || iter.second.is_wb_repro) {
       continue;
     }
 
@@ -1214,6 +1293,14 @@ DisplayError HWInfoDRM::GetPanelBootParamString(std::string *panel_boot_param_st
 
 uint32_t HWInfoDRM::GetMaxMixerCount() {
   return drm_mgr_intf_->GetCrtcCount();
+}
+
+uint32_t HWInfoDRM::GetMaxDNSCBlurBlockCount() {
+#ifdef FEATURE_DNSC_BLUR
+  return 1;
+#else
+  return 0;
+#endif
 }
 
 int HWInfoDRM::GetConnectorTypeforTMDS(uint32_t encoder_id, sde_drm::DRMEncoderInfo info) {

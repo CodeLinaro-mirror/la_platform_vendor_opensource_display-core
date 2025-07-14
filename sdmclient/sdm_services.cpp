@@ -27,10 +27,8 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <utils/constants.h>
@@ -1302,15 +1300,18 @@ DisplayError SDMServices::SetFrameDumpConfig(SDMParcel *input_parcel) {
           static_cast<CwbTapPoint>(input_parcel->readInt32());
     }
     if (input_parcel->dataPosition() != input_parcel->dataSize()) {
-      std::bitset<32> bit_mask_cwb_flag = UINT32(input_parcel->readInt32());
+      // Load CWB control operations
+      auto cflag = UINT32(input_parcel->readInt32());
       // Option to include PU ROI in CWB ROI, and retrieve it from corresponding
       // bit of CWB flag.
-      cwb_config.pu_as_cwb_roi =
-          static_cast<bool>(bit_mask_cwb_flag[kCwbFlagPuAsCwbROI]);
+      cwb_config.pu_as_cwb_roi = BIT_TO_BOOL(cflag, kCwbFlagPuAsCwbROI);
       // Option to avoid additional refresh to process pending CWB requests, and
       // retrieve it from corresponding bit of CWB flag.
-      cwb_config.avoid_refresh =
-          static_cast<bool>(bit_mask_cwb_flag[kCwbFlagAvoidRefresh]);
+      cwb_config.avoid_refresh = BIT_TO_BOOL(cflag, kCwbFlagAvoidRefresh);
+      // Load input control flag to CWB config control flags.
+      cwb_config.cwb_control_params.value = cflag;
+      // Reset internal control flags
+      cwb_config.cwb_control_params.internal_control_flags = 0;
     }
 
     LayerRect &cwb_roi = cwb_config.cwb_roi;
@@ -1537,10 +1538,11 @@ DisplayError SDMServices::SetDisplayBrightness(SDMParcel *input_parcel,
   int level = input_parcel->readInt32();
   DisplayError ret = kErrorNone;
   if (level == 0) {
-    ret = cb_->SetDisplayBrightness(display, -1.0f);
+    ret = cb_->SetDisplayBrightness(display, -1.0f, /*apply_immediately*/ true);
   } else {
-    ret = cb_->SetDisplayBrightness(
-        display, (level - 1) / (static_cast<float>(max_brightness_level - 1)));
+    ret = cb_->SetDisplayBrightness(display,
+                                    (level - 1) / (static_cast<float>(max_brightness_level - 1)),
+                                    /*apply_immediately*/ true);
   }
   if (ret != kErrorNone) {
     return ret;
@@ -1705,8 +1707,8 @@ DisplayError SDMServices::QdcmCMDHandler(SDMParcel *input_parcel,
           DLOGE("Brightness payload is Null");
           ret = kErrorParameters;
         } else {
-          auto err = cb_->SetDisplayBrightness(static_cast<Display>(display_id),
-                                               *brightness);
+          auto err = cb_->SetDisplayBrightness(static_cast<Display>(display_id), *brightness,
+                                               /*apply_immediately*/ true);
           if (err != kErrorNone) {
             ret = kErrorNotSupported;
           }
@@ -1985,5 +1987,32 @@ DisplayError SDMServices::SetPanelFeatureConfig(SDMParcel *input_parcel, SDMParc
     output_parcel->writeInt32(ret);
   }
   return ret;
+}
+
+DisplayError SDMServices::GetPanelResolution(SDMParcel *input_parcel, SDMParcel *output_parcel) {
+  SDMDisplay *display = cb_->GetDisplayFromClientId(SDM_DISPLAY_PRIMARY);
+  if (!display) {
+    DLOGW("Display = %d is not connected.", SDM_DISPLAY_PRIMARY);
+    return kErrorHardware;
+  }
+
+  uint32_t width = 0, height = 0;
+  display->GetPanelResolution(&width, &height);
+  output_parcel->writeInt32(INT(width));
+  output_parcel->writeInt32(INT(height));
+
+  return kErrorNone;
+}
+
+DisplayError SDMServices::SetStandbyMode(SDMParcel *input_parcel) {
+  SDMDisplay *display = cb_->GetDisplayFromClientId(SDM_DISPLAY_PRIMARY);
+  if (!display) {
+    DLOGW("Display = %d is not connected.", SDM_DISPLAY_PRIMARY);
+    return kErrorHardware;
+  }
+
+  int enable = input_parcel->readInt32();
+  int is_twm = input_parcel->readInt32();
+  return display->SetStandbyMode(enable, is_twm);
 }
 } // namespace sdm

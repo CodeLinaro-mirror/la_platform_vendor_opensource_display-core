@@ -24,7 +24,7 @@
 
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -65,19 +65,26 @@ typedef std::vector<std::pair<std::string, std::string>> AttrVal;
   @sa DisplayInterface::SetDetailEnhancerData
 */
 enum DetailEnhancerOverrideFlags {
-  kOverrideDEEnable            = 0x1,     // Specifies to enable detail enhancer
-  kOverrideDESharpen1          = 0x2,     // Specifies user defined Sharpening/smooth for noise
-  kOverrideDESharpen2          = 0x4,     // Specifies user defined Sharpening/smooth for signal
-  kOverrideDEClip              = 0x8,     // Specifies user defined DE clip shift
-  kOverrideDELimit             = 0x10,    // Specifies user defined DE limit value
-  kOverrideDEThrQuiet          = 0x20,    // Specifies user defined DE quiet threshold
-  kOverrideDEThrDieout         = 0x40,    // Specifies user defined DE dieout threshold
-  kOverrideDEThrLow            = 0x80,    // Specifies user defined DE low threshold
-  kOverrideDEThrHigh           = 0x100,   // Specifies user defined DE high threshold
-  kOverrideDEFilterConfig      = 0x200,   // Specifies user defined scaling filter config
-  kOverrideDEBlend             = 0x400,   // Specifies user defined DE blend.
-  kOverrideDELpfBlend          = 0x800,   // Specifies user defined DE LPF blend.
-  kOverrideDEMax               = 0xFFFFFFFF,
+  kOverrideDEEnable = 0x1,                  // Specifies to enable detail enhancer
+  kOverrideDESharpen1 = 0x2,                // Specifies user defined Sharpening/smooth for noise
+  kOverrideDESharpen2 = 0x4,                // Specifies user defined Sharpening/smooth for signal
+  kOverrideDEClip = 0x8,                    // Specifies user defined DE clip shift
+  kOverrideDELimit = 0x10,                  // Specifies user defined DE limit value
+  kOverrideDEThrQuiet = 0x20,               // Specifies user defined DE quiet threshold
+  kOverrideDEThrDieout = 0x40,              // Specifies user defined DE dieout threshold
+  kOverrideDEThrLow = 0x80,                 // Specifies user defined DE low threshold
+  kOverrideDEThrHigh = 0x100,               // Specifies user defined DE high threshold
+  kOverrideDEFilterConfig = 0x200,          // Specifies user defined scaling filter config
+  kOverrideDEBlend = 0x400,                 // Specifies user defined DE blend.
+  kOverrideDELpfBlend = 0x800,              // Specifies user defined DE LPF blend
+  kOverrideDEAdaptiveDeEn = 0x1000,         // Specifies to enable adaptive detail enhancer
+  kOverrideDEAdeStrengthMapSlope = 0x2000,  // Specifies user defined ADE slope
+  kOverrideDEAdeStrengthMapConst = 0x4000,  // Specifies user defined ADE const
+  kOverrideDEAdeStrengthCoeff = 0x8000,     // Specifies user defined ADE coeff low and high
+  kOverrideDEHaloSuppressCoeff = 0x10000,   // Specifies user defined halo suppression coeff
+  kOverrideDEPolarityEn = 0x20000,          // Specifies to enable polarity
+  kOverrideDEEdgeBleedSupEn = 0x40000,      // Specifies to enable edge bleed support
+  kOverrideDEMax = 0xFFFFFFFF,
 };
 
 /*! @brief This enum represents Y/RGB scaling filter configuration.
@@ -101,9 +108,9 @@ enum ContentQuality {
   kContentQualityLow,      // Low quality content, high artifact and noise,
   kContentQualityMedium,   // Medium quality, medium artifact and noise,
   kContentQualityHigh,     // High quality content, low artifact and noise
+  kContentQualityExtreme,  // Extreme quality content
   kContentQualityMax,
 };
-
 
 /*! @brief This enum represents the type of the content.
 
@@ -114,6 +121,19 @@ enum DeContentType {
   kContentTypeVideo,
   kContentTypeGraphics,
   kContentTypeMax,
+};
+
+/*! @brief This enum represents the power/quality optimization mode.
+
+  @sa DisplayInterface::SetDetailEnhancerData
+*/
+enum ScalingOptimizationMode {
+  kOptimizationQuality,       // Default: high quality
+  kOptimizationBalanced,      // Balance quality and power
+  kOptimizationPower,         // Low power
+  kOptimizationBalancedHigh,  // Balance quality and power between quality and balanced
+  kOptimizationBalancedLow,   // Balance quality and power between balanced and power
+  kOptimizationMax,
 };
 
 /*! @brief This enum represents the display port.
@@ -140,6 +160,7 @@ enum DisplayEvent {
   kSyncInvalidateDisplay,   // Event triggered by Non-DrawCycle threads to Invalidate display.
   kPostIdleTimeout,         // Event triggered after entering idle.
   kVmReleaseDone,           // Event triggered after releasing the mdp hw to secondary vm.
+  kVmReclaimDone,           // Event triggered after acquiring the mdp hw from secondary vm.
 };
 
 /*! @brief This enum represents the secure events received by Display HAL. */
@@ -258,11 +279,14 @@ struct DisplayConfigGroupInfo {
   bool smart_panel = false;       //!< If the display config has smart panel.
   uint64_t allowed_mode_switch = 0;
   uint32_t avr_step = 0;  //!< AVR Step fps of the display panel.
+  bool fsc_panel = false;       //!< If the display panel is fsd panel
+  uint32_t num_fsc_fields = 0;  //!< Panel's fsc fields if panel is fsc panel
 
   bool operator==(const DisplayConfigGroupInfo& info) const {
     return ((x_pixels == info.x_pixels) && (y_pixels == info.y_pixels) && (x_dpi == info.x_dpi) &&
             (y_dpi == info.y_dpi) && (is_yuv == info.is_yuv) && (smart_panel == info.smart_panel) &&
-            (avr_step == info.avr_step));
+            (avr_step == info.avr_step) && (fsc_panel == info.fsc_panel) &&
+            (num_fsc_fields == info.num_fsc_fields));
   }
 };
 
@@ -315,9 +339,21 @@ struct DisplayDetailEnhancerData {
   uint32_t de_blend = 0;              // DE Unsharp Mask blend between High and Low frequencies
   DeContentType content_type = kContentTypeUnknown;  // Specifies content type
   bool de_lpf_en = false;
-  uint32_t de_lpf_h;                  // Weight for DE Unsharp Mask LPF-High
-  uint32_t de_lpf_m;                  // Weight for DE Unsharp Mask LPF-Mid
-  uint32_t de_lpf_l;                  // Weight for DE Unsharp Mask LPF-Low
+  uint32_t de_lpf_h = 0;                    // Weight for DE Unsharp Mask LPF-High
+  uint32_t de_lpf_m = 0;                    // Weight for DE Unsharp Mask LPF-Mid
+  uint32_t de_lpf_l = 0;                    // Weight for DE Unsharp Mask LPF-Low
+  uint32_t detail_suppression_factor = 30;  // from 0 to 100 mapping to ADE
+  uint32_t halo_suppression_factor = 100;  // from 0 to 100 mapping to ADE_HALO_SUPPRESS.COEFF 0-255
+  uint32_t adaptive_de_en = 0;             // Adaptive detail enhancer enable
+  uint32_t ade_strength_slope = 0;         // Adaptive DE slope
+  uint32_t ade_strength_const = 0;         // Adaptive DE constant
+  uint32_t ade_strength_coeff_tl = 0;      // Adaptive DE min threshold
+  uint32_t ade_strength_coeff_th = 0;      // Adaptive DE max threshold
+  uint32_t halo_suppress_coeff = 0;        // Halo suppression enable
+  uint32_t polarity_en = 0;                // Polarity enable
+  uint32_t edge_bleed_sup_en = 0;          // Edge bleed support enable
+  ScalingOptimizationMode optimization_mode =
+      kOptimizationQuality;  // quality/power optimization mode
 };
 
 /*! @brief This enum represents the supported display features that needs to be queried
@@ -380,6 +416,8 @@ enum PanelFeatureVendorServiceType {
   kTypeDemuraTnBatchId = 9,
   /* Setter: None */
   kTypeDemuraTnAodHandlerCtrl = 10,
+  /* Setter: None */
+  kTypeDemuraTnAgingSurfTransfer = 11,
   PanelFeatureVendorServiceTypeMax,
 };
 
@@ -780,7 +818,8 @@ class DisplayInterface {
 
     @return \link DisplayError \endlink
   */
-  virtual DisplayError SetPanelBrightness(float brightness, bool return_error = false) = 0;
+  virtual DisplayError SetPanelBrightness(float brightness, bool apply_immediately = true,
+                                          bool return_error = false) = 0;
 
   /*! @brief Method to notify display about change in min HDCP encryption level.
 
@@ -1475,6 +1514,14 @@ class DisplayInterface {
    @return \link DisplayError \endlink
   */
   virtual DisplayError SetABCMode(const string &mode_name) = 0;
+
+  /*! @brief Method to set AI Scaler mode ID.
+
+   @param[in] mode_id
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetAIScalerMode(uint32_t mode_id) = 0;
 
   /*! @brief Method to set panel feature configurations
 

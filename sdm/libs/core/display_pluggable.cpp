@@ -530,6 +530,8 @@ void DisplayPluggable::HandlePowerEvent() {
 void DisplayPluggable::HandleVmReleaseEvent() {
 }
 
+void DisplayPluggable::HandleVmReclaimEvent() {}
+
 void DisplayPluggable::GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) {
   dpu_core_mux_->GetDRMDisplayToken(core_id, token);
 }

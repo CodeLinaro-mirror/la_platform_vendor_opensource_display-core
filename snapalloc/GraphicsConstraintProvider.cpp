@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "GraphicsConstraintProvider.h"
@@ -8,7 +8,6 @@
 #include <fstream>
 #include <iostream>
 
-#include "SnapConstraintParser.h"
 #include "SnapUtils.h"
 #include "UBWCPolicy.h"
 
@@ -30,7 +29,7 @@ GraphicsConstraintProvider *GraphicsConstraintProvider::GetInstance(
 void GraphicsConstraintProvider::Init(
     std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map) {
   lib_ = ::dlopen("libadreno_utils.so", RTLD_NOW);
-  SnapConstraintParser *parser = SnapConstraintParser::GetInstance();
+  parser_ = SnapConstraintParser::GetInstance();
   if (lib_) {
     DLOGI("Graphics lib is available");
     *reinterpret_cast<void **>(&LINK_adreno_compute_aligned_width_and_height) =
@@ -54,12 +53,12 @@ void GraphicsConstraintProvider::Init(
   } else {
     DLOGW("Graphics lib is not available - read json file");
     // change to shared pointer
-    parser->ParseAlignments("/vendor/etc/display/graphics_alignments.json", &constraint_set_map_);
+    parser_->ParseAlignments("/vendor/etc/display/graphics_alignments.json", &constraint_set_map_);
   }
   if (!format_data_map.empty()) {
     format_data_map_ = format_data_map;
   } else {
-    parser->ParseFormats(&format_data_map_);
+    parser_->ParseFormats(&format_data_map_);
   }
 
   gfx_ubwc_disable_ = Debug::GetInstance()->IsUBWCDisabled();
@@ -227,7 +226,8 @@ int GraphicsConstraintProvider::GetCapabilities(BufferDescriptor desc, Capabilit
   return 0;
 }
 
-int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferConstraints *data) {
+int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferConstraints *data,
+                                                 bool is_ubwc_supported_by_gpu) {
   vendor_qti_hardware_display_common_PixelFormat snap_format = desc.format;
   int format = static_cast<uint64_t>(snap_format);
   uint64_t pixel_format_modifier = GetPixelFormatModifier(desc);
@@ -247,7 +247,7 @@ int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCo
 
     plane_layout.size_align = 1;  // GetGpuPixelAlignment();
 
-    tile_enabled = IsTileRendered(snap_format);
+    tile_enabled = IsTileRendered(snap_format) ? true : is_ubwc_supported_by_gpu;
     unsigned int aligned_w, aligned_h = 0;
     if (format_data.bits_per_pixel % 8 != 0)
       DLOGW("Bpp is float: %f", static_cast<float>(format_data.bits_per_pixel) / 8.0f);
@@ -341,7 +341,7 @@ int GraphicsConstraintProvider::GetConstraints(BufferDescriptor desc, BufferCons
     DLOGI("Using graphics libs for alignment calculations");
     BufferConstraints data;
     int status = 0;
-    status = BuildConstraints(desc, &data);
+    status = BuildConstraints(desc, &data, false);
     if (status != Error::NONE) {
       DLOGW("Error while getting constraints from graphics libs");
       return status;
@@ -354,9 +354,7 @@ int GraphicsConstraintProvider::GetConstraints(BufferDescriptor desc, BufferCons
     DLOGW("Graphics constraint set map is empty");
     return -1;
   }
-  if (constraint_set_map_.find(desc.format) != constraint_set_map_.end()) {
-    *out = constraint_set_map_.at(desc.format);
-  } else {
+  if (!(parser_->GetBufferConstraints(constraint_set_map_, desc, out))) {
     DLOGW("Graphics could not find entry for format %d", static_cast<uint64_t>(desc.format));
     return -1;
   }

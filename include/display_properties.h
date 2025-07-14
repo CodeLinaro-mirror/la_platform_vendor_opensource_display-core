@@ -28,10 +28,10 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __DISPLAY_PROPERTIES_H__
 #define __DISPLAY_PROPERTIES_H__
@@ -77,6 +77,7 @@
 #define FB_HEIGHT_PROP                       DISPLAY_PROP("fb_height")
 #define DISABLE_METADATA_DYNAMIC_FPS_PROP    DISPLAY_PROP("disable_metadata_dynamic_fps")
 #define DISABLE_SKIP_VALIDATE_PROP           DISPLAY_PROP("disable_skip_validate")
+#define DISABLE_LLCBC_SUPPORT_PROP           DISPLAY_PROP("disable_llcbc_support")
 #define DISABLE_DESTINATION_SCALER_PROP      DISPLAY_PROP("disable_dest_scaler")
 #define DISABLE_SECURE_INLINE_ROTATOR_PROP   DISPLAY_PROP("disable_secure_inline_rotator")
 #define DISABLE_MULTIRECT_PROP               DISPLAY_PROP("disable_multirect")
@@ -151,6 +152,7 @@
 // SPR
 #define ENABLE_SPR                           DISPLAY_PROP("enable_spr")
 #define ENABLE_SPR_BYPASS                    DISPLAY_PROP("enable_spr_bypass")
+#define ENABLE_SPR_BYPASS_SECONDARY          DISPLAY_PROP("enable_spr_bypass_secondary")
 #define ENABLE_MEMORY_MAPPING                DISPLAY_PROP("enable_memory_mapping")
 #define DISABLE_SPR_PRIMARY                  DISPLAY_PROP("disable_spr_primary")
 #define DISABLE_SPR_SECONDARY                DISPLAY_PROP("disable_spr_secondary")
@@ -167,6 +169,9 @@
 #define DEMURA_SECONDARY_PANEL_OVERRIDE_HIGH    DISPLAY_PROP("demura_secondary_panel_override_high")
 #define ENABLE_DEMURA_BL_SCREEN_REFRESH      DISPLAY_PROP("enable_demura_backlight_screen_refresh")
 #define DEMURA_CONFIG_FILE_RENAME_ALLOWED    DISPLAY_PROP("demura_config_file_rename_allowed")
+#define DEMURA_MULTICONFIG_COUNT_PRIMARY     DISPLAY_PROP("demura_multiconfig_count_primary")
+#define DEMURA_MULTICONFIG_COUNT_SECONDARY   DISPLAY_PROP("demura_multiconfig_count_secondary")
+#define DEMURA_CONFIG_FILE_COPY_TO_QMCS_BYPASS  DISPLAY_PROP("demura_config_file_copy_to_qmcs_bypass")
 
 // Panel Feature DemuraTn Properties
 #define ENABLE_ANTI_AGING                    DISPLAY_PROP("enable_antiaging")
@@ -180,6 +185,14 @@
 #define ANTI_AGING_RECALIB_TIMER_DIVIDER     DISPLAY_PROP("demura_recalib_timer_divider")
 #define ANTI_AGING_ENABLE_LOGGING            DISPLAY_PROP("antiaging_enable_logging")
 #define ANTI_AGING_DISABLE_AOD_HANDLER       DISPLAY_PROP("antiaging_disable_aod_handler")
+#define ENABLE_ANTI_AGING_SECONDARY                   DISPLAY_PROP("enable_antiaging_secondary")
+#define ANTI_AGING_SHORT_TIMER_SECONDARY              DISPLAY_PROP("demura_short_timer_secondary")
+#define ANTI_AGING_LONG_TIMER_SECONDARY               DISPLAY_PROP("demura_long_timer_secondary")
+#define ANTI_AGING_RECALIB_TIMER_SECONDARY            DISPLAY_PROP("demura_recalib_timer_secondary")
+#define ANTI_AGING_RECORD_TIMER_SECONDARY             DISPLAY_PROP("demura_record_timer_secondary")
+#define ANTI_AGING_IDLE_TIMER_SECONDARY               DISPLAY_PROP("demura_idle_timer_secondary")
+#define ANTI_AGING_RECALIB_TIMER_DIVIDER_SECONDARY    DISPLAY_PROP("demura_recalib_timer_divider_secondary")
+#define ANTI_AGING_SERVICE_RETRY_WAIT_TIME            DISPLAY_PROP("antiaging_service_retry_wait_time")
 
 // PERF hint properties
 #define ENABLE_PERF_HINT_LARGE_COMP_CYCLE    DISPLAY_PROP("enable_perf_hint_large_comp_cycle")
@@ -243,6 +256,7 @@
 #define WINDOW_RECT_PROP                     DISPLAY_PROP("window_rect")
 #define WINDOW_RECT_PROP_SECONDARY           DISPLAY_PROP("window_rect_secondary")
 #define ENABLE_WINDOW_RECT_MASK              DISPLAY_PROP("enable_window_rect_mask")
+#define DISABLE_RC_OFFSET_FLIP               DISPLAY_PROP("disable_rc_offset_flip")
 #define DISABLE_IDLE_TIME_HDR                DISPLAY_PROP("disable_idle_time_hdr")
 #define DISABLE_IDLE_TIME_VIDEO              DISPLAY_PROP("disable_idle_time_video")
 #define DISABLE_IDLE_FPS_SWITCH              DISPLAY_PROP("disable_idle_fps_switch")
@@ -268,6 +282,10 @@
 #define HAL_REFRESH_HEADROOM                 DISPLAY_PROP("hal_refresh_headroom")
 #define BUILTIN_MIRRORING                    DISPLAY_PROP("builtin_mirroring")
 #define BUILTIN_PRESENTATION                 DISPLAY_PROP("builtin_presentation")
+#define DISABLE_DYNAMIC_SPLIT                DISPLAY_PROP("disable_dynamic_split")
+#define DISABLE_FP16_SUPPORT                 DISPLAY_PROP("disable_fp16_support")
+#define LSR_VARIANT                          DISPLAY_PROP("lsr_variant")
+#define ENABLE_SPLIT_VOTE                    DISPLAY_PROP("enable_split_vote")
 
 // Enable AI Scaler
 #define ENABLE_AI_SCALER_PROP                DISPLAY_PROP("enable_ai_scaler")
@@ -276,6 +294,13 @@
 #define ENABLE_ABC                        DISPLAY_PROP("enable_abc")
 #define DISABLE_ABC_PRIMARY               DISPLAY_PROP("disable_abc_primary")
 #define DISABLE_ABC_SECONDARY             DISPLAY_PROP("disable_abc_secondary")
+
+// Disable Ambient HDR
+#define DISABLE_AMBIENT_HDR               DISPLAY_PROP("disable_ambient_hdr")
+// HFI commit path support
+#define ENABLE_HFI_PATH                   DISPLAY_PROP("enable_hfi_path")
+// Disable client querying luts
+#define DISABLE_QUERY_LUTS                DISPLAY_PROP("disable_query_luts")
 
 // Add all other.properties above
 // End of property

@@ -23,9 +23,8 @@
 */
 
 /*
-* ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-*
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -209,6 +208,14 @@ DisplayError CompManager::UnregisterDisplay(Handle display_ctx) {
   delete display_comp_ctx;
   display_comp_ctx = NULL;
   return kErrorNone;
+}
+
+DisplayError CompManager::SetAIScalerMode(uint32_t mode_id) {
+  return resource_intf_->SetAIScalerMode(mode_id);
+}
+
+DisplayError CompManager::GetAIScalerMode(uint32_t *mode_id) {
+  return resource_intf_->GetAIScalerMode(mode_id);
 }
 
 DisplayError CompManager::CheckEnforceSplit(Handle comp_handle,
@@ -396,7 +403,10 @@ DisplayError CompManager::PrePrepare(Handle display_ctx, DispLayerStack *disp_la
   std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
   DisplayCompositionContext *display_comp_ctx =
                              reinterpret_cast<DisplayCompositionContext *>(display_ctx);
-
+  if (resource_intf_ == nullptr) {
+    DLOGE("Resouce interface is null");
+    return kErrorUndefined;
+  }
   if (display_comp_ctx->idle_fallback) {
     display_comp_ctx->constraints.idle_timeout = true;
   }
@@ -406,9 +416,7 @@ DisplayError CompManager::PrePrepare(Handle display_ctx, DispLayerStack *disp_la
 
   StrategyConstraints *constraints = &display_comp_ctx->constraints;
   Handle &display_resource_ctx = display_comp_ctx->display_resource_ctx;
-  if (resource_intf_) {
-    resource_intf_->UpdateWBstatus(display_resource_ctx, &constraints->feedback);
-  }
+  resource_intf_->UpdateWBstatus(display_resource_ctx, &constraints->feedback);
 
   DisplayError error = display_comp_ctx->strategy->Start(disp_layer_stack,
                                                          &display_comp_ctx->max_strategies,
@@ -1093,6 +1101,11 @@ void CompManager::TriggerCwbTeardown(int32_t display_id, bool sync_teardown) {
   callback_map_[display_id]->OnCwbTeardown(sync_teardown);
 }
 
+DisplayError CompManager::ValidateCwbRequest(int32_t display_id, const LayerBuffer &output_buffer,
+                                             CwbConfig &cwb_config) {
+  return callback_map_[display_id]->OnCwbValidation(output_buffer, cwb_config);
+}
+
 bool CompManager::HasPendingCwbRequest(Handle display_ctx) {
   std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
 
@@ -1158,6 +1171,12 @@ bool CompManager::IsMirroredOfAnyDisplay(int32_t display_id, const LayerStack *l
   }
 
   return false;
+}
+
+void CompManager::LoadCwbHwDnscConfig(int32_t core_id, HWLayersInfo *info) {
+  if (resource_intf_) {
+    resource_intf_->Perform(ResourceInterface::kCmdGetCwbHwDnscConfig, core_id, info);
+  }
 }
 
 bool CompManager::IsActiveDisplay(int32_t display_id) {

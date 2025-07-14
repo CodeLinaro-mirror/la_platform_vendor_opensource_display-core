@@ -26,13 +26,13 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #include "sdm_display_virtual_gpu.h"
 #include "concurrency_mgr.h"
 #include <Rect.h>
@@ -93,8 +93,7 @@ DisplayError SDMDisplayVirtualGPU::Validate(uint32_t *out_num_types,
   DTRACE_SCOPED();
 
   // Reset previous changes.
-  layer_changes_.clear();
-  layer_requests_.clear();
+  ClearRequestMaps();
 
   // Mark all layers to GPU if there is no need to bypass.
   bool needs_gpu_bypass = NeedsGPUBypass() || FreezeScreen();
@@ -130,7 +129,7 @@ DisplayError SDMDisplayVirtualGPU::Validate(uint32_t *out_num_types,
   has_client_composition_ = !needs_gpu_bypass;
   validate_done_ = true;
 
-  return ((*out_num_types > 0) ? kErrorNeedsCommit : kErrorNone);
+  return (layer_changes_.size()) ? kErrorNeedsCommit : kErrorNone;
 }
 
 DisplayError SDMDisplayVirtualGPU::CommitOrPrepare(

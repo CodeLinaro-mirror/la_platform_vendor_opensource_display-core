@@ -23,40 +23,10 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted (subject to the limitations in the
-* disclaimer below) provided that the following conditions are met:
-*
-*    * Redistributions of source code must retain the above copyright
-*      notice, this list of conditions and the following disclaimer.
-*
-*    * Redistributions in binary form must reproduce the above
-*      copyright notice, this list of conditions and the following
-*      disclaimer in the documentation and/or other materials provided
-*      with the distribution.
-*
-*    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
-*      contributors may be used to endorse or promote products derived
-*      from this software without specific prior written permission.
-*
-* NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
-* GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
-* HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
-* WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-* IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
-* GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-* INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
-* IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-* OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-* IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 /*! @file layer_stack.h
   @brief File for display layer stack structure which represents a drawing buffer.
@@ -198,10 +168,13 @@ struct LayerTransform {
   float rotation = 0.0f;  //!< Left most pixel coordinate.
   bool flip_horizontal = false;  //!< Mirror reversal of the layer across a horizontal axis.
   bool flip_vertical = false;  //!< Mirror reversal of the layer across a vertical axis.
+  float horz_comp_ratio = 0.0f;  //!< Compress pixels horizontally.
+                                 //!< This will be used for FSC formats.
 
   bool operator==(const LayerTransform& transform) const {
     return (rotation == transform.rotation && flip_horizontal == transform.flip_horizontal &&
-            flip_vertical == transform.flip_vertical);
+            flip_vertical == transform.flip_vertical &&
+            horz_comp_ratio == transform.horz_comp_ratio);
   }
 
   bool operator!=(const LayerTransform& transform) const {
@@ -334,10 +307,10 @@ struct LayerRequest {
                                    .range = QtiRange_Full,
                                    .transfer = QtiTransfer_sRGB };
   QtiMatrixCoEfficients matrixCoefficients;
-  QtiMasteringDisplay masteringDisplayInfo;
-  QtiContentLightLevel contentLightLevel;
+  QtiMasteringDisplay masteringDisplayInfo = { .colorVolumeSEIEnabled = false };
+  QtiContentLightLevel contentLightLevel = { .lightLevelSEIEnabled = false };
   QtiColorRemappingInfo cRI;
-  QtiDynamicMetadata dynamicMetadata;
+  QtiDynamicMetadata dynamicMetadata = { .dynamicMetaDataValid = false, .dynamicMetaDataLen = 0 };
                                   // Requested color metadata
   uint32_t width = 0;  // Requested unaligned width.
   uint32_t height = 0;  // Requested unalighed height
@@ -423,6 +396,8 @@ struct LayerStackFlags {
       uint32_t front_buffer_layer_present : 1;  //!< Set if stack has front buffer layer.
 
       uint32_t only_video_updating : 1;  //!< This flag indicates only video layers are updating
+      uint32_t system_cache : 1;  //!< This flag shall be used to indicate that
+                                  //!< all app buffers are rendered on system cache
     };
 
     uint32_t flags = 0;               //!< For initialization purpose only.
@@ -529,8 +504,9 @@ struct Layer {
 
   LayerRequest request = {};                       //!< o/p - request on this Layer by SDM.
 
-  Lut3d lut_3d = {};                               //!< o/p - Populated by SDM when tone mapping is
-                                                   //!< needed on this layer.
+  Lut3d lut_3d = { .lutEntries = nullptr, .validLutEntries = false, .gridEntries = nullptr,
+                   .validGridEntries = false };    //!< o/p - layer LUTs populated by SDM to be sent
+                                                   //!< to client to achieve unified tonemapping
   LayerSolidFill solid_fill_info = {};             //!< solid fill info along with depth.
   std::shared_ptr<LayerBufferMap> buffer_map = nullptr;  //!< Map of handle_id and fb_id.
   float color_transform_matrix[kColorTransformMatrixSize] = { 1.0, 0.0, 0.0, 0.0,
@@ -547,6 +523,13 @@ struct Layer {
 
   std::string layer_name = "";                     //!< Layer full name
   float layer_brightness = 1.0;                    //!< Layer brightness
+  float hdr_sdr_ratio = 1.0;                       //!< HDR/SDR ratio for extended range layer.
+                                                   //!< Only valid for client target in android.
+
+  uint32_t demura_decimate_w = 1;                  //!< If demura layer, stores the decimation
+                                                   //!< along width.
+  uint32_t demura_decimate_h = 1;                  //!< If demura layer, stores the decimation
+                                                   //!< along height.
 };
 
 /*! @brief This structure defines the color space + transfer of a given layer.

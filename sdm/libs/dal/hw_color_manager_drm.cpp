@@ -203,8 +203,18 @@ uint32_t HWColorManagerDrm::GetFeatureVersion(const DRMPPFeatureInfo &feature) {
         version = PPFeatureVersion::kSDEPaV17;
       break;
     case kFeatureDither:
-    case kFeatureSprDither:
+      if (feature.version == 1 || feature.version == 2) {
         version = PPFeatureVersion::kSDEDitherV17;
+      } else if (feature.version == 3) {
+        version = PPFeatureVersion::kSDEDitherV30;
+      }
+      break;
+    case kFeatureSprDither:
+      if (feature.version == 1) {
+        version = PPFeatureVersion::kSDEDitherV17;
+      } else if (feature.version == 2) {
+        version = PPFeatureVersion::kSDEDitherV30;
+      }
       break;
     case kFeatureGamut:
       if (feature.version == 1)
@@ -216,7 +226,11 @@ uint32_t HWColorManagerDrm::GetFeatureVersion(const DRMPPFeatureInfo &feature) {
         version = PPFeatureVersion::kSDEPADitherV17;
       break;
     case kFeatureCWBDither:
+      if (feature.version == 2) {
         version = PPFeatureVersion::kSDECWBDitherV2;
+      } else if (feature.version == 3) {
+        version = PPFeatureVersion::kSDECWBDitherV3;
+      }
       break;
     default:
       break;
@@ -1039,8 +1053,36 @@ DisplayError HWColorManagerDrm::GetDrmDither(const PPFeatureInfo &in_data,
   if (sde_dither->flags & SDM_DITHER_LUMA_MODE)
     mdp_dither->flags |= DITHER_LUMA_MODE;
 #endif
-  std::memcpy(mdp_dither->matrix, sde_dither->dither_matrix,
-                sizeof(sde_dither->dither_matrix));
+#ifdef DITHER_OFFSET_ENABLE
+  if (sde_dither->flags & SDM_DITHER_OFFSET_ENABLE)
+    mdp_dither->flags |= DITHER_OFFSET_ENABLE;
+#endif
+
+#ifdef DITHER_MATRIX_SZ_EXTENDED
+  if (sde_dither->dither_matrix_select == SDM_DITHER_MATRIX_SELECT_NONE) {
+    mdp_dither->dither_matrix_select = DITHER_MATRIX_SELECT_NONE;
+    std::memcpy(mdp_dither->matrix, sde_dither->dither_matrix, sizeof(sde_dither->dither_matrix));
+  } else {
+    if (sde_dither->dither_matrix_select == SDM_DITHER_MATRIX_SELECT_4_4) {
+      mdp_dither->dither_matrix_select = DITHER_MATRIX_SELECT_4_4;
+    } else if (sde_dither->dither_matrix_select == SDM_DITHER_MATRIX_SELECT_6_6) {
+      mdp_dither->dither_matrix_select = DITHER_MATRIX_SELECT_6_6;
+    } else if (sde_dither->dither_matrix_select == SDM_DITHER_MATRIX_SELECT_8_8) {
+      mdp_dither->dither_matrix_select = DITHER_MATRIX_SELECT_8_8;
+    } else if (sde_dither->dither_matrix_select == SDM_DITHER_MATRIX_SELECT_16_16) {
+      mdp_dither->dither_matrix_select = DITHER_MATRIX_SELECT_16_16;
+    } else {
+      DLOGE("Invalid dither matrix select");
+      return kErrorParameters;
+    }
+
+    std::memcpy(mdp_dither->dither_matrix_extended, sde_dither->dither_matrix_extended,
+                sizeof(sde_dither->dither_matrix_extended));
+  }
+#else
+  std::memcpy(mdp_dither->matrix, sde_dither->dither_matrix, sizeof(sde_dither->dither_matrix));
+#endif
+
   mdp_dither->temporal_en = sde_dither->temporal_en;
   mdp_dither->c0_bitdepth = sde_dither->g_y_depth;
   mdp_dither->c1_bitdepth = sde_dither->b_cb_depth;

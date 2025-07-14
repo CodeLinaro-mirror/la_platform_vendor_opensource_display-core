@@ -1,5 +1,7 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include <unistd.h>
 #include <utils/CallStack.h>
@@ -132,6 +134,14 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
     err = metadata_mgr_->InitializeMetadata(hnd, desc.format, out_desc, ad, &layout);
     if (err != Error::NONE) {
       DLOGE("Failed to initialize metadata for hnd %lu", hnd->id());
+    } else if (desc.usage & QTI_PRIVATE_MULTI_VIEW_INFO) {
+      SnapHandleInternal *hndSec = hnd->CreateViewHandle(PRIV_VIEW_MASK_SECONDARY);
+      err = metadata_mgr_->InitializeMetadata(hndSec, desc.format, out_desc, ad, &layout);
+      if (err != Error::NONE) {
+        DLOGE("Failed to initialize metadata for secondary hnd %lu", hndSec->id());
+      }
+      hndSec->closeFds();
+      free(hndSec);
     }
 
     handles->emplace_back(hnd);
@@ -224,8 +234,13 @@ Error SnapAllocCore::RetainViewBuffer(SnapHandle *meta_hnd, uint32_t view,
     DLOGE("Retain MetaHandle before retaining auxillary view buffer");
     return Error::UNSUPPORTED;
   }
+  uint32_t view_to_import = view;
+  err = metadata_mgr_->GetViewToImport(buf, view, &view_to_import);
+  if (err) {
+    DLOGW_IF(enable_logs, "Failed to get view to import for requested view:%d", view);
+  }
 
-  SnapHandle *view_handle = buf->CreateViewHandle(view);
+  SnapHandle *view_handle = buf->CreateViewHandle(view_to_import);
 
   if (!view_handle) {
     return Error::UNSUPPORTED;
@@ -252,13 +267,12 @@ Error SnapAllocCore::Release(SnapHandle *hnd) {
   std::lock_guard<std::mutex> lock(buffer_lock_);
   SnapHandleInternal *snap_hnd_cast = static_cast<SnapHandleInternal *>(hnd);
   auto buf = GetBufferFromHandleLocked(hnd);
-  DLOGD_IF(enable_logs, "line %d snap_hnd_cast id %lu ref count %d vs buf ref count %d", __LINE__,
-           snap_hnd_cast->id(), snap_hnd_cast->GetRefCount(), buf->GetRefCount());
-
   if (buf == nullptr) {
     DLOGE("Could not find handle: %p", hnd);
     return Error::BAD_BUFFER;
   }
+  DLOGD_IF(enable_logs, "line %d snap_hnd_cast id %lu ref count %d vs buf ref count %d", __LINE__,
+           snap_hnd_cast->id(), snap_hnd_cast->GetRefCount(), buf->GetRefCount());
 
   if (buf->DecRef()) {
     DLOGD_IF(enable_logs, "line %d snap_hnd_cast id %lu ref count %d vs buf ref count %d", __LINE__,
@@ -554,7 +568,7 @@ Error SnapAllocCore::GetMetadata(SnapHandle *hnd,
   }
   auto buf = GetBufferFromHandleLocked(hnd);
   if (buf == nullptr) {
-    DLOGE("%s: Unable to get locked buffer", __FUNCTION__);
+    DLOGW("%s: Unable to get locked buffer", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
   auto err = metadata_mgr_->ValidateAndMap(buf);
@@ -574,7 +588,7 @@ Error SnapAllocCore::SetMetadata(SnapHandle *hnd,
   }
   auto buf = GetBufferFromHandleLocked(hnd);
   if (buf == nullptr) {
-    DLOGE("%s: Unable to get locked buffer", __FUNCTION__);
+    DLOGW("%s: Unable to get locked buffer", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
   auto err = metadata_mgr_->ValidateAndMap(buf);
@@ -611,7 +625,7 @@ Error SnapAllocCore::GetMetadataState(SnapHandle *hnd,
   }
   auto buf = GetBufferFromHandleLocked(hnd);
   if (buf == nullptr) {
-    DLOGE("%s: Unable to get locked buffer", __FUNCTION__);
+    DLOGW("%s: Unable to get locked buffer", __FUNCTION__);
     return Error::BAD_BUFFER;
   }
   auto err = metadata_mgr_->ValidateAndMap(buf);

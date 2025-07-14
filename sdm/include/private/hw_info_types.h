@@ -23,9 +23,9 @@
 */
 
 /*
-* ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 *
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -107,6 +107,8 @@ enum PipeType {
   kPipeTypeRGB,
   kPipeTypeDMA,
   kPipeTypeCursor,
+  kPipeTypeCSC,
+  kPipeTypeRepro,
 };
 
 enum HWSubBlockType {
@@ -114,6 +116,8 @@ enum HWSubBlockType {
   kHWRGBPipe,
   kHWDMAPipe,
   kHWCursorPipe,
+  kHWCSCPipe,
+  kHWReproPipe,
   kHWRotatorInput,
   kHWRotatorOutput,
   kHWWBIntfOutput,
@@ -183,14 +187,6 @@ enum HWMixerSplit {
   kNoSplit,
   kDualSplit,
   kQuadSplit,
-};
-
-enum HwHdrEotf {
-  kHdrEOTFInvalid = 0,
-  kHdrEOTFSDR = 0x1,
-  kHdrEOTFHdrLumRange = 0x2,
-  kHdrEOTFHDR10 = 0x4,
-  kHdrEOTFHLG = 0x8,
 };
 
 enum HwColorspace {
@@ -360,6 +356,7 @@ enum HWQseedStepVersion {
   kQseed3litev8,
   kQseed3litev9,
   kQseed3litev10,
+  kQseed3litev11,
 };
 
 struct HWDestScalarInfo {
@@ -395,6 +392,7 @@ enum CacVersion {
 };
 
 enum DDRVersion {
+  kDDRVersionNone,
   kDDRVersion4,
   kDDRVersion5,
   kDDRVersion5x,
@@ -419,6 +417,8 @@ struct HWResourceInfo {
   uint32_t num_vig_pipe = 0;
   uint32_t num_rgb_pipe = 0;
   uint32_t num_cursor_pipe = 0;
+  uint32_t num_csc_pipe = 0;
+  uint32_t num_repro_pipe = 0;
   uint32_t num_blending_stages = 0;
   uint32_t num_solidfill_stages = 0;
   uint32_t max_scale_up = 1;
@@ -465,7 +465,7 @@ struct HWResourceInfo {
   CompRatioMap comp_ratio_rt_map;
   CompRatioMap comp_ratio_nrt_map;
   uint32_t cache_size = 0;  // cache size in bytes
-  HWQseedStepVersion pipe_qseed3_version = kQseed3v2;  // only valid when has_qseed3=true
+  HWQseedStepVersion pipe_qseed3_version = kQseed3litev11;  // only valid when has_qseed3=true
   uint32_t min_prefill_lines = 0;
   InlineRotationInfo inline_rot_info = {};
   std::bitset<32> src_tone_map = 0;  //!< Stores the bit mask of src tone map capability
@@ -490,7 +490,8 @@ struct HWResourceInfo {
   uint32_t dsc_block_count = 0;
   uint32_t core_id = 0;
   CacVersion cac_version = kCacVersionNone;
-  DDRVersion ddr_version = kDDRVersion5;
+  DDRVersion ddr_version = kDDRVersionNone;
+  std::vector<LayerBufferFormat> cac_supported_formats;
   bool has_cesta = false;
   uint32_t hw_ai_scaler_count = 0;
 };
@@ -570,6 +571,8 @@ struct HWPanelInfo {
   bool ssip_enabled = false;           // SSIP features supported
   bool has_ai_scaler = false;          // AI Scaler feature is enabled
   bool vhm_support = false;            // Video Hybrid Mode support
+  bool fsc_panel = false;              // fsd_panel
+  uint32_t num_fsc_fields = 0;         // number of fields supported in fsc panel
 
   bool operator !=(const HWPanelInfo &panel_info) {
     return ((port != panel_info.port) || (mode != panel_info.mode) ||
@@ -596,7 +599,9 @@ struct HWPanelInfo {
             (bitclk_rates != panel_info.bitclk_rates) ||
             (ssip_enabled != panel_info.ssip_enabled) ||
             (has_ai_scaler != panel_info.has_ai_scaler) ||
-            (vhm_support != panel_info.vhm_support));
+            (vhm_support != panel_info.vhm_support) ||
+            (fsc_panel != panel_info.fsc_panel) ||
+            (num_fsc_fields != panel_info.num_fsc_fields));
   }
 
   bool operator ==(const HWPanelInfo &panel_info) {
@@ -811,6 +816,7 @@ struct HWAIScalerData {
   uint32_t src_h;
   uint32_t dst_w;
   uint32_t dst_h;
+  uint32_t mode_id;
   uint32_t param[AI_SCALER_PARAM_LEN];
   bool is_param_valid = false;
 };
@@ -1096,6 +1102,7 @@ struct LayerStackInfo {
   RCLayersInfo rc_layers_info = {};
   CommonStackInfo common_info = {};
   bool enable_cac = false;  // This field hints to enable CAC
+  bool enable_anamorphic_fov = false;  // This field hints to enable anamorphic foveation
   CacConfig cac_config = {};
   Handle comp_stack = nullptr;
   SelfRefreshState self_refresh_state = kSelfRefreshNone;

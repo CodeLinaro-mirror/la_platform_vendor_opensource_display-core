@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <utils/debug.h>
 
@@ -184,18 +184,20 @@ void SDMDisplayBuilder::Init(Locker *locker) {
 
   // Init slots in accordance to h/w capability.
   uint32_t disp_count = UINT32(std::min(max_pluggable, kNumPluggable));
-  Display base_id = qdutilsDisplayType::DISPLAY_EXTERNAL;
+  Display base_id = SDM_DISPLAY_EXTERNAL;
   map_info_pluggable_.resize(disp_count);
   for (auto &map_info : map_info_pluggable_) {
     map_info.client_id = base_id++;
   }
 
+  base_id = SDM_DISPLAY_BUILTIN_2;
   disp_count = UINT32(std::min(max_builtin, kNumBuiltIn));
   map_info_builtin_.resize(disp_count);
   for (auto &map_info : map_info_builtin_) {
     map_info.client_id = base_id++;
   }
 
+  base_id = SDM_DISPLAY_VIRTUAL;
   disp_count = UINT32(std::min(max_virtual, kNumVirtual));
   map_info_virtual_.resize(disp_count);
   for (auto &map_info : map_info_virtual_) {
@@ -816,17 +818,15 @@ int SDMDisplayBuilder::HandleConnectedDisplays(HWDisplaysInfo *displays_info,
 
 bool SDMDisplayBuilder::TeardownPluggableDisplays() {
   bool hpd_teardown_handled = false;
+  Display client_id = 0;
 
-  while (true) {
-    auto it = std::find_if(
-        map_active_displays_.begin(), map_active_displays_.end(),
-        [](auto &disp) { return disp.second->disp_type == kPluggable; });
-
-    if (it == map_active_displays_.end()) {
-      break;
+  for (auto &map_info : map_info_pluggable_) {
+    client_id = map_info.client_id;
+    // check whether pluggable display with the client_id is connected
+    auto sdm_display = cb_->GetDisplayFromClientId(client_id);
+    if (sdm_display) {  // if display is connected, then un-connect/destroy
+      hpd_teardown_handled |= !DisconnectPluggableDisplays(&map_info);
     }
-
-    hpd_teardown_handled |= !DisconnectPluggableDisplays(it->second);
   }
 
   if (hpd_teardown_handled) {

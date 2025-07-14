@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
   SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -19,6 +19,10 @@
 #define kNiobeSocId1 629
 #define kNiobeSocId2 652
 #define kNiobeSocName "niobe"
+#define kCanoeSocId 660
+#define kCanoeSocId1 685
+#define kCanoeSocId2 727
+#define kCanoeSocName "canoe"
 
 #endif  // __SOC_INFO_H__
 

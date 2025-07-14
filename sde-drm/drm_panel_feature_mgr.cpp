@@ -28,40 +28,14 @@
 */
 
 /*
- * ​​​​​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted (subject to the limitations in the
- * disclaimer below) provided that the following conditions are met:
- *
- *    * Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
- *
- *    * Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
- *      disclaimer in the documentation and/or other materials provided
- *      with the distribution.
- *
- *    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of
- * its contributors may be used to endorse or promote products derived from this
- * software without specific prior written permission.
- *
- * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
- * GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
- * HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
- * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
+#ifndef TARGET_INCLUDES_NEO
+#include "display/drm/msm_drm_aiqe.h"
+#endif
 
 #include "drm_panel_feature_mgr.h"
 
@@ -75,7 +49,6 @@
 #include <string>
 #include <tuple>
 
-#include "display/drm/msm_drm_aiqe.h"
 #include <utils/debug.h>
 #include <display_properties.h>
 
@@ -147,7 +120,6 @@ void DRMPanelFeatureMgr::Init(int fd, drmModeRes* res) {
   drm_property_map_[kDRMPanelFeatureAiqeSSRCConfig] = DRMProperty::SDE_DSPP_AIQE_SSRC_CONFIG_V1;
   drm_property_map_[kDRMPanelFeatureAiqeSSRCData] = DRMProperty::SDE_DSPP_AIQE_SSRC_DATA_V1;
   drm_property_map_[kDRMPanelFeatureAIScalerCfg] = DRMProperty::AI_SCALER_CFG_V1;
-  drm_property_map_[kDRMPanelFeatureAiqeMdnie] = DRMProperty::SDE_DSPP_AIQE_MDNIE_V1;
   drm_property_map_[kDRMPanelFeatureAiqeMdnieArt] = DRMProperty::SDE_DSPP_AIQE_MDNIE_ART_V1;
   drm_property_map_[kDRMPanelFeatureAiqeMdnieIPC] = DRMProperty::SDE_DSPP_AIQE_MDNIE_IPC_V1;
   drm_property_map_[kDRMPanelFeatureAiqeCopr] = DRMProperty::SDE_DSPP_AIQE_COPR_V1;
@@ -204,6 +176,7 @@ void DRMPanelFeatureMgr::Init(int fd, drmModeRes* res) {
                           1,
                           sizeof(drm_msm_dem_cfg0_param2),
                           0};
+#ifndef TARGET_INCLUDES_NEO
   feature_info_tbl_[kDRMPanelFeatureAiqeSSRCConfig] =
       DRMPanelFeatureInfo{kDRMPanelFeatureAiqeSSRCConfig,
                           DRM_MODE_OBJECT_CRTC,
@@ -224,22 +197,23 @@ void DRMPanelFeatureMgr::Init(int fd, drmModeRes* res) {
                                                                        1,
                                                                        sizeof(drm_msm_ai_scaler),
                                                                        0};
-  feature_info_tbl_[kDRMPanelFeatureAiqeMdnie] = DRMPanelFeatureInfo{
-      kDRMPanelFeatureAiqeMdnie, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, sizeof(uint64_t), 0};
   feature_info_tbl_[kDRMPanelFeatureAiqeMdnieArt] = DRMPanelFeatureInfo{
       kDRMPanelFeatureAiqeMdnieArt, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, sizeof(uint64_t), 0};
   feature_info_tbl_[kDRMPanelFeatureAiqeMdnieIPC] = DRMPanelFeatureInfo{
       kDRMPanelFeatureAiqeMdnieIPC, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, sizeof(uint64_t), 0};
   feature_info_tbl_[kDRMPanelFeatureAiqeCopr] = DRMPanelFeatureInfo{
       kDRMPanelFeatureAiqeCopr, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, sizeof(uint64_t), 0};
+#endif
   feature_info_tbl_[kDRMPanelFeatureABC] =
       DRMPanelFeatureInfo{kDRMPanelFeatureABC, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, 64, 0};
   feature_info_tbl_[kDRMPanelFeatureDemuraBacklight] = DRMPanelFeatureInfo{
       kDRMPanelFeatureDemuraBacklight, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, sizeof(uint32_t), 0};
 
   int value = 0;
+#ifndef TARGET_INCLUDES_NEO
   sdm::Debug::Get()->GetProperty(ENABLE_AI_SCALER_PROP, &value);
   enable_ai_scaler_ = (value > 0);
+#endif
 
   value = 0;
   sdm::Debug::Get()->GetProperty(ENABLE_ABC, &value);
@@ -327,6 +301,24 @@ int DRMPanelFeatureMgr::InitObjectProps(int obj_id, int obj_type) {
                                                                         3,
                                                                         sizeof(drm_msm_dem_cfg),
                                                                         0};
+    } else if (prop_enum == DRMProperty::DEMURA_INIT_CFG_V4) {
+      drm_property_map_[kDRMPanelFeatureDemuraInit] = DRMProperty::DEMURA_INIT_CFG_V4;
+      feature_info_tbl_[kDRMPanelFeatureDemuraInit] =
+          DRMPanelFeatureInfo{kDRMPanelFeatureDemuraInit,
+                              DRM_MODE_OBJECT_CRTC,
+                              UINT32_MAX,
+                              4,
+                              sizeof(drm_msm_dem_cfg),
+                              0};
+    } else if (prop_enum == DRMProperty::SDE_DSPP_AIQE_MDNIE_V1) {
+      // Same property kDRMPanelFeatureAiqeMdnie is used for both MDNIE V1 and V2
+      drm_property_map_[kDRMPanelFeatureAiqeMdnie] = DRMProperty::SDE_DSPP_AIQE_MDNIE_V1;
+      feature_info_tbl_[kDRMPanelFeatureAiqeMdnie] = DRMPanelFeatureInfo{
+          kDRMPanelFeatureAiqeMdnie, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, sizeof(uint64_t), 0};
+    } else if (prop_enum == DRMProperty::SDE_DSPP_AIQE_MDNIE_V2) {
+      drm_property_map_[kDRMPanelFeatureAiqeMdnie] = DRMProperty::SDE_DSPP_AIQE_MDNIE_V2;
+      feature_info_tbl_[kDRMPanelFeatureAiqeMdnie] = DRMPanelFeatureInfo{
+          kDRMPanelFeatureAiqeMdnie, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, sizeof(uint64_t), 0};
     }
 
     prop_mgr_.SetPropertyId(prop_enum, info->prop_id);
@@ -477,6 +469,17 @@ void DRMPanelFeatureMgr::GetPanelFeatureInfo(DRMPanelFeatureInfo *info) {
 
   if (info->prop_id > kDRMPanelFeatureMax) {
     DRM_LOGE("Invalid feature id %d", info->prop_id);
+    return;
+  } else if (info->prop_id == kDRMPanelFeatureDemuraDoubleBufferCbFlags) {
+    if (!info->prop_ptr) {
+      DRM_LOGE("Invalid prop_ptr is nullptr, prop_id %d", info->prop_id);
+      return;
+    }
+
+    // Starting from version 4, the double buffer codebook is supported
+    bool *double_buffer_codebook_supported = reinterpret_cast<bool *>(info->prop_ptr);
+    *double_buffer_codebook_supported =
+        (feature_info_tbl_[kDRMPanelFeatureDemuraInit].version >= 4 ? true : false);
     return;
   }
 

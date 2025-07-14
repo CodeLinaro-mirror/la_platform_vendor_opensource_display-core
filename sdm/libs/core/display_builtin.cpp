@@ -23,9 +23,9 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
 #include "display_builtin.h"
@@ -80,6 +80,7 @@ static uint64_t GetTimeInMs(struct timespec ts) {
   return (ts.tv_sec * 1000 + (ts.tv_nsec + 500000) / 1000000);
 }
 
+#ifndef TARGET_INCLUDES_NEO
 DisplayError DisplayBuiltIn::SetupAiqe() {
   int value = 0;
   char value_str[200] = {0};
@@ -92,10 +93,10 @@ DisplayError DisplayBuiltIn::SetupAiqe() {
 
   DebugHandler::Get()->GetProperty(AIQE_SSRC_ENABLE, &value);
   if (value == 1) {
-    aiqe::SsrcFeatureFactory *ssrc_feature_factory;
-    aiqe::SsrcFeatureDisplayDetails *display_details;
-    std::string *default_mode;
-    bool *force_commit;
+    aiqe::SsrcFeatureFactory *ssrc_feature_factory = nullptr;
+    aiqe::SsrcFeatureDisplayDetails *display_details = nullptr;
+    std::string *default_mode = nullptr;
+    bool *force_commit = nullptr;
     GenericPayload payload;
 
     if (!ssrc_lib_.Open(SSRC_LIBRARY_NAME)) {
@@ -191,6 +192,7 @@ DisplayError DisplayBuiltIn::SetupAiqe() {
 
   return kErrorNone;
 }
+#endif
 
 DisplayError DisplayBuiltIn::Init() {
   ClientLock lock(disp_mutex_);
@@ -246,7 +248,8 @@ DisplayError DisplayBuiltIn::Init() {
             HWEvent::BACKLIGHT_EVENT,
             HWEvent::POWER_EVENT,
             HWEvent::MMRM,
-            HWEvent::VM_RELEASE_EVENT};
+            HWEvent::VM_RELEASE_EVENT,
+            HWEvent::VM_RECLAIM_EVENT};
   if (client_ctx_.hw_panel_info.mode == kModeCommand) {
     events.push_back(HWEvent::IDLE_POWER_COLLAPSE);
   }
@@ -300,6 +303,10 @@ DisplayError DisplayBuiltIn::Init() {
   Debug::Get()->GetProperty(DEFER_FPS_FRAME_COUNT, &value);
   deferred_config_.frame_count = (value > 0) ? UINT32(value) : 0;
 
+  value = 0;
+  Debug::Get()->GetProperty(ENABLE_HFI_PATH, &value);
+  hfi_path_supported_ = (value > 0);
+
   error = event_proxy_info_.Init(client_ctx_.hw_panel_info.panel_name, this, extension_lib_,
                                  prop_intf_);
   if (error != kErrorNone) {
@@ -347,7 +354,15 @@ DisplayError DisplayBuiltIn::Init() {
     abc_prop_ = abc_tvm_enabled_;
 #endif
 
-    DisabelDemuraForHandOff();
+    // Get demura count from HW info
+    uint32_t demura_cnt = 0;
+    for (int i = 0; i < core_count_; i++) {
+      demura_cnt = std::max(demura_cnt, hw_resource_info_[i].demura_count);
+    }
+    // Disable demura only when demura block is available
+    if (demura_cnt > 0) {
+      DisableDemuraForHandOff();
+    }
     Debug::Get()->GetProperty(ENABLE_DEMURA, &demura_prop_);
     if (demura_prop_) {  // Create parser manager for demura
       pm_intf_ = pf_factory_->CreateDemuraParserManager(ipc_intf_, buffer_allocator_);
@@ -389,6 +404,10 @@ DisplayError DisplayBuiltIn::Init() {
   }
 
   value = 0;
+  Debug::Get()->GetProperty(ENABLE_AI_SCALER_PROP, &value);
+  enable_ai_scaler_ = (value == 1);
+
+  value = 0;
   DebugHandler::Get()->GetProperty(ENHANCE_IDLE_TIME, &value);
   enhance_idle_time_ = (value == 1);
 
@@ -426,7 +445,9 @@ DisplayError DisplayBuiltIn::Init() {
 
   NoiseInit();
   InitCWBBuffer();
+#ifndef TARGET_INCLUDES_NEO
   SetupAiqe();
+#endif
 
   left_frame_roi_.resize(core_count_);
   right_frame_roi_.resize(core_count_);
@@ -483,7 +504,6 @@ DisplayError DisplayBuiltIn::Deinit() {
         }
         pm_intf_->Deinit();
       }
-      comp_manager_->FreeDemuraFetchResources(display_id_);
     }
 
     if (feat_license_intf_) {
@@ -504,8 +524,10 @@ DisplayError DisplayBuiltIn::PrePrepare(LayerStack *layer_stack) {
   uint32_t new_mixer_height = 0;
   uint32_t display_width = client_ctx_.display_attributes.x_pixels;
   uint32_t display_height = client_ctx_.display_attributes.y_pixels;
+#ifndef TARGET_INCLUDES_NEO
   GenericPayload bool_payload;
-  bool *force_update;
+  bool *force_update = nullptr;
+#endif
 
   DisplayError error = HandleDemuraLayer(layer_stack);
   if (error != kErrorNone) {
@@ -555,6 +577,7 @@ DisplayError DisplayBuiltIn::PrePrepare(LayerStack *layer_stack) {
     }
   }
 
+#ifndef TARGET_INCLUDES_NEO
   if (ssrc_feature_enabled_) {
     if (bool_payload.CreatePayload(force_update) != 0) {
       DLOGE("Unable to create force update payload");
@@ -567,6 +590,7 @@ DisplayError DisplayBuiltIn::PrePrepare(LayerStack *layer_stack) {
       return kErrorNotSupported;
     }
   }
+#endif
 
   return kErrorNotValidated;
 }
@@ -609,6 +633,20 @@ DisplayError DisplayBuiltIn::Prepare(LayerStack *layer_stack) {
   error = DisplayBase::Prepare(layer_stack);
   if (error != kErrorNone) {
     return error;
+  } else {
+    if (!disp_layer_stack_->stack->flags.default_strategy && previous_frame_default_strategy_) {
+      DLOGI("Strategy has been changed to extern support from default, enabling demura");
+      previous_frame_default_strategy_ = false;
+      if (demura_intended_) {
+        int ret = SetDemuraIntfStatus(true);
+        if (ret) {
+          DLOGE("Failed to set demura intf status. Error:%d", ret);
+        }
+      }
+    }
+    if (disp_layer_stack_->stack->flags.default_strategy) {
+      previous_frame_default_strategy_ = true;
+    }
   }
 
   UpdateQsyncConfig();
@@ -767,12 +805,13 @@ DisplayError DisplayBuiltIn::SetupSPR() {
   int spr_bypass_prop_value = 0;
   int spr_disable_value = 0;
   Debug::GetProperty(ENABLE_SPR, &spr_prop_value);
-  Debug::GetProperty(ENABLE_SPR_BYPASS, &spr_bypass_prop_value);
 
   if (IsPrimaryDisplay()) {
     Debug::Get()->GetProperty(DISABLE_SPR_PRIMARY, &spr_disable_value);
+    Debug::GetProperty(ENABLE_SPR_BYPASS, &spr_bypass_prop_value);
   } else {
     Debug::Get()->GetProperty(DISABLE_SPR_SECONDARY, &spr_disable_value);
+    Debug::GetProperty(ENABLE_SPR_BYPASS_SECONDARY, &spr_bypass_prop_value);
   }
 
   if (spr_prop_value && !spr_disable_value) {
@@ -878,6 +917,19 @@ DisplayError DisplayBuiltIn::SetupDemuraLayer() {
     DLOGE("Failed to get BufferInfo, error = %d", ret);
     return kErrorResources;
   }
+
+  GenericPayload dec_pl;
+  DemuraHfcDecimationInfo *hfc_decimate_info = nullptr;
+  if ((ret = dec_pl.CreatePayload<DemuraHfcDecimationInfo>(hfc_decimate_info))) {
+    DLOGE("Failed to create payload for decimate_cfg, error = %d", ret);
+    return kErrorResources;
+  }
+
+  if ((ret = demura_->GetParameter(kDemuraFeatureParamHfcDecimationInfo, &dec_pl))) {
+    DLOGE("Failed to get decimate_cfg, error = %d", ret);
+    return kErrorResources;
+  }
+
   demura_layer_.clear();  // This will clear the old demura layers
 
   for (int buf_idx = 0; buf_idx < corrdata->surfaces.size(); buf_idx++) {
@@ -906,6 +958,8 @@ DisplayError DisplayBuiltIn::SetupDemuraLayer() {
     demura_layer.composition = kCompositionDemura;
     demura_layer.blending = kBlendingSkip;
     demura_layer.flags.is_demura = 1;
+    demura_layer.demura_decimate_w = hfc_decimate_info->decimate_w;
+    demura_layer.demura_decimate_h = hfc_decimate_info->decimate_h;
     // ROI must match input dimensions
     demura_layer.src_rect.top = 0;
     demura_layer.src_rect.left = 0;
@@ -1213,6 +1267,17 @@ DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
   panel_id_ = panel_id;
   DLOGI("panel_id 0x%lx", panel_id_);
 
+  PanelFeaturePropertyInfo demura_info;
+  bool double_buffer_codebook_supported = false;
+  demura_info.prop_id = kPanelFeatureDemuraDoubleBufferCbFlags;
+  demura_info.prop_ptr = reinterpret_cast<uint64_t>(&double_buffer_codebook_supported);
+  ret = prop_intf_->GetPanelFeature(&demura_info);
+  if (ret) {
+    DLOGE("Failed to get panel feature, error = %d", ret);
+    return kErrorUndefined;
+  }
+  double_buffer_codebook_supported_ = double_buffer_codebook_supported;
+
   // Send Panel ID to parser manager before validating license
   // in case of DemuraTn is enabled with unity config.
   error = SendPanelIdToParserManager();
@@ -1337,7 +1402,6 @@ DisplayError DisplayBuiltIn::SetupDemuraT0() {
 }
 
 DisplayError DisplayBuiltIn::SendPanelIdToParserManager() {
-  DisplayError error = kErrorNone;
   int ret = 0;
 
   if (!pm_intf_) {
@@ -1345,21 +1409,25 @@ DisplayError DisplayBuiltIn::SendPanelIdToParserManager() {
     return kErrorUndefined;
   }
 
-  std::vector<uint64_t> *panel_ids;
+  PanelIdsInfo *panel_ids_info = nullptr;
   GenericPayload in;
-  ret = in.CreatePayload<std::vector<uint64_t>>(panel_ids);
-  if (ret) {
-    DLOGE("Failed to create payload for panel ids, error = %d", ret);
+  ret = in.CreatePayload<PanelIdsInfo>(panel_ids_info);
+  if (ret || !panel_ids_info) {
+    DLOGE("Failed to create payload for panel ids, ret %d", ret);
     return kErrorResources;
   }
-  panel_ids->push_back(panel_id_);
 
+  panel_ids_info->panel_ids.push_back(panel_id_);
+  panel_ids_info->is_primary_display = IsPrimaryDisplayLocked();
+  panel_ids_info->double_buffer_codebook_supported = double_buffer_codebook_supported_;
   if ((ret = pm_intf_->SetParameter(kDemuraParserManagerParamPanelIds, in))) {
     DLOGE("Failed to set the panel ids to the parser manager");
     return kErrorResources;
   }
 
-  return error;
+  DLOGI("Successfully set panel ID 0x%lx to parser manager intf, is_primary_display %d", panel_id_,
+        panel_ids_info->is_primary_display);
+  return kErrorNone;
 }
 
 DisplayError DisplayBuiltIn::SetupDemuraTn() {
@@ -1649,6 +1717,21 @@ DisplayError DisplayBuiltIn::SetDisplayState(DisplayState state, bool teardown,
     SetDemuraIntfStatus(false, demura_current_idx_);
   }
 
+  if (hfi_path_supported_) {
+    if (state == DisplayState::kStateDoze || state == DisplayState::kStateDozeSuspend) {
+      // set driver commit path to HFI if entering doze mode
+      error = hw_intf_->setDriverCommitPath(DriverCommitPath::kHFI);
+    } else if ((state_ == DisplayState::kStateDoze || state_ == DisplayState::kStateDozeSuspend) &&
+               (state != DisplayState::kStateDoze && state != DisplayState::kStateDozeSuspend)) {
+      // set driver commit path to hwio if exiting doze ode
+      error = hw_intf_->setDriverCommitPath(DriverCommitPath::kHWIO);
+    }
+  }
+
+  if (error) {
+    DLOGW("Failed to update driver path when transitioning to state %d", state);
+  }
+
   error = DisplayBase::SetDisplayState(state, teardown, release_fence);
   if (error != kErrorNone) {
     return error;
@@ -1767,7 +1850,8 @@ DisplayError DisplayBuiltIn::SetDisplayMode(uint32_t mode) {
   return error;
 }
 
-DisplayError DisplayBuiltIn::SetPanelBrightness(float brightness, bool return_error) {
+DisplayError DisplayBuiltIn::SetPanelBrightness(float brightness, bool apply_immediately,
+                                                bool return_error) {
   DisplayError err = kErrorNone;
   {
     lock_guard<recursive_mutex> obj(brightness_lock_);
@@ -1795,10 +1879,7 @@ DisplayError DisplayBuiltIn::SetPanelBrightness(float brightness, bool return_er
       level_remainder = t - level;
     }
 
-    err = dpu_core_mux_->SetPanelBrightness(level);
-    if (enable_brightness_drm_prop_) {
-      event_handler_->Refresh();
-    }
+    err = dpu_core_mux_->SetPanelBrightness(level, apply_immediately);
     if (err == kErrorNone) {
       level_remainder_ = level_remainder;
       pending_brightness_ = false;
@@ -2009,6 +2090,7 @@ void DisplayBuiltIn::IdlePowerCollapse() {
 }
 
 DisplayError DisplayBuiltIn::ClearLUTs() {
+  ClientLock lock(disp_mutex_);
   validated_ = false;
   comp_manager_->ProcessIdlePowerCollapse(display_comp_ctx_);
   return kErrorNone;
@@ -2361,12 +2443,29 @@ DisplayError DisplayBuiltIn::NotifyDisplayCalibrationMode(bool in_calibration) {
   return ret;
 }
 
+bool DisplayBuiltIn::IsAnamorphicFoveationEnabled(LayerStack *layer_stack) {
+  if (!xr_variant_) {
+    return false;
+  }
+
+  const std::vector<Layer *> &layers = layer_stack->layers;
+  for (uint32_t i = 0; i < layers.size(); i++) {
+    QtiAnamorphicMetadata anamorphic_md = layers[i]->input_buffer.anamorphicMetadata;
+    if (anamorphic_md.leftEyeDataValid || anamorphic_md.rightEyeDataValid) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 std::string DisplayBuiltIn::Dump() {
   ClientLock lock(disp_mutex_);
   uint32_t active_index = 0;
   uint32_t num_modes = 0;
   std::ostringstream os;
   char capabilities[16];
+  CacVersion cac_version = GetCacVerion();
   HWPanelInfo hw_panel_info = client_ctx_.hw_panel_info;
   HWDisplayAttributes display_attributes = client_ctx_.display_attributes;
   HWMixerAttributes mixer_attributes = client_ctx_.mixer_attributes;
@@ -2425,6 +2524,11 @@ std::string DisplayBuiltIn::Dump() {
   os << " Topology: " << display_attributes.topology;
   os << " Qsync mode: " << active_qsync_mode_;
   os << " CAC enabled: " << disp_layer_stack_->stack_info.enable_cac;
+  os << (disp_layer_stack_->stack_info.enable_cac
+             ? (cac_version == kCacVersionLoopback) ? " (CACLoopback)" : " (CACV2)"
+             : "");
+  os << "\n Foveation enabled: " << disp_layer_stack_->stack_info.enable_anamorphic_fov;
+  os << (disp_layer_stack_->stack_info.enable_anamorphic_fov ? " (Anamorphic Foveation)" : "");
   os << std::noboolalpha;
 
   DynamicRangeType curr_dynamic_range = kSdrType;
@@ -3008,6 +3112,7 @@ DisplayError DisplayBuiltIn::BuildLayerStackStats(LayerStack *layer_stack) {
   stack_info.common_info.blend_cs = layer_stack->blend_cs;
   stack_info.wide_color_primaries.clear();
   stack_info.enable_cac = enable_cac_;
+  stack_info.enable_anamorphic_fov = IsAnamorphicFoveationEnabled(layer_stack);
   stack_info.cac_config = cac_config_;
 
   int index = 0;
@@ -3192,7 +3297,7 @@ DisplayError DisplayBuiltIn::ReconfigureDisplay() {
   }
 
   // Notify Demura when refresh rate changes
-  if (demura_) {
+  if (demura_ && !abc_prop_) {
     GenericPayload demura_fps_pl = {};
     uint32_t *demura_fps_ptr = nullptr;
     int ret = demura_fps_pl.CreatePayload<uint32_t>(demura_fps_ptr);
@@ -3350,6 +3455,18 @@ void DisplayBuiltIn::SendDisplayConfigs() {
       DLOGI("current_abc_mode = %s", disp_configs->abc_mode.c_str());
     }
 
+    if (enable_ai_scaler_) {
+      uint32_t current_mode_id = 0;
+      DisplayError error = comp_manager_->GetAIScalerMode(&current_mode_id);
+      if (error) {
+        DLOGE("Failed to get current AI scaler mode ID, error = %d", error);
+        return;
+      }
+
+      disp_configs->ai_scaler_mode_id = current_mode_id;
+      DLOGI("Current AI Scaler mode ID = %d", disp_configs->ai_scaler_mode_id);
+    }
+
     if ((ret = ipc_intf_->SetParameter(kIpcParamDisplayConfigs, in))) {
       DLOGW("Failed to send display config, error = %d", ret);
     }
@@ -3457,6 +3574,11 @@ void DisplayBuiltIn::HandlePowerEvent() {
 void DisplayBuiltIn::HandleVmReleaseEvent() {
   if (event_handler_)
     event_handler_->HandleEvent(kVmReleaseDone);
+}
+
+void DisplayBuiltIn::HandleVmReclaimEvent() {
+  if (event_handler_)
+    event_handler_->HandleEvent(kVmReclaimDone);
 }
 
 DisplayError DisplayBuiltIn::GetQsyncFps(uint32_t *qsync_fps) {
@@ -4002,8 +4124,7 @@ DisplayError DisplayBuiltIn::SetDemuraConfig(int demura_idx) {
   }
 
   DLOGI("Setting the Demura Config, config = %d", demura_idx);
-
-  if (demura_idx < kDemuraDefaultIdx || demura_idx >= kMaxPanelConfigSupported) {
+  if (demura_idx < kDemuraDefaultIdx) {
     DLOGE("Invalid demura config index");
     return kErrorParameters;
   }
@@ -4109,6 +4230,7 @@ DisplayError DisplayBuiltIn::PanelBacklightInfo(
   return event_proxy_info_.PanelBacklightInfo(client_name, enable, cb_intf);
 }
 
+#ifndef TARGET_INCLUDES_NEO
 DisplayError DisplayBuiltIn::EnableCopr(bool en) {
   DisplayError ret = kErrorNone;
 
@@ -4137,6 +4259,7 @@ DisplayError DisplayBuiltIn::GetCoprStats(std::vector<int> *stats) {
     DLOGE("Failed to get COPR stats ret %d", ret);
   return ret;
 }
+#endif
 
 DisplayError DisplayBuiltIn::GetScalerCount(uint32_t *scaler_count) {
   int enable_ai_scaler = 0;
@@ -4243,6 +4366,7 @@ EventProxyInfo::PanelOprInfo(const std::string &client_name, bool enable,
   return kErrorNone;
 }
 
+#ifndef TARGET_INCLUDES_NEO
 DisplayError EventProxyInfo::EnableCopr(const std::string &client_name, bool enable,
                                         SdmDisplayCbInterface<CoprEventPayload> *cb_intf) {
   if (!event_proxy_intf_.get()) {
@@ -4295,6 +4419,7 @@ int CoprInfo::Notify(const CoprEventPayload &payload) {
 
   return 0;
 }
+#endif
 
 DisplayError EventProxyInfo::SetPaHistCollection(
     const std::string &client_name, bool enable,
@@ -4384,11 +4509,12 @@ DisplayError EventProxyInfo::PanelBacklightInfo(
   return kErrorNone;
 }
 
+#ifndef TARGET_INCLUDES_NEO
 DisplayError DisplayBuiltIn::SetSsrcMode(const std::string &mode) {
   DisplayError ret = kErrorNotSupported;
 
   if (ssrc_feature_enabled_ && ssrc_feature_interface_) {
-    std::string *mode_str;
+    std::string *mode_str = nullptr;
     GenericPayload payload;
     int rc = payload.CreatePayload(mode_str);
     if (rc) {
@@ -4407,6 +4533,7 @@ DisplayError DisplayBuiltIn::SetSsrcMode(const std::string &mode) {
   needs_validate_ = true;
   return ret;
 }
+#endif
 
 DisplayError DisplayBuiltIn::SetAVRStepState(bool enable) {
   ClientLock lock(disp_mutex_);
@@ -4506,6 +4633,11 @@ DisplayError DisplayBuiltIn::SetABCReconfig() {
     return kErrorUndefined;
   }
 
+  if (!abc_prop_) {
+    DLOGI("ABC feature is not enabled");
+    return kErrorUndefined;
+  }
+
   if (!comp_manager_->GetDemuraStatusForDisplay(display_id_)) {
     return kErrorUndefined;
   }
@@ -4529,6 +4661,12 @@ DisplayError DisplayBuiltIn::SetABCReconfig() {
 
   if (SetDemuraIntfStatus(true)) {
     DLOGE("Failed to set ABC Status on Display %d", display_id_);
+    return kErrorUndefined;
+  }
+
+  DisplayError error = ExportABCFiles();
+  if (error) {
+    DLOGE("Failed to export ABC files, error %d", error);
     return kErrorUndefined;
   }
 
@@ -4587,6 +4725,21 @@ DisplayError DisplayBuiltIn::SetABCMode(const string &mode_name) {
   return kErrorNone;
 }
 
+DisplayError DisplayBuiltIn::SetAIScalerMode(uint32_t mode_id) {
+  DisplayError ret = kErrorParameters;
+
+  if (IsPrimaryDisplay()) {
+    ret = comp_manager_->SetAIScalerMode(mode_id);
+  }
+
+  if (ret) {
+    DLOGE("Unable to set AI Scaler mode ID. error: %d", ret);
+  }
+
+  needs_validate_ = true;
+  return ret;
+}
+
 DisplayError DisplayBuiltIn::SetPanelFeatureConfig(int32_t type, void *data) {
   DisplayError ret = kErrorNone;
 
@@ -4623,6 +4776,9 @@ DisplayError DisplayBuiltIn::SetPanelFeatureConfig(int32_t type, void *data) {
       break;
     case kTypeDemuraTnAodHandlerCtrl:
       ret = SetDemuraTnAodHandlerCtrl(data);
+      break;
+    case kTypeDemuraTnAgingSurfTransfer:
+      ret = SetDemuraTnAgingSurfTransfer(data);
       break;
     default:
       DLOGE("Invalid type %d", type);
@@ -4661,16 +4817,66 @@ DisplayError DisplayBuiltIn::SetDemuraTnCWBSamplingPeriod(void *data) {
 }
 
 DisplayError DisplayBuiltIn::ExportDemuraFiles() {
-  if (!pm_intf_) {
-    DLOGW("Invalid parser manager intf");
+#if !defined(SDM_UNIT_TESTING) && !defined(TRUSTED_VM)
+  int ret = 0;
+  const std::string kConfigFilePath = "/mnt/vendor/persist/display/";
+  std::vector<std::string> configs = {"demura_config_", "demura_publickey_", "demura_signature_"};
+
+  if (!panel_id_) {
+    DLOGE("Invalid panel id %llx", panel_id_);
     return kErrorUndefined;
   }
 
-  GenericPayload in;
-  int ret = pm_intf_->SetParameter(kDemuraParserManagerExportDemuraFiles, in);
-  if (ret) {
-    DLOGE("Failed to export demura files, ret %d", ret);
+  if (!vm_file_xfer_intf_) {
+    DLOGE("Invalid xfer client intf");
     return kErrorUndefined;
+  }
+
+  std::vector<std::string> filenames;
+  for (const std::string &config : configs) {
+    std::stringstream file_path;
+    file_path << kConfigFilePath << config << std::setfill('0') << std::setw(16) << std::hex
+              << panel_id_;
+
+    std::string filename = file_path.str();
+    std::ifstream file(filename);
+    if (!file.good()) {
+      DLOGE("File does not exist or is not readable: %s", filename.c_str());
+      return kErrorUndefined;
+    }
+
+    filenames.push_back(filename);
+  }
+
+  GenericPayload s_in;
+  VMFileXferStoreInput *s_ip = nullptr;
+  ret = s_in.CreatePayload<VMFileXferStoreInput>(s_ip);
+  if (ret || s_ip == nullptr) {
+    DLOGE("Failed to create input payload error = %d", ret);
+    return kErrorUndefined;
+  }
+
+  for (const std::string &filename : filenames) {
+    s_ip->local_file_path = filename;
+    ret = vm_file_xfer_intf_->SetParameter(kVMFileTransferParamsStore, s_in);
+    if (ret) {
+      DLOGE("Failed to store config file: %s", s_ip->local_file_path.c_str());
+      return kErrorUndefined;
+    }
+  }
+#endif
+
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::ExportABCFiles() {
+  if (IsPrimaryDisplay() && abc_tvm_enabled_ && demura_) {
+    GenericPayload in;
+    int ret = demura_->SetParameter(kDemuraFeatureParamExportFiles, in);
+    if (ret != 0) {
+      DLOGW("Failed to export ABC files");
+      return kErrorUndefined;
+    }
   }
 
   return kErrorNone;
@@ -4707,15 +4913,6 @@ DisplayError DisplayBuiltIn::StartTvmServices() {
         DLOGE("Failed to init DemuraTnCleanupIntf, ret %d", ret);
         demuratn_cleanup_intf_.reset();
       }
-    }
-  }
-
-  if (abc_prop_ && abc_tvm_enabled_ && demura_) {
-    GenericPayload in;
-    int ret = demura_->SetParameter(kDemuraFeatureParamExportFiles, in);
-    if (ret != 0) {
-      DLOGW("Failed to export ABC files");
-      return kErrorUndefined;
     }
   }
 
@@ -4771,6 +4968,7 @@ int DisplayBuiltIn::CreateServiceManager() {
 
 int DisplayBuiltIn::StartVmFileServiceAndExportFiles() {
   int ret = 0;
+  DisplayError error = kErrorNone;
 
   if (!service_manager_intf_) {
     DLOGE("Invalid service manager");
@@ -4787,13 +4985,10 @@ int DisplayBuiltIn::StartVmFileServiceAndExportFiles() {
     DLOGI("Started kStartVmFileTransferService");
   }
 
-  // Export files
-  if (demura_prop_) {
-    DisplayError error = ExportDemuraFiles();
-    if (error) {
-      DLOGE("Failed to export demura files, error %d", error);
-      return -EINVAL;
-    }
+  error = ExportABCFiles();
+  if (error) {
+    DLOGE("Failed to export ABC files, error %d", error);
+    return -EINVAL;
   }
 
   if (!factory_extn_) {
@@ -4817,6 +5012,14 @@ int DisplayBuiltIn::StartVmFileServiceAndExportFiles() {
     return ret;
   } else {
     DLOGI("Created VmFileXferClient");
+  }
+
+  // Export files
+  if (demura_prop_) {
+    error = ExportDemuraFiles();
+    if (error) {
+      DLOGE("Failed to export demura files, error %d", error);
+    }
   }
 
   return ret;
@@ -5155,6 +5358,29 @@ DisplayError DisplayBuiltIn::SetDemuraTnAodHandlerCtrl(void *data) {
   return kErrorNone;
 }
 
+DisplayError DisplayBuiltIn::SetDemuraTnAgingSurfTransfer(void *data) {
+  (void)data;
+  if (demuratn_enabled_) {
+    DLOGE("Pls disable demuraTn temporarily before aging surface transfer");
+    return kErrorUndefined;
+  }
+
+  if (!demuratn_) {
+    DLOGE("Demuratn_ is %pK", demuratn_.get());
+    return kErrorUndefined;
+  }
+
+  GenericPayload payload = {};
+  int ret = demuratn_->SetParameter(kDemuraTnCoreUvmParamAgingSurfTransfer, payload);
+  if (ret) {
+    DLOGE("Set demuraTn aging surface transfer failed ret %d", ret);
+    return kErrorUndefined;
+  }
+
+  DLOGI("Set demuraTn aging surface transfer done");
+  return kErrorNone;
+}
+
 int DisplayBuiltIn::HandleTvmServiceEvent(const TvmServiceCbEvent &event) {
   DLOGI("Handle TVM service event %d", event);
   if (event == kVmFileTransferServiceDead) {
@@ -5180,7 +5406,7 @@ int DisplayBuiltIn::Notify(const TvmServiceCbEvent &event) {
   return 0;
 }
 
-DisplayError DisplayBuiltIn::DisabelDemuraForHandOff() {
+DisplayError DisplayBuiltIn::DisableDemuraForHandOff() {
   if (!prop_intf_) {
     DLOGE("prop_intf_ is nullptr");
     return kErrorParameters;

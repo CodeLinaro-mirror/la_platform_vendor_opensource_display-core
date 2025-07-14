@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include "sdm_layer_builder.h"
@@ -31,6 +31,10 @@ DisplayError SDMLayerBuilder::Init(BufferAllocator *buffer_allocator,
   Debug::Get()->GetProperty(DISABLE_MASK_LAYER_HINT, &disable_mask_layer_hint_);
   DLOGI("disable_mask_layer_hint_: %d", disable_mask_layer_hint_);
 
+  int prop_value = 0;
+  Debug::Get()->GetProperty(DISABLE_LLCBC_SUPPORT_PROP, &prop_value);
+  SDMLayer::SetAutoLayerIdCreation(!!prop_value);
+
   // initialize layer stack
   display_layer_stack_[display_id];
 
@@ -59,6 +63,19 @@ DisplayError SDMLayerBuilder::DeInit(uint64_t display_id) {
 LayerBufferFormat SDMLayerBuilder::GetSDMFormat(const int32_t &source, const int32_t flags,
                                                 const int64_t compression_type) {
   return buffer_allocator_->GetSDMFormat(source, flags, compression_type);
+}
+
+bool SDMLayerBuilder::CheckLayerBufferBinding(uint64_t display_id, int64_t layer_id,
+                                              const SnapHandle *buffer) {
+  auto sdm_layer = GetSDMLayer(display_id, layer_id);
+  if (sdm_layer != nullptr) {
+    auto layer = sdm_layer->GetSDMLayer();
+    if (layer != nullptr) {
+      return (layer->input_buffer.buffer_id == reinterpret_cast<uint64_t>(buffer));
+    }
+  }
+
+  return false;
 }
 
 SDMLayer *SDMLayerBuilder::GetSDMLayer(uint64_t display_id, int64_t layer_id) {
@@ -107,13 +124,30 @@ DisplayError SDMLayerBuilder::SetLayerAsMask(uint64_t disp_id,
 
 DisplayError SDMLayerBuilder::CreateLayer(uint64_t display_id,
                                           int64_t *out_layer_id) {
+  if (!out_layer_id) {
+    return kErrorParameters;
+  }
+
   SCOPE_LOCK(locker_[display_id]);
   if (display_layer_stack_.find(display_id) == display_layer_stack_.end()) {
     DLOGW("Display: %" PRIu64 " not found - may have been deleted already", display_id);
     return kErrorNotSupported;
   }
-  auto layer = new SDMLayer(display_id, buffer_allocator_);
-  auto layer_id = layer->GetId();
+
+  LayerId layer_id = *out_layer_id;
+  SDMLayer *layer = nullptr;
+  if (layer_id > 0) {
+    if (SDMLayer::IsLayerIdExisting(layer_id)) {
+      DLOGW("Layer-%" PRIu64 ": Layer already exists, and trying to recreate!", layer_id);
+      // Destroy the intact layer, if already exists to create as per new requirement.
+      DestroyLayerLocked(display_id, layer_id);
+    }
+    layer = new SDMLayer(display_id, layer_id, buffer_allocator_);
+  } else {
+    layer = new SDMLayer(display_id, buffer_allocator_);
+  }
+
+  layer_id = layer->GetId();
 
   if (disable_sdr_histogram_) {
     layer->IgnoreSdrHistogramMetadata(true);
@@ -133,6 +167,10 @@ DisplayError SDMLayerBuilder::CreateLayer(uint64_t display_id,
 DisplayError SDMLayerBuilder::DestroyLayer(uint64_t display_id,
                                            int64_t layer_id) {
   SCOPE_LOCK(locker_[display_id]);
+  return DestroyLayerLocked(display_id, layer_id);
+}
+
+DisplayError SDMLayerBuilder::DestroyLayerLocked(uint64_t display_id, int64_t layer_id) {
   auto stack = display_layer_stack_.find(display_id);
   if (stack == display_layer_stack_.end()) {
     DLOGW("Display: %" PRIu64 " not found - may have been deleted already", display_id);

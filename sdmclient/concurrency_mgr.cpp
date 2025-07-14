@@ -26,11 +26,13 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #include <algorithm>
 #include <bitset>
 #include <core/buffer_allocator.h>
@@ -116,7 +118,10 @@ void GetColorMetadataFromColorMode(SDMColorMode mode, Dataspace &ds) {
 ConcurrencyMgr::ConcurrencyMgr() {}
 
 ConcurrencyMgr::~ConcurrencyMgr() {
-  Deinit();
+  // client can call deinit themselves, so check to avoid double deinit call
+  if (is_composer_up_) {
+    Deinit();
+  }
 }
 
 int ConcurrencyMgr::GetDisplayIndex(int dpy) {
@@ -249,6 +254,7 @@ void ConcurrencyMgr::PostInit() {
 }
 
 DisplayError ConcurrencyMgr::Deinit() {
+  DLOGI("Destroying and cleaning up concurrency manager");
   if (hpd_) {
     hpd_->Deinit();
     delete hpd_;
@@ -362,9 +368,21 @@ void ConcurrencyMgr::GetCapabilities(uint32_t *outCount,
   }
   uint32_t count = disable_skip_validate ? 0 : 1;
 
+  value = 0;
+  bool disable_llcbc_support = false;
+  if (Debug::Get()->GetProperty(DISABLE_LLCBC_SUPPORT_PROP, &value) == kErrorNone) {
+    disable_llcbc_support = (value == 1);
+  }
+  count += disable_llcbc_support ? 0 : 1;
+
   if (outCapabilities != nullptr && (*outCount >= count)) {
+    int index = 0;
     if (!disable_skip_validate) {
-      outCapabilities[0] = INT32(SDMCapability::kSkipValidate);
+      outCapabilities[index++] = INT32(SDMCapability::kSkipValidate);
+    }
+
+    if (!disable_llcbc_support) {
+      outCapabilities[index++] = INT32(SDMCapability::kLayerLifeCycleBatchCommand);
     }
   }
   *outCount = count;
@@ -549,6 +567,22 @@ DisplayError ConcurrencyMgr::GetDisplayRequests(Display display,
   return CallDisplayFunction(display, &SDMDisplay::GetDisplayRequests,
                              out_display_requests, out_num_elements, out_layers,
                              out_layer_requests);
+}
+
+DisplayError ConcurrencyMgr::GetDisplayLuts(
+    Display display, std::unique_ptr<std::vector<std::pair<LayerId, Lut3d *>>> &out_luts) {
+  if (display >= kNumDisplays) {
+    return kErrorParameters;
+  }
+
+  SCOPE_LOCK(locker_[display]);
+  auto status = kErrorParameters;
+  if (sdm_display_[display]) {
+    auto sdm_display = sdm_display_[display];
+    status = sdm_display->GetDisplayLuts(out_luts);
+  }
+
+  return status;
 }
 
 DisplayError ConcurrencyMgr::GetDisplayType(uint64_t display,
@@ -750,6 +784,11 @@ DisplayError ConcurrencyMgr::Hotplug(Display display, bool state) {
 }
 
 void ConcurrencyMgr::GetPendingHotplug(vector<Display> &pending_hotplugs) {
+  if (!disp_) {
+    DLOGW("SDM Display Builder is not initialized");
+    return;
+  }
+
   for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_BUILTIN_2)) {
     SCOPE_LOCK(locker_[map_info.client_id]);
 
@@ -773,8 +812,24 @@ void ConcurrencyMgr::RegisterCompositorCallback(SDMCompositorCbIntf *cb, bool en
   vector<Display> pending_hotplugs;
 
   client_connected_ = enable;
-  if (enable) {
+  if (!enable) {
+    DLOGI("Unregister AidlComposerClient's callback");
+    if (hpd_) {
+      hpd_->Deinit();
+      hpd_ = nullptr;
+    }
+
+    if (services_) {
+      services_->Deinit();
+      services_ = nullptr;
+    }
+  } else {
     GetPendingHotplug(pending_hotplugs);
+
+    if (!services_) {
+      services_ = new SDMServices(this, buffer_allocator_, socket_handler_);
+      services_->Init(disp_, buffer_allocator_, locker_, tui_);
+    }
 
     if (sdm_display_[SDM_DISPLAY_PRIMARY]) {
       DLOGI("Hotplugging primary...");
@@ -843,9 +898,17 @@ DisplayError ConcurrencyMgr::SetActiveConfig(Display display, int32_t config) {
                              static_cast<Config>(config));
 }
 
-DisplayError ConcurrencyMgr::SetClientTarget(
-    uint64_t display, const SnapHandle *target, shared_ptr<Fence> acquire_fence,
-    int32_t dataspace, const SDMRegion &damage, uint32_t version) {
+DisplayError ConcurrencyMgr::SetClientTarget(uint64_t display, const SnapHandle *target,
+                                             shared_ptr<Fence> acquire_fence, int32_t dataspace,
+                                             const SDMRegion &damage, uint32_t version) {
+  return SetClientTarget(display, target, acquire_fence, dataspace, damage, version,
+                         1.0f /* hdr_sdr_ratio */);
+}
+
+DisplayError ConcurrencyMgr::SetClientTarget(uint64_t display, const SnapHandle *target,
+                                             shared_ptr<Fence> acquire_fence, int32_t dataspace,
+                                             const SDMRegion &damage, uint32_t version,
+                                             float hdr_sdr_ratio) {
   DTRACE_SCOPED();
 
   if (display >= kNumDisplays) {
@@ -856,8 +919,8 @@ DisplayError ConcurrencyMgr::SetClientTarget(
   auto status = kErrorParameters;
   if (sdm_display_[display]) {
     auto sdm_display = sdm_display_[display];
-    status = sdm_display->SetClientTarget(target, acquire_fence, dataspace,
-                                          damage, version);
+    status = sdm_display->SetClientTarget(target, acquire_fence, dataspace, damage, version,
+                                          hdr_sdr_ratio);
   }
 
   return status;
@@ -1167,6 +1230,10 @@ DisplayError ConcurrencyMgr::GetDozeSupport(Display display,
 DisplayError ConcurrencyMgr::NotifyCallback(uint32_t command,
                                             SDMParcel *input_parcel,
                                             SDMParcel *output_parcel) {
+  if (!services_) {
+    DLOGW("SDM Services not available. Init failed?");
+    return kErrorResources;
+  }
   auto ret = services_->notifyCallback(command, input_parcel, output_parcel);
 
   return ret;
@@ -1318,6 +1385,10 @@ void ConcurrencyMgr::VmReleaseDone(Display display) {
   tui_->VmReleaseDone(display);
 }
 
+void ConcurrencyMgr::VmReclaimDone(Display display) {
+  tui_->VmReclaimDone(display);
+}
+
 void ConcurrencyMgr::HandleSecureSession() {
   std::bitset<kSecureMax> secure_sessions = 0;
   Display client_id = kNumDisplays;
@@ -1338,19 +1409,6 @@ void ConcurrencyMgr::HandleSecureSession() {
     // No secure session active. No secure session transition to handle. Skip
     // remaining steps.
     return;
-  }
-
-  // If there are any ongoing non-secure virtual displays, we need to destroy
-  // them.
-  bool is_active_virtual_display = false;
-  for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_VIRTUAL)) {
-    if (map_info.disp_type == kVirtual) {
-      is_active_virtual_display = true;
-      client_id = map_info.client_id;
-    }
-  }
-  if (is_active_virtual_display) {
-    disp_->DestroyVirtualDisplay(client_id);
   }
 
   // If it is called during primary prepare/commit, we need to pause any ongoing
@@ -1587,6 +1645,11 @@ ConcurrencyMgr::SetReadbackBuffer(uint64_t display, void *buffer,
 
 DisplayError ConcurrencyMgr::HandleCwbCallBack(int display_index, void *buffer,
                                                const CwbConfig &cwb_config) {
+  // Add bounds checking to prevent out-of-bounds access
+  if (display_index < 0 || display_index >= sdm_display_.size()) {
+    return kErrorParameters;
+  }
+
   SCOPE_LOCK(locker_[display_index]);
 
   // Get display instance using display type.
@@ -1726,8 +1789,8 @@ DisplayError ConcurrencyMgr::GetDisplayBrightnessSupport(Display display,
   return kErrorNone;
 }
 
-DisplayError ConcurrencyMgr::SetDisplayBrightness(Display display,
-                                                  float brightness) {
+DisplayError ConcurrencyMgr::SetDisplayBrightness(Display display, float brightness,
+                                                  bool performing_commit) {
   if (display >= kNumDisplays) {
     return kErrorParameters;
   }
@@ -1736,7 +1799,7 @@ DisplayError ConcurrencyMgr::SetDisplayBrightness(Display display,
     return kErrorParameters;
   }
 
-  return (INT32(sdm_display_[display]->SetPanelBrightness(brightness)))
+  return (INT32(sdm_display_[display]->SetPanelBrightness(brightness, !performing_commit)))
              ? kErrorNotSupported
              : kErrorNone;
 }
@@ -1872,7 +1935,7 @@ DisplayError ConcurrencyMgr::SetActiveConfigWithConstraints(
 }
 
 DisplayError ConcurrencyMgr::WaitForCommitDoneAsync(uint64_t display, int client_id) {
-  std::chrono::milliseconds span(2000);
+  std::chrono::milliseconds span(200);
   if (commit_done_future_[display].valid()) {
     std::future_status status =
         commit_done_future_[display].wait_for(std::chrono::milliseconds(0));
@@ -1888,7 +1951,7 @@ DisplayError ConcurrencyMgr::WaitForCommitDoneAsync(uint64_t display, int client
                  this, display, client_id);
   if (commit_done_future_[display].wait_for(span) ==
       std::future_status::timeout) {
-    return kErrorTimeOut;
+    return kErrorNone;
   }
 
   return commit_done_future_[display].get();
@@ -2638,6 +2701,22 @@ DisplayError ConcurrencyMgr::SetABCMode(uint64_t display_id, string mode_name) {
   }
 
   return sdm_display_[disp_idx]->SetABCMode(mode_name);
+}
+
+DisplayError ConcurrencyMgr::SetAIScalerMode(uint64_t display_id, uint32_t mode_id) {
+  int disp_idx = GetDisplayIndex(display_id);
+  if (disp_idx == -1) {
+    DLOGW("Invalid display = %d", display_id);
+    return kErrorResources;
+  }
+
+  SCOPE_LOCK(locker_[disp_idx]);
+  if (!sdm_display_[disp_idx]) {
+    DLOGW("Display %d is not connected.", display_id);
+    return kErrorResources;
+  }
+
+  return sdm_display_[disp_idx]->SetAIScalerMode(mode_id);
 }
 
 DisplayError ConcurrencyMgr::SetPanelFeatureConfig(Display display, int32_t type, void *data) {

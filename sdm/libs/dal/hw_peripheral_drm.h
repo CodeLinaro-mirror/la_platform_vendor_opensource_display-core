@@ -30,7 +30,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted (subject to the limitations in the
@@ -106,7 +106,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   virtual DisplayError SetBppMode(uint32_t bpp);
   virtual DisplayError SetRefreshRate(uint32_t refresh_rate);
   virtual DisplayError SetFrameTrigger(FrameTriggerMode mode);
-  virtual DisplayError SetPanelBrightness(int level);
+  virtual DisplayError SetPanelBrightness(int level, bool apply_immediately);
   virtual DisplayError GetPanelBrightness(int *level);
   virtual void GetHWPanelMaxBrightness();
   virtual DisplayError SetBLScale(uint32_t level);
@@ -116,6 +116,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   void SetDestScalarData(const HWLayersInfo &hw_layer_info);
   virtual uint32_t GetAVRStep(uint32_t config_index);
   virtual bool IsVRRSupported();
+  virtual DisplayError setDriverCommitPath(DriverCommitPath path);
 
  private:
   void InitDestScaler();
@@ -141,17 +142,21 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
     uint32_t flags = {};
   };
 
+#ifndef TARGET_INCLUDES_NEO
   struct AIScalerCache {
     struct drm_msm_ai_scaler scaler_data = {};
+    uint32_t mode_id;
   };
+  struct drm_msm_ai_scaler sde_ai_scaler_cfg_ = {};
+  std::vector<AIScalerCache> ai_scaler_cache_ = {};
+  uint32_t ai_scaler_current_mode_id_ = 0;
+#endif
 
   sde_drm_dest_scaler_data sde_dest_scalar_data_ = {};
-  struct drm_msm_ai_scaler sde_ai_scaler_cfg_ = {};
   std::vector<SDEScaler> scalar_data_ = {};
   sde_drm::DRMIdlePCState idle_pc_state_ = sde_drm::DRMIdlePCState::NONE;
   bool idle_pc_enabled_ = true;
   std::vector<DestScalarCache> dest_scalar_cache_ = {};
-  std::vector<AIScalerCache> ai_scaler_cache_ = {};
   drm_msm_ad4_roi_cfg ad4_roi_cfg_ = {};
   bool needs_ds_update_ = false;
   bool needs_ai_scaler_update_ = false;
@@ -162,6 +167,9 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   bool ltm_hist_en_ = false;
   bool aba_hist_en_ = false;
   std::map<PanelFeaturePropertyID, sde_drm::DRMPanelFeatureID> panel_feature_property_map_ {};
+  bool use_hfi_path_ = false;
+  bool hwio_path_switch_pending_ = false;
+  bool set_tui_none_ = false;
 };
 
 }  // namespace sdm

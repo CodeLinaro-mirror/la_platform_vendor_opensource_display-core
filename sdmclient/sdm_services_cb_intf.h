@@ -58,8 +58,8 @@ public:
   virtual DisplayError SetDimmingEnable(Display display,
                                         int32_t int_enabled) = 0;
   virtual DisplayError SetDimmingMinBl(Display display, int32_t min_bl) = 0;
-  virtual DisplayError SetDisplayBrightness(Display display,
-                                            float brightness) = 0;
+  virtual DisplayError SetDisplayBrightness(Display display, float brightness,
+                                            bool performing_commit) = 0;
   virtual DisplayError GetDisplayPortId(uint32_t disp_id, int *port_id) = 0;
   virtual std::mutex *GetLumMutex() = 0;
   virtual DisplayError SetPanelFeatureConfig(Display display, int32_t type, void *data) = 0;

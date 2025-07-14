@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #ifndef __DEFAULT_CONSTRAINT_PROVIDER_H__
@@ -7,6 +7,7 @@
 #include <map>
 #include <mutex>
 #include "SnapConstraintProvider.h"
+#include "SnapConstraintParser.h"
 #include "SnapUtils.h"
 
 namespace snapalloc {
@@ -28,8 +29,10 @@ class DefaultConstraintProvider : public SnapConstraintProvider {
   ~DefaultConstraintProvider(){};
   static std::mutex default_provider_mutex_;
   static DefaultConstraintProvider *instance_;
+  SnapConstraintParser *parser_ = nullptr;
 
-  std::map<vendor_qti_hardware_display_common_PixelFormat, BufferConstraints> constraint_set_map_;
+  std::unordered_map<SnapFormatDescriptor, BufferConstraints, SnapFormatDescriptorHash>
+      constraint_set_map_;
 };
 }  // namespace snapalloc
 

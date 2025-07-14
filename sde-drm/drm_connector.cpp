@@ -30,7 +30,7 @@
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted (subject to the limitations in the
@@ -132,6 +132,24 @@ static uint8_t DRM_MODE_COLORIMETRY_DCI_P3_RGB_THEATER = 12;
 
 static uint8_t CACHE_STATE_DISABLED = 0;
 static uint8_t CACHE_STATE_ENABLED = 1;
+
+static struct sde_drm_csc_v1 WBCsc[CscTypeMax] {
+  [RGB2YUV601L] =
+      {
+          {0x04180, 0x08100, 0x01900, 0xfda80, 0xfb600, 0x07080, 0x07080, 0xfa280, 0xfee00},
+          {0x00, 0x00, 0x00},
+          {0x0040, 0x0200, 0x0200},
+          {0x000, 0x3ff, 0x000, 0x3ff, 0x000, 0x3ff},
+          {0x040, 0x3ac, 0x040, 0x3c0, 0x040, 0x3c0},
+  },
+  [RGB2YUV2020L] = {
+      {0x03980, 0x09480, 0x00c80, 0xfe080, 0xfaf00, 0x07000, 0x07000, 0xf9880, 0xff680},
+      {0x00, 0x00, 0x00},
+      {0x0040, 0x0200, 0x0200},
+      {0x000, 0x3ff, 0x000, 0x3ff, 0x000, 0x3ff},
+      {0x040, 0x3ac, 0x040, 0x3c0, 0x040, 0x3c0},
+  },
+};
 
 static void PopulatePowerModes(drmModePropertyRes *prop) {
   for (auto i = 0; i < prop->count_enums; i++) {
@@ -309,7 +327,7 @@ void DRMConnectorManager::Init(drmModeRes *resource) {
       conn->InitAndParse(libdrm_conn);
       DRMConnectorInfo info;
       conn->GetInfo(&info);
-      conn->SetloopbackConnector(info);
+      conn->SetConnectorIdentifier(info);
       connector_pool_[resource->connectors[i]] = std::move(conn);
     } else {
       DRM_LOGE("Critical error: drmModeGetConnector() failed for connector %u.",
@@ -433,6 +451,17 @@ int DRMConnectorManager::GetConnectorInfo(uint32_t conn_id, DRMConnectorInfo *in
   return ret;
 }
 
+void DRMConnectorManager::GetPPInfo(uint32_t conn_id, DRMPPFeatureInfo *info) {
+  lock_guard<mutex> lock(lock_);
+  auto it = connector_pool_.find(conn_id);
+  if (it == connector_pool_.end()) {
+    DRM_LOGE("Invalid connector id %d", conn_id);
+    return;
+  }
+
+  it->second->GetPPInfo(info);
+}
+
 void DRMConnectorManager::GetConnectorList(std::vector<uint32_t> *conn_ids) {
   lock_guard<mutex> lock(lock_);
   if (!conn_ids) {
@@ -452,14 +481,14 @@ static bool IsTVConnector(uint32_t type) {
 }
 
 int DRMConnectorManager::Reserve(DRMDisplayType disp_type, DRMDisplayToken *token,
-                                 bool has_cac_loopback) {
+                                 DRMConnectorIdentifier identifier) {
   lock_guard<mutex> lock(lock_);
   int ret = -ENODEV;
   token->conn_id = 0;
 
   for (auto &conn : connector_pool_) {
     if (conn.second->GetStatus() == DRMStatus::FREE &&
-        has_cac_loopback == conn.second->IsLoopbackConnector()) {
+        identifier == conn.second->GetConnectorIdentifier()) {
       uint32_t conn_type;
       conn.second->GetType(&conn_type);
       if ((disp_type == DRMDisplayType::PERIPHERAL &&
@@ -682,6 +711,9 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
   const string dpu_ctl_op_sync = "dpu_ctl_op_sync=";
   const string dms_type = "dms_vid support=";
   const string has_cac_loopback = "has_cac_loopback=";
+  const string wb_opmode = "wb_opmode=";
+  const string fsc_panel = "is fsc panel=";
+  const string num_fsc_fields = "num fsc fields=";
 
   while (std::getline(stream, line)) {
     if (line.find(pixel_formats) != string::npos) {
@@ -731,6 +763,10 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
       info->dpu_ctl_op_sync = (string(line, dpu_ctl_op_sync.length()) == "true");
     } else if (line.find(has_cac_loopback) != string::npos) {
       info->has_cac_loopback = std::stoi(string(line, has_cac_loopback.length()));
+    } else if (line.find(wb_opmode) != string::npos) {
+      string wb_type = string(line, wb_opmode.length());
+      info->is_wb_repro = (wb_type == "repro");
+      info->is_wb_csc = (wb_type == "csc");
     } else if (line.find(dms_type) != string::npos) {
       info->dms_type = DMSType::DMS_VID_DISABLED;
       if (string(line, dms_type.length()) == "dms-vid-seamless") {
@@ -738,6 +774,10 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
       } else if (string(line, dms_type.length()) == "dms-vid-non-seamless") {
         info->dms_type = DMSType::DMS_VID_NON_SEAMLESS;
       }
+    } else if (line.find(fsc_panel) != string::npos) {
+      info->fsc_panel = (string(line, fsc_panel.length()) == "true");
+    } else if (line.find(num_fsc_fields) != string::npos) {
+      info->num_fsc_fields = std::stoi(string(line, num_fsc_fields.length()));
     }
   }
 
@@ -1133,6 +1173,12 @@ int DRMConnector::GetInfo(DRMConnectorInfo *info) {
   return 0;
 }
 
+void DRMConnector::GetPPInfo(DRMPPFeatureInfo *info) {
+  if (pp_mgr_) {
+    pp_mgr_->GetPPInfo(info);
+  }
+}
+
 void DRMConnector::InitAndParse(drmModeConnector *conn) {
   drm_connector_ = conn;
   ParseProperties();
@@ -1502,6 +1548,40 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       }
     } break;
 
+    case DRMOps::CONNECTOR_WB_CSC_CONFIG: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::WB_CSC_CONFIG)) {
+        return;
+      }
+      uint64_t wb_csc_cfg = va_arg(args, uint32_t);
+      uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::WB_CSC_CONFIG);
+      if (wb_csc_cfg > CscTypeMax) {
+        return;
+      }
+      if (wb_csc_cfg == CscTypeMax) {
+        if (!wb_blob_id_) {
+          return;
+        }
+        drmModeDestroyPropertyBlob(fd_, wb_blob_id_);
+        wb_blob_id_ = 0;
+        drmModeAtomicAddProperty(req, obj_id, prop_id, wb_blob_id_);
+      } else {
+        if (wb_csc_cfg_used_ == wb_csc_cfg) {
+          return;
+        }
+        if (wb_blob_id_) {
+          drmModeDestroyPropertyBlob(fd_, wb_blob_id_);
+          wb_blob_id_ = 0;
+        }
+        sde_drm_csc_v1 wb_csc_copy = WBCsc[wb_csc_cfg];
+        sde_drm_csc_v1 *wb_csc = &wb_csc_copy;
+        drmModeCreatePropertyBlob(fd_, reinterpret_cast<void *>(wb_csc), sizeof(sde_drm_csc_v1),
+                                  &wb_blob_id_);
+        drmModeAtomicAddProperty(req, obj_id, prop_id, wb_blob_id_);
+      }
+      wb_csc_cfg_used_ = wb_csc_cfg;
+      DRM_LOGD("Connector %d: Setting WB Csc Cfg %d", obj_id, wb_csc_cfg);
+    } break;
+
     case DRMOps::CONNECTOR_SET_CACHE_STATE: {
       int cache_state = va_arg(args, int);
       uint32_t connector_cache_state = CACHE_STATE_DISABLED;
@@ -1612,4 +1692,14 @@ void DRMConnector::Dump() {
   }
 }
 
+void DRMConnector::SetConnectorIdentifier(const DRMConnectorInfo &info) {
+  identifier_ = DRMConnectorIdentifier::DPU;
+  if (info.has_cac_loopback) {
+    identifier_ = DRMConnectorIdentifier::CAC_LOOPBACK;
+  } else if (info.is_wb_repro) {
+    identifier_ = DRMConnectorIdentifier::LSR_REPRO;
+  } else if (info.is_wb_csc) {
+    identifier_ = DRMConnectorIdentifier::LSR_CSC;
+  }
+}
 }  // namespace sde_drm

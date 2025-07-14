@@ -32,7 +32,7 @@
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted (subject to the limitations in the
@@ -64,6 +64,12 @@
 * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 /*! @file sdm_types.h
   @brief This file contains miscellaneous data types used across display interfaces.
@@ -120,6 +126,7 @@ enum DisplayError {
   kSeamlessNotAllowed,    //!< Seemless switch between configs not allowed.
   kErrorDeviceBusy,       //!< Device is currently busy with other tasks.
   kErrorTryAgain,         //!< Try the task again.
+  kErrorConfigMismatch,   //!< Inform client when config index between SDM and DAL are different
 };
 
 /*! @brief This structure is defined for client and library compatibility check purpose only. This
@@ -264,8 +271,8 @@ typedef uint32_t Config;
 typedef int64_t LayerId;
 typedef int64_t nsecs_t;
 
-static const int kNumBuiltIn = 4;
-static const int kNumPluggable = 4;
+static const int kNumBuiltIn = 16;
+static const int kNumPluggable = 16;
 static const int kNumVirtual = 4;
 // Add 1 primary display which can be either a builtin or pluggable.
 // Async powermode update requires dummy displays.
@@ -394,6 +401,14 @@ enum SDMRenderIntent {
   TONE_MAP_ENHANCE = 3
 };
 
+enum SDMHdrEotf {
+  kHdrEOTFInvalid = 0,
+  kHdrEOTFSDR = 0x1,
+  kHdrEOTFHdrLumRange = 0x2,
+  kHdrEOTFHDR10 = 0x4,
+  kHdrEOTFHLG = 0x8,
+};
+
 enum SDMPowerMode {
     POWER_MODE_OFF = 0,
     POWER_MODE_DOZE = 1,
@@ -402,6 +417,7 @@ enum SDMPowerMode {
     POWER_MODE_ON_SUSPEND = 4,
 };
 
+// Values taken from PixelFormat.aidl
 enum SDMPixelFormat {
   PIXEL_FORMAT_UNSPECIFIED             = 0,
   PIXEL_FORMAT_RGBA_8888               = 0x1,
@@ -436,6 +452,7 @@ enum SDMPixelFormat {
   PIXEL_FORMAT_R_16_UINT               = 0x39,
   PIXEL_FORMAT_RG_1616_UINT            = 0x3a,
   PIXEL_FORMAT_RGBA_10101010           = 0x3b,
+  PIXEL_FORMAT_YCBCR_P210              = 0x3c,
 };
 
 enum SDMClientCommitDone {
@@ -502,6 +519,9 @@ enum SDMCapability {
   kPresentFenceIsNotReliable = 3,
   kSkipValidate = 4,
   kBootDisplayConfig = 5,
+  kHdrOutputConversionConfig = 6,
+  kRefreshRateChangedCallbackDebug = 7,
+  kLayerLifeCycleBatchCommand = 8,
 };
 
 enum SDMFormatColorComponent {

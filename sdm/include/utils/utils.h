@@ -28,10 +28,10 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-  SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __UTILS_H__
 #define __UTILS_H__
@@ -39,6 +39,8 @@
 #include <utils/rect.h>
 #include <stdint.h>
 #include <cstring>
+#include <mutex>
+#include <set>
 
 namespace sdm {
 
@@ -49,6 +51,54 @@ constexpr size_t get_page_size() {
   return 65536;
 #endif
 }
+
+class IdManager {
+ public:
+  IdManager() {}
+  ~IdManager() {
+    std::lock_guard<std::mutex> lock(id_mutex_);
+    active_ids_.clear();
+  }
+  uint64_t LogId(uint64_t new_id) {
+    std::lock_guard<std::mutex> lock(id_mutex_);
+    active_ids_.insert(new_id);
+    return new_id;
+  }
+  void EraseId(uint64_t id) {
+    std::lock_guard<std::mutex> lock(id_mutex_);
+    active_ids_.erase(id);
+  }
+  bool IsIdExisting(uint64_t id) {
+    std::lock_guard<std::mutex> lock(id_mutex_);
+    return !(active_ids_.empty() || (*(active_ids_.rbegin()) < id) ||
+             active_ids_.find(id) == active_ids_.end());
+  }
+  uint64_t GetNextPossibleId(bool next_to_max) {
+    std::lock_guard<std::mutex> lock(id_mutex_);
+    return (next_to_max) ? 1 + GetMaxId() : GetNonConflictingIdToIncrementalPath();
+  }
+
+ private:
+  inline uint64_t GetMaxId() { return (active_ids_.empty() ? 0 : *(active_ids_.rbegin())); }
+  // find non-conflicting id to future path for incremental id.
+  uint64_t GetNonConflictingIdToIncrementalPath() {
+    auto possible_id = 0;
+    for (auto &id : active_ids_) {
+      if (id >= (UINT64_MAX - UINT8_MAX)) {
+        return GetMaxId() + 1;  // use next unreserved id in top range, if no thrown id available
+      } else if (possible_id < id) {
+        return possible_id;  // use thrown id, which will never be used by client again
+      } else if (possible_id == id) {
+        possible_id++;  // to check next id, whether it is thrown, if current id is reserved
+      }
+    }
+    // Consider Id-0 as valid for internal use, if external client shares non-zero incremental ids.
+    return (possible_id) ? (UINT64_MAX - UINT8_MAX) : 0;  // Use top range, if no thrown id found
+  }
+
+  std::mutex id_mutex_;
+  std::set<uint64_t> active_ids_;
+};
 
 float gcd(float a, float b);
 float lcm(float a, float b);
@@ -68,9 +118,10 @@ void ApplyCwbRoiRestrictions(LayerRect &roi, const LayerRect &cwb_full_frame,
 uint32_t GetCwbRequestedMixerCount(CwbConfig *config, uint32_t num_split, uint32_t display_width,
                                    uint32_t mixer_width, bool &roi_block_partial);
 const char *GetCompositionName(const LayerComposition &composition);
-
 const char* GetSocName();
 bool IsXRVariant();
+uint16_t float_2_FP16(const float in);
+float FP16_2_float(const uint16_t in);
 }  // namespace sdm
 
 #endif  // __UTILS_H__

@@ -28,9 +28,9 @@
 */
 
 /*
-* ​​​​​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 *
-* Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -64,6 +64,8 @@ using std::lock_guard;
 using std::pair;
 using std::vector;
 
+#define __CLASS__ "DRMCrtcManager"
+
 // CRTC Security Levels
 static uint8_t SECURE_NON_SECURE = 0;
 static uint8_t SECURE_ONLY = 1;
@@ -86,6 +88,25 @@ static uint8_t CACHE_STATE_ENABLED = 1;
 static uint8_t VM_REQ_STATE_NONE = 0;
 static uint8_t VM_REQ_STATE_RELEASE = 1;
 static uint8_t VM_REQ_STATE_ACQUIRE = 2;
+
+// Driver commit paths
+static uint8_t MSM_DISP_OP_HWIO = 0;
+static uint8_t MSM_DISP_OP_HFI = 1;
+
+static void PopulateDriverCommitPaths(drmModePropertyRes *prop) {
+  static bool driver_commit_paths_populated = false;
+  if (!driver_commit_paths_populated) {
+    for (auto i = 0; i < prop->count_enums; i++) {
+      string enum_name(prop->enums[i].name);
+      if (enum_name == "hw_op_mode_hwio") {
+        MSM_DISP_OP_HWIO = prop->enums[i].value;
+      } else if (enum_name == "hw_op_mode_hfi") {
+        MSM_DISP_OP_HFI = prop->enums[i].value;
+      }
+    }
+    driver_commit_paths_populated = true;
+  }
+}
 
 static void PopulateSecurityLevels(drmModePropertyRes *prop) {
   static bool security_levels_populated = false;
@@ -171,8 +192,6 @@ static void PopulateVMRequestStates(drmModePropertyRes *prop) {
     idle_pc_state_populated = true;
   }
 }
-
-#define __CLASS__ "DRMCrtcManager"
 
 void DRMCrtcManager::Init(drmModeRes *resource) {
   lock_guard<mutex> lock(lock_);
@@ -360,6 +379,10 @@ void DRMCrtc::ParseProperties() {
       continue;
     }
 
+    if (prop_enum == DRMProperty::COMMIT_PATH) {
+      PopulateDriverCommitPaths(info);
+    }
+
     if (prop_enum == DRMProperty::NOISE_LAYER_V1) {
       crtc_info_.has_noise_layer = true;
     }
@@ -460,6 +483,7 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
   string use_baselayer_for_stage = "use_baselayer_for_stage=";
   string ubwc_version = "UBWC version=";
   string spr = "spr=";
+  string spr_dither = "has_spr_dither=";
   string rc_count = "rc_count=";
   string rc_total_mem_size = "rc_mem_size=";
   string demura_count = "demura_count=";
@@ -589,6 +613,8 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
       crtc_info_.ubwc_version = (std::stoi(string(line, ubwc_version.length()))) >> 28;
     } else if (line.find(spr) != string::npos) {
       crtc_info_.has_spr = std::stoi(string(line, spr.length())) == -1 ? false: true;
+    } else if (line.find(spr_dither) != string::npos) {
+      crtc_info_.has_spr_dither = std::stoi(string(line, spr_dither.length()));
     } else if (line.find(rc_count) != string::npos) {
       crtc_info_.rc_count = std::stoi(string(line, rc_count.length()));
     } else if (line.find(rc_total_mem_size) != string::npos) {
@@ -619,6 +645,8 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
         crtc_info_.ddr_version = DDRVersion::kDDRVersion5;
       } else if(string(line, ddr_version.length()) == "DDR5X") {
         crtc_info_.ddr_version = DDRVersion::kDDRVersion5x;
+      } else {
+        crtc_info_.ddr_version = DDRVersion::kDDRVersionNone;
       }
     } else if (line.find(ai_scaler_count) != string::npos) {
       crtc_info_.ai_scaler_count = std::stoi(string(line, ai_scaler_count.length()));
@@ -693,6 +721,19 @@ void DRMCrtc::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
   uint32_t obj_id = drm_crtc_->crtc_id;
 
   switch (code) {
+    case DRMOps::CRTC_SET_COMMIT_PATH: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::COMMIT_PATH)) {
+        return;
+      }
+      int32_t path = va_arg(args, int32_t);
+      uint32_t commit_path = MSM_DISP_OP_HWIO;
+      if (path == MSM_DISP_OP_HFI) {
+        commit_path = MSM_DISP_OP_HFI;
+      }
+      AddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::COMMIT_PATH), commit_path, true,
+                  tmp_prop_val_map_);
+    } break;
+
     case DRMOps::CRTC_SET_MODE: {
       drmModeModeInfo *mode = va_arg(args, drmModeModeInfo *);
       uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::MODE_ID);
@@ -930,6 +971,17 @@ void DRMCrtc::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       uint32_t ubwc_clk = va_arg(args, uint32_t);
       AddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::UBWC_CLK),
                   ubwc_clk, true /* cache */, tmp_prop_val_map_);
+    }; break;
+
+    case DRMOps::CRTC_SET_FLUSH_SYNC_EN: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::FLUSH_SYNC_EN)) {
+        return;
+      }
+
+      uint32_t flush_sync_en = va_arg(args, uint32_t);
+      AddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::FLUSH_SYNC_EN), flush_sync_en,
+                  true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("CRTC %d: Set flush_sync_en %d", obj_id, flush_sync_en);
     }; break;
 
     default:

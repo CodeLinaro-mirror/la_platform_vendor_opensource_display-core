@@ -30,7 +30,7 @@
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022, 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted (subject to the limitations in the
@@ -98,11 +98,10 @@ class DRMConnector {
   int IsConnected() { return (DRM_MODE_CONNECTED == drm_connector_->connection); }
   int GetPossibleEncoders(std::set<uint32_t> *possible_encoders);
   void SetSkipConnectorReload(bool skip_reload) { skip_connector_reload_ = skip_reload; };
-  void SetloopbackConnector(const DRMConnectorInfo &info) {
-    has_cac_loopback_ = info.has_cac_loopback;
-  };
-  bool IsLoopbackConnector() { return has_cac_loopback_; };
+  void SetConnectorIdentifier(const DRMConnectorInfo &info);
+  DRMConnectorIdentifier GetConnectorIdentifier() { return identifier_; };
   void Dump();
+  void GetPPInfo(DRMPPFeatureInfo *info);
 
  private:
   void ParseProperties();
@@ -116,10 +115,12 @@ class DRMConnector {
               DRMRect *conn_rois);
 
   int fd_ = -1;
+  uint32_t wb_blob_id_ = 0;
+  uint64_t wb_csc_cfg_used_ = CscTypeMax;
   drmModeConnector *drm_connector_ = {};
   DRMPropertyManager prop_mgr_ {};
   bool skip_connector_reload_ = false; //  Usually set to true for new TV/pluggable displays.
-  bool has_cac_loopback_ = false;
+  DRMConnectorIdentifier identifier_ = DRMConnectorIdentifier::DPU;
   DRMStatus status_ = DRMStatus::FREE;
   std::unique_ptr<DRMPPManager> pp_mgr_{};
   DRMJitterConfig jitter_cfg_ = {};
@@ -136,12 +137,13 @@ class DRMConnectorManager {
   void DeInit() {}
   void DumpAll();
   void DumpByID(uint32_t id);
-  int Reserve(DRMDisplayType disp_type, DRMDisplayToken *token, bool has_cac_loopback);
+  int Reserve(DRMDisplayType disp_type, DRMDisplayToken *token, DRMConnectorIdentifier identifier);
   int Reserve(uint32_t conn_id, DRMDisplayToken *token);
   void Free(DRMDisplayToken *token);
   void Perform(DRMOps code, uint32_t obj_id, drmModeAtomicReq *req, va_list args);
   int GetConnectorInfo(uint32_t conn_id, DRMConnectorInfo *info);
   void GetConnectorList(std::vector<uint32_t> *conn_ids);
+  void GetPPInfo(uint32_t conn_id, DRMPPFeatureInfo *info);
   int GetPossibleEncoders(uint32_t connector_id, std::set<uint32_t> *possible_encoders);
   int GetPreferredModeLMCounts(std::map<uint32_t, uint8_t> *lm_counts);
   void MapEncoderToConnector(std::map<uint32_t, uint32_t> *encoder_to_connector);

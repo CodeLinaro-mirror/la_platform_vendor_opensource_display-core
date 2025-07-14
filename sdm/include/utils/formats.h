@@ -27,6 +27,12 @@
 * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+/*
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #ifndef __FORMATS_H__
 #define __FORMATS_H__
 
@@ -61,8 +67,11 @@ int GetCwbAlignmentFactor(LayerBufferFormat format);
 bool HasAlphaChannel(LayerBufferFormat format);
 bool IsWideColor(const QtiColorPrimaries &color_primary);
 bool IsRgbFormat(const LayerBufferFormat &format);
-bool IsExtendedRange(LayerBuffer buffer);
 ColorMetaData convertToLegacyColorMetadata(const LayerBuffer *buffer);
+bool IsFP16ExtendedRange(LayerBuffer buffer);
+bool IsHDRLayer(LayerBuffer buffer);
+bool HasHDRMetadata(LayerBuffer buffer);
+bool IsSCRGB(LayerBuffer buffer);
 
 static std::unordered_map<QtiColorPrimaries, ColorPrimaries> primaries_map = {
   {QtiColorPrimaries_BT709_5, ColorPrimaries_BT709_5},

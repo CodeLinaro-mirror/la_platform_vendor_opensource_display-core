@@ -23,8 +23,8 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -137,6 +137,7 @@ private:
  std::shared_ptr<DisplayEventProxyIntf> event_proxy_intf_ = nullptr;
 };
 
+#ifndef TARGET_INCLUDES_NEO
 class CoprInfo : public SdmDisplayCbInterface<CoprEventPayload> {
  public:
   DisplayError GetStats(std::vector<int32_t> *stats);
@@ -146,6 +147,7 @@ class CoprInfo : public SdmDisplayCbInterface<CoprEventPayload> {
   std::mutex lock_;
   std::vector<int32_t> copr_stats_;
 };
+#endif
 
 class DisplayIPCVmCallbackImpl : public IPCVmCallbackIntf {
  public:
@@ -200,7 +202,8 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError GetRefreshRateRange(uint32_t *min_refresh_rate,
                                    uint32_t *max_refresh_rate) override;
   DisplayError SetRefreshRate(uint32_t refresh_rate, bool final_rate, bool idle_screen) override;
-  DisplayError SetPanelBrightness(float brightness, bool return_error = false) override;
+  DisplayError SetPanelBrightness(float brightness, bool apply_immediately,
+                                  bool return_error = false) override;
   DisplayError GetPanelBrightness(float *brightness) override;
   DisplayError GetPanelBrightnessFromLevel(float level, float *brightness);
   DisplayError GetPanelBrightnessLevel(int *level) override;
@@ -253,19 +256,23 @@ class DisplayBuiltIn : public DisplayBase,
       const std::string &client_name, bool enable,
       SdmDisplayCbInterface<PaHistCollectionPayload> *cb_intf) override;
   DisplayError GetPaHistBins(std::array<uint32_t, HIST_BIN_SIZE> *buf) override;
-  DisplayError SetSsrcMode(const std::string &mode) override;
   DisplayError SetVRRState(bool state) override;
   DisplayError PanelBacklightInfo(const std::string &client_name, bool enable,
                                   SdmDisplayCbInterface<PanelBacklightPayload> *cb_intf) override;
   DisplayError SetABCState(bool state) override;
   DisplayError SetABCReconfig() override;
   DisplayError SetABCMode(const string &mode_name) override;
+  DisplayError SetAIScalerMode(uint32_t mode_id) override;
   DisplayError SetPanelFeatureConfig(int32_t type, void *data) override;
   DisplayError StartTvmServices();
   DisplayError StartService(TvmDispServiceManagerParams service);
   DisplayError ExportDemuraFiles();
+  DisplayError ExportABCFiles();
+#ifndef TARGET_INCLUDES_NEO
+  DisplayError SetSsrcMode(const std::string &mode) override;
   DisplayError EnableCopr(bool en) override;
   DisplayError GetCoprStats(std::vector<int> *stats) override;
+#endif
   DisplayError GetScalerCount(uint32_t *scaler_count) override;
   DisplayError DumpDemuraSurface(const char *dir_path, uint32_t frame_index) override;
 
@@ -285,6 +292,7 @@ class DisplayBuiltIn : public DisplayBase,
   void HandleBacklightEvent(float brightness_level) override;
   void HandlePowerEvent() override;
   void HandleVmReleaseEvent() override;
+  void HandleVmReclaimEvent() override;
   void GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) override;
   bool IsPrimaryDisplay() override;
   DisplayError GetPanelBrightnessBasePath(std::string *base_path) override;
@@ -351,16 +359,18 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError TriggerDemuraOemPlugIn(void *data);
   DisplayError HandleDemuraScreenRefresh();
   CacVersion GetCacVerion();
+  bool IsAnamorphicFoveationEnabled(LayerStack *layer_stack);
   DisplayError SendPanelIdToParserManager();
   DisplayError ReloadDemuraCalibFiles(void *data);
   DisplayError SetDemuraDisplayEventsCtrl(void *data);
   DisplayError QueryDemuraTnInfo(void *data);
   DisplayError SetDemuraTnBatchId(void *data);
   DisplayError SetDemuraTnAodHandlerCtrl(void *data);
+  DisplayError SetDemuraTnAgingSurfTransfer(void *data);
   int StartVmFileServiceAndExportFiles();
   int CreateServiceManager();
   int HandleTvmServiceEvent(const TvmServiceCbEvent &event);
-  DisplayError DisabelDemuraForHandOff();
+  DisplayError DisableDemuraForHandOff();
   DisplayError ValidateDemuraLicense();
 
   const uint32_t kPuTimeOutMs = 1000;
@@ -405,7 +415,7 @@ class DisplayBuiltIn : public DisplayBase,
   std::shared_ptr<DemuraIntf> demura_ = nullptr;
   bool demuratn_enabled_ = false;
   std::shared_ptr<DemuraTnCoreUvmIntf> demuratn_ = nullptr;
-  uint64_t panel_id_;
+  uint64_t panel_id_ = 0;
   std::vector<Layer> demura_layer_ = {};
   bool demura_intended_ = false;
   bool demura_dynamic_enabled_ = true;
@@ -416,6 +426,7 @@ class DisplayBuiltIn : public DisplayBase,
   bool abc_enabled_ = false;
   bool abc_tvm_enabled_ = false;
   bool abc_prop_ = false;
+  bool enable_ai_scaler_ = false;
   bool enable_dpps_dyn_fps_ = false;
   HWDisplayMode last_panel_mode_ = kModeDefault;
   bool hdr_present_ = false;
@@ -432,11 +443,13 @@ class DisplayBuiltIn : public DisplayBase,
   BufferInfo output_buffer_info_ = {};
   EventProxyInfo event_proxy_info_ = {};
   bool enable_brightness_drm_prop_ = false;
+  DynLib ssrc_lib_;
+#ifndef TARGET_INCLUDES_NEO
   CoprInfo copr_info_ = {};
   bool copr_enabled_ = false;
-
-  DynLib ssrc_lib_;
   std::shared_ptr<aiqe::SsrcFeatureInterface> ssrc_feature_interface_;
+#endif
+
   bool avr_step_enabled_ = false;
   bool vrr_enabled_ = false;
   std::shared_ptr<TvmDispServiceManagerIntf> service_manager_intf_ = nullptr;
@@ -448,6 +461,9 @@ class DisplayBuiltIn : public DisplayBase,
   bool demura_calib_files_reloaded_ = false;
   VmFileXferClientFactIntfExtn *factory_extn_ = nullptr;
   std::shared_ptr<FeatureLicenseIntf> feat_license_intf_ = nullptr;
+  bool hfi_path_supported_ = false;
+  bool double_buffer_codebook_supported_ = false;
+  bool previous_frame_default_strategy_ = false;
 };
 
 }  // namespace sdm

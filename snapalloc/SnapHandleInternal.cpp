@@ -201,6 +201,9 @@ SnapHandleInternal *SnapHandleInternal::CreateViewHandle(uint32_t view) {
 
   size_t handle_size = sizeof(SnapHandleProperties) + sizeof(FdPair) + sizeof(SnapHandle);
   SnapHandleData<1> *view_handle = static_cast<SnapHandleData<1> *>(malloc(handle_size));
+  if (view_handle == nullptr) {
+    return view_handle;
+  }
 
   view_handle->num_ints = SnapHandleData<1>::getExpectedNumInts();
   view_handle->num_fds = SnapHandleData<1>::getExpectedNumFds();
@@ -300,6 +303,9 @@ SnapHandleInternal *SnapHandleInternal::createSingleHandle(
     unsigned custom_content_md_size) {
   size_t handle_size = sizeof(SnapHandleProperties) + sizeof(FdPair) + sizeof(SnapHandle);
   SnapHandleData<1> *h = static_cast<SnapHandleData<1> *>(malloc(handle_size));
+  if (h == nullptr) {
+    return h;
+  }
 
   h->num_ints = SnapHandleData<1>::getExpectedNumInts();
   h->num_fds = SnapHandleData<1>::getExpectedNumFds();
@@ -326,6 +332,9 @@ SnapHandleInternal *SnapHandleInternal::createMultiviewHandle(
     unsigned custom_content_md_size) {
   size_t handle_size = ((sizeof(SnapHandleProperties) + sizeof(FdPair)) * 2 + sizeof(SnapHandle));
   SnapHandleData<2> *h = static_cast<SnapHandleData<2> *>(malloc(handle_size));
+  if (h == nullptr) {
+    return h;
+  }
 
   h->num_ints = SnapHandleData<2>::getExpectedNumInts();
   h->num_fds = SnapHandleData<2>::getExpectedNumFds();
