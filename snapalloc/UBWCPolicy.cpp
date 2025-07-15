@@ -311,7 +311,7 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc,
       desc.format, desc.usage, pixel_format_modifier, true);  // true indicates ubwc is enabled
   bool use_adreno_for_size =
       (providers.size() == 1) && (providers.begin()->first->GetProviderType() == kGraphics);
-  if (!use_adreno_for_size && mmm_color_format != -1) {
+  if (mmm_color_format != -1) {
     // Double the number of planes to account for meta planes
     out_layout->plane_count = format_data.planes.size() * 2;
     if (IsYuv(desc.format)) {
@@ -449,7 +449,7 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc,
              out_layout->aligned_width_in_bytes, out_layout->size_in_bytes);
     out_layout->aligned_height = out_layout->planes[0].scanlines;
   } else {
-    // TODO: meta plane handling (if needed)
+    // TODO: meta plane handling is needed. Need to revisit this logic. Avoid using this.
     DLOGD_IF(enable_logs, "using graphics to get UBWC allocation");
     vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
         static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
@@ -512,6 +512,25 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc,
     }
   }
 
+  if (use_adreno_for_size) {
+    // UBWC with only graphics provider case. As per legacy gralloc, only size is queried from
+    // graphics and other attributes are calculated by gralloc.
+    DLOGD_IF(enable_logs, "using graphics to get UBWC allocation");
+    vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
+        static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
+            GetPixelFormatModifier(desc));
+    if ((graphics_provider_ != nullptr) &&
+        (graphics_provider_->IsUBWCSupportedByGPU(desc.format, pixel_format_modifier))) {
+      int size = 0;
+      vendor_qti_hardware_display_common_GraphicsMetadata graphics_metadata;
+      int ret = graphics_provider_->GetInitialMetadata(desc, &graphics_metadata, true);
+      if (!ret) {
+        size = graphics_provider_->AdrenoGetAlignedGpuBufferSize(graphics_metadata.data);
+        if (size > 0)
+          out_ad->size = size;
+      }
+    }
+  }
   if (interlaced) {
     vendor_qti_hardware_display_common_BufferLayout temp_layout = *out_layout;
     if (IsYuv(desc.format)) {
