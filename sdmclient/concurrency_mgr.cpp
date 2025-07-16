@@ -2169,7 +2169,7 @@ DisplayError ConcurrencyMgr::SetDisplayStatus(uint64_t disp_id,
   }
 
   if (disp_idx == qdutilsDisplayType::DISPLAY_PRIMARY) {
-    DLOGE("Not supported for this display");
+    DLOGW("Not supported for this display");
     return err;
   }
 
