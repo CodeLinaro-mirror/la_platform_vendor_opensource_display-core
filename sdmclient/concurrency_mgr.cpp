@@ -792,7 +792,7 @@ DisplayError ConcurrencyMgr::Hotplug(Display display, bool state) {
   }
 
   // External display hotplug events are handled asynchronously
-  if (display == SDM_DISPLAY_EXTERNAL || display == SDM_DISPLAY_EXTERNAL_2) {
+  if (display % kDisplayTypeMax == kPluggable) {
     std::thread(&ConcurrencyMgr::SendHotplug, this, display, state).detach();
   } else {
     callbacks_.OnHotplug(display, state);
