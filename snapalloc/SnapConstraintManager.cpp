@@ -1,4 +1,4 @@
-// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapConstraintManager.h"
@@ -528,22 +528,12 @@ Error SnapConstraintManager::AlignmentToAlignedConstraints(BufferDescriptor desc
           plane.stride.horizontal_stride =
               ALIGN(desc.width, alignment.planes[i].stride.horizontal_stride_align) *
               (format_data.bits_per_pixel / 8);
-        } else if (format_data.planes[0].sample_increment_bits % 8 != 0) {
-          // 8.0f to handle for formats whose bpp is not aligned with 8 ex:raw10 has 10 bpp
-          DLOGD_IF(enable_logs, "Bpp is float: %f",
-                   static_cast<float>(format_data.bits_per_pixel) / 8.0f);
-          OVERFLOW_ERR_RETURN(static_cast<uint64_t>(desc.width),
-                              (format_data.planes[0].sample_increment_bits / 8.0f),
-                              OverflowType::MUL);
-          // TODO: Need to avoid overflow here.
-          plane.stride.horizontal_stride =
-              ALIGN(desc.width * format_data.planes[0].sample_increment_bits / 8,
-                    alignment.planes[i].stride.horizontal_stride_align);
         } else {
-          OVERFLOW_ERR_RETURN(desc.width, (format_data.planes[0].sample_increment_bits / 8),
+          // 8.0f to handle for formats whose bpp is not aligned with 8 ex:raw10 has 10 bpp
+          OVERFLOW_ERR_RETURN(desc.width, (format_data.planes[0].sample_increment_bits / 8.0f),
                               OverflowType::MUL);
           plane.stride.horizontal_stride =
-              ALIGN(desc.width * (format_data.planes[0].sample_increment_bits / 8),
+              ALIGN(desc.width * (format_data.planes[0].sample_increment_bits / 8.0f),
                     alignment.planes[i].stride.horizontal_stride_align);
         }
         if ((IsYuv(desc.format)) &&
