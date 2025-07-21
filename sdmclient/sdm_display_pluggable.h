@@ -27,12 +27,10 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- */
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
+*/
 #ifndef __SDM_DISPLAY_PLUGGABLE_H__
 #define __SDM_DISPLAY_PLUGGABLE_H__
 
@@ -61,6 +59,11 @@ public:
  virtual DisplayError SetColorTransform(const float *matrix, SDMColorTransform hint);
  virtual DisplayError PreValidateDisplay(bool *exit_validate);
  virtual DisplayError PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence);
+ virtual DisplayError RestoreColorTransform();
+ virtual DisplayError Perform(uint32_t operation, ...);
+ virtual DisplayError SetHWDetailedEnhancerConfig(void *params);
+ virtual DisplayError SetDetailEnhancerConfig(const DisplayDetailEnhancerData &de_data);
+ virtual DisplayError NotifyDisplayCalibrationMode(bool in_calibration);
 
 private:
  SDMDisplayPluggable(CoreInterface *core_intf, BufferAllocator *buffer_allocator,
@@ -70,10 +73,10 @@ private:
  void GetUnderScanConfig();
  static void GetDownscaleResolution(uint32_t primary_width, uint32_t primary_height,
                                     uint32_t *virtual_width, uint32_t *virtual_height);
+ void SetQDCMSolidFillInfo(bool enable, const LayerSolidFill &color);
 
  int underscan_width_ = 0;
  int underscan_height_ = 0;
- bool has_color_tranform_ = false;
 };
 
 } // namespace sdm

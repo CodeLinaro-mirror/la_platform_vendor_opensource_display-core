@@ -23,9 +23,8 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -63,10 +62,8 @@ class DisplayPluggable : public DisplayBase, HWEventHandler {
   DisplayError GetColorModes(uint32_t *mode_count,
                              std::vector<std::string> *color_modes) override;
   DisplayError GetColorModeAttr(const std::string &color_mode, AttrVal *attr) override;
-  DisplayError SetColorTransform(const uint32_t length,
-                                 const double *color_transform) override {
-    return kErrorNone;
-  }
+  DisplayError GetStcColorModes(snapdragoncolor::ColorModeList *mode_list) override;
+  DisplayError SetStcColorMode(const snapdragoncolor::ColorMode &color_mode) override;
   DisplayError colorSamplingOn() override;
   DisplayError colorSamplingOff() override;
 
@@ -94,6 +91,8 @@ class DisplayPluggable : public DisplayBase, HWEventHandler {
   void InitializeColorModesFromColorspace();
 
  private:
+  PrimariesTransfer GetBlendSpaceFromStcColorMode(
+    const snapdragoncolor::ColorMode &color_mode);
   DisplayError GetOverrideConfig(uint32_t *mode_index);
   void GetScanSupport();
 
@@ -103,6 +102,8 @@ class DisplayPluggable : public DisplayBase, HWEventHandler {
   HWScanSupport scan_support_;
   std::map<uint32_t, std::vector<HWEvent>> event_list_;
   uint32_t current_refresh_rate_ = 0;
+  snapdragoncolor::ColorMode current_stc_color_mode_ = {};
+  snapdragoncolor::ColorModeList stc_color_modes_ = {};
 };
 
 }  // namespace sdm

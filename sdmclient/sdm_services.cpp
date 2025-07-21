@@ -27,12 +27,10 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- */
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
+*/
 #include <utils/constants.h>
 
 #include <algorithm>
@@ -1606,6 +1604,15 @@ DisplayError SDMServices::QdcmCMDDispatch(
   }
 
   if (!is_physical_display) {
+    for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_EXTERNAL_2)) {
+      if (map_info.client_id == display_id) {
+        is_physical_display = true;
+        break;
+      }
+    }
+  }
+
+  if (!is_physical_display) {
     DLOGW("Skipping QDCM command dispatch on display = %d", display_id);
     return ret;
   }
@@ -1765,6 +1772,12 @@ DisplayError SDMServices::QdcmCMDHandler(SDMParcel *input_parcel,
             disp_id[SDM_DISPLAY_PRIMARY] = SDM_DISPLAY_PRIMARY;
           }
           for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_BUILTIN_2)) {
+            uint64_t id = map_info.client_id;
+            if (id < kNumDisplays && cb_->GetDisplayFromClientId(id)) {
+              disp_id[id] = (uint8_t)id;
+            }
+          }
+          for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_EXTERNAL_2)) {
             uint64_t id = map_info.client_id;
             if (id < kNumDisplays && cb_->GetDisplayFromClientId(id)) {
               disp_id[id] = (uint8_t)id;

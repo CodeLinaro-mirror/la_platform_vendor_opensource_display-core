@@ -30,9 +30,9 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
 *
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted (subject to the limitations in the
@@ -599,6 +599,12 @@ enum {
   SYSTEM_TIME_PROCESS = 2,    // high-resolution per-process clock
   SYSTEM_TIME_THREAD = 3,     // high-resolution per-thread clock
   SYSTEM_TIME_BOOTTIME = 4,   // same as SYSTEM_TIME_MONOTONIC, but including CPU suspend time
+};
+
+enum QdcmOnExternal {
+  NO_QDCM  = 0,        // no qdcm calibration
+  LEGACY_QDCM = 1,     // legacy qdcm xml file
+  STC_QDCM = 2,        // qcmds stc interface and qdcm json file
 };
 
 }  // namespace sdm

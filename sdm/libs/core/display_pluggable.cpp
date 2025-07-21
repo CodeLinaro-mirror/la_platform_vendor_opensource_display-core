@@ -22,9 +22,8 @@
 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+/* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -148,11 +147,95 @@ DisplayError DisplayPluggable::Init() {
   if (master_hw_events_intf_)
     hw_intf_->SetPageFlipState(true, (void *)master_hw_events_intf_);
 
-  InitializeColorModes();
+  // if qdcm colormodes are not enabled, initialize colormodes by using panel info(EOTF).
+  if (enable_qdcm_colormodes_on_external_ == QdcmOnExternal::NO_QDCM) {
+    InitializeColorModes();
+  } else if (enable_qdcm_colormodes_on_external_ == QdcmOnExternal::STC_QDCM) { //stc
+    if (color_mgr_) {
+      color_mgr_->ColorMgrGetStcModes(&stc_color_modes_);
+    }
+  }
 
   current_refresh_rate_ = client_ctx_.hw_panel_info.max_fps;
 
   return error;
+}
+
+DisplayError DisplayPluggable::GetStcColorModes(snapdragoncolor::ColorModeList *mode_list) {
+  ClientLock lock(disp_mutex_);
+  if (!mode_list) {
+    return kErrorParameters;
+  }
+
+  if (!color_mgr_) {
+    return kErrorNotSupported;
+  }
+
+  mode_list->list = stc_color_modes_.list;
+  return kErrorNone;
+}
+
+PrimariesTransfer DisplayPluggable::GetBlendSpaceFromStcColorMode(
+    const snapdragoncolor::ColorMode &color_mode) {
+  PrimariesTransfer blend_space = {};
+  if (!color_mgr_) {
+    return blend_space;
+  }
+
+  // Set sRGB as default blend space.
+  bool native_mode = (color_mode.intent == snapdragoncolor::kNative) ||
+                     (color_mode.gamut == ColorPrimaries_Max && color_mode.gamma == Transfer_Max);
+  if (stc_color_modes_.list.empty() || (native_mode && allow_tonemap_native_)) {
+    return blend_space;
+  }
+
+  blend_space.primaries = qti_primaries_map[color_mode.gamut];
+  blend_space.transfer = qti_transfer_map[color_mode.gamma];
+
+  return blend_space;
+}
+
+
+DisplayError DisplayPluggable::SetStcColorMode(const snapdragoncolor::ColorMode &color_mode) {
+  ClientLock lock(disp_mutex_);
+  if (!color_mgr_) {
+    return kErrorNotSupported;
+  }
+  DisplayError ret = kErrorNone;
+  PrimariesTransfer blend_space = {};
+  blend_space = GetBlendSpaceFromStcColorMode(color_mode);
+  ret = comp_manager_->SetBlendSpace(display_comp_ctx_, blend_space);
+  if (ret != kErrorNone) {
+    DLOGE("SetBlendSpace failed, ret = %d on display %d-%d", ret, display_id_, display_type_);
+  }
+
+  ret = dpu_core_mux_->SetBlendSpace(blend_space);
+  if (ret != kErrorNone) {
+    DLOGE("Failed to pass blend space, ret = %d on display %d-%d", ret, display_id_,
+          display_type_);
+  }
+
+  ret = color_mgr_->ColorMgrSetStcMode(color_mode);
+  if (ret != kErrorNone) {
+    DLOGE("Failed to set stc color mode, ret = %d on display %d-%d", ret,
+          display_id_, display_type_);
+    return ret;
+  }
+
+  current_stc_color_mode_ = color_mode;
+
+  DynamicRangeType dynamic_range = kSdrType;
+  if (std::find(color_mode.hw_assets.begin(), color_mode.hw_assets.end(),
+                snapdragoncolor::kPbHdrBlob) != color_mode.hw_assets.end()) {
+    dynamic_range = kHdrType;
+  }
+  if ((color_mode.gamut == ColorPrimaries_BT2020 && color_mode.gamma == Transfer_SMPTE_ST2084) ||
+      (color_mode.gamut == ColorPrimaries_BT2020 && color_mode.gamma == Transfer_HLG)) {
+    dynamic_range = kHdrType;
+  }
+  comp_manager_->ControlDpps(dynamic_range != kHdrType);
+
+  return ret;
 }
 
 DisplayError DisplayPluggable::Prepare(LayerStack *layer_stack) {
@@ -429,6 +512,9 @@ static PrimariesTransfer GetBlendSpaceFromAttributes(const std::string &color_ga
 }
 
 DisplayError DisplayPluggable::SetColorMode(const std::string &color_mode) {
+  if (enable_qdcm_colormodes_on_external_ == QdcmOnExternal::LEGACY_QDCM) {
+    return DisplayBase::SetColorMode(color_mode);
+  }
   auto current_color_attr_ = color_mode_attr_map_.find(color_mode);
   if (current_color_attr_ == color_mode_attr_map_.end()) {
     DLOGE("Failed to get the color mode for display %d-%d = %s", display_id_,
@@ -469,6 +555,10 @@ DisplayError DisplayPluggable::SetColorMode(const std::string &color_mode) {
 
 DisplayError DisplayPluggable::GetColorModeCount(uint32_t *mode_count) {
   ClientLock lock(disp_mutex_);
+  if (enable_qdcm_colormodes_on_external_ == QdcmOnExternal::LEGACY_QDCM) {
+    return DisplayBase::GetColorModeCount(mode_count);
+  }
+
   if (!mode_count) {
     return kErrorParameters;
   }
@@ -482,6 +572,10 @@ DisplayError DisplayPluggable::GetColorModeCount(uint32_t *mode_count) {
 DisplayError DisplayPluggable::GetColorModes(uint32_t *mode_count,
                                              std::vector<std::string> *color_modes) {
   ClientLock lock(disp_mutex_);
+  if (enable_qdcm_colormodes_on_external_ == QdcmOnExternal::LEGACY_QDCM) {
+    return DisplayBase::GetColorModes(mode_count, color_modes);
+  }
+
   if (!mode_count || !color_modes) {
     return kErrorParameters;
   }
@@ -496,6 +590,10 @@ DisplayError DisplayPluggable::GetColorModes(uint32_t *mode_count,
 
 DisplayError DisplayPluggable::GetColorModeAttr(const std::string &color_mode, AttrVal *attr) {
   ClientLock lock(disp_mutex_);
+  if (enable_qdcm_colormodes_on_external_ == QdcmOnExternal::LEGACY_QDCM) {
+    return DisplayBase::GetColorModeAttr(color_mode, attr);
+  }
+
   if (!attr) {
     return kErrorParameters;
   }
