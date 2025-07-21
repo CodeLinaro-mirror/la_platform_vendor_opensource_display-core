@@ -63,6 +63,12 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #ifndef __HW_VIRTUAL_DRM_H__
 #define __HW_VIRTUAL_DRM_H__
 
@@ -104,6 +110,7 @@ class HWVirtualDRM : public HWDeviceDRM {
   void ConfigureWbConnectorFbId(uint32_t fb_id);
   void ConfigureWbConnectorDestRect(bool reset = false);
   void ConfigureWbConnectorSecureMode(bool secure);
+  void SetWbCSC();
   void InitializeConfigs();
   DisplayError SetWbConfigs(const HWDisplayAttributes &display_attributes);
   void GetModeIndex(const HWDisplayAttributes &display_attributes, int *mode_index);

@@ -171,6 +171,7 @@
 #define DEMURA_CONFIG_FILE_RENAME_ALLOWED    DISPLAY_PROP("demura_config_file_rename_allowed")
 #define DEMURA_MULTICONFIG_COUNT_PRIMARY     DISPLAY_PROP("demura_multiconfig_count_primary")
 #define DEMURA_MULTICONFIG_COUNT_SECONDARY   DISPLAY_PROP("demura_multiconfig_count_secondary")
+#define DEMURA_CONFIG_FILE_COPY_TO_QMCS_BYPASS  DISPLAY_PROP("demura_config_file_copy_to_qmcs_bypass")
 
 // Panel Feature DemuraTn Properties
 #define ENABLE_ANTI_AGING                    DISPLAY_PROP("enable_antiaging")
@@ -255,6 +256,7 @@
 #define WINDOW_RECT_PROP                     DISPLAY_PROP("window_rect")
 #define WINDOW_RECT_PROP_SECONDARY           DISPLAY_PROP("window_rect_secondary")
 #define ENABLE_WINDOW_RECT_MASK              DISPLAY_PROP("enable_window_rect_mask")
+#define DISABLE_RC_OFFSET_FLIP               DISPLAY_PROP("disable_rc_offset_flip")
 #define DISABLE_IDLE_TIME_HDR                DISPLAY_PROP("disable_idle_time_hdr")
 #define DISABLE_IDLE_TIME_VIDEO              DISPLAY_PROP("disable_idle_time_video")
 #define DISABLE_IDLE_FPS_SWITCH              DISPLAY_PROP("disable_idle_fps_switch")
@@ -295,9 +297,10 @@
 
 // Disable Ambient HDR
 #define DISABLE_AMBIENT_HDR               DISPLAY_PROP("disable_ambient_hdr")
-
 // HFI commit path support
 #define ENABLE_HFI_PATH                   DISPLAY_PROP("enable_hfi_path")
+// Disable client querying luts
+#define DISABLE_QUERY_LUTS                DISPLAY_PROP("disable_query_luts")
 
 // Add all other.properties above
 // End of property

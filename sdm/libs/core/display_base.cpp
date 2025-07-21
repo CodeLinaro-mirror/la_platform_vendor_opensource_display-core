@@ -714,7 +714,7 @@ DisplayError DisplayBase::GetCwbBufferResolution(CwbConfig *cwb_config, uint32_t
     // To dump post-processed (DSPP) output for CWB, use Panel resolution.
     uint32_t active_index = 0;
     error = GetActiveConfig(&active_index);
-    if (error == kErrorNone) {
+    if (error == kErrorNone || error == kErrorConfigMismatch) {
       error = GetRealConfig(active_index, &display_config);
       if (error == kErrorNone) {
         cwb_config->cwb_full_rect.right = display_config.x_pixels;

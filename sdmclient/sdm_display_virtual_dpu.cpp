@@ -30,7 +30,7 @@
  * Changes from Qualcomm Innovation Center, Inc. are provided under the
  * following license:
  *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include "sdm_display_virtual_dpu.h"
@@ -83,6 +83,8 @@ DisplayError SDMDisplayVirtualDPU::Init() {
     return status;
   }
 
+  color_mode_ = new SDMColorModeMgr(display_intf_);
+  color_mode_->Init();
   return SDMDisplayVirtual::Init();
 }
 
@@ -210,6 +212,10 @@ DisplayError SDMDisplayVirtualDPU::PreValidateDisplay(bool *exit_validate) {
 
   *exit_validate = false;
 
+  // Apply current Color Mode and Render Intent.
+  auto status = color_mode_->ApplyCurrentColorModeWithRenderIntent(
+      static_cast<bool>(layer_stack_.flags.hdr_present));
+
   return kErrorNone;
 }
 
@@ -286,6 +292,41 @@ DisplayError SDMDisplayVirtualDPU::SetPanelLuminanceAttributes(float min_lum,
 
 DisplayError SDMDisplayVirtualDPU::SetColorTransform(const float *matrix, SDMColorTransform hint) {
   force_gpu_comp_ = (hint != SDMColorTransform::TRANSFORM_IDENTITY) ? true : false;
+  return kErrorNone;
+}
+
+DisplayError SDMDisplayVirtualDPU::SetColorMode(SDMColorMode mode) {
+  return SetColorModeWithRenderIntent(mode, SDMRenderIntent::COLORIMETRIC);
+}
+
+DisplayError SDMDisplayVirtualDPU::SetColorModeWithRenderIntent(SDMColorMode mode,
+                                                                SDMRenderIntent intent) {
+  auto status = color_mode_->CacheColorModeWithRenderIntent(mode, intent);
+  if (status != kErrorNone) {
+    DLOGE("failed for mode = %d intent = %d", mode, intent);
+    return status;
+  }
+
+  callbacks_->OnRefresh(id_);
+  return status;
+}
+
+DisplayError SDMDisplayVirtualDPU::GetColorModes(uint32_t *out_num_modes, SDMColorMode *out_modes) {
+  if (out_modes == nullptr) {
+    *out_num_modes = color_mode_->GetColorModeCount();
+  } else {
+    color_mode_->GetColorModes(out_num_modes, out_modes);
+  }
+  return kErrorNone;
+}
+
+DisplayError SDMDisplayVirtualDPU::GetRenderIntents(SDMColorMode mode, uint32_t *out_num_intents,
+                                                    SDMRenderIntent *out_intents) {
+  if (out_intents == nullptr) {
+    *out_num_intents = color_mode_->GetRenderIntentCount(mode);
+  } else {
+    color_mode_->GetRenderIntents(mode, out_num_intents, out_intents);
+  }
   return kErrorNone;
 }
 

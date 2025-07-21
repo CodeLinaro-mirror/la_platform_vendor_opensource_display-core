@@ -115,6 +115,8 @@ class DRMConnector {
               DRMRect *conn_rois);
 
   int fd_ = -1;
+  uint32_t wb_blob_id_ = 0;
+  uint64_t wb_csc_cfg_used_ = CscTypeMax;
   drmModeConnector *drm_connector_ = {};
   DRMPropertyManager prop_mgr_ {};
   bool skip_connector_reload_ = false; //  Usually set to true for new TV/pluggable displays.

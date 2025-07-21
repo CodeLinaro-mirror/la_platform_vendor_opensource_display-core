@@ -642,6 +642,11 @@ enum struct DRMOps {
    */
   CONNECTOR_WB_USAGE_TYPE,
   /*
+   * Op: WB csc config (BT2020/BT601)
+   * Arg: drmModeAtomicReq - Atomic request
+   */
+  CONNECTOR_WB_CSC_CONFIG,
+  /*
    * Op: Sets Cache state for Connector.
    * Arg: uint32_t - Connector ID
    *      uint32_t - Cache state
@@ -1409,6 +1414,12 @@ enum struct DRMWBUsageType {
   WB_USAGE_WFD,
   WB_USAGE_CWB,
   WB_USAGE_OFFLINE_WB,
+};
+
+enum DRMWBCSCConfig {
+  RGB2YUV601L,
+  RGB2YUV2020L,
+  CscTypeMax,
 };
 
 enum DRMFp16CscType {
