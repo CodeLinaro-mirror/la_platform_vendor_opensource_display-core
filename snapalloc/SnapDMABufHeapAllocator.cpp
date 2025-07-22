@@ -61,8 +61,6 @@ Error SnapDMABufHeapAllocator::FreeBuffer(void *base, unsigned int size, int fd,
     err = UnmapBuffer(base, size);
   }
 
-  close(fd);
-
   return err;
 }
 
