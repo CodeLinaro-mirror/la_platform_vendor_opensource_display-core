@@ -393,6 +393,8 @@ public:
                                           int32_t *out_layer_requests);
   virtual DisplayError GetDisplayLuts(
       std::unique_ptr<std::vector<std::pair<LayerId, Lut3d *>>> &out_luts);
+  virtual DisplayError GetBufferLuts(const std::vector<SnapHandle *> &buffers,
+                                     std::unique_ptr<std::vector<Lut3d *>> &out_luts);
   virtual DisplayError GetDisplayName(uint32_t *out_size, char *out_name);
   virtual DisplayError GetDisplayType(int32_t *out_type);
   virtual DisplayError SetCursorPosition(LayerId layer, int x, int y);
@@ -634,7 +636,9 @@ public:
 
   std::map<LayerId, SDMCompositionType> layer_changes_;
   std::map<LayerId, SDMLayerRequest> layer_requests_;
+  // mapping 3d luts to layer id and handle id to retrieve info and pass to client
   std::map<LayerId, Lut3d *> display_luts_;
+  std::map<uint64_t, Lut3d *> buffer_luts_;
   bool flush_on_error_ = false;
   bool flush_ = false;
   SDMPowerMode current_power_mode_ = SDMPowerMode::POWER_MODE_OFF;
