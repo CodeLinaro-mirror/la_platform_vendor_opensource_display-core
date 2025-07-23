@@ -28,11 +28,10 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- */
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
+*/
 
 #ifndef __GENERIC_PAYLOAD_H__
 #define __GENERIC_PAYLOAD_H__
@@ -42,6 +41,7 @@
 #include <assert.h>
 #include <functional>
 #include <cstring>
+#include <cstdint>
 
 // Do not define __CLASS__ for logging in shared utility header like this one
 
