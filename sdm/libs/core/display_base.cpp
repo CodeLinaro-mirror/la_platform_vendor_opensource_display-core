@@ -178,6 +178,7 @@ DisplayError DisplayBase::Init() {
   for (auto info_intf = hw_info_intf_.Begin(); info_intf != hw_info_intf_.End(); info_intf++) {
     HWResourceInfo res_info;
     info_intf->second->GetHWResourceInfo(&res_info);
+    wb_downscale_supports_ |= !!info_intf->second->GetMaxDNSCBlurBlockCount();
     hw_resource_info_.push_back(res_info);
   }
 
@@ -1716,7 +1717,10 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
     info.second.output_buffer = layer_stack->output_buffer;
     info.second.cwb_id = DisplayId(layer_stack->cwb_id).GetConnId(info.first);
     info.second.hw_cwb_config = layer_stack->cwb_config;
-    if (info.second.cwb_id > 0) {
+    if (info.second.cwb_id > 0 && !info.second.dnsc_cfg.enabled &&
+        (info.second.hw_cwb_config->cwb_control_params.needs_downscale ||
+         info.second.hw_cwb_config->cwb_control_params.needs_1x_downscale)) {
+      info.second.hw_cwb_config->cwb_control_params.dnsc_configured = false;
       comp_manager_->LoadCwbHwDnscConfig(info.first, &info.second);
     }
   }
@@ -5121,6 +5125,14 @@ bool DisplayBase::ValidateCwbConfigForDownscale(const LayerBuffer &output_buffer
   ds_rect.right = ds_rect.left + width;
   ds_rect.bottom = ds_rect.top + height;
 
+  if (!wb_downscale_supports_) {
+    DLOGW(
+        "DNSC_block is not supported to handle downscale! Still requested downscale output with"
+        " Dest-Rectangle (%.f, %.f, %.f, %.f) on display %d-%d.",
+        ds_rect.left, ds_rect.top, ds_rect.right, ds_rect.bottom, display_id_, display_type_);
+    return false;
+  }
+
   cflags.needs_downscale = 1;
 
   if (cwb_config.cwb_roi != cwb_config.cwb_full_rect) {
@@ -5263,7 +5275,7 @@ void DisplayBase::RefreshOnIdleTimeoutForCwb(bool is_cwb_requested) {
     idle_time_ms = IDLE_TIMEOUT_DEFAULT_MS;
   }
 
-  if (!enable_client_control_cwb_refresh_ && !force_refresh_to_process_cwb_ &&
+  if (state_ == kStateOn && !enable_client_control_cwb_refresh_ && !force_refresh_to_process_cwb_ &&
       (mirror_src_display_id_ == -1 || comp_manager_->IsActiveDisplay(mirror_src_display_id_)) &&
       (handle_idle_timeout_ || idle_hint_set_ || idle_time_ms <= 0) &&
       (is_cwb_requested || comp_manager_->HasPendingCwbRequest(display_comp_ctx_))) {
