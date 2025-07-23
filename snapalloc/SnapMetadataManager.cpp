@@ -1462,6 +1462,58 @@ void SnapMetadataManager::UnmapAndReset(SnapHandleInternal *hnd) {
   }
 }
 
+Error SnapMetadataManager::GetBaseView(SnapHandleInternal *hnd, uint32_t *view) {
+  SnapMetadata *metadata = reinterpret_cast<SnapMetadata *>(hnd->base_metadata());
+  if (metadata == nullptr) {
+    DLOGW_IF("%s: Invalid metadata address", __FUNCTION__);
+    return Error::BAD_BUFFER;
+  }
+  *(uint32_t *)view = static_cast<uint32_t>(hnd->view());
+  if (hnd->getFds().size() > 1) {
+    if (!metadata->isVendorMetadataSet[GET_VENDOR_METADATA_STATUS_INDEX(VIEW_ID)]) {
+      DLOGW_IF(enable_logs, "ViewID not set. Returning requested view");
+      return Error::NONE;
+    }
+
+    if (!metadata
+             ->isVendorMetadataSet[GET_VENDOR_METADATA_STATUS_INDEX(THREE_DIMENSIONAL_REF_INFO)]) {
+      DLOGW_IF(enable_logs, "SEI metadata not set. Returning requested view");
+      return Error::NONE;
+    }
+
+    uint32_t view_id_from_metadata = metadata->viewId;
+    uint32_t left_id_from_sei =
+        (metadata->three_dimensional_ref_info.threedRefDispInfo[0]).left_view_id;
+    uint32_t right_id_from_sei =
+        (metadata->three_dimensional_ref_info.threedRefDispInfo[0]).right_view_id;
+
+    if (left_id_from_sei == right_id_from_sei) {
+      DLOGW_IF(
+          enable_logs,
+          "%s: left_id_from_sei and right_id_from_sei set to same view which is invalid. Returning",
+          __FUNCTION__);
+      return Error::NONE;
+    }
+
+    uint32_t view_at_index_0;
+    if (view_id_from_metadata == left_id_from_sei) {
+      view_at_index_0 = hnd->view();
+    } else {
+      view_at_index_0 = hnd->getViewInfo() & (~hnd->view());
+    }
+
+    DLOGD_IF(enable_logs,
+             "%s: view_id_from_metadata %d , left_id_from_sei %d, right_id_from_sei %d, "
+             "view_at_index_0 %d",
+             __FUNCTION__, view_id_from_metadata, left_id_from_sei, right_id_from_sei,
+             view_at_index_0);
+    *(uint32_t *)view = view_at_index_0;
+  }
+
+  DLOGD_IF(enable_logs, "%s: Returning base view %d", __FUNCTION__, *(uint32_t *)view);
+  return Error::NONE;
+}
+
 Error SnapMetadataManager::GetViewToImport(SnapHandleInternal *hnd, const uint32_t view_requested,
                                            uint32_t *view) {
   SnapMetadata *metadata = reinterpret_cast<SnapMetadata *>(hnd->base_metadata());

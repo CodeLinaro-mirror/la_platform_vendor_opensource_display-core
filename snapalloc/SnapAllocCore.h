@@ -1,5 +1,7 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __SNAPALLOCCORE_H__
 #define __SNAPALLOCCORE_H__
@@ -44,6 +46,7 @@ class SnapAllocCore {
   Error GetMetadataState(SnapHandle *hnd, vendor_qti_hardware_display_common_MetadataType type,
                           bool *out);
   Error RetainViewBuffer(SnapHandle *meta_hnd, uint32_t view, SnapHandle **out_view_handle);
+  Error GetBaseView(SnapHandle *hnd, uint32_t *view);
   void RegisterHandleLocked(SnapHandle *public_hnd, SnapHandleInternal *snap_hnd);
 
  private:

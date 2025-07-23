@@ -1,5 +1,7 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __SNAP_HANDLE_INTERNAL_H__
 #define __SNAP_HANDLE_INTERNAL_H__
@@ -76,7 +78,7 @@ class SnapHandleInternal : public SnapHandle {
   std::vector<FdPair> getFds();
   void closeFds();
   uint32_t getViewInfo();
-  SnapHandleInternal *CreateViewHandle(uint32_t view);
+  SnapHandleInternal *CreateViewHandle(uint32_t view, uint32_t view_in_handle);
 
  private:
   SnapHandleInternal(const SnapHandleInternal &other) = delete;
@@ -87,6 +89,11 @@ class SnapHandleInternal : public SnapHandle {
   SnapHandleProperties &currentProperties();
 
   int &ref_count();
+};
+
+struct SnapHandleInternal::FdPair {
+  int fd;
+  int fd_metadata;
 };
 
 }  // namespace snapalloc
