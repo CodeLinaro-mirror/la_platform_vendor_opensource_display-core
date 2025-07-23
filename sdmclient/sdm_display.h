@@ -538,6 +538,7 @@ public:
   virtual void TimeoutOnBuiltins(){};
   virtual void IdleTimeout(){};
   DisplayError SetStandbyMode(bool enable, bool is_twm);
+  DisplayError SetRGBASplit(int32_t split_enable);
 
  protected:
   static uint32_t throttling_refresh_rate_;
@@ -725,6 +726,7 @@ public:
   SDMLayerStack *sdm_layer_stack_ = nullptr;
   bool prepare_phase_ = false;
   uint64_t scheduled_dynamic_dsi_clk_ = 0;
+  int32_t rgba_split_support_ = 0;
 
  private:
   bool CanSkipSdmPrepare(uint32_t *num_types, uint32_t *num_requests);

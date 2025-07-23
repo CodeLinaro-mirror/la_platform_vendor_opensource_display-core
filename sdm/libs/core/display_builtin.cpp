@@ -2523,6 +2523,7 @@ std::string DisplayBuiltIn::Dump() {
   os << " clk: " << display_attributes.clock_khz;
   os << " Topology: " << display_attributes.topology;
   os << " Qsync mode: " << active_qsync_mode_;
+  os << " RGBA Split Mode enable: " << rgba_split_enable_;
   os << " CAC enabled: " << disp_layer_stack_->stack_info.enable_cac;
   os << (disp_layer_stack_->stack_info.enable_cac
              ? (cac_version == kCacVersionLoopback) ? " (CACLoopback)" : " (CACV2)"
@@ -3114,6 +3115,7 @@ DisplayError DisplayBuiltIn::BuildLayerStackStats(LayerStack *layer_stack) {
   stack_info.enable_cac = enable_cac_;
   stack_info.enable_anamorphic_fov = IsAnamorphicFoveationEnabled(layer_stack);
   stack_info.cac_config = cac_config_;
+  stack_info.rgba_split_enable = rgba_split_enable_;
 
   int index = 0;
   for (auto &layer : layers) {

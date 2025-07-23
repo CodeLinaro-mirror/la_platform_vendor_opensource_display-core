@@ -233,6 +233,9 @@
 #define AIQE_SSRC_DEFAULT_MODE         DISPLAY_PROP("default_aiqe_ssrc_mode")
 #define AIQE_COPR_ENABLE               DISPLAY_PROP("enable_aiqe_copr")
 
+// RGBA Split feature
+#define RGBA_SPLIT_SUPPORT             DISPLAY_PROP("rgba_split_support")
+
 // Add all vendor.display properties above
 
 #define DISABLE_AHARDWARE_BUFFER_PROP        GRALLOC_PROP("disable_ahardware_buffer")
