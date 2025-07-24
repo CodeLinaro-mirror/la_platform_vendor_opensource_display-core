@@ -612,11 +612,17 @@ void HWPeripheralDRM::SetSelfRefreshState() {
 
 DisplayError HWPeripheralDRM::Flush(HWLayersInfo *hw_layers_info) {
   ConfigureLoopbackCAC(false /* cac disabled */);
+  if ((hw_panel_info_.mode == kModeCommand) && (tui_state_ != kTUIStateNone)) {
+    SetVMReqState();
+  }
   DisplayError err = HWDeviceDRM::Flush(hw_layers_info);
   if (err != kErrorNone) {
     return err;
   }
 
+  if ((hw_panel_info_.mode == kModeCommand) && (tui_state_ != kTUIStateNone)) {
+    SetTUIState();
+  }
   ResetDestScalarCache();
   return kErrorNone;
 }
@@ -692,6 +698,8 @@ DisplayError HWPeripheralDRM::HandleSecureEvent(SecureEvent secure_event,
     case kTUITransitionUnPrepare:
       if (tui_state_ == kTUIStateNone) {
         tui_state_ = kTUIStateInProgress;
+      } else {
+        tui_state_ = kTUIStateNone;
       }
       break;
     case kTUITransitionStart: {
