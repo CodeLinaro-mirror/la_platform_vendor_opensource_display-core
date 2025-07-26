@@ -484,7 +484,7 @@ public:
     return kErrorNotSupported;
   }
   virtual DisplayError RetrieveDemuraTnFiles() { return kErrorNotSupported; }
-  virtual DisplayError SetDemuraState(int state) { return kErrorNotSupported; }
+  virtual DisplayError SetDemuraState(int state, int demura_idx) { return kErrorNotSupported; }
   virtual DisplayError SetDemuraConfig(int demura_idx) {
     return kErrorNotSupported;
   }

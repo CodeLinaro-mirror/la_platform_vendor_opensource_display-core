@@ -470,7 +470,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError
   GetClientTargetProperty(Display display,
                           SDMClientTargetProperty *outClientTargetProperty);
-  DisplayError SetDemuraState(Display display, int32_t state);
+  DisplayError SetDemuraState(Display display, int32_t state, int32_t demura_idx);
   DisplayError SetDemuraConfig(Display display, int32_t demura_idx);
 
   DisplayError SetDisplayedContentSamplingEnabled(Display display, bool enabled,

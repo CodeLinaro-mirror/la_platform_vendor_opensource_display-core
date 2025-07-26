@@ -27,8 +27,8 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #ifndef __SDM_DISPLAY_BUILTIN_H__
@@ -134,7 +134,7 @@ public:
  virtual DisplayError SetDimmingMinBl(int min_bl);
  virtual DisplayError RetrieveDemuraTnFiles();
  virtual DisplayError UpdateTransferTime(uint32_t transfer_time);
- virtual DisplayError SetDemuraState(int state);
+ virtual DisplayError SetDemuraState(int state, int demura_idx);
  virtual DisplayError SetDemuraConfig(int demura_idx);
  virtual DisplayError PerformCacConfig(CacConfig config, bool enable);
  virtual DisplayError IsCacV2Supported(bool *supported);

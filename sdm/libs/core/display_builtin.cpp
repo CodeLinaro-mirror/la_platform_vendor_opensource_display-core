@@ -840,7 +840,7 @@ DisplayError DisplayBuiltIn::SetupSPR() {
   return kErrorNone;
 }
 
-DisplayError DisplayBuiltIn::SetupDemura() {
+DisplayError DisplayBuiltIn::SetupDemura(int current_idx) {
   DemuraInputConfig input_cfg;
   input_cfg.secure_session = false;  // TODO(user): Integrate with secure solution
   std::string brightness_base;
@@ -882,11 +882,9 @@ DisplayError DisplayBuiltIn::SetupDemura() {
     return kErrorUndefined;
   }
 
-  if (SetDemuraIntfStatus(true)) {
+  if (SetDemuraIntfStatus(true, current_idx)) {
     return kErrorUndefined;
   }
-
-  demura_current_idx_ = kDemuraDefaultIdx;
 
   comp_manager_->SetDemuraStatusForDisplay(display_id_, true);
   demura_intended_ = true;
@@ -1384,10 +1382,10 @@ DisplayError DisplayBuiltIn::ValidateDemuraLicense() {
   return kErrorNone;
 }
 
-DisplayError DisplayBuiltIn::SetupDemuraT0() {
+DisplayError DisplayBuiltIn::SetupDemuraT0(int current_idx) {
   DisplayError error = kErrorNone;
 
-  error = SetupDemura();
+  error = SetupDemura(current_idx);
   if (error != kErrorNone) {
     DLOGE("Demura failed to initialize on display %d-%d, Error %d", display_id_, display_type_,
           error);
@@ -3561,6 +3559,7 @@ int DisplayBuiltIn::SetDemuraIntfStatus(bool enable, int current_idx) {
       return ret;
     }
   }
+  demura_current_idx_ = current_idx;
   DLOGI("Demura is now %s and current index is %d ", enable ? "Enabled" : "Disabled", current_idx);
   return ret;
 }
@@ -4045,7 +4044,7 @@ uint32_t DisplayBuiltIn::SanitizeRefreshRate(uint32_t req_refresh_rate, uint32_t
   return refresh_rate;
 }
 
-DisplayError DisplayBuiltIn::SetDemuraState(int state) {
+DisplayError DisplayBuiltIn::SetDemuraState(int state, int demura_idx) {
   int ret = 0;
   DisplayError error = kErrorNone;
 
@@ -4054,6 +4053,7 @@ DisplayError DisplayBuiltIn::SetDemuraState(int state) {
     return kErrorUndefined;
   }
 
+  DLOGI("Setting the Demura state %d, config = %d", state, demura_idx);
   if (!demura_intended_ && state) {
     if (!demura_allowed_) {
       // Validate demura license again in case failed during boot up
@@ -4069,12 +4069,11 @@ DisplayError DisplayBuiltIn::SetDemuraState(int state) {
         return error;
       }
       DLOGI("Start Demura feature now");
-      if ((error = SetupDemuraT0()) != kErrorNone) {
+      if ((error = SetupDemuraT0(demura_idx)) != kErrorNone) {
         DLOGE("Failed to enable Demura dynamically, error = %d", error);
         return error;
       }
       demura_dynamic_enabled_ = true;
-      demura_current_idx_ = kDemuraDefaultIdx;
       // Disable Partial Update for one frame.
       DisablePartialUpdateOneFrameInternal();
     } else {
@@ -4089,14 +4088,13 @@ DisplayError DisplayBuiltIn::SetDemuraState(int state) {
       return kErrorUndefined;
     }
 
-    ret = SetDemuraIntfStatus(true);
+    ret = SetDemuraIntfStatus(true, demura_idx);
     if (ret) {
       DLOGE("Failed to set demura status to true, ret = %d", ret);
       return kErrorUndefined;
     }
     comp_manager_->SetDemuraStatusForDisplay(display_id_, true);
     demura_dynamic_enabled_ = true;
-    demura_current_idx_ = kDemuraDefaultIdx;
   } else if (!state && comp_manager_->GetDemuraStatusForDisplay(display_id_)) {
     ret = SetDemuraIntfStatus(false);
     if (ret) {
@@ -4157,7 +4155,6 @@ DisplayError DisplayBuiltIn::SetDemuraConfig(int demura_idx) {
     return kErrorUndefined;
   }
 
-  demura_current_idx_ = demura_idx;
   DLOGV("Demura config updated to config index %d", demura_idx);
   HandleSelfRefresh();
 
