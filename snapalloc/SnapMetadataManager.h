@@ -51,6 +51,7 @@ class SnapMetadataManager {
                                                        SnapHandleInternal *handle, void *in_set,
                                                        void *out_get, BufferDescriptor *buf_des);
   Error GetViewToImport(SnapHandleInternal *hnd, const uint32_t view_requested, uint32_t *view);
+  Error GetBaseView(SnapHandleInternal *hnd, uint32_t *view);
 
  private:
   ~SnapMetadataManager();

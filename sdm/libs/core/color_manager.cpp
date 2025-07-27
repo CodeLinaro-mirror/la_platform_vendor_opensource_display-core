@@ -22,10 +22,8 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the
- * following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * ​​​​​Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries. 
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -1570,7 +1568,7 @@ bool DPUColorManager::CompareSDEDisplayModes(vector<SDEDisplayMode>& mode) {
 
   for (int i = 1; i < mode.size(); i++) {
     if ((mode[0].id != mode[i].id) && (mode[0].type != mode[i].type) &&
-          (mode[0].name != mode[i].name))
+          (strcmp(mode[0].name, mode[i].name) != 0))
       is_same_mode = false;
   }
 

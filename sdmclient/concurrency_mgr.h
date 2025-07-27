@@ -451,6 +451,8 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                                   int32_t *out_layer_requests);
   DisplayError GetDisplayLuts(Display display,
                               std::unique_ptr<std::vector<std::pair<LayerId, Lut3d *>>> &out_luts);
+  DisplayError GetBufferLuts(Display display, const std::vector<SnapHandle *> &buffers,
+                             std::unique_ptr<std::vector<Lut3d *>> &out_luts);
   DisplayError GetReleaseFences(Display display, uint32_t *out_num_elements,
                                 LayerId *out_layers,
                                 std::vector<shared_ptr<Fence>> *out_fences);
@@ -468,7 +470,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError
   GetClientTargetProperty(Display display,
                           SDMClientTargetProperty *outClientTargetProperty);
-  DisplayError SetDemuraState(Display display, int32_t state);
+  DisplayError SetDemuraState(Display display, int32_t state, int32_t demura_idx);
   DisplayError SetDemuraConfig(Display display, int32_t demura_idx);
 
   DisplayError SetDisplayedContentSamplingEnabled(Display display, bool enabled,

@@ -23,9 +23,8 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-*
-* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -265,6 +264,13 @@ enum HWDMSType {
   kDMSVIDDisabled,
   kDMSVIDSeamless,
   kDMSVIDNonSeamless,
+};
+
+enum HWReserveColor {
+  kRed = 1 << 0,
+  kGreen = 1 << 1,
+  kBlue = 1 << 2,
+  kAlpha = 1 << 3,
 };
 
 typedef std::map<HWSubBlockType, std::vector<LayerBufferFormat>> FormatsMap;
@@ -957,6 +963,7 @@ struct RCLayersInfo {
 
 struct LayerExt {
   std::vector<LayerRect> excl_rects = {};  // list of exclusion rects
+  int32_t rgba_split = 0;                  // AGBR in order BIT(3) BIT(2) BIT(1) BIT(0)
 };
 
 typedef std::tuple<std::string, int32_t, int8_t> FetchResource;
@@ -1106,6 +1113,7 @@ struct LayerStackInfo {
   CacConfig cac_config = {};
   Handle comp_stack = nullptr;
   SelfRefreshState self_refresh_state = kSelfRefreshNone;
+  int32_t rgba_split_enable = 0;
 };
 
 struct HWLayersInfo {
@@ -1160,7 +1168,7 @@ struct DispLayerStack {
     stack = NULL;
     stack_info = {};
     for (auto it = info.begin(); it != info.end(); it++) {
-      info[it->first] = {};
+      info[it->first] = HWLayersInfo();
     }
   }
 };

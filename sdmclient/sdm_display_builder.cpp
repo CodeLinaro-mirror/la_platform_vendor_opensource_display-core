@@ -184,24 +184,27 @@ void SDMDisplayBuilder::Init(Locker *locker) {
 
   // Init slots in accordance to h/w capability.
   uint32_t disp_count = UINT32(std::min(max_pluggable, kNumPluggable));
-  Display base_id = SDM_DISPLAY_EXTERNAL;
+  Display base_id = qdutilsDisplayType::DISPLAY_EXTERNAL;
   map_info_pluggable_.resize(disp_count);
   for (auto &map_info : map_info_pluggable_) {
-    map_info.client_id = base_id++;
+    map_info.client_id = base_id;
+    base_id += kDisplayTypeMax;
   }
 
-  base_id = SDM_DISPLAY_BUILTIN_2;
   disp_count = UINT32(std::min(max_builtin, kNumBuiltIn));
+  base_id = qdutilsDisplayType::DISPLAY_BUILTIN_2;
   map_info_builtin_.resize(disp_count);
   for (auto &map_info : map_info_builtin_) {
-    map_info.client_id = base_id++;
+    map_info.client_id = base_id;
+    base_id += kDisplayTypeMax;
   }
 
-  base_id = SDM_DISPLAY_VIRTUAL;
   disp_count = UINT32(std::min(max_virtual, kNumVirtual));
+  base_id = qdutilsDisplayType::DISPLAY_VIRTUAL;
   map_info_virtual_.resize(disp_count);
   for (auto &map_info : map_info_virtual_) {
-    map_info.client_id = base_id++;
+    map_info.client_id = base_id;
+    base_id += kDisplayTypeMax;
   }
 
   // resize HDR supported map to total number of displays.

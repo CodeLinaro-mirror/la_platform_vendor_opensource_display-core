@@ -168,7 +168,8 @@ DisplayError DisplayBase::Init() {
       if (!core_id_[i]) {
         continue;
       }
-      disp_layer_stacks_[disp_index].info.insert(std::pair<uint32_t, HWLayersInfo>(i, {}));
+      disp_layer_stacks_[disp_index].info.insert(
+          std::pair<uint32_t, HWLayersInfo>(i, HWLayersInfo()));
     }
   }
 
@@ -177,6 +178,7 @@ DisplayError DisplayBase::Init() {
   for (auto info_intf = hw_info_intf_.Begin(); info_intf != hw_info_intf_.End(); info_intf++) {
     HWResourceInfo res_info;
     info_intf->second->GetHWResourceInfo(&res_info);
+    wb_downscale_supports_ |= !!info_intf->second->GetMaxDNSCBlurBlockCount();
     hw_resource_info_.push_back(res_info);
   }
 
@@ -843,6 +845,7 @@ DisplayError DisplayBase::BuildLayerStackStats(LayerStack *layer_stack) {
   stack_info.gpu_target_index = -1;
   stack_info.stitch_target_index = -1;
   stack_info.noise_layer_index = -1;
+  stack_info.rgba_split_enable = rgba_split_enable_;
 
   disp_layer_stack_->stack = layer_stack;
   stack_info.common_info.flags = layer_stack->flags;
@@ -1715,7 +1718,10 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
     info.second.output_buffer = layer_stack->output_buffer;
     info.second.cwb_id = DisplayId(layer_stack->cwb_id).GetConnId(info.first);
     info.second.hw_cwb_config = layer_stack->cwb_config;
-    if (info.second.cwb_id > 0) {
+    if (info.second.cwb_id > 0 && !info.second.dnsc_cfg.enabled &&
+        (info.second.hw_cwb_config->cwb_control_params.needs_downscale ||
+         info.second.hw_cwb_config->cwb_control_params.needs_1x_downscale)) {
+      info.second.hw_cwb_config->cwb_control_params.dnsc_configured = false;
       comp_manager_->LoadCwbHwDnscConfig(info.first, &info.second);
     }
   }
@@ -2510,6 +2516,7 @@ std::string DisplayBase::Dump() {
   os << " h_total: " << display_attributes.h_total;
   os << " clk: " << display_attributes.clock_khz;
   os << " Topology: " << display_attributes.topology;
+  os << " RGBA Split Mode enable: " << rgba_split_enable_;
   os << std::noboolalpha;
 
   os << "\nCurrent Color Mode: " << current_color_mode_.c_str();
@@ -5120,6 +5127,14 @@ bool DisplayBase::ValidateCwbConfigForDownscale(const LayerBuffer &output_buffer
   ds_rect.right = ds_rect.left + width;
   ds_rect.bottom = ds_rect.top + height;
 
+  if (!wb_downscale_supports_) {
+    DLOGW(
+        "DNSC_block is not supported to handle downscale! Still requested downscale output with"
+        " Dest-Rectangle (%.f, %.f, %.f, %.f) on display %d-%d.",
+        ds_rect.left, ds_rect.top, ds_rect.right, ds_rect.bottom, display_id_, display_type_);
+    return false;
+  }
+
   cflags.needs_downscale = 1;
 
   if (cwb_config.cwb_roi != cwb_config.cwb_full_rect) {
@@ -5262,7 +5277,7 @@ void DisplayBase::RefreshOnIdleTimeoutForCwb(bool is_cwb_requested) {
     idle_time_ms = IDLE_TIMEOUT_DEFAULT_MS;
   }
 
-  if (!enable_client_control_cwb_refresh_ && !force_refresh_to_process_cwb_ &&
+  if (state_ == kStateOn && !enable_client_control_cwb_refresh_ && !force_refresh_to_process_cwb_ &&
       (mirror_src_display_id_ == -1 || comp_manager_->IsActiveDisplay(mirror_src_display_id_)) &&
       (handle_idle_timeout_ || idle_hint_set_ || idle_time_ms <= 0) &&
       (is_cwb_requested || comp_manager_->HasPendingCwbRequest(display_comp_ctx_))) {
@@ -5433,6 +5448,17 @@ DisplayError DisplayBase::ValidateExtendedDisplayResolutions(
     return kErrorNotSupported;
 
   *fin_disp_res = extended_res;
+  return kErrorNone;
+}
+
+DisplayError DisplayBase::SetRGBASplit(int enable) {
+  ClientLock lock(disp_mutex_);
+
+  DLOGI("RGBASplit enable: %d on display %d-%d", enable, display_id_, display_type_);
+  rgba_split_enable_ = enable;
+  validated_ = false;
+  event_handler_->Refresh();
+
   return kErrorNone;
 }
 

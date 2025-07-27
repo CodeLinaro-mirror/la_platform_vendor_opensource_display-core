@@ -122,6 +122,7 @@ using sde_drm::DRMOps;
 using sde_drm::DRMPowerMode;
 using sde_drm::DRMPPFeatureInfo;
 using sde_drm::DRMRect;
+using sde_drm::DRMReserveColor;
 using sde_drm::DRMRotation;
 using sde_drm::DRMSecureMode;
 using sde_drm::DRMSecurityLevel;
@@ -1523,6 +1524,7 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_GET_RETIRE_FENCE, token_.conn_id, &retire_fence_fd);
 
   if (cwb_config_[core_id_].enabled) {
+    DeconfigureDNSCfromCwb();
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, cwb_config_[core_id_].token.conn_id, 0);
     DLOGI("Tearing down the CWB topology");
   }
@@ -1642,6 +1644,11 @@ DisplayError HWDeviceDRM::DozeSuspend(const HWQosData &qos_data, SyncPoints *syn
                             DRMPowerMode::DOZE_SUSPEND);
   drm_atomic_intf_->Perform(DRMOps::CRTC_GET_RELEASE_FENCE, token_.crtc_id, &release_fence_fd);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_GET_RETIRE_FENCE, token_.conn_id, &retire_fence_fd);
+  if (cwb_config_[core_id_].enabled) {
+    DeconfigureDNSCfromCwb();
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, cwb_config_[core_id_].token.conn_id, 0);
+    DLOGI("Tearing down the CWB topology");
+  }
 
   bool is_synchronous = false;
   if (hw_panel_info_.dpu_ctl_op_sync && core_id_ != 0) {
@@ -1651,6 +1658,10 @@ DisplayError HWDeviceDRM::DozeSuspend(const HWQosData &qos_data, SyncPoints *syn
   if (ret) {
     DLOGE("Failed with error: %d", ret);
     return kErrorHardware;
+  }
+
+  if (cwb_config_[core_id_].enabled) {
+    FlushConcurrentWriteback();
   }
 
   sync_points->retire_fence = Fence::Create(INT(retire_fence_fd), "retire_doze_suspend");
@@ -1914,6 +1925,19 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
           }
           SetBlending(layer_blend, &blending);
           drm_atomic_intf_->Perform(DRMOps::PLANE_SET_BLEND_TYPE, pipe_id, blending);
+
+          if (hw_layers_info->layer_exts.size() && hw_layers_info->layer_exts.at(i).rgba_split) {
+            DLOGI_IF(kTagDriverConfig,
+                     "RGBA Split Layer[%d] Blend(curr) = %d being set to opaque,"
+                     " rgba_split = %d",
+                     i, blending, hw_layers_info->layer_exts.at(i).rgba_split);
+            drm_atomic_intf_->Perform(DRMOps::PLANE_SET_BLEND_TYPE, pipe_id, DRMBlendType::OPAQUE);
+            drm_atomic_intf_->Perform(DRMOps::PLANE_SET_ALPHA, pipe_id, 0xffff);
+            if (hw_layers_info->layer_exts.at(i).rgba_split == UINT32(DRMReserveColor::ALPHA)) {
+              drm_atomic_intf_->Perform(DRMOps::PLANE_SET_COLOR_MASK_OVERRIDE, pipe_id,
+                                        DRMReserveColor::ALPHA);
+            }
+          }
 
           DRMRect src = {};
           SetRect(pipe_info->src_roi, &src);
@@ -2550,6 +2574,7 @@ DisplayError HWDeviceDRM::Flush(HWLayersInfo *hw_layers_info) {
   drm_atomic_intf_->Perform(DRMOps::DPPS_COMMIT_FEATURE, -1);
 
   if (cwb_config_[core_id_].enabled) {
+    DeconfigureDNSCfromCwb();
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, cwb_config_[core_id_].token.conn_id, 0);
     DLOGI("Tearing down the CWB topology");
   }
@@ -3819,12 +3844,14 @@ bool HWDeviceDRM::ConfigureDNSCforCwb(HWLayersInfo *hw_layers_info) {
 void HWDeviceDRM::DeconfigureDNSCfromCwb(void) {
   if (cwb_config_[core_id_].enabled_dnsc) {
     uint32_t conn_id = cwb_config_[core_id_].token.conn_id;
+#ifdef FEATURE_DNSC_BLUR
     auto &dnsc_cfg = cwb_config_[core_id_].dnsc_cfg;
     dnsc_cfg = {};
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_CACHE_STATE, conn_id, 0);
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_EARLY_FENCE_LINE, conn_id, 0);
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_DNSC_BLR, conn_id, &dnsc_cfg);
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_TOPOLOGY_CONTROL, conn_id, 0);
+#endif
     cwb_config_[core_id_].enabled_dnsc = false;
     DLOGV_IF(kTagDriverConfig, "Deconfigured DNSC from WB(%d) for display %d-%d", conn_id,
              display_id_, disp_type_);
@@ -3951,6 +3978,7 @@ void HWDeviceDRM::ConfigureConcurrentWriteback(const HWLayersInfo &hw_layer_info
   sde_drm::DRMRect cwb_dst = full_frame;
   LayerRect cwb_roi = cwb_config->cwb_roi;
   if (ConfigureDNSCforCwb(const_cast<HWLayersInfo *>(&hw_layer_info))) {
+#ifdef FEATURE_DNSC_BLUR
     auto &dnsc_cfg = cwb_config_[core_id_].dnsc_cfg;
     auto &ds_rect = cwb_config->cwb_downscaled_rect;
     auto &cparams = cwb_config->cwb_control_params;
@@ -3973,6 +4001,7 @@ void HWDeviceDRM::ConfigureConcurrentWriteback(const HWLayersInfo &hw_layer_info
     cwb_dst.top = OFFSET_ALIGN(cwb_dst.top, 16);
     cwb_dst.right = cwb_dst.left + dnsc_cfg.dst_width;
     cwb_dst.bottom = cwb_dst.top + dnsc_cfg.dst_height;
+#endif
     DLOGV_IF(kTagDriverConfig, "CWB downscale Dest_Rect(%d, %d, %d, %d) for Source WxH (%d, %d)",
              cwb_dst.left, cwb_dst.top, cwb_dst.right, cwb_dst.bottom, full_frame.right,
              full_frame.bottom);
@@ -4158,6 +4187,7 @@ void HWDeviceDRM::HandleCwbTeardown(bool sync_teardown) {
     // TODO(user): This may cause WB frame drop in next cycle for the display, which wants to
     // use it for a particular usage. If there is no any chance of synchronous call for tear down,
     // then it can be removed.
+    DeconfigureDNSCfromCwb();
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, cwb_config_[core_id_].token.conn_id, 0);
     TeardownConcurrentWriteback();
   }

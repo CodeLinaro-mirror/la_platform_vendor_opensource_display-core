@@ -283,6 +283,7 @@ enum struct DRMProperty {
   PREFILL_TIME,
   SYS_CACHE_TYPE,
   BUFFER_MODE,
+  COLOR_MASK_OVERRIDE,
 
   // Insert above
   MAX
