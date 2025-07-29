@@ -255,15 +255,18 @@ ColorManagerProxy *ColorManagerProxy::CreateColorManagerProxy(SDMDisplayType typ
         delete color_manager_proxy->stc_intf_;
         color_manager_proxy->stc_intf_ = NULL;
       } else {
+        int ret = 0;
+#ifndef TRUSTED_VM
         // pass the display interface to STC manager for digital dimming
         ScPayload payload;
         payload.len = sizeof(disp_intf);
         payload.prop = snapdragoncolor::kDisplayIntf;
         payload.payload = reinterpret_cast<uint64_t>(disp_intf);
-        int ret = color_manager_proxy->stc_intf_->SetProperty(payload);
+        ret = color_manager_proxy->stc_intf_->SetProperty(payload);
         if (ret) {
           DLOGW("Failed to SetProperty, property = %d error = %d", payload.prop, ret);
         }
+#endif
 
         ScPayload pp_ver_pay;
         pp_ver_pay.len = sizeof(versions);
