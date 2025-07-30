@@ -24,6 +24,11 @@
 #define kCanoeSocId 660
 #define kCanoeSocId1 685
 #define kCanoeSocId2 727
+#define kCanoeSocId3 661
+#define kCanoeSocId4 704
+#define kCanoeSocId5 730
+#define kCanoeSSocId 722
+#define kCanoeSSocId1 723
 #define kCanoeSocName "canoe"
 
 #endif  // __SOC_INFO_H__
