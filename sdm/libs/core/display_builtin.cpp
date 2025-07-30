@@ -4869,7 +4869,7 @@ DisplayError DisplayBuiltIn::ExportDemuraFiles() {
 }
 
 DisplayError DisplayBuiltIn::ExportABCFiles() {
-  if (IsPrimaryDisplay() && abc_tvm_enabled_ && demura_) {
+  if (abc_tvm_enabled_ && demura_) {
     GenericPayload in;
     int ret = demura_->SetParameter(kDemuraFeatureParamExportFiles, in);
     if (ret != 0) {
