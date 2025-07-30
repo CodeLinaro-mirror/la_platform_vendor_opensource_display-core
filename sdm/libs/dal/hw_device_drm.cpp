@@ -2695,7 +2695,7 @@ DisplayError HWDeviceDRM::SelectCscTypeWithMatrixCoEfficients(const LayerBuffer 
       break;
     case QtiMatrixCoEff_DCIP3:
       *type = ((input_buffer.dataspace.range == QtiRange_Full) ? DRMCscType::kCscYuv2RgbDCIP3FR
-                                                               : DRMCscType::kCscTypeMax);
+                                                               : DRMCscType::kCscYuv2RgbDCIP3L);
       break;
     default:
       return kErrorNotSupported;
@@ -2720,8 +2720,8 @@ void HWDeviceDRM::SelectCscTypeWithColorPrimaries(const LayerBuffer &input_buffe
                 DRMCscType::kCscYuv2Rgb2020FR : DRMCscType::kCscYuv2Rgb2020L);
       break;
     case QtiColorPrimaries_DCIP3:
-      *type = ((input_buffer.dataspace.range == QtiRange_Full) ?
-                DRMCscType::kCscYuv2RgbDCIP3FR : DRMCscType::kCscTypeMax);
+      *type = ((input_buffer.dataspace.range == QtiRange_Full) ? DRMCscType::kCscYuv2RgbDCIP3FR
+                                                               : DRMCscType::kCscYuv2RgbDCIP3L);
       break;
     default:
       break;
