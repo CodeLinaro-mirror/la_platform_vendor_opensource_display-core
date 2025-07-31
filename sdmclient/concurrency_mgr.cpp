@@ -840,17 +840,8 @@ void ConcurrencyMgr::RegisterCompositorCallback(SDMCompositorCbIntf *cb, bool en
       hpd_ = nullptr;
     }
 
-    if (services_) {
-      services_->Deinit();
-      services_ = nullptr;
-    }
   } else {
     GetPendingHotplug(pending_hotplugs);
-
-    if (!services_) {
-      services_ = new SDMServices(this, buffer_allocator_, socket_handler_);
-      services_->Init(disp_, buffer_allocator_, locker_, tui_);
-    }
 
     if (sdm_display_[SDM_DISPLAY_PRIMARY]) {
       DLOGI("Hotplugging primary...");
