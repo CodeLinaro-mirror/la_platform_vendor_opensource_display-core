@@ -2510,7 +2510,14 @@ std::string DisplayBuiltIn::Dump() {
   os << " TransferTime: " << hw_panel_info.transfer_time_us << "us";
   os << " Min TransferTime: " << hw_panel_info.transfer_time_us_min << "us";
   os << " Max TransferTime: " << hw_panel_info.transfer_time_us_max << "us";
-  os << " AllowedModeSwitch: " << hw_panel_info.allowed_mode_switch;
+  os << " AllowedModeSwitch:";
+  if (hw_panel_info.allowed_mode_switch.empty()) {
+    os << " 0";
+  } else {
+    for (size_t i = 0; i < hw_panel_info.allowed_mode_switch.size(); ++i) {
+      os << " " << hw_panel_info.allowed_mode_switch[i];
+    }
+  }
   os << " PanelModeCaps: ";
   snprintf(capabilities, sizeof(capabilities), "0x%x", hw_panel_info.panel_mode_caps);
   os << capabilities;

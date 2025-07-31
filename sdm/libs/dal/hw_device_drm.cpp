@@ -4148,9 +4148,18 @@ DisplayError HWDeviceDRM::GetFeatureSupportStatus(const HWFeature feature, uint3
   }
 
   switch (feature) {
-    case kAllowedModeSwitch:
-      *status = connector_info_.modes[current_mode_index_].allowed_mode_switch;
+    case kAllowedModeSwitch: {
+      uint32_t idx = *status;
+      if (idx < connector_info_.modes[current_mode_index_].allowed_mode_switch.size()) {
+        *status = connector_info_.modes[current_mode_index_].allowed_mode_switch[idx];
+      } else {
+        DLOGW("Invalid index %u for allowed_mode_switch size[%d] current_mode_idx[%d]", idx,
+              connector_info_.modes[current_mode_index_].allowed_mode_switch.size(),
+              current_mode_index_);
+        error = kErrorParameters;
+      }
       break;
+    }
     case kHasCwbCrop:
       *status = UINT32(has_cwb_crop_);
       break;
