@@ -90,9 +90,6 @@
 #ifndef DRM_FORMAT_MOD_QCOM_LOSSY_2_1
 #define DRM_FORMAT_MOD_QCOM_LOSSY_2_1 fourcc_mod_code(QCOM, 0x200)
 #endif
-#ifndef DRM_FORMAT_MOD_QCOM_FSC_TILE
-#define DRM_FORMAT_MOD_QCOM_FSC_TILE fourcc_mod_code(QCOM, 0x20)
-#endif
 
 #ifndef SDE_SYSCACHE_LLCC_DISP_LEFT
 #define SDE_SYSCACHE_LLCC_DISP_LEFT 1
@@ -280,10 +277,21 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
     case kFormatC8Ubwc:
       *drm_format = DRM_FORMAT_C8;
       *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_FSC_TILE;
+      *drm_format_modifier |= GetDRMModifier(*drm_format_modifier, cac_color);
+      break;
+    case kFormatC84RUbwc:
+      *drm_format = DRM_FORMAT_C8;
+      *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_FSC_4R_TILE;
+      *drm_format_modifier |= GetDRMModifier(*drm_format_modifier, cac_color);
+      break;
+    case kFormatC84R4YUbwc:
+      *drm_format = DRM_FORMAT_ABGR8888;
+      *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_NV12_4R_4Y;
       break;
     case kFormatC8:
       *drm_format = DRM_FORMAT_C8;
       *drm_format_modifier = DRM_FORMAT_MOD_QCOM_FSC_TILE;
+      *drm_format_modifier |= GetDRMModifier(*drm_format_modifier, cac_color);
       break;
     case kFormatYCbCr420SemiPlanar:
       *drm_format = DRM_FORMAT_NV12;
