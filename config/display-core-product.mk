@@ -67,3 +67,6 @@ ifneq ($(TARGET_HAS_LOW_RAM),true)
 #Multi-stc libraries config xml file
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/snapdragon_color_libs_config.xml:$(TARGET_COPY_OUT_VENDOR)/etc/snapdragon_color_libs_config.xml
 endif
+
+PRIVACY_REGIONS_OFFSETS_XML_PATH := vendor/qcom/opensource/display-core/config
+PRODUCT_COPY_FILES += $(PRIVACY_REGIONS_OFFSETS_XML_PATH)/privacy_regions_offsets.xml:$(TARGET_COPY_OUT_VENDOR)/etc/display/privacy_regions_offsets.xml
