@@ -1245,6 +1245,18 @@ struct HWMixerAttributes {
 struct Resolution {
   uint32_t x_pixels;
   uint32_t y_pixels;
+
+  bool operator==(const Resolution &resolution) const {
+    return (x_pixels == resolution.x_pixels && y_pixels == resolution.y_pixels);
+  }
+};
+
+class ResolutionHash {
+ public:
+  size_t operator()(const Resolution & resolution) const {
+    return (std::hash<int>{}(resolution.x_pixels) ^
+            std::hash<int>{}(resolution.y_pixels));
+  }
 };
 
 class FrameBufferObject : public LayerBufferObject {
