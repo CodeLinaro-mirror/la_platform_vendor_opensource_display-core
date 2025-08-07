@@ -3378,10 +3378,6 @@ bool DisplayBase::NeedsMixerReconfiguration(LayerStack *layer_stack, uint32_t *n
   uint32_t display_width = client_ctx_.display_attributes.x_pixels;
   uint32_t display_height = client_ctx_.display_attributes.y_pixels;
 
-  bool valid_lm_tappoint = layer_stack->cwb_config
-                               ? layer_stack->cwb_config->tap_point == CwbTapPoint::kLmTapPoint
-                               : false;
-
   if (secure_event_ == kSecureDisplayStart || secure_event_ == kTUITransitionStart) {
     if (enable_ai_scaler_) {
       *new_mixer_width = mixer_width;
@@ -3393,14 +3389,29 @@ bool DisplayBase::NeedsMixerReconfiguration(LayerStack *layer_stack, uint32_t *n
     return ((*new_mixer_width != mixer_width) || (*new_mixer_height != mixer_height));
   }
 
-  // Resize mixer attributes to fb config when client requests CWB at LM tap-point
+  // Resize mixer attributes to fb config when:
+  // 1. client requests CWB at LM tap-point
+  // 2. CWB idle fallback at LM tap-point is possible
   // TODO(user): remove below check when clients request buffer with mixer resolution
-  if (force_lm_to_fb_config_ || enable_ai_scaler_ ||
-      (HasConcurrentWriteback() && layer_stack->output_buffer && valid_lm_tappoint)) {
+  bool cwb_requested_lm = false;
+  bool cwb_idle_fb_on_lm = false;
+  if (HasConcurrentWriteback()) {
+    cwb_requested_lm = (layer_stack->output_buffer != nullptr) &&
+                       (layer_stack->cwb_config != nullptr) &&
+                       (layer_stack->cwb_config->tap_point == CwbTapPoint::kLmTapPoint);
+    cwb_idle_fb_on_lm = !disable_cwb_idle_fallback_ && !idle_fallback_on_dspp_ &&
+                        (client_ctx_.hw_panel_info.mode == kModeVideo) &&
+                        client_ctx_.hw_panel_info.is_primary_panel &&
+                        (client_ctx_.display_attributes.topology_num_split <= MAX_MIXERS_FOR_CWB) &&
+                        !layer_stack->flags.secure_present;
+  }
+
+  if (force_lm_to_fb_config_ || enable_ai_scaler_ || cwb_requested_lm || cwb_idle_fb_on_lm) {
     DLOGV_IF(kTagDisplay,
-             "CWB:%d, force_lm_to_fb_config_:%d, enable_ai_scaler_:%d, set LM width:%d height:%d",
-             (HasConcurrentWriteback() && layer_stack->output_buffer), force_lm_to_fb_config_,
-             enable_ai_scaler_, fb_width, fb_height);
+             "force_lm_to_fb_config_:%d, enable_ai_scaler_:%d, cwb_requested_lm:%d, "
+             "cwb_idle_fb_on_lm:%d, set LM width:%d height:%d",
+             force_lm_to_fb_config_, enable_ai_scaler_, cwb_requested_lm, cwb_idle_fb_on_lm,
+             fb_width, fb_height);
     *new_mixer_width = fb_width;
     *new_mixer_height = fb_height;
     return ((*new_mixer_width != mixer_width) || (*new_mixer_height != mixer_height));
