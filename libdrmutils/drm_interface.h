@@ -1313,6 +1313,7 @@ enum DRMCscType {
   kCscYuv2Rgb2020FR,
   kCscYuv2RgbDolbyVisionP5,
   kCscYuv2RgbDCIP3FR,
+  kCscYuv2RgbDCIP3L,
   kCscTypeMax,
 };
 
