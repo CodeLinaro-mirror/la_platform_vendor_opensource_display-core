@@ -70,7 +70,7 @@ void CameraConstraintProvider::Init(
       parser_->ParseFormats(&format_data_map_);
     }
   } else {
-    DLOGW("Camera lib is not available - read json file");
+    DLOGW_IF(enable_logs, "Camera lib is not available - read json file");
     parser_->ParseAlignments("/vendor/etc/display/camera_alignments.json", &constraint_set_map_);
   }
 }
@@ -84,7 +84,7 @@ CamxPixelFormat CameraConstraintProvider::GetCameraPixelFormat(int snap_format, 
   if (snap_to_camera_pixel_format_.find(snap_desc) != snap_to_camera_pixel_format_.end()) {
     format = static_cast<CamxPixelFormat>(snap_to_camera_pixel_format_.at(snap_desc));
   } else {
-    DLOGW("%s: No map for format: 0x%x", __FUNCTION__, snap_format);
+    DLOGW_IF(enable_logs, "%s: No map for format: 0x%x", __FUNCTION__, snap_format);
   }
   return format;
 }
@@ -97,11 +97,13 @@ int CameraConstraintProvider::GetBufferSize(int format, int width, int height, i
     if (cam_format != ((CamxPixelFormat)0)) {
       result = LINK_camera_get_buffer_size(cam_format, width, height, size);
       if (result != 0) {
-        DLOGW("%s: Failed to get the buffer size. Error code: %d", __FUNCTION__, result);
+        DLOGW_IF(enable_logs, "%s: Failed to get the buffer size. Error code: %d", __FUNCTION__,
+                 result);
       }
     }
   } else {
-    DLOGW("%s: Failed to link CamxFormatUtil_GetBufferSize. Error code : %d", __FUNCTION__, result);
+    DLOGW_IF(enable_logs, "%s: Failed to link CamxFormatUtil_GetBufferSize. Error code : %d",
+             __FUNCTION__, result);
   }
   return result;
 }
@@ -115,12 +117,13 @@ int CameraConstraintProvider::GetStrideInBytes(int format, int plane_type, int w
       result = LINK_camera_get_stride_in_bytes(cam_format, GetCamxPlaneType(plane_type), width,
                                                stride_bytes);
       if (result != 0) {
-        DLOGW("%s: Failed to get the stride in bytes. Error code: %d", __FUNCTION__, result);
+        DLOGW_IF(enable_logs, "%s: Failed to get the stride in bytes. Error code: %d", __FUNCTION__,
+                 result);
       }
     }
   } else {
-    DLOGW("%s: Failed to link CamxFormatUtil_GetStrideInBytes. Error code : %d", __FUNCTION__,
-          result);
+    DLOGW_IF(enable_logs, "%s: Failed to link CamxFormatUtil_GetStrideInBytes. Error code : %d",
+             __FUNCTION__, result);
   }
 
   return result;
@@ -135,12 +138,13 @@ int CameraConstraintProvider::GetStrideInPixels(int format, int plane_type, int 
       result = LINK_camera_get_stride_in_pixels(cam_format, GetCamxPlaneType(plane_type), width,
                                                 stride_pixel);
       if (result != 0) {
-        DLOGW("%s: Failed to get the stride in pixels. Error code: %d", __FUNCTION__, result);
+        DLOGW_IF(enable_logs, "%s: Failed to get the stride in pixels. Error code: %d",
+                 __FUNCTION__, result);
       }
     }
   } else {
-    DLOGW("%s: Failed to link CamxFormatUtil_GetStrideInPixels. Error code : %d", __FUNCTION__,
-          result);
+    DLOGW_IF(enable_logs, "%s: Failed to link CamxFormatUtil_GetStrideInPixels. Error code : %d",
+             __FUNCTION__, result);
   }
 
   return result;
@@ -155,12 +159,13 @@ int CameraConstraintProvider::GetPixelIncrement(int format, int plane_type, int 
       result = LINK_camera_get_pixel_increment(cam_format, GetCamxPlaneType(plane_type),
                                                pixel_increment);
       if (result != 0) {
-        DLOGW("%s: Failed to get pixel increment. Error code: %d", __FUNCTION__, result);
+        DLOGW_IF(enable_logs, "%s: Failed to get pixel increment. Error code: %d", __FUNCTION__,
+                 result);
       }
     }
   } else {
-    DLOGW("%s: Failed to link CamxFormatUtil_GetPixelIncrement. Error code : %d", __FUNCTION__,
-          result);
+    DLOGW_IF(enable_logs, "%s: Failed to link CamxFormatUtil_GetPixelIncrement. Error code : %d",
+             __FUNCTION__, result);
   }
 
   return result;
@@ -175,12 +180,13 @@ int CameraConstraintProvider::GetPlaneOffset(int format, int plane_type, int wid
       result = LINK_camera_get_plane_offset(cam_format, GetCamxPlaneType(plane_type), offset, width,
                                             height);
       if (result != 0) {
-        DLOGW("%s: Failed to get the plane offset. Error code: %d", __FUNCTION__, result);
+        DLOGW_IF(enable_logs, "%s: Failed to get the plane offset. Error code: %d", __FUNCTION__,
+                 result);
       }
     }
   } else {
-    DLOGW("%s: Failed to link CamxFormatUtil_GetPlaneOffset. Error code : %d", __FUNCTION__,
-          result);
+    DLOGW_IF(enable_logs, "%s: Failed to link CamxFormatUtil_GetPlaneOffset. Error code : %d",
+             __FUNCTION__, result);
   }
 
   return result;
@@ -195,12 +201,13 @@ int CameraConstraintProvider::GetSubsamplingFactor(int format, int plane_type, b
       result = LINK_camera_get_subsampling_factor(cam_format, GetCamxPlaneType(plane_type),
                                                   isHorizontal, subsampling_factor);
       if (result != 0) {
-        DLOGW("%s: Failed to get the sub-sampling factor. Error code: %d", __FUNCTION__, result);
+        DLOGW_IF(enable_logs, "%s: Failed to get the sub-sampling factor. Error code: %d",
+                 __FUNCTION__, result);
       }
     }
   } else {
-    DLOGW("%s: Failed to link CamxFormatUtil_GetSubsamplingFactor. Error code : %d", __FUNCTION__,
-          result);
+    DLOGW_IF(enable_logs, "%s: Failed to link CamxFormatUtil_GetSubsamplingFactor. Error code : %d",
+             __FUNCTION__, result);
   }
 
   return result;
@@ -220,11 +227,13 @@ int CameraConstraintProvider::GetPlaneTypes(int format, int modifier,
           plane_component_array[plane] = GetPlaneComponent(plane_types_array[plane]);
         }
       } else {
-        DLOGW("%s: Failed to get the plane types. Error code: %d", __FUNCTION__, result);
+        DLOGW_IF(enable_logs, "%s: Failed to get the plane types. Error code: %d", __FUNCTION__,
+                 result);
       }
     }
   } else {
-    DLOGW("%s: Failed to link CamxFormatUtil_GetPlaneTypes. Error code : %d", __FUNCTION__, result);
+    DLOGW_IF(enable_logs, "%s: Failed to link CamxFormatUtil_GetPlaneTypes. Error code : %d",
+             __FUNCTION__, result);
   }
 
   return result;
@@ -239,11 +248,13 @@ int CameraConstraintProvider::GetScanline(int format, int plane_type, int height
       result =
           LINK_camera_get_scanline(cam_format, GetCamxPlaneType(plane_type), height, scanlines);
       if (result != 0) {
-        DLOGW("%s: Failed to get the scanlines. Error code: %d", __FUNCTION__, result);
+        DLOGW_IF(enable_logs, "%s: Failed to get the scanlines. Error code: %d", __FUNCTION__,
+                 result);
       }
     }
   } else {
-    DLOGW("%s: Failed to link CamxFormatUtil_GetScanline. Error code : %d", __FUNCTION__, result);
+    DLOGW_IF(enable_logs, "%s: Failed to link CamxFormatUtil_GetScanline. Error code : %d",
+             __FUNCTION__, result);
   }
 
   return result;
@@ -258,11 +269,13 @@ int CameraConstraintProvider::GetPlaneSize(int format, int plane_type, int width
       result =
           LINK_camera_get_plane_size(cam_format, GetCamxPlaneType(plane_type), width, height, size);
       if (result != 0) {
-        DLOGW("%s: Failed to get the plane size. Error code: %d", __FUNCTION__, result);
+        DLOGW_IF(enable_logs, "%s: Failed to get the plane size. Error code: %d", __FUNCTION__,
+                 result);
       }
     }
   } else {
-    DLOGW("%s: Failed to link CamxFormatUtil_GetPlaneSize. Error code : %d", __FUNCTION__, result);
+    DLOGW_IF(enable_logs, "%s: Failed to link CamxFormatUtil_GetPlaneSize. Error code : %d",
+             __FUNCTION__, result);
   }
 
   return result;
@@ -276,11 +289,13 @@ int CameraConstraintProvider::GetUBWCInfo(int format, int modifier, bool *is_sup
     if (cam_format != ((CamxPixelFormat)0)) {
       result = LINK_camera_get_ubwc_info(cam_format, is_supported, is_pi, version);
       if (result != 0) {
-        DLOGW("%s: Failed to get the UBWC info. Error code: %d", __FUNCTION__, result);
+        DLOGW_IF(enable_logs, "%s: Failed to get the UBWC info. Error code: %d", __FUNCTION__,
+                 result);
       }
     }
   } else {
-    DLOGW("%s: Failed to link CamxFormatUtil_GetUBWCInfo. Error code : %d", __FUNCTION__, result);
+    DLOGW_IF(enable_logs, "%s: Failed to link CamxFormatUtil_GetUBWCInfo. Error code : %d",
+             __FUNCTION__, result);
   }
 
   return result;
@@ -294,12 +309,13 @@ int CameraConstraintProvider::GetPlaneAlignment(int format, int plane_type, int 
     if (cam_format != ((CamxPixelFormat)0)) {
       result = LINK_camera_get_plane_alignment(cam_format, GetCamxPlaneType(plane_type), alignment);
       if (result != 0) {
-        DLOGW("%s: Failed to get the plane alignment. Error code: %d", __FUNCTION__, result);
+        DLOGW_IF(enable_logs, "%s: Failed to get the plane alignment. Error code: %d", __FUNCTION__,
+                 result);
       }
     }
   } else {
-    DLOGW("%s: Failed to link CamxFormatUtil_GetPlaneAlignment. Error code : %d", __FUNCTION__,
-          result);
+    DLOGW_IF(enable_logs, "%s: Failed to link CamxFormatUtil_GetPlaneAlignment. Error code : %d",
+             __FUNCTION__, result);
   }
 
   return result;
@@ -313,12 +329,13 @@ int CameraConstraintProvider::IsPerPlaneFdNeeded(int format, int modifier,
     if (cam_format != ((CamxPixelFormat)0)) {
       result = LINK_camera_is_per_plane_fd_needed(cam_format, is_per_plane_fd_needed);
       if (result != 0) {
-        DLOGW("%s: Failed to get per_plane_fd flag. Error code: %d", __FUNCTION__, result);
+        DLOGW_IF(enable_logs, "%s: Failed to get per_plane_fd flag. Error code: %d", __FUNCTION__,
+                 result);
       }
     }
   } else {
-    DLOGW("%s: Failed to link CamxFormatUtil_IsPerPlaneFdNeeded. Error code : %d", __FUNCTION__,
-          result);
+    DLOGW_IF(enable_logs, "%s: Failed to link CamxFormatUtil_IsPerPlaneFdNeeded. Error code : %d",
+             __FUNCTION__, result);
   }
 
   return result;
@@ -331,11 +348,12 @@ int CameraConstraintProvider::GetBpp(int format, int modifier, int *bpp) {
     if (cam_format != ((CamxPixelFormat)0)) {
       result = LINK_camera_get_bpp(cam_format, bpp);
       if (result != 0) {
-        DLOGW("%s: Failed to get the bpp. Error code: %d", __FUNCTION__, result);
+        DLOGW_IF(enable_logs, "%s: Failed to get the bpp. Error code: %d", __FUNCTION__, result);
       }
     }
   } else {
-    DLOGW("%s: Failed to link CamxFormatUtil_GetBpp. Error code : %d", __FUNCTION__, result);
+    DLOGW_IF(enable_logs, "%s: Failed to link CamxFormatUtil_GetBpp. Error code : %d", __FUNCTION__,
+             result);
   }
 
   return result;
@@ -348,12 +366,13 @@ int CameraConstraintProvider::GetPerPlaneBpp(int format, int modifier, int plane
     if (cam_format != ((CamxPixelFormat)0)) {
       result = LINK_camera_get_per_plane_bpp(cam_format, GetCamxPlaneType(plane_type), bpp);
       if (result != 0) {
-        DLOGW("%s: Failed to get the per plane bpp. Error code: %d", __FUNCTION__, result);
+        DLOGW_IF(enable_logs, "%s: Failed to get the per plane bpp. Error code: %d", __FUNCTION__,
+                 result);
       }
     }
   } else {
-    DLOGW("%s: Failed to link CamxFormatUtil_GetPerPlaneBpp. Error code : %d", __FUNCTION__,
-          result);
+    DLOGW_IF(enable_logs, "%s: Failed to link CamxFormatUtil_GetPerPlaneBpp. Error code : %d",
+             __FUNCTION__, result);
   }
 
   return result;
@@ -368,13 +387,14 @@ int CameraConstraintProvider::GetPlaneStartAddressAlignment(int format, int modi
       result = LINK_camera_get_plane_start_address_alignment(
           cam_format, GetCamxPlaneType(plane_type), alignment);
       if (result != 0) {
-        DLOGW("%s: Failed to get the plane star address alignment. Error code: %d", __FUNCTION__,
-              result);
+        DLOGW_IF(enable_logs, "%s: Failed to get the plane star address alignment. Error code: %d",
+                 __FUNCTION__, result);
       }
     }
   } else {
-    DLOGW("%s: Failed to link CamxFormatUtil_GetPlaneStartAddressAlignment. Error code : %d",
-          __FUNCTION__, result);
+    DLOGW_IF(enable_logs,
+             "%s: Failed to link CamxFormatUtil_GetPlaneStartAddressAlignment. Error code : %d",
+             __FUNCTION__, result);
   }
 
   return result;
@@ -406,7 +426,8 @@ PlaneComponent CameraConstraintProvider::GetPlaneComponent(CamxPlaneType plane_t
           (PlaneComponent)(PLANE_COMPONENT_META | PLANE_COMPONENT_Cb | PLANE_COMPONENT_Cr);
       break;
     default:
-      DLOGW("%s: No PlaneComponent mapping for plane_type: %d", __FUNCTION__, plane_type);
+      DLOGW_IF(enable_logs, "%s: No PlaneComponent mapping for plane_type: %d", __FUNCTION__,
+               plane_type);
       break;
   }
 
@@ -447,7 +468,8 @@ CameraConstraintProvider::GetPlaneComponentTypes(int plane_type) {
       plane_component_types.push_back(PLANE_LAYOUT_COMPONENT_TYPE_META);
       break;
     default:
-      DLOGW("%s: No PlaneComponent mapping for plane_type: %d", __FUNCTION__, plane_type);
+      DLOGW_IF(enable_logs, "%s: No PlaneComponent mapping for plane_type: %d", __FUNCTION__,
+               plane_type);
       break;
   }
 
@@ -483,7 +505,7 @@ CamxPlaneType CameraConstraintProvider::GetCamxPlaneType(int plane_type) {
       camx_plane_type = CAMERA_PLANE_TYPE_META_VU;
       break;
     default:
-      DLOGW("%s: No CamxPlane for plane_type: %d", __FUNCTION__, plane_type);
+      DLOGW_IF(enable_logs, "%s: No CamxPlane for plane_type: %d", __FUNCTION__, plane_type);
       break;
   }
 
@@ -550,15 +572,17 @@ Error CameraConstraintProvider::GetCameraAlloc(
     result = GetSubsamplingFactor(desc.format, plane_type[i], true, pixel_format_modifier,
                                   &h_subsampling);
     if (result != 0) {
-      DLOGW("%s: Failed to get horizontal subsampling factor. plane_type = %d, Error code : %d",
-            __FUNCTION__, plane_type[i], result);
+      DLOGW_IF(enable_logs,
+               "%s: Failed to get horizontal subsampling factor. plane_type = %d, Error code : %d",
+               __FUNCTION__, plane_type[i], result);
     }
 
     result = GetSubsamplingFactor(desc.format, plane_type[i], false, pixel_format_modifier,
                                   &v_subsampling);
     if (result != 0) {
-      DLOGW("%s: Failed to get vertical subsampling factor. plane_type = %d, Error code : %d",
-            __FUNCTION__, plane_type[i], result);
+      DLOGW_IF(enable_logs,
+               "%s: Failed to get vertical subsampling factor. plane_type = %d, Error code : %d",
+               __FUNCTION__, plane_type[i], result);
     }
 
     result = GetStrideInBytes(desc.format, plane_type[i], desc.width, pixel_format_modifier,
@@ -580,22 +604,22 @@ Error CameraConstraintProvider::GetCameraAlloc(
     result = GetPlaneSize(desc.format, plane_type[i], desc.width, desc.height,
                           pixel_format_modifier, &plane_size);
     if (result != 0) {
-      DLOGW("%s: Failed to get plane size. plane_type = %d, Error code : %d", __FUNCTION__,
-            plane_type[i], result);
+      DLOGW_IF(enable_logs, "%s: Failed to get plane size. plane_type = %d, Error code : %d",
+               __FUNCTION__, plane_type[i], result);
     }
 
     result = GetPlaneOffset(desc.format, plane_type[i], desc.width, desc.height,
                             pixel_format_modifier, &offset);
     if (result != 0) {
-      DLOGW("%s: Failed to get plane offset. plane_type = %d, Error code : %d", __FUNCTION__,
-            plane_type[i], result);
+      DLOGW_IF(enable_logs, "%s: Failed to get plane offset. plane_type = %d, Error code : %d",
+               __FUNCTION__, plane_type[i], result);
     }
 
     result =
         GetPerPlaneBpp(desc.format, pixel_format_modifier, plane_type[i], &sample_increment_bits);
     if (result != 0) {
-      DLOGW("%s: Failed to get per plane Bpp. plane_type = %d, Error code : %d", __FUNCTION__,
-            plane_type[i], result);
+      DLOGW_IF(enable_logs, "%s: Failed to get per plane Bpp. plane_type = %d, Error code : %d",
+               __FUNCTION__, plane_type[i], result);
     }
 
     out_layout->planes[i].sample_increment_bits = sample_increment_bits;
@@ -631,7 +655,8 @@ Error CameraConstraintProvider::GetCameraAlloc(
 int CameraConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferConstraints *data) {
   int format = static_cast<uint64_t>(desc.format);
   if (format_data_map_.find(desc.format) == format_data_map_.end()) {
-    DLOGW("Could not find entry for format ", static_cast<uint64_t>(format));
+    DLOGW_IF(enable_logs, "%s Could not find entry for format %d", __FUNCTION__,
+             static_cast<uint64_t>(format));
     return -1;
   }
   uint64_t pixel_format_modifier = GetPixelFormatModifier(desc);
@@ -652,14 +677,14 @@ int CameraConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCons
     ret_val = GetStrideInBytes(format, plane_type, desc.width, pixel_format_modifier, &value);
     plane_layout.stride.horizontal_stride = value;
     if (ret_val) {
-      DLOGW("Error in GetStrideInBytes");
+      DLOGW_IF(enable_logs, "Error in GetStrideInBytes");
       return -1;
     }
     value = 0;
     ret_val = GetScanline(format, plane_type, desc.height, pixel_format_modifier, &value);
     plane_layout.scanline.scanline = value;
     if (ret_val) {
-      DLOGW("Error in GetScanline");
+      DLOGW_IF(enable_logs, "Error in GetScanline");
       return -1;
     }
     unsigned int alignment = 0;
@@ -674,7 +699,7 @@ int CameraConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCons
       plane_layout.size_align = static_cast<uint64_t>(alignment);
     }
     if (ret_val) {
-      DLOGW("Error in GetPlaneAlignment");
+      DLOGW_IF(enable_logs, "Error in GetPlaneAlignment");
       return -1;
     }
     data->planes.push_back(plane_layout);
@@ -690,7 +715,7 @@ int CameraConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConstr
     int status = 0;
     status = BuildConstraints(desc, &data);
     if (status) {
-      DLOGW("Error while getting constraints from camera libs");
+      DLOGW_IF(enable_logs, "Error while getting constraints from camera libs");
       return -1;
     }
     *out = data;

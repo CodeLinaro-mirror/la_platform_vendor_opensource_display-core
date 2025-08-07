@@ -63,7 +63,7 @@ int VideoConstraintProvider::GetCapabilities(BufferDescriptor desc, CapabilitySe
 
 int VideoConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferConstraints *data) {
   if (format_data_map_.find(desc.format) == format_data_map_.end()) {
-    DLOGW("Could not find entry for format %d", static_cast<uint64_t>(desc.format));
+    DLOGW_IF(enable_logs, "Could not find entry for format %d", static_cast<uint64_t>(desc.format));
     return -1;
   }
 
@@ -86,7 +86,7 @@ int VideoConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferConst
       mmm_color_format = mapper.MapPixelFormatWithMmmColorFormat(
           desc.format, desc.usage, pixel_format_modifier, false);  // false indicates not ubwc
       if (mmm_color_format < 0) {
-        DLOGW("Failed to get format mapping to use mmm_color_fmt");
+        DLOGW_IF(enable_logs, "Failed to get format mapping to use mmm_color_fmt");
         return -1;
       }
       DLOGD_IF(enable_logs, "mmm_color_fmt %d", mmm_color_format);
@@ -138,8 +138,9 @@ int VideoConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConstra
     *out = data;
     return 0;
   }
-  DLOGW("Error while getting constraints from video libs width %d, height %d, format %d",
-        desc.width, desc.height, static_cast<uint64_t>(desc.format));
+  DLOGW_IF(enable_logs,
+           "Error while getting constraints from video libs width %d, height %d, format %d",
+           desc.width, desc.height, static_cast<uint64_t>(desc.format));
   DLOGD_IF(enable_logs, "Using JSON to determine constraints");
   auto modifier = GetPixelFormatModifier(desc);
   if ((modifier ==
@@ -148,12 +149,13 @@ int VideoConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConstra
        vendor_qti_hardware_display_common_PixelFormatModifier::PIXEL_FORMAT_MODIFIER_1K_ALIGNED)) {
     DLOGD_IF(enable_logs, "Using alignment JSON for constraints");
     if (constraint_set_map_.empty()) {
-      DLOGW("VideoConstraintProvider constraint set map is empty");
+      DLOGW_IF(enable_logs, "VideoConstraintProvider constraint set map is empty");
       return -1;
     }
     if (!(parser_->GetBufferConstraints(constraint_set_map_, desc, out))) {
-      DLOGW("VideoConstraintProvider could not find entry for format %lu & modifier %d",
-            static_cast<uint64_t>(desc.format), GetPixelFormatModifier(desc));
+      DLOGW_IF(enable_logs,
+               "VideoConstraintProvider could not find entry for format %lu & modifier %d",
+               static_cast<uint64_t>(desc.format), GetPixelFormatModifier(desc));
       return -1;
     }
     return 0;
@@ -161,12 +163,13 @@ int VideoConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConstra
 #endif
 
   if (constraint_set_map_.empty()) {
-    DLOGW("VideoConstraintProvider constraint set map is empty");
+    DLOGW_IF(enable_logs, "VideoConstraintProvider constraint set map is empty");
     return -1;
   }
   if (!(parser_->GetBufferConstraints(constraint_set_map_, desc, out))) {
-    DLOGW("VideoConstraintProvider could not find entry for format %lu & modifier %d",
-          static_cast<uint64_t>(desc.format), GetPixelFormatModifier(desc));
+    DLOGW_IF(enable_logs,
+             "VideoConstraintProvider could not find entry for format %lu & modifier %d",
+             static_cast<uint64_t>(desc.format), GetPixelFormatModifier(desc));
   }
   return 0;
 }
