@@ -532,6 +532,8 @@ Error SnapConstraintManager::AlignmentToAlignedConstraints(BufferDescriptor desc
         // bpp = 3 case special handling. Multiply by bpp to convert into bytes
         if ((desc.format == vendor_qti_hardware_display_common_PixelFormat::RGB_888) ||
             (desc.format == vendor_qti_hardware_display_common_PixelFormat::BGR_888)) {
+          OVERFLOW_ERR_RETURN(ALIGN(desc.width, alignment.planes[i].stride.horizontal_stride_align),
+                              (format_data.bits_per_pixel / 8), OverflowType::MUL);
           plane.stride.horizontal_stride =
               ALIGN(desc.width, alignment.planes[i].stride.horizontal_stride_align) *
               (format_data.bits_per_pixel / 8);

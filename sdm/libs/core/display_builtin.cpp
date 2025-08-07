@@ -363,8 +363,18 @@ DisplayError DisplayBuiltIn::Init() {
     if (demura_cnt > 0) {
       DisableDemuraForHandOff();
     }
-    Debug::Get()->GetProperty(ENABLE_DEMURA, &demura_prop_);
-    if (demura_prop_) {  // Create parser manager for demura
+
+    int demura_prop = 0;
+    Debug::Get()->GetProperty(ENABLE_DEMURA, &demura_prop);
+    int disable_demura_prop = 0;
+    if (IsPrimaryDisplay()) {
+      Debug::Get()->GetProperty(DISABLE_DEMURA_PRIMARY, &disable_demura_prop);
+    } else {
+      Debug::Get()->GetProperty(DISABLE_DEMURA_SECONDARY, &disable_demura_prop);
+    }
+    demura_enable_ = demura_prop && (!disable_demura_prop);
+
+    if (demura_enable_) {  // Create parser manager for demura
       pm_intf_ = pf_factory_->CreateDemuraParserManager(ipc_intf_, buffer_allocator_);
       if (!pm_intf_) {
         DLOGE("Failed to create Parser Manager intf");
@@ -381,9 +391,15 @@ DisplayError DisplayBuiltIn::Init() {
 
     if (abc_prop_) {
       SetupABC();
-    } else if (demura_prop_) {
-      SetupDemuraT0AndTn();
+    } else {
+      if (!demura_enable_) {
+        comp_manager_->FreeDemuraFetchResources(display_id_);
+        comp_manager_->SetDemuraStatusForDisplay(display_id_, false);
+      } else {
+        SetupDemuraT0AndTn();
+      }
     }
+
   } else {
     DLOGW("Skipping Panel Feature Setups!");
   }
@@ -495,7 +511,7 @@ DisplayError DisplayBuiltIn::Deinit() {
       vm_file_xfer_intf_ = nullptr;
     }
 
-    if (demura_prop_) {
+    if (demura_enable_) {
       if (pm_intf_ && pm_intf_.use_count() == 1) {
         GenericPayload dummy;
         int ret = pm_intf_->SetParameter(kDemuraParserManagerParamReleaseParsers, dummy);
@@ -1225,7 +1241,7 @@ DisplayError DisplayBuiltIn::SetupABC() {
 
 DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
   DisplayError error = kErrorNone;
-  int ret = 0, value = 0, panel_id_w = 0;
+  int ret = 0, panel_id_w = 0;
   uint64_t panel_id = 0;
 
   if (IsPrimaryDisplay()) {
@@ -1233,23 +1249,13 @@ DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
     panel_id = static_cast<uint32_t>(panel_id_w);
     Debug::Get()->GetProperty(DEMURA_PRIMARY_PANEL_OVERRIDE_HIGH, &panel_id_w);
     panel_id |= ((static_cast<uint64_t>(panel_id_w)) << 32);
-    Debug::Get()->GetProperty(DISABLE_DEMURA_PRIMARY, &value);
     DLOGI("panel overide total value for primary display %lx\n", panel_id);
   } else {
     Debug::Get()->GetProperty(DEMURA_SECONDARY_PANEL_OVERRIDE_LOW, &panel_id_w);
     panel_id = static_cast<uint32_t>(panel_id_w);
     Debug::Get()->GetProperty(DEMURA_SECONDARY_PANEL_OVERRIDE_HIGH, &panel_id_w);
     panel_id |= ((static_cast<uint64_t>(panel_id_w)) << 32);
-    Debug::Get()->GetProperty(DISABLE_DEMURA_SECONDARY, &value);
     DLOGI("panel overide total value for secondary display %lx\n", panel_id);
-  }
-
-  if (value > 0) {
-    comp_manager_->FreeDemuraFetchResources(display_id_);
-    comp_manager_->SetDemuraStatusForDisplay(display_id_, false);
-    return kErrorNone;
-  } else if (value < 0) {
-    return kErrorUndefined;
   }
 
   PanelFeaturePropertyInfo info;
@@ -4883,7 +4889,7 @@ DisplayError DisplayBuiltIn::ExportABCFiles() {
 }
 
 DisplayError DisplayBuiltIn::StartTvmServices() {
-  if (!abc_prop_ && !demura_prop_) {
+  if (!abc_prop_ && !demura_enable_) {
     return kErrorNone;
   }
 
@@ -5015,7 +5021,7 @@ int DisplayBuiltIn::StartVmFileServiceAndExportFiles() {
   }
 
   // Export files
-  if (demura_prop_) {
+  if (demura_enable_) {
     error = ExportDemuraFiles();
     if (error) {
       DLOGE("Failed to export demura files, error %d", error);
