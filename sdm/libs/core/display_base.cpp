@@ -1334,14 +1334,14 @@ DisplayError DisplayBase::GetNoisePluginParams(LayerStack *layer_stack) {
   int32_t *val = nullptr;
   ret = payload.CreatePayload<int32_t>(val);
   if (ret) {
-    DLOGE("Display %d-%d CreatePayload failed for NoisePlugInDisable", display_id_, display_type_,
+    DLOGE("Display %d-%d CreatePayload failed for NoisePlugInDisable. ret=%d", display_id_, display_type_,
           ret);
     return kErrorUndefined;
   }
   *val = disable_noise_plugin ? 1 : 0;
   ret = noise_plugin_intf_->SetParameter(kNoisePlugInDisable, payload);
   if (ret) {
-    DLOGE("Display %d-%d Disabling NoisePlugin for Full frame skip failed", display_id_,
+    DLOGE("Display %d-%d Disabling NoisePlugin for Full frame skip failed. ret=%d", display_id_,
           display_type_, ret);
     return kErrorUndefined;
   }
@@ -1663,7 +1663,7 @@ void DisplayBase::CommitThread() {
     // Wait for client thread to signal. Handle spurious interrupts.
     if (!(disp_mutex_.worker_cv.wait_until(disp_mutex_.worker_mutex, timeout_at,
                                            [this] { return (disp_mutex_.worker_busy); }))) {
-      DLOGI("Received %s Timeout, panel: %s, timeout: %d us",
+      DLOGI("Received %s Timeout, panel: %s, timeout: %" PRId64 " us",
             (self_refresh_state ? "Self-Refresh Threshold" : "Idle"),
             client_ctx_.hw_panel_info.mode == kModeVideo ? "video" : "cmd", wait_duration);
 

@@ -335,8 +335,7 @@ DisplayError SDMServices::ToggleScreenUpdate(int disp_id, bool on) {
 
   DisplayError error = sdm_display->ToggleScreenUpdates(on);
   if (error) {
-    DLOGE("Failed to toggle screen updates = %d. Display = %" PRIu64
-          ", Error = %d",
+    DLOGE("Failed to toggle screen updates = %d. Display = %d, Error = %d",
           on, disp_id, error);
   }
 
