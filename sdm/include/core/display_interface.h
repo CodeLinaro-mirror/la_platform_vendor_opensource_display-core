@@ -23,8 +23,8 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -1401,10 +1401,11 @@ class DisplayInterface {
   /*! @brief Method to enable/disable for demura feature.
 
    @param[in] enable or disable
+   @param[in] demura_idx : demura config index
 
    @return \link DisplayError \endlink
   */
-  virtual DisplayError SetDemuraState(int state) = 0;
+  virtual DisplayError SetDemuraState(int state, int demura_idx) = 0;
 
   /*! @brief Method to set config for demura feature.
 
@@ -1582,6 +1583,12 @@ class DisplayInterface {
    @return \link void \endlink
   */
   virtual void TriggerIdleTimeout() = 0;
+
+  /*! @brief Method to enable the RGB|A split on this display
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetRGBASplit(int32_t split_enable) = 0;
 
  protected:
   virtual ~DisplayInterface() { }

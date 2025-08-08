@@ -1296,6 +1296,11 @@ uint32_t HWInfoDRM::GetMaxMixerCount() {
 }
 
 uint32_t HWInfoDRM::GetMaxDNSCBlurBlockCount() {
+  int32_t disable_cwb_dnsc = 0;
+  Debug::Get()->GetProperty(DISABLE_CWB_DOWNSCALE, &disable_cwb_dnsc);
+  if (disable_cwb_dnsc == 1) {
+    return 0;
+  }
 #ifdef FEATURE_DNSC_BLUR
   return 1;
 #else

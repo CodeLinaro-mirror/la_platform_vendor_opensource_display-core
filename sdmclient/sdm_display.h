@@ -393,6 +393,8 @@ public:
                                           int32_t *out_layer_requests);
   virtual DisplayError GetDisplayLuts(
       std::unique_ptr<std::vector<std::pair<LayerId, Lut3d *>>> &out_luts);
+  virtual DisplayError GetBufferLuts(const std::vector<SnapHandle *> &buffers,
+                                     std::unique_ptr<std::vector<Lut3d *>> &out_luts);
   virtual DisplayError GetDisplayName(uint32_t *out_size, char *out_name);
   virtual DisplayError GetDisplayType(int32_t *out_type);
   virtual DisplayError SetCursorPosition(LayerId layer, int x, int y);
@@ -482,7 +484,7 @@ public:
     return kErrorNotSupported;
   }
   virtual DisplayError RetrieveDemuraTnFiles() { return kErrorNotSupported; }
-  virtual DisplayError SetDemuraState(int state) { return kErrorNotSupported; }
+  virtual DisplayError SetDemuraState(int state, int demura_idx) { return kErrorNotSupported; }
   virtual DisplayError SetDemuraConfig(int demura_idx) {
     return kErrorNotSupported;
   }
@@ -536,6 +538,7 @@ public:
   virtual void TimeoutOnBuiltins(){};
   virtual void IdleTimeout(){};
   DisplayError SetStandbyMode(bool enable, bool is_twm);
+  DisplayError SetRGBASplit(int32_t split_enable);
 
  protected:
   static uint32_t throttling_refresh_rate_;
@@ -634,7 +637,9 @@ public:
 
   std::map<LayerId, SDMCompositionType> layer_changes_;
   std::map<LayerId, SDMLayerRequest> layer_requests_;
+  // mapping 3d luts to layer id and handle id to retrieve info and pass to client
   std::map<LayerId, Lut3d *> display_luts_;
+  std::map<uint64_t, Lut3d *> buffer_luts_;
   bool flush_on_error_ = false;
   bool flush_ = false;
   SDMPowerMode current_power_mode_ = SDMPowerMode::POWER_MODE_OFF;
@@ -721,6 +726,7 @@ public:
   SDMLayerStack *sdm_layer_stack_ = nullptr;
   bool prepare_phase_ = false;
   uint64_t scheduled_dynamic_dsi_clk_ = 0;
+  int32_t rgba_split_support_ = 0;
 
  private:
   bool CanSkipSdmPrepare(uint32_t *num_types, uint32_t *num_requests);

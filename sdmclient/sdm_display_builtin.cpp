@@ -27,8 +27,8 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <stdarg.h>
@@ -1751,9 +1751,9 @@ DisplayError SDMDisplayBuiltIn::PerformCacConfig(CacConfig config, bool enable) 
   return error;
 }
 
-DisplayError SDMDisplayBuiltIn::SetDemuraState(int state) {
-  DLOGV("Display ID: %" PRId64 " state: %d", id_, state);
-  DisplayError error = display_intf_->SetDemuraState(state);
+DisplayError SDMDisplayBuiltIn::SetDemuraState(int state, int demura_idx) {
+  DLOGV("Display ID: %" PRId64 " state: %d, demura_idx: %d", id_, state, demura_idx);
+  DisplayError error = display_intf_->SetDemuraState(state, demura_idx);
 
   if (error != kErrorNone) {
     DLOGE("Failed. state = %d, error = %d", state, error);

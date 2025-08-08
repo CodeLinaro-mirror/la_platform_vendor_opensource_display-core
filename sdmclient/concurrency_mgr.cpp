@@ -585,6 +585,23 @@ DisplayError ConcurrencyMgr::GetDisplayLuts(
   return status;
 }
 
+DisplayError ConcurrencyMgr::GetBufferLuts(Display display,
+                                           const std::vector<SnapHandle *> &buffers,
+                                           std::unique_ptr<std::vector<Lut3d *>> &out_luts) {
+  if (display >= kNumDisplays) {
+    return kErrorParameters;
+  }
+
+  SCOPE_LOCK(locker_[display]);
+  auto status = kErrorParameters;
+  if (sdm_display_[display]) {
+    auto sdm_display = sdm_display_[display];
+    status = sdm_display->GetBufferLuts(buffers, out_luts);
+  }
+
+  return status;
+}
+
 DisplayError ConcurrencyMgr::GetDisplayType(uint64_t display,
                                             int32_t *out_type) {
   return CallDisplayFunction(display, &SDMDisplay::GetDisplayType, out_type);
@@ -775,7 +792,7 @@ DisplayError ConcurrencyMgr::Hotplug(Display display, bool state) {
   }
 
   // External display hotplug events are handled asynchronously
-  if (display == SDM_DISPLAY_EXTERNAL || display == SDM_DISPLAY_EXTERNAL_2) {
+  if (display % kDisplayTypeMax == kPluggable) {
     std::thread(&ConcurrencyMgr::SendHotplug, this, display, state).detach();
   } else {
     callbacks_.OnHotplug(display, state);
@@ -1197,8 +1214,8 @@ DisplayError ConcurrencyMgr::SetDimmingMinBl(Display display, int32_t min_bl) {
   return CallDisplayFunction(display, &SDMDisplay::SetDimmingMinBl, min_bl);
 }
 
-DisplayError ConcurrencyMgr::SetDemuraState(Display display, int32_t state) {
-  return CallDisplayFunction(display, &SDMDisplay::SetDemuraState, state);
+DisplayError ConcurrencyMgr::SetDemuraState(Display display, int32_t state, int demura_idx) {
+  return CallDisplayFunction(display, &SDMDisplay::SetDemuraState, state, demura_idx);
 }
 
 DisplayError ConcurrencyMgr::SetDemuraConfig(Display display,

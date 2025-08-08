@@ -28,8 +28,8 @@
  */
 
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -155,7 +155,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(SetDimmingEnable(int int_enabled))
   MAKE_NO_OP(SetDimmingMinBl(int min_bl))
   MAKE_NO_OP(RetrieveDemuraTnFiles())
-  MAKE_NO_OP(SetDemuraState(int state))
+  MAKE_NO_OP(SetDemuraState(int state, int demura_idx))
   MAKE_NO_OP(SetDemuraConfig(int demura_idx))
   MAKE_NO_OP(SetABCState(bool state))
   MAKE_NO_OP(SetABCReconfig())
@@ -194,6 +194,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(GetScalerCount(uint32_t *scaler_count));
   MAKE_NO_OP(DumpDemuraSurface(const char *dir_path, uint32_t frame_index))
   MAKE_NO_OP(setDriverCommitPath(const int path))
+  MAKE_NO_OP(SetRGBASplit(int enable));
 
  protected:
   DisplayConfigVariableInfo default_variable_config_ = {};

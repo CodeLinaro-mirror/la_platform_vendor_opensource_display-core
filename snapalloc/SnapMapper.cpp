@@ -1,5 +1,7 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include "SnapMapper.h"
 #include <sync/sync.h>
@@ -153,6 +155,15 @@ Error SnapMapper::GetMetadataState(const SnapHandle &in_handle, vendor_qti_hardw
   }
 
   auto err = snap_alloc_core_->GetMetadataState(const_cast<SnapHandle *>(&in_handle), in_type, out);
+  return err;
+}
+
+Error SnapMapper::GetBaseView(const SnapHandle &in_handle, uint32_t *view) {
+  if (::snapalloc::isSnapHandleEmpty(const_cast<SnapHandle *>(&in_handle))) {
+    return Error::BAD_BUFFER;
+  }
+
+  auto err = snap_alloc_core_->GetBaseView(const_cast<SnapHandle *>(&in_handle), view);
   return err;
 }
 

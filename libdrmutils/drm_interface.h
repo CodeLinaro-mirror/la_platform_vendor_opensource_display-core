@@ -303,6 +303,12 @@ enum struct DRMOps {
    */
   PLANES_BUFFER_MODE,
   /*
+   * Op: Sets plane color mask override
+   * Arg: uint32_t - Plane ID
+   *      uint32_t - layer color mask override
+   */
+  PLANE_SET_COLOR_MASK_OVERRIDE,
+  /*
    * Op: Activate or deactivate a CRTC
    * Arg: uint32_t - CRTC ID
    *      uint32_t - 1 to enable, 0 to disable
@@ -1455,6 +1461,13 @@ enum struct DRMAvrStepState {
 enum struct DRMBufferMode {
   INDEPENDENT = 0,
   SINGLE,
+};
+
+enum struct DRMReserveColor {
+  RED = 1 << 0,
+  GREEN = 1 << 1,
+  BLUE = 1 << 2,
+  ALPHA = 1 << 3,
 };
 
 /* DRM Atomic Request Property Set.

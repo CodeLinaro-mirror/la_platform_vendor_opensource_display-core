@@ -840,7 +840,7 @@ DisplayError DisplayBuiltIn::SetupSPR() {
   return kErrorNone;
 }
 
-DisplayError DisplayBuiltIn::SetupDemura() {
+DisplayError DisplayBuiltIn::SetupDemura(int current_idx) {
   DemuraInputConfig input_cfg;
   input_cfg.secure_session = false;  // TODO(user): Integrate with secure solution
   std::string brightness_base;
@@ -882,11 +882,9 @@ DisplayError DisplayBuiltIn::SetupDemura() {
     return kErrorUndefined;
   }
 
-  if (SetDemuraIntfStatus(true)) {
+  if (SetDemuraIntfStatus(true, current_idx)) {
     return kErrorUndefined;
   }
-
-  demura_current_idx_ = kDemuraDefaultIdx;
 
   comp_manager_->SetDemuraStatusForDisplay(display_id_, true);
   demura_intended_ = true;
@@ -1384,10 +1382,10 @@ DisplayError DisplayBuiltIn::ValidateDemuraLicense() {
   return kErrorNone;
 }
 
-DisplayError DisplayBuiltIn::SetupDemuraT0() {
+DisplayError DisplayBuiltIn::SetupDemuraT0(int current_idx) {
   DisplayError error = kErrorNone;
 
-  error = SetupDemura();
+  error = SetupDemura(current_idx);
   if (error != kErrorNone) {
     DLOGE("Demura failed to initialize on display %d-%d, Error %d", display_id_, display_type_,
           error);
@@ -2523,6 +2521,7 @@ std::string DisplayBuiltIn::Dump() {
   os << " clk: " << display_attributes.clock_khz;
   os << " Topology: " << display_attributes.topology;
   os << " Qsync mode: " << active_qsync_mode_;
+  os << " RGBA Split Mode enable: " << rgba_split_enable_;
   os << " CAC enabled: " << disp_layer_stack_->stack_info.enable_cac;
   os << (disp_layer_stack_->stack_info.enable_cac
              ? (cac_version == kCacVersionLoopback) ? " (CACLoopback)" : " (CACV2)"
@@ -3114,6 +3113,7 @@ DisplayError DisplayBuiltIn::BuildLayerStackStats(LayerStack *layer_stack) {
   stack_info.enable_cac = enable_cac_;
   stack_info.enable_anamorphic_fov = IsAnamorphicFoveationEnabled(layer_stack);
   stack_info.cac_config = cac_config_;
+  stack_info.rgba_split_enable = rgba_split_enable_;
 
   int index = 0;
   for (auto &layer : layers) {
@@ -3559,6 +3559,7 @@ int DisplayBuiltIn::SetDemuraIntfStatus(bool enable, int current_idx) {
       return ret;
     }
   }
+  demura_current_idx_ = current_idx;
   DLOGI("Demura is now %s and current index is %d ", enable ? "Enabled" : "Disabled", current_idx);
   return ret;
 }
@@ -4043,7 +4044,7 @@ uint32_t DisplayBuiltIn::SanitizeRefreshRate(uint32_t req_refresh_rate, uint32_t
   return refresh_rate;
 }
 
-DisplayError DisplayBuiltIn::SetDemuraState(int state) {
+DisplayError DisplayBuiltIn::SetDemuraState(int state, int demura_idx) {
   int ret = 0;
   DisplayError error = kErrorNone;
 
@@ -4052,6 +4053,7 @@ DisplayError DisplayBuiltIn::SetDemuraState(int state) {
     return kErrorUndefined;
   }
 
+  DLOGI("Setting the Demura state %d, config = %d", state, demura_idx);
   if (!demura_intended_ && state) {
     if (!demura_allowed_) {
       // Validate demura license again in case failed during boot up
@@ -4067,12 +4069,11 @@ DisplayError DisplayBuiltIn::SetDemuraState(int state) {
         return error;
       }
       DLOGI("Start Demura feature now");
-      if ((error = SetupDemuraT0()) != kErrorNone) {
+      if ((error = SetupDemuraT0(demura_idx)) != kErrorNone) {
         DLOGE("Failed to enable Demura dynamically, error = %d", error);
         return error;
       }
       demura_dynamic_enabled_ = true;
-      demura_current_idx_ = kDemuraDefaultIdx;
       // Disable Partial Update for one frame.
       DisablePartialUpdateOneFrameInternal();
     } else {
@@ -4087,14 +4088,13 @@ DisplayError DisplayBuiltIn::SetDemuraState(int state) {
       return kErrorUndefined;
     }
 
-    ret = SetDemuraIntfStatus(true);
+    ret = SetDemuraIntfStatus(true, demura_idx);
     if (ret) {
       DLOGE("Failed to set demura status to true, ret = %d", ret);
       return kErrorUndefined;
     }
     comp_manager_->SetDemuraStatusForDisplay(display_id_, true);
     demura_dynamic_enabled_ = true;
-    demura_current_idx_ = kDemuraDefaultIdx;
   } else if (!state && comp_manager_->GetDemuraStatusForDisplay(display_id_)) {
     ret = SetDemuraIntfStatus(false);
     if (ret) {
@@ -4155,7 +4155,6 @@ DisplayError DisplayBuiltIn::SetDemuraConfig(int demura_idx) {
     return kErrorUndefined;
   }
 
-  demura_current_idx_ = demura_idx;
   DLOGV("Demura config updated to config index %d", demura_idx);
   HandleSelfRefresh();
 
@@ -5145,7 +5144,10 @@ DisplayError DisplayBuiltIn::CleanupDemuraConfig(void *data, DemuraTnCleanupType
 }
 
 bool DisplayBuiltIn::GetDemuraTnUserCtrl() {
-  std::ifstream in(kDemuraTnUserCtrlFile, std::ios::binary);
+  std::stringstream ss_id;
+  ss_id << "_" << std::setfill('0') << std::setw(16) << std::hex << panel_id_;
+  std::string filename = kDemuraTnUserCtrlFile + ss_id.str();
+  std::ifstream in(filename, std::ios::binary);
   if (!in.is_open()) {
     return false;
   }
@@ -5171,8 +5173,10 @@ bool DisplayBuiltIn::GetDemuraTnUserCtrl() {
 
 int DisplayBuiltIn::UpdateDemuraTnUserCtrl(bool user_ctrl) {
   int ret = 0;
-  std::ofstream out(kDemuraTnUserCtrlFile, std::ios::binary | std::ios::trunc);
-
+  std::stringstream ss_id;
+  ss_id << "_" << std::setfill('0') << std::setw(16) << std::hex << panel_id_;
+  std::string filename = kDemuraTnUserCtrlFile + ss_id.str();
+  std::ofstream out(filename, std::ios::binary | std::ios::trunc);
   if (out.fail()) {
     DLOGW("Failed to open the file %s %s", kDemuraTnUserCtrlFile.c_str(), strerror(errno));
     return -ENOENT;
