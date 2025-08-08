@@ -1359,6 +1359,11 @@ enum DRMPPFeatureID {
   kFeatureDimmingMinBl,
   kFeaturePaHistCtrl,
   kFeaturePaHistIrq,
+  kFeatureRgbHistBufferCtrl,
+  kFeatureRgbHistQueueBuffer,
+  kFeatureRgbHistQueueBuffer2,
+  kFeatureRgbHistQueueBuffer3,
+  kFeatureRgbHistCtrl,
   kPPFeaturesMax,
 };
 
