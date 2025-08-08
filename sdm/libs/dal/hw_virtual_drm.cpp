@@ -67,10 +67,63 @@ HWVirtualDRM::HWVirtualDRM(int32_t display_id, BufferAllocator *buffer_allocator
   HWDeviceDRM::core_id_ = hw_info_intf->GetCoreId();
 }
 
+DisplayError HWVirtualDRM::Init() {
+  DisplayError error = HWDeviceDRM::Init();
+  if (error != kErrorNone) {
+    DLOGE("Init failed for %s", device_name_);
+    return error;
+  }
+
+  sde_drm::DRMConnectorsInfo conns_info = {};
+  int ret = drm_mgr_intf_->GetConnectorsInfo(&conns_info);
+  if (ret) {
+    DLOGW("DRM Driver error %d while getting Connectors info.", ret);
+    return kErrorUndefined;
+  }
+  for (auto it : conns_info) {
+    if (!it.second.is_primary) {
+      continue;
+    }
+    primary_disp_conn_id_ = it.first;
+  }
+
+  return kErrorNone;
+}
+
 void HWVirtualDRM::ConfigureWbConnectorFbId(uint32_t fb_id, vector<uint32_t> lsr_fb_ids) {
   if (lsr_fb_ids.size()) {
-    // Handle using drm uapi structure
-    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_OUTPUT_FB_ID, token_.conn_id, lsr_fb_ids[0]);
+    lsr_fb_id_config_ = {};
+    // TODO: need to Handle monocular display
+    bool is_repro = (lsr_fb_ids.size() > kMaxCSCOutputBuffer);
+    if (is_repro) {
+      for (int i = 0; i < lsr_fb_ids.size(); i++) {
+        // 0:2 FSC for left eye | 3:5 FSC for right eye
+        // 6:8 FSC left eye back buffer | 9:11 FSC right eye back buffer
+        bool is_front_buffer = (i < (hw_panel_info_.num_fsc_fields * 2));
+        bool is_left_eye =
+            (i < hw_panel_info_.num_fsc_fields ||
+             (i >= hw_panel_info_.num_fsc_fields * 2 && i < (hw_panel_info_.num_fsc_fields * 3)));
+        uint32_t view_idx = is_left_eye ? 0 : 1;
+        struct sde_drm_view_descriptor &descriptor = is_front_buffer
+                                                         ? lsr_fb_id_config_.views[view_idx]
+                                                         : lsr_fb_id_config_.back_views[view_idx];
+        descriptor.view_index = view_idx;
+        descriptor.fb_id[descriptor.num_fbs] = lsr_fb_ids[i];
+        descriptor.num_fbs++;
+      }
+    } else {
+      // 0 C84R4Y for left eye | 1 C84R4Y for right eye
+      // no back buffer
+      for (int i = 0; i < lsr_fb_ids.size(); i++) {
+        struct sde_drm_view_descriptor &descriptor = lsr_fb_id_config_.views[i];
+        descriptor.view_index = i;
+        descriptor.fb_id[descriptor.num_fbs] = lsr_fb_ids[i];
+        descriptor.num_fbs++;
+      }
+    }
+
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_LSR_OUTPUT_FB_ID, token_.conn_id,
+                              &lsr_fb_id_config_);
   } else {
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_OUTPUT_FB_ID, token_.conn_id, fb_id);
   }
@@ -187,6 +240,7 @@ DisplayError HWVirtualDRM::Commit(HWLayersInfo *hw_layers_info) {
   ConfigureDNSC(hw_layers_info);
   ConfigureWbConnectorDestRect(hw_layers_info->iwe_enabled);
   SetWbCSC();
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_SYNC_TO, token_.conn_id, primary_disp_conn_id_);
   // Reset the ROI which may have been previously set by CWB. Need revisit when ROI enabled on
   // virtual.
   ResetROI();
@@ -274,6 +328,7 @@ DisplayError HWVirtualDRM::Validate(HWLayersInfo *hw_layers_info) {
   ConfigureWbConnectorFbId(output_buf_fb_id, lsr_out_fb_ids);
   ConfigureWbConnectorDestRect();
   SetWbCSC();
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_SYNC_TO, token_.conn_id, primary_disp_conn_id_);
 
   return HWDeviceDRM::Validate(hw_layers_info);
 }

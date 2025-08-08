@@ -721,6 +721,18 @@ enum struct DRMOps {
    *      PrivacyRegions - Consolidated privacy regions
    */
   CONNECTOR_SET_PRIVACY_REGIONS,
+  /*
+   * Op: Sets LSR frame buffer ID for writeback connector.
+   * Arg: uint32_t - Connector ID
+   *      drmModeAtomicReq - Atomic request
+   */
+  CONNECTOR_SET_LSR_OUTPUT_FB_ID,
+  /*
+   * Op: Sets primary display conn id for repro connector
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - primary display conn id
+   */
+  CONNECTOR_SET_SYNC_TO,
 };
 
 enum struct DRMRotation {

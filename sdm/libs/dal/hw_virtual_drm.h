@@ -92,6 +92,7 @@ class HWVirtualDRM : public HWDeviceDRM {
   virtual DisplayError Deinit();
 
  protected:
+  virtual DisplayError Init();
   virtual DisplayError Validate(HWLayersInfo *hw_layers_info);
   virtual DisplayError Commit(HWLayersInfo *hw_layers_info);
   virtual DisplayError Flush(HWLayersInfo *hw_layers_info);
@@ -121,6 +122,8 @@ class HWVirtualDRM : public HWDeviceDRM {
   struct sde_drm_dnsc_blur_cfg dnsc_cfg_ = {};
 #endif
   static const int kMaxCSCOutputBuffer = 2;
+  struct sde_drm_fb_id_list lsr_fb_id_config_ = {};
+  int32_t primary_disp_conn_id_ = -1;
 };
 
 }  // namespace sdm
