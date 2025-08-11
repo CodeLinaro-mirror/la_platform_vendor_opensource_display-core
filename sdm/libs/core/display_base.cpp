@@ -5474,4 +5474,8 @@ DisplayError DisplayBase::SetRGBASplit(int enable) {
   return kErrorNone;
 }
 
+bool DisplayBase::IsDpuDmaModeEnabled() {
+  return client_ctx_.hw_panel_info.dpu_dma_enabled;
+}
+
 }  // namespace sdm

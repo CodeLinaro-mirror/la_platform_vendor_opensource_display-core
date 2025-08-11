@@ -182,6 +182,7 @@ class SDMLayer {
   }
   static bool IsLayerIdExisting(LayerId id) { return id_mgr_.IsIdExisting(id); }
   static void SetAutoLayerIdCreation(bool flag) { auto_create_layer_id_ = flag; }
+  DisplayError TranslateToNV12Y(LayerBuffer *layer_buffer);
 
  private:
   std::shared_ptr<ISnapMapper> snapmapper_;

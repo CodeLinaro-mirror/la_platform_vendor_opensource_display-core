@@ -1708,6 +1708,9 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
     Layer *layer = sdm_layer->GetSDMLayer();
     LayerComposition &composition = layer->composition;
 
+    if (IsDmaModeIncompatible(composition))
+      DLOGW("DPU DMA mode should not use %d Comp", composition);
+
     if (composition == kCompositionSDE || composition == kCompositionStitch) {
       layer_requests_[sdm_layer->GetId()] = SDMLayerRequest::ClearClientTarget;
     }
