@@ -339,6 +339,9 @@ DisplayError ConcurrencyMgr::InitSubModules(DebugCallbackIntf *debug) {
   tui_ = new SDMTrustedUI(this);
   tui_->Init(disp_, locker_, pluggable_lock_index_);
 
+  Debug::GetIdleTimeoutMs(&idle_time_active_ms_, &idle_time_inactive_ms_);
+  tui_->SetIdleTimeoutMs(idle_time_active_ms_, idle_time_inactive_ms_);
+
   services_ = new SDMServices(this, buffer_allocator_, socket_handler_);
   services_->Init(disp_, buffer_allocator_, locker_, tui_);
 
