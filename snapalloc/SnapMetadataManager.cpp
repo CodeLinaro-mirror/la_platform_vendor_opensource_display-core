@@ -1,5 +1,7 @@
-// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include "SnapMetadataManager.h"
 #include "BufferLayout.h"
@@ -267,6 +269,18 @@ Error SnapMetadataManager::ThreeDimensionalRefInfoHelper(SnapMetadata *metadata,
   } else if (in_set != nullptr) {
     metadata->three_dimensional_ref_info =
         *static_cast<vendor_qti_hardware_display_common_ThreeDimensionalRefInfo *>(in_set);
+    return Error::NONE;
+  }
+  return Error::BAD_VALUE;
+}
+
+Error SnapMetadataManager::ViewIdHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                                        void *in_set, void *out_get, BufferDescriptor *buf_des) {
+  if (out_get != nullptr) {
+    *static_cast<uint32_t *>(out_get) = metadata->viewId;
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    metadata->viewId = *static_cast<uint32_t *>(in_set);
     return Error::NONE;
   }
   return Error::BAD_VALUE;
@@ -1446,6 +1460,128 @@ void SnapMetadataManager::UnmapAndReset(SnapHandleInternal *hnd) {
            GetMetaDataSize(hnd->reserved_size(), hnd->custom_content_md_reserved_size()));
     hnd->base_metadata() = 0;
   }
+}
+
+Error SnapMetadataManager::GetBaseView(SnapHandleInternal *hnd, uint32_t *view) {
+  SnapMetadata *metadata = reinterpret_cast<SnapMetadata *>(hnd->base_metadata());
+  if (metadata == nullptr) {
+    DLOGW_IF("%s: Invalid metadata address", __FUNCTION__);
+    return Error::BAD_BUFFER;
+  }
+  *(uint32_t *)view = static_cast<uint32_t>(hnd->view());
+  if (hnd->getFds().size() > 1) {
+    if (!metadata->isVendorMetadataSet[GET_VENDOR_METADATA_STATUS_INDEX(VIEW_ID)]) {
+      DLOGW_IF(enable_logs, "ViewID not set. Returning requested view");
+      return Error::NONE;
+    }
+
+    if (!metadata
+             ->isVendorMetadataSet[GET_VENDOR_METADATA_STATUS_INDEX(THREE_DIMENSIONAL_REF_INFO)]) {
+      DLOGW_IF(enable_logs, "SEI metadata not set. Returning requested view");
+      return Error::NONE;
+    }
+
+    uint32_t view_id_from_metadata = metadata->viewId;
+    uint32_t left_id_from_sei =
+        (metadata->three_dimensional_ref_info.threedRefDispInfo[0]).left_view_id;
+    uint32_t right_id_from_sei =
+        (metadata->three_dimensional_ref_info.threedRefDispInfo[0]).right_view_id;
+
+    if (left_id_from_sei == right_id_from_sei) {
+      DLOGW_IF(
+          enable_logs,
+          "%s: left_id_from_sei and right_id_from_sei set to same view which is invalid. Returning",
+          __FUNCTION__);
+      return Error::NONE;
+    }
+
+    uint32_t view_at_index_0;
+    if (view_id_from_metadata == left_id_from_sei) {
+      view_at_index_0 = hnd->view();
+    } else {
+      view_at_index_0 = hnd->getViewInfo() & (~hnd->view());
+    }
+
+    DLOGD_IF(enable_logs,
+             "%s: view_id_from_metadata %d , left_id_from_sei %d, right_id_from_sei %d, "
+             "view_at_index_0 %d",
+             __FUNCTION__, view_id_from_metadata, left_id_from_sei, right_id_from_sei,
+             view_at_index_0);
+    *(uint32_t *)view = view_at_index_0;
+  }
+
+  DLOGD_IF(enable_logs, "%s: Returning base view %d", __FUNCTION__, *(uint32_t *)view);
+  return Error::NONE;
+}
+
+Error SnapMetadataManager::GetViewToImport(SnapHandleInternal *hnd, const uint32_t view_requested,
+                                           uint32_t *view) {
+  SnapMetadata *metadata = reinterpret_cast<SnapMetadata *>(hnd->base_metadata());
+  if (metadata == nullptr) {
+    DLOGW_IF("%s: Invalid metadata address", __FUNCTION__);
+    return Error::BAD_VALUE;
+  }
+
+  if (!metadata->isVendorMetadataSet[GET_VENDOR_METADATA_STATUS_INDEX(VIEW_ID)]) {
+    DLOGW_IF(enable_logs, "ViewID not set. Returning requested view: %d", view_requested);
+    *view = view_requested;
+    return Error::UNSUPPORTED;
+  }
+
+  if (!metadata
+           ->isVendorMetadataSet[GET_VENDOR_METADATA_STATUS_INDEX(THREE_DIMENSIONAL_REF_INFO)]) {
+    DLOGW_IF(enable_logs, "SEI metadata not set. Returning requested view: %d", view_requested);
+    *view = view_requested;
+    return Error::UNSUPPORTED;
+  }
+
+  uint32_t view_id_from_metadata = metadata->viewId;
+  uint32_t left_id_from_sei =
+      (metadata->three_dimensional_ref_info.threedRefDispInfo[0]).left_view_id;
+  uint32_t right_id_from_sei =
+      (metadata->three_dimensional_ref_info.threedRefDispInfo[0]).right_view_id;
+
+  if (left_id_from_sei == right_id_from_sei) {
+    DLOGW_IF(enable_logs,
+             "left_id_from_sei and right_id_from_sei set to same view which is invalid. Returning "
+             "requested view: %d",
+             view_requested);
+    *view = view_requested;
+    return Error::UNSUPPORTED;
+  }
+
+  /*
+  Ex: As per allocation order Metahandle points to buf_0/primary_view/left
+  buf_0 -> view_id_from_metadata:x, left_id_from_sei = y, right_id_from_sei = x
+  We deduce
+  view_id_from_metadata(x) == right_id_from_sei(x) => view_at_buf_index_0 = Right/Secondary/~base_view
+
+  1) view_requested (Left)
+      view_requested(L) != view_at_buf_index_0(R) => return ~base_view/secondary/buf_1
+  2) view_requested(Right)
+      view_requested(R) == view_at_buf_index_0(R) => return base_view/primary/left/buf_0
+  */
+  uint32_t view_at_buf_index_0;
+  if (view_id_from_metadata == left_id_from_sei) {
+    view_at_buf_index_0 = hnd->view();
+  } else {
+    view_at_buf_index_0 = hnd->getViewInfo() & (~hnd->view());
+  }
+
+  if (view_requested == view_at_buf_index_0) {
+    *view = hnd->view();
+  } else {
+    *view = hnd->getViewInfo() & (~hnd->view());
+  }
+
+  DLOGD_IF(
+      enable_logs,
+      "view_requested %d view_id_from_metadata %d , left_id_from_sei %d, right_id_from_sei %d, "
+      "view_at_buf_index_0 %d, view returned %d",
+      view_requested, view_id_from_metadata, left_id_from_sei, right_id_from_sei,
+      view_at_buf_index_0, *view);
+
+  return Error::NONE;
 }
 
 Error SnapMetadataManager::Set(SnapHandleInternal *hnd,

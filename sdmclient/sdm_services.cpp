@@ -195,6 +195,18 @@ DisplayError SDMServices::SetIdleTimeout(int value) {
   return kErrorNone;
 }
 
+DisplayError SDMServices::SetRGBASplit(int disp_id, int split_enable) {
+  auto display = cb_->GetDisplayFromClientId(disp_id);
+  if (!display) {
+    DLOGW("Display = %d is not connected.", disp_id);
+    return kErrorHardware;
+  }
+
+  display->SetRGBASplit(split_enable);
+
+  return kErrorNone;
+}
+
 DisplayError SDMServices::SetFrameDumpConfig(
     uint32_t frame_dump_count, std::bitset<32> bit_mask_display_type,
     uint32_t bit_mask_layer_type, int32_t processable_cwb_requests,
@@ -1414,6 +1426,13 @@ DisplayError SDMServices::SetIdleTimeout(SDMParcel *input_parcel) {
   int active_ms = input_parcel->readInt32();
 
   return SetIdleTimeout(active_ms);
+}
+
+DisplayError SDMServices::SetRGBASplit(SDMParcel *input_parcel) {
+  int display = INT(input_parcel->readInt32());
+  int rgba_split_enable = input_parcel->readInt32();
+
+  return SetRGBASplit(display, rgba_split_enable);
 }
 
 DisplayError SDMServices::SetDisplayStatus(SDMParcel *input_parcel,

@@ -1,16 +1,13 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include "SnapHandleInternal.h"
 #include <array>
 #include <fcntl.h>
 
 namespace snapalloc {
-
-struct SnapHandleInternal::FdPair {
-  int fd;
-  int fd_metadata;
-};
 
 struct SnapHandleInternal::SnapHandleProperties {
   uint32_t view;
@@ -173,7 +170,7 @@ std::vector<SnapHandleInternal::FdPair> SnapHandleInternal::getFds() {
   return fd_pairs;
 }
 
-SnapHandleInternal *SnapHandleInternal::CreateViewHandle(uint32_t view) {
+SnapHandleInternal *SnapHandleInternal::CreateViewHandle(uint32_t view, uint32_t view_in_handle) {
   int N = getN();
 
   if (N > 2) {
@@ -215,6 +212,7 @@ SnapHandleInternal *SnapHandleInternal::CreateViewHandle(uint32_t view) {
                 F_DUPFD_CLOEXEC, 0);
       view_handle->getProperties(0) =
           static_cast<SnapHandleData<2> *>(this)->getProperties(view_index);
+      view_handle->propertiesArray[0].view = view_in_handle;
       break;
     default:
       DLOGE("Unsupported Meta Handle");

@@ -1669,6 +1669,18 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
     } break;
 #endif
 
+    case DRMOps::PLANE_SET_COLOR_MASK_OVERRIDE: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::COLOR_MASK_OVERRIDE)) {
+        DRM_LOGD("Layer color mask override property isn't exposed");
+        break;
+      }
+      DRMReserveColor color_override = (DRMReserveColor)va_arg(args, uint32_t);
+      prop_id = prop_mgr_.GetPropertyId(DRMProperty::COLOR_MASK_OVERRIDE);
+      AddProperty(req, obj_id, prop_id, (uint32_t)color_override, true /* cache */,
+                  tmp_prop_val_map_);
+      DRM_LOGD("Plane = %d : Layer Color mask override = %d", obj_id, color_override);
+    } break;
+
     default:
       DRM_LOGE("Invalid opcode %d for DRM Plane %d", code, obj_id);
   }
@@ -1785,6 +1797,7 @@ void DRMPlane::Unset(bool is_commit, drmModeAtomicReq *req) {
   PerformWrapper(DRMOps::PLANE_SET_SRC_RECT_EXT, req, rect);
   PerformWrapper(DRMOps::PLANE_SET_DST_RECT_EXT, req, rect);
   PerformWrapper(DRMOps::PLANE_SET_IMG_SIZE_RECT, req, rect);
+  PerformWrapper(DRMOps::PLANE_SET_COLOR_MASK_OVERRIDE, req, 0);
   if (plane_type_info_.inverse_pma) {
     PerformWrapper(DRMOps::PLANE_SET_INVERSE_PMA, req, 0);
   }

@@ -110,6 +110,7 @@ using sde_drm::DRMOps;
 using sde_drm::DRMPowerMode;
 using sde_drm::DRMPPFeatureInfo;
 using sde_drm::DRMRect;
+using sde_drm::DRMReserveColor;
 using sde_drm::DRMRotation;
 using sde_drm::DRMSecureMode;
 using sde_drm::DRMSecurityLevel;
@@ -1834,6 +1835,19 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
           }
           SetBlending(layer_blend, &blending);
           drm_atomic_intf_->Perform(DRMOps::PLANE_SET_BLEND_TYPE, pipe_id, blending);
+
+          if (hw_layers_info->layer_exts.size() && hw_layers_info->layer_exts.at(i).rgba_split) {
+            DLOGI_IF(kTagDriverConfig,
+                     "RGBA Split Layer[%d] Blend(curr) = %d being set to opaque,"
+                     " rgba_split = %d",
+                     i, blending, hw_layers_info->layer_exts.at(i).rgba_split);
+            drm_atomic_intf_->Perform(DRMOps::PLANE_SET_BLEND_TYPE, pipe_id, DRMBlendType::OPAQUE);
+            drm_atomic_intf_->Perform(DRMOps::PLANE_SET_ALPHA, pipe_id, 0xffff);
+            if (hw_layers_info->layer_exts.at(i).rgba_split == UINT32(DRMReserveColor::ALPHA)) {
+              drm_atomic_intf_->Perform(DRMOps::PLANE_SET_COLOR_MASK_OVERRIDE, pipe_id,
+                                        DRMReserveColor::ALPHA);
+            }
+          }
 
           DRMRect src = {};
           SetRect(pipe_info->src_roi, &src);
@@ -3690,15 +3704,36 @@ void HWDeviceDRM::ConfigureConcurrentWriteback(const HWLayersInfo &hw_layer_info
       DLOGV_IF(kTagDriverConfig, "roi_v1 of virtual connector is set NULL (Full Frame update).");
     } else {
       const int kNumMaxROIs = 4;
+      uint32_t num_rects = 1;
       sde_drm::DRMRect conn_rects[kNumMaxROIs] = {full_frame};
-      for (uint32_t i = 0; i < hw_layer_info.left_frame_roi.size(); i++) {
-        auto &roi = hw_layer_info.left_frame_roi.at(i);
-        conn_rects[i].left = UINT32(roi.left);
-        conn_rects[i].right = UINT32(roi.right);
-        conn_rects[i].top = UINT32(roi.top);
-        conn_rects[i].bottom = UINT32(roi.bottom);
+      DestScaleInfoMap dest_scale_info_map = hw_layer_info.dest_scale_info_map;
+      if (!(dest_scale_info_map.size() && dest_scale_info_map[0]->scale_data.enable.scale)) {
+        for (uint32_t i = 0; i < hw_layer_info.left_frame_roi.size(); i++) {
+          auto &roi = hw_layer_info.left_frame_roi.at(i);
+          conn_rects[i].left = UINT32(roi.left);
+          conn_rects[i].right = UINT32(roi.right);
+          conn_rects[i].top = UINT32(roi.top);
+          conn_rects[i].bottom = UINT32(roi.bottom);
+        }
+        num_rects = std::max(1u, UINT32(hw_layer_info.left_frame_roi.size()));
+      } else {
+        // During PU+DS only 1 ROI is supported.
+        auto &roi = hw_layer_info.left_frame_roi.at(0);
+        LayerRect panel_roi = {};
+        if (capture_mode != DRMCWbCaptureMode::MIXER_OUT) {
+          for (uint32_t i = 0; i < dest_scale_info_map.size(); i++) {
+            panel_roi = Union(panel_roi, dest_scale_info_map[i]->panel_roi);
+          }
+        } else {
+          panel_roi = roi;
+        }
+
+        conn_rects[0].left = UINT32(panel_roi.left);
+        conn_rects[0].right = UINT32(panel_roi.right);
+        conn_rects[0].top = UINT32(panel_roi.top);
+        conn_rects[0].bottom = UINT32(panel_roi.bottom);
+        num_rects = 1;
       }
-      uint32_t num_rects = std::max(1u, UINT32(hw_layer_info.left_frame_roi.size()));
       drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_ROI, vitual_conn_id, num_rects, conn_rects);
     }
 

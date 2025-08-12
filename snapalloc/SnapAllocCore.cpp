@@ -135,7 +135,8 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
     if (err != Error::NONE) {
       DLOGE("Failed to initialize metadata for hnd %lu", hnd->id());
     } else if (desc.usage & QTI_PRIVATE_MULTI_VIEW_INFO) {
-      SnapHandleInternal *hndSec = hnd->CreateViewHandle(PRIV_VIEW_MASK_SECONDARY);
+      SnapHandleInternal *hndSec =
+          hnd->CreateViewHandle(PRIV_VIEW_MASK_SECONDARY, PRIV_VIEW_MASK_SECONDARY);
       err = metadata_mgr_->InitializeMetadata(hndSec, desc.format, out_desc, ad, &layout);
       if (err != Error::NONE) {
         DLOGE("Failed to initialize metadata for secondary hnd %lu", hndSec->id());
@@ -234,8 +235,13 @@ Error SnapAllocCore::RetainViewBuffer(SnapHandle *meta_hnd, uint32_t view,
     DLOGE("Retain MetaHandle before retaining auxillary view buffer");
     return Error::UNSUPPORTED;
   }
+  uint32_t buf_to_import = view;
+  err = metadata_mgr_->GetViewToImport(buf, view, &buf_to_import);
+  if (err) {
+    DLOGW_IF(enable_logs, "Failed to get view to import for requested view:%d", view);
+  }
 
-  SnapHandle *view_handle = buf->CreateViewHandle(view);
+  SnapHandle *view_handle = buf->CreateViewHandle(buf_to_import, view);
 
   if (!view_handle) {
     return Error::UNSUPPORTED;
@@ -252,6 +258,25 @@ Error SnapAllocCore::RetainViewBuffer(SnapHandle *meta_hnd, uint32_t view,
   }
   DLOGD_IF(enable_logs, "===============");
   *out_view_handle = view_handle;
+  return err;
+}
+
+Error SnapAllocCore::GetBaseView(SnapHandle *hnd, uint32_t *view) {
+  if (hnd == nullptr) {
+    return Error::BAD_BUFFER;
+  }
+
+  auto err = Error::NONE;
+  std::lock_guard<std::mutex> lock(buffer_lock_);
+  auto buf = GetBufferFromHandleLocked(hnd);
+  if (buf == nullptr) {
+    DLOGE("%s Could not find handle: %p", __FUNCTION__, hnd);
+    return Error::BAD_BUFFER;
+  }
+  err = metadata_mgr_->GetBaseView(buf, view);
+  if (err) {
+    DLOGE("%s: Failed to get base view for requested handle", __FUNCTION__);
+  }
   return err;
 }
 

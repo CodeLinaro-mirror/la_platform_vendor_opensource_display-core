@@ -625,6 +625,7 @@ DisplayError SDMDisplay::Init() {
   display_intf_->GetConfig(&fixed_info);
   is_cmd_mode_ = fixed_info.is_cmdmode;
 
+  SDMDebugHandler::Get()->GetProperty(RGBA_SPLIT_SUPPORT, &rgba_split_support_);
   game_supported_ = display_intf_->GameEnhanceSupported();
 
   if (!sdm_layer_stack_) {
@@ -817,18 +818,37 @@ void SDMDisplay::BuildLayerStack() {
 
     Layer *layer = sdm_layer->GetSDMLayer();
     layer->flags = {}; // Reset earlier flags
-    // Mark all layers to skip, when client target handle is NULL
-    if (sdm_layer->GetClientRequestedCompositionType() ==
-            SDMCompositionType::COMP_CLIENT ||
-        !client_target_->GetSDMLayer()->input_buffer.buffer_id) {
+    SDMCompositionType requested_composition = sdm_layer->GetClientRequestedCompositionType();
+
+    // Mark all layers to skip, when client target handle is NULL in default draw
+    if ((!client_target_->GetSDMLayer()->input_buffer.buffer_id) &&
+        (draw_method_ == kDrawDefault)) {
       layer->flags.skip = true;
-    } else if (sdm_layer->GetClientRequestedCompositionType() ==
-               SDMCompositionType::COMP_SOLID_COLOR) {
+      DLOGV_IF(kTagClient,
+               "Layer [%" PRIu64
+               "] marked as skip due to null client target handle "
+               "for display [%" PRIu64 "]-[%" PRIu64 "]",
+               sdm_layer->GetId(), id_, type_);
+    }
+
+    if (requested_composition == SDMCompositionType::COMP_CLIENT) {
+      layer->flags.skip = true;
+      DLOGV_IF(kTagClient,
+               "Layer [%" PRIu64
+               "] marked as skip due to client requested composition "
+               "for display [%" PRIu64 "]-[%" PRIu64 "]",
+               sdm_layer->GetId(), id_, type_);
+    } else if (requested_composition == SDMCompositionType::COMP_SOLID_COLOR) {
       layer->flags.solid_fill = true;
     }
 
     if (!sdm_layer->IsDataSpaceSupported()) {
       layer->flags.skip = true;
+      DLOGV_IF(kTagClient,
+               "Layer [%" PRIu64
+               "] marked as skip due to unsupported dataspace "
+               "for display [%" PRIu64 "]-[%" PRIu64 "]",
+               sdm_layer->GetId(), id_, type_);
     }
 
     if (swap_interval_zero_) {
@@ -908,10 +928,14 @@ void SDMDisplay::BuildLayerStack() {
         !layer->flags.single_buffer && !layer->flags.solid_fill && !is_video &&
         !layer->flags.is_game) {
       layer->flags.skip = true;
+      DLOGV_IF(kTagClient,
+               "Layer [%" PRIu64
+               "] marked as skip due to non-integral source crop "
+               "for display [%" PRIu64 "]-[%" PRIu64 "]",
+               sdm_layer->GetId(), id_, type_);
     }
 
-    if (!layer->flags.skip && (sdm_layer->GetClientRequestedCompositionType() ==
-                               SDMCompositionType::COMP_CURSOR)) {
+    if (!layer->flags.skip && (requested_composition == SDMCompositionType::COMP_CURSOR)) {
       // Currently we support only one SDMursor & only at top most z-order
       if ((*sdm_layer_stack_->layer_set_.rbegin())->GetId() ==
           sdm_layer->GetId()) {
@@ -925,6 +949,11 @@ void SDMDisplay::BuildLayerStack() {
     if (layer->flags.solid_fill && layer->layer_brightness != 1.0f) {
       layer->flags.skip = true;
       layer->flags.solid_fill = false;
+      DLOGV_IF(kTagClient,
+               "Layer [%" PRIu64
+               "] marked as skip due to layer dimming on solid fill "
+               "for display [%" PRIu64 "]-[%" PRIu64 "]",
+               sdm_layer->GetId(), id_, type_);
     }
 
     if (layer->flags.skip) {
@@ -1678,8 +1707,7 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
       layer_requests_[sdm_layer->GetId()] = SDMLayerRequest::ClearClientTarget;
     }
 
-    SDMCompositionType requested_composition =
-        sdm_layer->GetClientRequestedCompositionType();
+    SDMCompositionType requested_composition = sdm_layer->GetClientRequestedCompositionType();
     // Set SDM composition to SDM3 type in SDMLayer
     sdm_layer->SetComposition(composition);
     SDMCompositionType device_composition =
@@ -4181,4 +4209,18 @@ DisplayError SDMDisplay::GetParentConfig(Config *config) {
 
   return kErrorNotSupported;
 }
+
+DisplayError SDMDisplay::SetRGBASplit(int32_t split_enable) {
+  if (!rgba_split_support_) {
+    DLOGW("Feature not supported on display: %" PRId64 " %d-%d", id_, sdm_id_, type_);
+    return kErrorNotSupported;
+  }
+
+  DisplayError error = display_intf_->SetRGBASplit(split_enable);
+  DLOGI("Feature %s on display : %" PRId64 " %d-%d", split_enable ? "enabled" : "disabled", id_,
+        sdm_id_, type_, split_enable);
+
+  return error;
+}
+
 }  // namespace sdm
