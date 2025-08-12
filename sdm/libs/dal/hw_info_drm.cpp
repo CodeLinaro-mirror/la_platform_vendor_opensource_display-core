@@ -306,7 +306,9 @@ DisplayError HWInfoDRM::GetHWResourceInfo(HWResourceInfo *hw_resource) {
   DLOGI("Destination scaler %sfound. Block count = %d.", hw_resource->hw_dest_scalar_info.count ?
         "": "disabled or not ", hw_resource->hw_dest_scalar_info.count);
   DLOGI("Max plane width = %d", hw_resource->max_pipe_width);
-  DLOGI("Max cursor width = %d", hw_resource->max_cursor_size);
+  if (hw_resource->num_cursor_pipe) {
+    DLOGI("Max cursor width = %d", hw_resource->max_cursor_size);
+  }
   DLOGI("Max plane upscale = %d", hw_resource->max_scale_up);
   DLOGI("Max plane downscale = %d", hw_resource->max_scale_down);
   DLOGI("Has Decimation = %d", hw_resource->has_decimation);
