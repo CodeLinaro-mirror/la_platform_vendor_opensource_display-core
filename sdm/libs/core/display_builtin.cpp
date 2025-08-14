@@ -1883,6 +1883,7 @@ DisplayError DisplayBuiltIn::SetPanelBrightness(float brightness, bool apply_imm
       level_remainder = t - level;
     }
 
+    abc_brightness_level_ = level;
     err = dpu_core_mux_->SetPanelBrightness(level, apply_immediately);
     if (err == kErrorNone) {
       level_remainder_ = level_remainder;
@@ -4712,6 +4713,30 @@ DisplayError DisplayBuiltIn::SetABCMode(const string &mode_name) {
     DLOGE("Unable to setup ABC layer on Display %d", display_id_);
     return kErrorUndefined;
   }
+
+#ifdef TRUSTED_VM
+  if (abc_brightness_level_ >= 0) {
+    int ret = 0;
+    GenericPayload pl;
+    uint32_t *brightness_level = nullptr;
+    ret = pl.CreatePayload<uint32_t>(brightness_level);
+    if (ret) {
+      DLOGE("Failed to create kDemuraFeatureParamUpdateBrightness payload");
+      return kErrorUndefined;
+    }
+
+    // Set the ABC feature with new brightness level and updated mode name
+    *brightness_level = abc_brightness_level_;
+    ret = demura_->SetParameter(kDemuraFeatureParamUpdateBrightness, pl);
+    if (ret) {
+      DLOGE("Failed to set brightness level for ABC feature %d", ret);
+      return kErrorUndefined;
+    }
+
+    abc_brightness_level_ = -1;
+    return kErrorNone;
+  }
+#endif
 
   // Set the ABC feature with updated mode name
   GenericPayload pl;
