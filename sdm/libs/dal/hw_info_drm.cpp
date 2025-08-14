@@ -299,7 +299,7 @@ DisplayError HWInfoDRM::GetHWResourceInfo(HWResourceInfo *hw_resource) {
     disable_dest_scalar = (value == 1);
   }
   DynLib extension_lib;
-  if (!extension_lib.Open("libsdmextension.so") || disable_dest_scalar || enable_ai_scaler) {
+  if (!extension_lib.Open("libsdmextension.so") || disable_dest_scalar) {
     hw_resource->hw_dest_scalar_info.count = 0;
   }
 
