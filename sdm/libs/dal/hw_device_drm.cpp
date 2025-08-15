@@ -4413,6 +4413,10 @@ void HWDeviceDRM::HandleCwbTeardown(bool sync_teardown) {
 
 DisplayError HWDeviceDRM::NotifyExpectedPresent(uint64_t expected_present_time,
                                                 uint32_t frame_interval_ns) {
+  if (hw_panel_info_.vhm_support) {
+    DisplayEarlyWakeUp();
+  }
+
 #ifdef DRM_IOCTL_MSM_EARLY_EPT
   int ret = -1;
   struct drm_msm_display_early_ept early_ept_cfg = {};
