@@ -829,6 +829,7 @@ struct HWAIScalerData {
   uint32_t mode_id;
   uint32_t param[AI_SCALER_PARAM_LEN];
   bool is_param_valid = false;
+  uint32_t psm = 0;
 };
 
 struct HWAIScalerInfo {
