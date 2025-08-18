@@ -211,6 +211,11 @@ DisplayError ConcurrencyMgr::Init(BufferAllocator *buffer_allocator, SocketHandl
   DLOGI("disable_get_screen_decorator_support: %d",
         disable_get_screen_decorator_support_);
 
+  value = 0;
+  Debug::Get()->GetProperty(ENABLE_SELECTIVE_PANEL_DEAD, &value);
+  selective_panel_dead_ = (value == 1);
+  DLOGI("selective_panel_dead: %d", selective_panel_dead_);
+
   auto err = InitSubModules(debug);
   if (err != kErrorNone) {
     return err;
@@ -633,8 +638,12 @@ DisplayError ConcurrencyMgr::getDisplayDecorationSupport(Display display,
     return kErrorNotSupported;
   }
 
-  return CallDisplayFunction(display, &SDMDisplay::getDisplayDecorationSupport,
-                             format, alpha);
+  // ScreenDecoration layers supported even if RC HW is disabled since its
+  // coming from framework and is independent of RC HW support.
+  *format = static_cast<uint32_t>(SDMPixelFormat::PIXEL_FORMAT_R_8);
+  *alpha = static_cast<uint32_t>(SDMAlphaInterpretation::COVERAGE);
+
+  return kErrorNone;
 }
 
 void ConcurrencyMgr::PerformQsyncCallback(Display display, bool qsync_enabled,
@@ -1319,7 +1328,7 @@ void ConcurrencyMgr::CompositorSync(CompositorSyncType sync_type) {
   }
 }
 
-void ConcurrencyMgr::PerformDisplayPowerReset() {
+void ConcurrencyMgr::PerformDisplayPowerReset(int32_t recovery_display) {
   disp_->RemoveDisconnectedPluggableDisplays();
 
   // Wait until all commands are flushed.
@@ -1338,6 +1347,9 @@ void ConcurrencyMgr::PerformDisplayPowerReset() {
   for (Display display = SDM_DISPLAY_PRIMARY; display < kNumDisplays;
        display++) {
     if (sdm_display_[display] != NULL) {
+      if (selective_panel_dead_ && (display != recovery_display)) {
+        continue;
+      }
       last_power_mode[display] = sdm_display_[display]->GetCurrentPowerMode();
       DLOGI("Powering off display = %d", INT32(display));
       status = sdm_display_[display]->SetPowerMode(SDMPowerMode::POWER_MODE_OFF,
@@ -1352,6 +1364,9 @@ void ConcurrencyMgr::PerformDisplayPowerReset() {
   for (Display display = SDM_DISPLAY_PRIMARY; display < kNumDisplays;
        display++) {
     if (sdm_display_[display] != NULL) {
+      if (selective_panel_dead_ && (display != recovery_display)) {
+        continue;
+      }
       SDMPowerMode mode = last_power_mode[display];
       DLOGI("Setting display %d to mode = %d", INT32(display), mode);
       status = sdm_display_[display]->SetPowerMode(mode, false /* teardown */);
@@ -1392,10 +1407,10 @@ void ConcurrencyMgr::PerformDisplayPowerReset() {
   }
 }
 
-void ConcurrencyMgr::DisplayPowerReset() {
+void ConcurrencyMgr::DisplayPowerReset(int32_t display) {
   // Do Power Reset in a different thread to avoid blocking of SDM event thread
   // when disconnecting display.
-  std::thread(&ConcurrencyMgr::PerformDisplayPowerReset, this).detach();
+  std::thread(&ConcurrencyMgr::PerformDisplayPowerReset, this, display).detach();
 }
 
 void ConcurrencyMgr::VmReleaseDone(Display display) {
@@ -2186,7 +2201,7 @@ DisplayError ConcurrencyMgr::SetDisplayStatus(uint64_t disp_id,
   }
 
   if (disp_idx == qdutilsDisplayType::DISPLAY_PRIMARY) {
-    DLOGE("Not supported for this display");
+    DLOGW("Not supported for this display");
     return err;
   }
 
