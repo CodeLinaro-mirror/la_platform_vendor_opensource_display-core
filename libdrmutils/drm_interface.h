@@ -1113,6 +1113,7 @@ struct DRMConnectorInfo {
   DMSType dms_type = DMSType::DMS_VID_DISABLED;
   bool fsc_panel = false;
   uint32_t num_fsc_fields = 0;
+  bool dpu_dma_enabled = false;
 };
 
 // All DRM Connectors as map<Connector_id , connector_info>
@@ -1313,6 +1314,7 @@ enum DRMCscType {
   kCscYuv2Rgb2020FR,
   kCscYuv2RgbDolbyVisionP5,
   kCscYuv2RgbDCIP3FR,
+  kCscYuv2RgbDCIP3L,
   kCscTypeMax,
 };
 

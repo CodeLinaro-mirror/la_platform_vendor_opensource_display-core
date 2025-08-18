@@ -376,6 +376,10 @@ struct HWDestScalarInfo {
 struct SyncPoints {
   shared_ptr<Fence> release_fence = nullptr;
   shared_ptr<Fence> retire_fence = nullptr;
+  void clear() {
+    release_fence = nullptr;
+    retire_fence = nullptr;
+  }
 };
 
 enum SmartDMARevision {
@@ -579,6 +583,7 @@ struct HWPanelInfo {
   bool vhm_support = false;            // Video Hybrid Mode support
   bool fsc_panel = false;              // fsd_panel
   uint32_t num_fsc_fields = 0;         // number of fields supported in fsc panel
+  bool dpu_dma_enabled = false;        // DPU dma mode is enabled
 
   bool operator !=(const HWPanelInfo &panel_info) {
     return ((port != panel_info.port) || (mode != panel_info.mode) ||
@@ -607,7 +612,8 @@ struct HWPanelInfo {
             (has_ai_scaler != panel_info.has_ai_scaler) ||
             (vhm_support != panel_info.vhm_support) ||
             (fsc_panel != panel_info.fsc_panel) ||
-            (num_fsc_fields != panel_info.num_fsc_fields));
+            (num_fsc_fields != panel_info.num_fsc_fields) ||
+            (dpu_dma_enabled != panel_info.dpu_dma_enabled));
   }
 
   bool operator ==(const HWPanelInfo &panel_info) {

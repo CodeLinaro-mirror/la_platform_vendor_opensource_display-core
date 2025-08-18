@@ -320,6 +320,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
     return kErrorNotSupported;
   }
   DisplayError SetRGBASplit(int32_t split_enable);
+  virtual bool IsDpuDmaModeEnabled();
 
  protected:
   struct DisplayMutex {
@@ -420,6 +421,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
                                                   vector<pair<uint32_t, uint32_t>> *fin_disp_res);
 
   DisplayMutex disp_mutex_;
+  bool need_async_poweroff_wait_ = false;
+  SyncPoints cached_sync_points_;
   std::thread commit_thread_;
   DisplayId display_id_info_ = {};
   int32_t display_id_ = -1;

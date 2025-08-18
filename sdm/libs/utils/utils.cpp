@@ -227,6 +227,11 @@ const char* GetSocName() {
     case kCanoeSocId:
     case kCanoeSocId1:
     case kCanoeSocId2:
+    case kCanoeSocId3:
+    case kCanoeSocId4:
+    case kCanoeSocId5:
+    case kCanoeSSocId:
+    case kCanoeSSocId1:
       return kCanoeSocName;
     default:
       return "";

@@ -467,7 +467,7 @@ void SDMTrustedUI::VmReleaseDone(Display display) {
 
   if (clients_waiting_for_vm_release_.test(display)) {
     vm_release_locker_[display].Signal();
-    DLOGI("Signal vm release done!! for display %d", display);
+    DLOGI("Signal vm release done!! for display %" PRIu64, display);
     clients_waiting_for_vm_release_.reset(display);
   }
 }
@@ -477,7 +477,7 @@ void SDMTrustedUI::VmReclaimDone(Display display) {
 
   if (clients_waiting_for_vm_reclaim_.test(display)) {
     vm_reclaim_locker_[display].Signal();
-    DLOGI("Signal vm reclaim done!! for display %d", display);
+    DLOGI("Signal vm reclaim done!! for display %" PRIu64, display);
     clients_waiting_for_vm_reclaim_.reset(display);
   }
   vm_reclaim_done_ = true;

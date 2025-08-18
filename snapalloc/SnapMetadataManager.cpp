@@ -726,6 +726,9 @@ Error SnapMetadataManager::BufferTypeHelper(SnapMetadata *metadata, SnapHandleIn
   if (out_get != nullptr) {
     *static_cast<uint32_t *>(out_get) = handle->buffer_type();
     return Error::NONE;
+  } else if (in_set != nullptr) {
+    handle->buffer_type() = *static_cast<uint32_t *>(in_set);
+    return Error::NONE;
   }
   return Error::BAD_VALUE;
 }

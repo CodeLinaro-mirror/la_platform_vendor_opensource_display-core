@@ -100,6 +100,9 @@
 #ifndef SDE_SYSCACHE_LLCC_DISP_RIGHT
 #define SDE_SYSCACHE_LLCC_DISP_RIGHT 2
 #endif
+#ifndef DRM_FORMAT_MOD_QCOM_DMA
+#define DRM_FORMAT_MOD_QCOM_DMA fourcc_mod_code(QCOM, 0x400)
+#endif
 
 #define DEST_SCALAR_OVERFETCH_SIZE 5
 #define OFFSET_ALIGN(x, align) ((x) - ((x) % (align)))
@@ -361,6 +364,10 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
       *drm_format = DRM_FORMAT_P210;
       *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_DX;
       break;
+    case kFormatNV12Y:
+      *drm_format = DRM_FORMAT_NV12;
+      *drm_format_modifier = DRM_FORMAT_MOD_QCOM_DMA;
+      break;
     default:
       DLOGW("Unsupported format %s", GetFormatString(format));
   }
@@ -496,7 +503,7 @@ int HWDeviceDRM::Registry::CreateFbId(const LayerBuffer &buffer, std::vector<uin
     if (ret < 0) {
       DLOGE(
           "CreateFbId failed. width %d, height %d, format: %s, stride %u, "
-          "cac_color %d, usage %d error %d",
+          "cac_color %d, usage %" PRIu64 " error %d",
           layout.width, layout.height, GetFormatString(buf_info.format), layout.stride[0], color,
           buffer.usage, errno);
     }
@@ -1110,6 +1117,7 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
   hw_panel_info_.dynamic_fps = connector_info_.dynamic_fps;
   hw_panel_info_.qsync_support = connector_info_.qsync_support;
   hw_panel_info_.has_cwb_crop = has_cwb_crop_;
+  hw_panel_info_.dpu_dma_enabled = connector_info_.dpu_dma_enabled;
   if (connector_info_.dms_type == sde_drm::DMSType::DMS_VID_SEAMLESS) {
     hw_panel_info_.dms_type = kDMSVIDSeamless;
   } else if (connector_info_.dms_type == sde_drm::DMSType::DMS_VID_NON_SEAMLESS) {
@@ -1537,7 +1545,7 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   if (ret) {
     DLOGE(
         "Failed with error: %d, dynamic_fps=%d, seamless_mode_switch_=%d, vrefresh_=%d,"
-        "panel_mode_changed_=%d bit_clk_rate_=%d bpp_mode_changed_=%d",
+        "panel_mode_changed_=%d bit_clk_rate_=%" PRIu64 " bpp_mode_changed_=%d",
         ret, hw_panel_info_.dynamic_fps, seamless_mode_switch_, vrefresh_, panel_mode_changed_,
         bit_clk_rate_, bpp_mode_changed_);
     bpp_mode_changed_ = 0;
@@ -2695,7 +2703,7 @@ DisplayError HWDeviceDRM::SelectCscTypeWithMatrixCoEfficients(const LayerBuffer 
       break;
     case QtiMatrixCoEff_DCIP3:
       *type = ((input_buffer.dataspace.range == QtiRange_Full) ? DRMCscType::kCscYuv2RgbDCIP3FR
-                                                               : DRMCscType::kCscTypeMax);
+                                                               : DRMCscType::kCscYuv2RgbDCIP3L);
       break;
     default:
       return kErrorNotSupported;
@@ -2720,8 +2728,8 @@ void HWDeviceDRM::SelectCscTypeWithColorPrimaries(const LayerBuffer &input_buffe
                 DRMCscType::kCscYuv2Rgb2020FR : DRMCscType::kCscYuv2Rgb2020L);
       break;
     case QtiColorPrimaries_DCIP3:
-      *type = ((input_buffer.dataspace.range == QtiRange_Full) ?
-                DRMCscType::kCscYuv2RgbDCIP3FR : DRMCscType::kCscTypeMax);
+      *type = ((input_buffer.dataspace.range == QtiRange_Full) ? DRMCscType::kCscYuv2RgbDCIP3FR
+                                                               : DRMCscType::kCscYuv2RgbDCIP3L);
       break;
     default:
       break;
@@ -3408,7 +3416,7 @@ void HWDeviceDRM::SetUcscCsc(const HWUcscCsc &ucsc_csc, drm_msm_ucsc_csc *csc) {
   csc->cfg_param_0_len = UCSC_CSC_CFG0_PARAM_LEN;
   for (i = 0; i < csc->cfg_param_0_len; i++) {
     csc->cfg_param_0[i] = ucsc_csc.cfg_param_0[i];
-    DLOGV_IF(kTagDriverConfig, " UCSC csc[%d] = %lld", i, csc->cfg_param_0[i]);
+    DLOGV_IF(kTagDriverConfig, " UCSC csc[%d] = %" PRIu32, i, csc->cfg_param_0[i]);
   }
   csc->cfg_param_1_len = UCSC_CSC_CFG1_PARAM_LEN;
   for (i = 0; i < csc->cfg_param_1_len; i++) {

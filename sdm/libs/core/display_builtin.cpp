@@ -734,8 +734,8 @@ void DisplayBuiltIn::UpdateQsyncConfig() {
   disp_layer_stack_->stack_info.common_info.hw_avr_info.mode = GetAvrMode(mode);
   disp_layer_stack_->stack_info.common_info.hw_avr_info.step_enabled = avr_step_enabled_;
 
-  DLOGV_IF(kTagDisplay, "display %d-%d update: %d mode: %d AVR Step state: %d", display_id_,
-           display_type_, disp_layer_stack_->stack_info.common_info.hw_avr_info.update, mode,
+  DLOGV_IF(kTagDisplay, "display %d-%d update: %" PRIu64 " mode: %d AVR Step state: %d", display_id_,
+           display_type_, disp_layer_stack_->stack_info.common_info.hw_avr_info.update.to_ullong(), mode,
            avr_step_enabled_);
 
   // Store active mode.
@@ -877,7 +877,7 @@ DisplayError DisplayBuiltIn::SetupDemura(int current_idx) {
   input_cfg.secure_session = true;
 #endif
   input_cfg.panel_id = panel_id_;
-  DLOGI("panel id %lx\n", input_cfg.panel_id);
+  DLOGI("panel id %" PRIX64 "\n", input_cfg.panel_id);
   input_cfg.panel_name = client_ctx_.hw_panel_info.panel_name;
   input_cfg.display_intf = this;
   std::unique_ptr<DemuraIntf> demura =
@@ -1153,7 +1153,7 @@ DisplayError DisplayBuiltIn::SetupABCFeature() {
       *it = '_';
     }
   }
-  DLOGI("ABC panel id %lx actual panel-name %s\n", input_cfg.panel_id,
+  DLOGI("ABC panel id %" PRIX64 " actual panel-name %s\n", input_cfg.panel_id,
         input_cfg.panel_name.c_str());
   if (!abc_factory_) {
     DLOGE("Failed to get ABC feature Factory");
@@ -1200,10 +1200,10 @@ DisplayError DisplayBuiltIn::SetupABC() {
 
   if (IsPrimaryDisplay()) {
     Debug::Get()->GetProperty(DISABLE_ABC_PRIMARY, &value);
-    DLOGI("primary panel id value %lx\n", panel_id);
+    DLOGI("primary panel id value %" PRIX64 "\n", panel_id);
   } else {
     Debug::Get()->GetProperty(DISABLE_ABC_SECONDARY, &value);
-    DLOGI("secondary panel id value %lx\n", panel_id);
+    DLOGI("secondary panel id value %" PRIX64 "\n", panel_id);
   }
 
   if (value > 0) {
@@ -1219,7 +1219,7 @@ DisplayError DisplayBuiltIn::SetupABC() {
     info.prop_id = kPanelFeatureDemuraPanelId;
     ret = prop_intf_->GetPanelFeature(&info);
     if (ret) {
-      DLOGE("Failed to get panel id, error = %d", ret);
+      DLOGE("Failed to get panel id, error = %" PRIu64, ret);
       return kErrorUndefined;
     }
   }
@@ -1249,13 +1249,13 @@ DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
     panel_id = static_cast<uint32_t>(panel_id_w);
     Debug::Get()->GetProperty(DEMURA_PRIMARY_PANEL_OVERRIDE_HIGH, &panel_id_w);
     panel_id |= ((static_cast<uint64_t>(panel_id_w)) << 32);
-    DLOGI("panel overide total value for primary display %lx\n", panel_id);
+    DLOGI("panel overide total value for primary display %" PRIX64 "\n", panel_id);
   } else {
     Debug::Get()->GetProperty(DEMURA_SECONDARY_PANEL_OVERRIDE_LOW, &panel_id_w);
     panel_id = static_cast<uint32_t>(panel_id_w);
     Debug::Get()->GetProperty(DEMURA_SECONDARY_PANEL_OVERRIDE_HIGH, &panel_id_w);
     panel_id |= ((static_cast<uint64_t>(panel_id_w)) << 32);
-    DLOGI("panel overide total value for secondary display %lx\n", panel_id);
+    DLOGI("panel overide total value for secondary display %" PRIX64 "\n", panel_id);
   }
 
   PanelFeaturePropertyInfo info;
@@ -1269,7 +1269,7 @@ DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
     }
   }
   panel_id_ = panel_id;
-  DLOGI("panel_id 0x%lx", panel_id_);
+  DLOGI("panel_id 0x%" PRIX64, panel_id_);
 
   PanelFeaturePropertyInfo demura_info;
   bool double_buffer_codebook_supported = false;
@@ -1429,7 +1429,7 @@ DisplayError DisplayBuiltIn::SendPanelIdToParserManager() {
     return kErrorResources;
   }
 
-  DLOGI("Successfully set panel ID 0x%lx to parser manager intf, is_primary_display %d", panel_id_,
+  DLOGI("Successfully set panel ID 0x%" PRIX64 " to parser manager intf, is_primary_display %d", panel_id_,
         panel_ids_info->is_primary_display);
   return kErrorNone;
 }
@@ -1883,6 +1883,7 @@ DisplayError DisplayBuiltIn::SetPanelBrightness(float brightness, bool apply_imm
       level_remainder = t - level;
     }
 
+    abc_brightness_level_ = level;
     err = dpu_core_mux_->SetPanelBrightness(level, apply_immediately);
     if (err == kErrorNone) {
       level_remainder_ = level_remainder;
@@ -3759,7 +3760,7 @@ void DisplayIPCVmCallbackImpl::ExportHFCBuffer() {
   export_buf_in_params->panel_id = panel_id_;
   export_buf_in_params->mem_handle = buffer_info_hfc_.alloc_buffer_info.mem_handle;
 
-  DLOGI("Allocated hfc buffer mem_handle %d size %d panel id :%x", export_buf_in_params->mem_handle,
+  DLOGI("Allocated hfc buffer mem_handle %" PRId64 " size %d panel id :%" PRIX64, export_buf_in_params->mem_handle,
         export_buf_in_params->size, export_buf_in_params->panel_id);
   if ((ret = ipc_intf_->SetParameter(kIpcParamSetHFCBuffer, in))) {
     DLOGE("Failed to export demura buffers, error = %d", ret);
@@ -4613,8 +4614,7 @@ DisplayError DisplayBuiltIn::SetABCState(bool state) {
 
   // Enable or Disable ABC
   if (SetDemuraIntfStatus(state)) {
-    DLOGE("Failed to set demura status to %s on Display %d, ret = %d", ret,
-          state ? "true" : "false", display_id_);
+    DLOGE("Failed to set demura status to %s on Display %d, ret = %d", state ? "true" : "false", display_id_, ret);
     return kErrorUndefined;
   }
 
@@ -4712,6 +4712,30 @@ DisplayError DisplayBuiltIn::SetABCMode(const string &mode_name) {
     DLOGE("Unable to setup ABC layer on Display %d", display_id_);
     return kErrorUndefined;
   }
+
+#ifdef TRUSTED_VM
+  if (abc_brightness_level_ >= 0) {
+    int ret = 0;
+    GenericPayload pl;
+    uint32_t *brightness_level = nullptr;
+    ret = pl.CreatePayload<uint32_t>(brightness_level);
+    if (ret) {
+      DLOGE("Failed to create kDemuraFeatureParamUpdateBrightness payload");
+      return kErrorUndefined;
+    }
+
+    // Set the ABC feature with new brightness level and updated mode name
+    *brightness_level = abc_brightness_level_;
+    ret = demura_->SetParameter(kDemuraFeatureParamUpdateBrightness, pl);
+    if (ret) {
+      DLOGE("Failed to set brightness level for ABC feature %d", ret);
+      return kErrorUndefined;
+    }
+
+    abc_brightness_level_ = -1;
+    return kErrorNone;
+  }
+#endif
 
   // Set the ABC feature with updated mode name
   GenericPayload pl;

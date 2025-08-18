@@ -528,7 +528,7 @@ class SnapMetadataManager {
           {ALIGNED_HEIGHT_IN_PIXELS, {false}},
           {STANDARD_METADATA_STATUS, {true}},
           {VENDOR_METADATA_STATUS, {true}},
-          {BUFFER_TYPE, {false}},
+          {BUFFER_TYPE, {true}},
           {VIDEO_TS_INFO, {true}},
           {CUSTOM_DIMENSIONS_STRIDE, {false}},
           {CUSTOM_DIMENSIONS_HEIGHT, {false}},

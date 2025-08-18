@@ -426,6 +426,7 @@ class DisplayBuiltIn : public DisplayBase,
   bool abc_enabled_ = false;
   bool abc_tvm_enabled_ = false;
   bool abc_prop_ = false;
+  int abc_brightness_level_ = -1;
   bool enable_ai_scaler_ = false;
   bool enable_dpps_dyn_fps_ = false;
   HWDisplayMode last_panel_mode_ = kModeDefault;
