@@ -17,6 +17,8 @@
 #define kKeraSocId2 686
 #define kKeraSocId3 720
 #define kKeraSocId4 721
+#define kKeraSocId5 731
+#define kKeraSocId6 732
 #define kSunSocName "sun"
 #define kNiobeSocId1 629
 #define kNiobeSocId2 652
