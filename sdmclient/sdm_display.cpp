@@ -1894,17 +1894,8 @@ DisplayError SDMDisplay::GetDisplayLuts(
 
 DisplayError SDMDisplay::GetBufferLuts(const std::vector<SnapHandle *> &buffers,
                                        std::unique_ptr<std::vector<Lut3d *>> &out_luts) {
-  if (sdm_layer_stack_->layer_set_.empty()) {
-    return kErrorNone;
-  }
-
   if (out_luts == nullptr) {
     return kErrorNotSupported;
-  }
-
-  if (!validate_done_) {
-    DLOGW("Display is not validated");
-    return kErrorNeedsValidate;
   }
 
   uint32_t num_elements = buffers.size();
