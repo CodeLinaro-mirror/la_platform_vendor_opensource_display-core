@@ -629,6 +629,7 @@ DisplayError SDMDisplay::Init() {
   display_intf_->GetConfig(&fixed_info);
   is_cmd_mode_ = fixed_info.is_cmdmode;
 
+  SDMDebugHandler::Get()->GetProperty(RGBA_SPLIT_SUPPORT, &rgba_split_support_);
   game_supported_ = display_intf_->GameEnhanceSupported();
 
   if (!sdm_layer_stack_) {
@@ -826,7 +827,7 @@ void SDMDisplay::BuildLayerStack() {
       DLOGV_IF(kTagClient,
                "Layer [%" PRIu64
                "] marked as skip due to null client target handle "
-               "for display [%" PRIu64 "]-[%" PRIu64 "]",
+               "for display [%" PRIu64 "]-[%" PRIu32 "]",
                sdm_layer->GetId(), id_, type_);
     }
 
@@ -835,7 +836,7 @@ void SDMDisplay::BuildLayerStack() {
       DLOGV_IF(kTagClient,
                "Layer [%" PRIu64
                "] marked as skip due to client requested composition "
-               "for display [%" PRIu64 "]-[%" PRIu64 "]",
+               "for display [%" PRIu64 "]-[%" PRIu32 "]",
                sdm_layer->GetId(), id_, type_);
     } else if (requested_composition == SDMCompositionType::COMP_SOLID_COLOR) {
       layer->flags.solid_fill = true;
@@ -846,7 +847,7 @@ void SDMDisplay::BuildLayerStack() {
       DLOGV_IF(kTagClient,
                "Layer [%" PRIu64
                "] marked as skip due to unsupported dataspace "
-               "for display [%" PRIu64 "]-[%" PRIu64 "]",
+               "for display [%" PRIu64 "]-[%" PRIu32 "]",
                sdm_layer->GetId(), id_, type_);
     }
 
@@ -930,7 +931,7 @@ void SDMDisplay::BuildLayerStack() {
       DLOGV_IF(kTagClient,
                "Layer [%" PRIu64
                "] marked as skip due to non-integral source crop "
-               "for display [%" PRIu64 "]-[%" PRIu64 "]",
+               "for display [%" PRIu64 "]-[%" PRIu32 "]",
                sdm_layer->GetId(), id_, type_);
     }
 
@@ -951,7 +952,7 @@ void SDMDisplay::BuildLayerStack() {
       DLOGV_IF(kTagClient,
                "Layer [%" PRIu64
                "] marked as skip due to layer dimming on solid fill "
-               "for display [%" PRIu64 "]-[%" PRIu64 "]",
+               "for display [%" PRIu64 "]-[%" PRIu32 "]",
                sdm_layer->GetId(), id_, type_);
     }
 
@@ -1068,7 +1069,7 @@ void SDMDisplay::BuildSolidFillStack() {
 DisplayError SDMDisplay::SetLayerType(LayerId layer_id, SDMLayerTypes type) {
   const auto map_layer = sdm_layer_stack_->layer_map_.find(layer_id);
   if (map_layer == sdm_layer_stack_->layer_map_.end()) {
-    DLOGW("display [%" PRIu64 "]-[%" PRIu64 "] SetLayerType (%" PRIu64
+    DLOGW("display [%" PRIu64 "]-[%" PRIu32 "] SetLayerType (%" PRIu64
           ") failed to find layer",
           id_, type_, layer_id);
     return kErrorNotSupported;
@@ -1404,7 +1405,7 @@ DisplayError SDMDisplay::SetActiveConfig(Config config) {
       }
     }
   } else {
-    DLOGE("Invalid config: %d for display [%" PRIu64 "]-[%" PRIu64 "]", config, id_, type_);
+    DLOGE("Invalid config: %d for display [%" PRIu64 "]-[%" PRIu32 "]", config, id_, type_);
     return kErrorParameters;
   }
 
@@ -1426,7 +1427,7 @@ DisplayError SDMDisplay::SetActiveConfig(Config config) {
     pending_first_commit_config_ = false;
   }
 
-  DLOGI("Active configuration changed to: %d for display [%" PRIu64 "]-[%" PRIu64 "]", config, id_,
+  DLOGI("Active configuration changed to: %d for display [%" PRIu64 "]-[%" PRIu32 "]", config, id_,
         type_);
 
   {
@@ -1597,7 +1598,7 @@ DisplayError SDMDisplay::HandleEvent(DisplayEvent event) {
     // most likely result in a failure since ESD/HWR has been requested during
     // this time period.
     if (event_handler_) {
-      event_handler_->DisplayPowerReset();
+      event_handler_->DisplayPowerReset(id_);
     } else {
       DLOGW("Cannot execute DisplayPowerReset (client_id = %" PRId64
             "), event_handler_ is null",
@@ -1707,6 +1708,9 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
     Layer *layer = sdm_layer->GetSDMLayer();
     LayerComposition &composition = layer->composition;
 
+    if (IsDmaModeIncompatible(composition))
+      DLOGW("DPU DMA mode should not use %d Comp", composition);
+
     if (composition == kCompositionSDE || composition == kCompositionStitch) {
       layer_requests_[sdm_layer->GetId()] = SDMLayerRequest::ClearClientTarget;
     }
@@ -1723,6 +1727,14 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
       if (layer->lut_3d.validLutEntries) {
         display_luts_[sdm_layer->GetId()] = &layer->lut_3d;
       }
+    }
+
+    // map handle ids to luts so client can retrieve it through getLuts call
+    // used in screenshot layer during rotation, suspend resume, etc.
+    if (layer->lut_3d.lutEntries != nullptr) {
+      buffer_luts_[layer->input_buffer.handle_id] = &layer->lut_3d;
+    } else if (buffer_luts_.find(layer->input_buffer.handle_id) != buffer_luts_.end()) {
+      buffer_luts_.erase(layer->input_buffer.handle_id);
     }
 
     // Update the changes list only if the requested composition is different
@@ -1875,6 +1887,27 @@ DisplayError SDMDisplay::GetDisplayLuts(
 
   for (auto it = display_luts_.begin(); it != display_luts_.end(); it++) {
     out_luts->push_back(std::make_pair(it->first, it->second));
+  }
+
+  return kErrorNone;
+}
+
+DisplayError SDMDisplay::GetBufferLuts(const std::vector<SnapHandle *> &buffers,
+                                       std::unique_ptr<std::vector<Lut3d *>> &out_luts) {
+  if (out_luts == nullptr) {
+    return kErrorNotSupported;
+  }
+
+  uint32_t num_elements = buffers.size();
+  for (uint32_t i = 0; i < num_elements; i++) {
+    uint64_t handle_id = 0;
+    GetMetadata(buffers.at(i), MetadataType::BUFFER_ID, &handle_id, snapmapper_);
+    auto it = buffer_luts_.find(handle_id);
+    if (it != buffer_luts_.end()) {
+      out_luts->push_back(it->second);
+    } else {
+      out_luts->push_back(nullptr);
+    }
   }
 
   return kErrorNone;
@@ -2174,15 +2207,15 @@ void SDMDisplay::DumpInputBuffers() {
     Fence::Wait(layer->input_buffer.acquire_fence);
 
     if (!handle) {
-      DLOGW("Buffer handle is detected as null for layer: %s(%d) out of %lu "
+      DLOGW("Buffer handle is detected as null for layer: %s(%" PRIu64 ") out of %" PRIu32 " "
             "layers with layer "
             "flag value: %u",
             layer->layer_name.c_str(), layer->layer_id,
-            layer_stack_.layers.size(), layer->flags);
+            layer_stack_.layers.size(), layer->flags.flags);
       continue;
     }
 
-    DLOGI("Dump layer[%d] of %lu handle %p", i, layer_stack_.layers.size(),
+    DLOGI("Dump layer[%" PRIu32 "] of %" PRIu32 " handle %p", i, layer_stack_.layers.size(),
           handle);
 
     // start mapbuffer func
@@ -3085,14 +3118,14 @@ DisplayError SDMDisplay::SetActiveConfigWithConstraints(
   DTRACE_SCOPED();
 
   if (variable_config_map_.find(config) == variable_config_map_.end()) {
-    DLOGE("Invalid config: %d for display [%" PRIu64 "]-[%" PRIu64 "]", config, id_, type_);
+    DLOGE("Invalid config: %d for display [%" PRIu64 "]-[%" PRIu32 "]", config, id_, type_);
     return kErrorNotSupported;
   }
 
   if (vsync_period_change_constraints->seamlessRequired && !AllowSeamless(config)) {
     DLOGE(
         "Seamless switch to the config: %d, is not allowed! for display "
-        "[%" PRIu64 "]-[%" PRIu64 "]",
+        "[%" PRIu64 "]-[%" PRIu32 "]",
         config, id_, type_);
     return kSeamlessNotAllowed;
   }
@@ -3818,7 +3851,7 @@ SDMDisplay::GetReadbackBufferFenceForClient(CWBClient client,
       DLOGV_IF(
           kTagQDCM,
           "Need to wait for release fence, and retry to get it for client:%d, "
-          "buffer_id: %u",
+          "buffer_id: %" PRIu64,
           client, handle_id);
       status = kCWBReleaseFencePending;
     }
@@ -3837,10 +3870,10 @@ SDMDisplay::GetReadbackBufferFenceForClient(CWBClient client,
       status == kCWBReleaseFenceWaitTimedOut) {
     DLOGV_IF(kTagQDCM,
              "Fence is available, but either fence wait is timed-out, or "
-             "CWB Manager is not yet notified for client:%d, buffer_id: %u",
+             "CWB Manager is not yet notified for client:%d, buffer_id: %" PRIu64,
              client, handle_id);
   } else if (status == kCWBReleaseFenceUnknownError) {
-    DLOGE("CWB Manager notified unknown error for client:%d, buffer_id: %u",
+    DLOGE("CWB Manager notified unknown error for client:%d, buffer_id: %" PRIu64,
           client, handle_id);
   }
 
@@ -4045,7 +4078,7 @@ void SDMDisplay::NotifyCwbDone(int32_t status, const LayerBuffer &buffer) {
 
     const auto map_cwb_buffer = cwb_buffer_map_.find(handle_id);
     if (map_cwb_buffer == cwb_buffer_map_.end()) {
-      DLOGV_IF(kTagClient, "CWB Buffer(id = %u) not found in buffer-client map",
+      DLOGV_IF(kTagClient, "CWB Buffer(id = %" PRIu64 ") not found in buffer-client map",
                handle_id);
       return;
     }
@@ -4077,7 +4110,7 @@ void SDMDisplay::NotifyCwbDone(int32_t status, const LayerBuffer &buffer) {
 
   DLOGV_IF(
       kTagClient,
-      "CWB notified for client = %d with buffer = %u, return status = %s(%d)",
+      "CWB notified for client = %d with buffer = %" PRIu64 ", return status = %s(%d)",
       client, handle_id,
       (!status)                   ? "Handled"
       : (status == kErrorTimeOut) ? "Timedout"
@@ -4189,7 +4222,7 @@ DisplayError SDMDisplay::FinalizeDisplayConfig(bool check_pending_config, Config
 
   if (variable_config_map_.find(new_config) == variable_config_map_.end()) {
     if (!check_pending_config) {
-      DLOGE("Invalid config index : %u for display [%" PRIu64 "]-[%" PRIu64 "]", new_config, id_,
+      DLOGE("Invalid config index : %u for display [%" PRIu64 "]-[%" PRIu32 "]", new_config, id_,
             type_);
       return kErrorParameters;
     }
@@ -4206,7 +4239,7 @@ DisplayError SDMDisplay::FinalizeDisplayConfig(bool check_pending_config, Config
     if (error != kErrorNone) {
       DLOGW(
           "Failed to set new real config:%d from current real config:%d! Error: %d"
-          " for display [%" PRIu64 "]-[%" PRIu64 "]",
+          " for display [%" PRIu64 "]-[%" PRIu32 "]",
           new_real_config, current_real_config, error, id_, type_);
       return kErrorNotSupported;
     }
@@ -4215,7 +4248,7 @@ DisplayError SDMDisplay::FinalizeDisplayConfig(bool check_pending_config, Config
   auto current_config = active_config_index_;
   DLOGV_IF(kTagClient,
            "Active configuration changed from config %d to %d"
-           " for display [%" PRIu64 "]-[%" PRIu64 "]",
+           " for display [%" PRIu64 "]-[%" PRIu32 "]",
            current_config, new_config, id_, type_);
   // Update client visible configuration
   active_config_index_ = new_config;
@@ -4301,6 +4334,19 @@ DisplayError SDMDisplay::SetStandbyMode(bool enable, bool is_twm) {
     }
   }
   return kErrorNone;
+}
+
+DisplayError SDMDisplay::SetRGBASplit(int32_t split_enable) {
+  if (!rgba_split_support_) {
+    DLOGW("Feature not supported on display: %" PRId64 " %d-%d", id_, sdm_id_, type_);
+    return kErrorNotSupported;
+  }
+
+  DisplayError error = display_intf_->SetRGBASplit(split_enable);
+  DLOGI("Feature %s on display : %" PRId64 " %d-%d", split_enable ? "enabled" : "disabled", id_,
+        sdm_id_, type_, split_enable);
+
+  return error;
 }
 
 }  // namespace sdm

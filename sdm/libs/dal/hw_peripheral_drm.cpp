@@ -881,6 +881,7 @@ DisplayError HWPeripheralDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_QSYNC_MODE, token_.conn_id,
                             sde_drm::DRMQsyncMode::NONE);
   ConfigureLoopbackCAC(false /* cac enabled */);
+  ResetDestScalarData();
 
   err = HWDeviceDRM::PowerOff(teardown, sync_points);
   if (err != kErrorNone) {
@@ -892,6 +893,18 @@ DisplayError HWPeripheralDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   SetTUIState();
 
   return kErrorNone;
+}
+
+void HWPeripheralDRM::ResetDestScalarData() {
+  if (sde_dest_scalar_data_.num_dest_scaler) {
+    for (uint32_t i = 0; i < dest_scaler_blocks_used_; i++) {
+      sde_drm_dest_scaler_cfg *dest_scalar_data = &sde_dest_scalar_data_.ds_cfg[i];
+      *dest_scalar_data = {};
+    }
+    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_DEST_SCALER_CONFIG, token_.crtc_id,
+                              reinterpret_cast<uint64_t>(&sde_dest_scalar_data_));
+    ResetDestScalarCache();
+  }
 }
 
 DisplayError HWPeripheralDRM::Doze(const HWQosData &qos_data, SyncPoints *sync_points) {
@@ -944,7 +957,7 @@ DisplayError HWPeripheralDRM::DozeSuspend(const HWQosData &qos_data, SyncPoints 
 DisplayError HWPeripheralDRM::SetDisplayAttributes(uint32_t index) {
   if (doze_poms_switch_done_ || pending_poms_switch_ || bit_clk_rate_) {
     DLOGW("Bailing. Pending operations: doze_poms_switch_done_=%d, pending_poms_switch_=%d,"
-     "bit_clk_rate_=%d", doze_poms_switch_done_, pending_poms_switch_, bit_clk_rate_);
+     "bit_clk_rate_=%" PRIu64, doze_poms_switch_done_, pending_poms_switch_, bit_clk_rate_);
     return kErrorDeferred;
   }
 

@@ -209,6 +209,8 @@ enum LayerBufferFormat {
                                       //!<    y(n-1), u(n-1), y(n), v(n-1)
 
   kFormatCbYCrY422H2V1Packed,
+  kFormatRAW10,
+  kFormatNV12Y,
   kFormatInvalid = 0xFFFFFFFF,
 };
 

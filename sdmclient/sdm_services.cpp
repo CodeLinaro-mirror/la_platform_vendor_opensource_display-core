@@ -194,6 +194,18 @@ DisplayError SDMServices::SetIdleTimeout(int value) {
   return kErrorNone;
 }
 
+DisplayError SDMServices::SetRGBASplit(int disp_id, int split_enable) {
+  auto display = cb_->GetDisplayFromClientId(disp_id);
+  if (!display) {
+    DLOGW("Display = %d is not connected.", disp_id);
+    return kErrorHardware;
+  }
+
+  display->SetRGBASplit(split_enable);
+
+  return kErrorNone;
+}
+
 DisplayError SDMServices::SetFrameDumpConfig(
     uint32_t frame_dump_count, std::bitset<32> bit_mask_display_type,
     uint32_t bit_mask_layer_type, int32_t processable_cwb_requests,
@@ -323,8 +335,7 @@ DisplayError SDMServices::ToggleScreenUpdate(int disp_id, bool on) {
 
   DisplayError error = sdm_display->ToggleScreenUpdates(on);
   if (error) {
-    DLOGE("Failed to toggle screen updates = %d. Display = %" PRIu64
-          ", Error = %d",
+    DLOGE("Failed to toggle screen updates = %d. Display = %d, Error = %d",
           on, disp_id, error);
   }
 
@@ -554,6 +565,11 @@ DisplayError SDMServices::SetCameraLaunchStatus(int camera_status) {
 }
 
 DisplayError SDMServices::DisplayBWTransactionPending(bool *state) {
+  if (!cb_) {
+    DLOGW("SDMServices::cb_ is null — cannot query display");
+    return kErrorHardware;
+  }
+
   auto sdm_display = cb_->GetDisplayFromClientId(SDM_DISPLAY_PRIMARY);
   if (!sdm_display) {
     DLOGW("Display = %d is not connected.", SDM_DISPLAY_PRIMARY);
@@ -995,7 +1011,13 @@ DisplayError SDMServices::SetDemuraState(SDMParcel *input_parcel,
                                          SDMParcel *output_parcel) {
   int disp_id = input_parcel->readInt32();
   int state = input_parcel->readInt32();
-  auto ret = cb_->SetDemuraState(disp_id, state);
+
+  int demura_idx = 0;
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    demura_idx = input_parcel->readInt32();
+  }
+
+  auto ret = cb_->SetDemuraState(disp_id, state, demura_idx);
   if (ret != kErrorNone) {
     return ret;
   }
@@ -1416,6 +1438,13 @@ DisplayError SDMServices::SetIdleTimeout(SDMParcel *input_parcel) {
   int active_ms = input_parcel->readInt32();
 
   return SetIdleTimeout(active_ms);
+}
+
+DisplayError SDMServices::SetRGBASplit(SDMParcel *input_parcel) {
+  int display = INT(input_parcel->readInt32());
+  int rgba_split_enable = input_parcel->readInt32();
+
+  return SetRGBASplit(display, rgba_split_enable);
 }
 
 DisplayError SDMServices::SetDisplayStatus(SDMParcel *input_parcel,

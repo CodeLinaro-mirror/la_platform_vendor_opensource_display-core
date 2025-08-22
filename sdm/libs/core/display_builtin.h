@@ -245,7 +245,7 @@ class DisplayBuiltIn : public DisplayBase,
                                uint32_t min_refresh_rate);
   DisplayError UpdateTransferTime(uint32_t transfer_time) override;
   DisplayError RetrieveDemuraTnFiles() override;
-  DisplayError SetDemuraState(int state) override;
+  DisplayError SetDemuraState(int state, int demura_idx) override;
   DisplayError SetDemuraConfig(int demura_idx) override;
   DisplayError PerformCacConfig(CacConfig config, bool enable) override;
   bool IsCacV2Supported() override;
@@ -319,14 +319,14 @@ class DisplayBuiltIn : public DisplayBase,
   void GetFpsConfig(HWDisplayAttributes *display_attributes, HWPanelInfo *panel_info);
   PrimariesTransfer GetBlendSpaceFromStcColorMode(const snapdragoncolor::ColorMode &color_mode);
   DisplayError SetupSPR();
-  DisplayError SetupDemura();
+  DisplayError SetupDemura(int current_idx = kDemuraDefaultIdx);
   DisplayError SetupCorrectionLayer();
   DisplayError SetupDemuraLayer();
   DisplayError SetupABCLayer();
   DisplayError SetupDemuraTn();
   DisplayError EnableDemuraTn(bool enable);
   DisplayError SetupDemuraT0AndTn();
-  DisplayError SetupDemuraT0();
+  DisplayError SetupDemuraT0(int current_idx = kDemuraDefaultIdx);
   DisplayError SetupABCFeature();
   DisplayError SetupABC();
   DisplayError SetDisplayStateForDemuraTn(DisplayState state);
@@ -426,6 +426,7 @@ class DisplayBuiltIn : public DisplayBase,
   bool abc_enabled_ = false;
   bool abc_tvm_enabled_ = false;
   bool abc_prop_ = false;
+  int abc_brightness_level_ = -1;
   bool enable_ai_scaler_ = false;
   bool enable_dpps_dyn_fps_ = false;
   HWDisplayMode last_panel_mode_ = kModeDefault;
@@ -457,7 +458,7 @@ class DisplayBuiltIn : public DisplayBase,
   std::shared_ptr<VMFileXferIntf> vm_file_xfer_intf_ = nullptr;
   bool demura_allowed_ = false;
   bool demuratn_allowed_ = false;
-  int demura_prop_ = 0;
+  bool demura_enable_ = false;
   bool demura_calib_files_reloaded_ = false;
   VmFileXferClientFactIntfExtn *factory_extn_ = nullptr;
   std::shared_ptr<FeatureLicenseIntf> feat_license_intf_ = nullptr;

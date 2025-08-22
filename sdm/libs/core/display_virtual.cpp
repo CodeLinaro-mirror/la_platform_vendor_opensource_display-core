@@ -23,11 +23,10 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-*
-* Copyright (c) Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include <utils/constants.h>
 #include <utils/debug.h>
@@ -87,7 +86,7 @@ DisplayError DisplayVirtual::Init() {
     default_clock_hz_.insert(std::pair<uint32_t, uint32_t>(i, 0));
     cached_framebuffer_.insert(std::pair<uint32_t, LayerBuffer>(i, {}));
     cached_qos_data_.insert(std::pair<uint32_t, HWQosData>(i, {}));
-    disp_layer_stack_->info.insert(std::pair<uint32_t, HWLayersInfo>(i, {}));
+    disp_layer_stack_->info.insert(std::pair<uint32_t, HWLayersInfo>(i, HWLayersInfo()));
   }
 
   for (auto info_intf = hw_info_intf_.Begin(); info_intf != hw_info_intf_.End(); info_intf++) {
@@ -173,7 +172,7 @@ DisplayError DisplayVirtual::SetActiveConfig(DisplayConfigVariableInfo *variable
   if (set_max_lum_ != -1.0 || set_min_lum_ != -1.0) {
     client_ctx.hw_panel_info.peak_luminance = set_max_lum_;
     client_ctx.hw_panel_info.blackness_level = set_min_lum_;
-    DLOGI("set peak_luminance %f blackness_level %f for display %d-%d", display_id_,
+    DLOGI("for display %d-%d: set peak_luminance %f blackness_level %f", display_id_,
           display_type_, client_ctx.hw_panel_info.peak_luminance,
           client_ctx.hw_panel_info.blackness_level);
   }
@@ -300,21 +299,19 @@ DisplayError DisplayVirtual::InitializeColorModes() {
     var.push_back(std::make_pair(kGammaTransferAttribute, kHlg));
     color_modes_cs_.push_back(pt);
     color_mode_attr_map_.insert(std::make_pair(kBt2020Hlg, var));
-
-    current_color_mode_ = kDisplayBt2020;
-  } else {
-    // SRGB mode
-    pt.primaries = QtiColorPrimaries_BT709_5;
-    pt.transfer = QtiTransfer_sRGB;
-    var.push_back(std::make_pair(kColorGamutAttribute, kSrgb));
-    var.push_back(std::make_pair(kDynamicRangeAttribute, kSdr));
-    var.push_back(std::make_pair(kPictureQualityAttribute, kStandard));
-    var.push_back(std::make_pair(kRenderIntentAttribute, "0"));
-    color_modes_cs_.push_back(pt);
-    color_mode_attr_map_.insert(std::make_pair(kSrgb, var));
-
-    current_color_mode_ = kSrgb;
   }
+  // SRGB mode
+  pt.primaries = QtiColorPrimaries_BT709_5;
+  pt.transfer = QtiTransfer_sRGB;
+  var.clear();
+  var.push_back(std::make_pair(kColorGamutAttribute, kSrgb));
+  var.push_back(std::make_pair(kDynamicRangeAttribute, kSdr));
+  var.push_back(std::make_pair(kPictureQualityAttribute, kStandard));
+  var.push_back(std::make_pair(kRenderIntentAttribute, "0"));
+  color_modes_cs_.push_back(pt);
+  color_mode_attr_map_.insert(std::make_pair(kSrgb, var));
+
+  current_color_mode_ = kSrgb;
 
   num_color_modes_ = UINT32(color_mode_attr_map_.size());
   color_modes_.resize(num_color_modes_);

@@ -287,6 +287,7 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "prefill_time") { return DRMProperty::PREFILL_TIME; }
   if (name == "syscache_type") { return DRMProperty::SYS_CACHE_TYPE; }
   if (name == "buffer_mode") { return DRMProperty::BUFFER_MODE; }
+  if (name == "color_mask_override") { return DRMProperty::COLOR_MASK_OVERRIDE; }
 
   return DRMProperty::INVALID;
 }
