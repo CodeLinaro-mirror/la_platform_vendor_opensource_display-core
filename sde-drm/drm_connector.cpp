@@ -877,6 +877,7 @@ void DRMConnector::ParseModeProperties(uint64_t blob_id, DRMConnectorInfo *info)
   const string avr_step_fps = "avr_step_fps=";
   const string early_ept_timeout = "early_ept_timeout=";
   const string vhm_support = "has_vhm_support=";
+  const string lm_mask = "lm_mask=";
   const string emsync_fps_list = "emsync_fps_list=";
 
   DRMModeInfo *mode_item = &info->modes.at(0);
@@ -997,6 +998,8 @@ void DRMConnector::ParseModeProperties(uint64_t blob_id, DRMConnectorInfo *info)
       mode_item->early_ept_timeout = std::stoi(string(line, early_ept_timeout.length()));
     } else if (line.find(vhm_support) != string::npos) {
       mode_item->vhm_support = (std::stoi(string(line, vhm_support.length())) == 1);
+    } else if (line.find(lm_mask) != string::npos) {
+      mode_item->lm_mask = std::stoi(string(line, lm_mask.length()));
     } else if (line.find(emsync_fps_list) != string::npos) {
       if (!submode_item) {
         DRMSubModeInfo submode = {};
