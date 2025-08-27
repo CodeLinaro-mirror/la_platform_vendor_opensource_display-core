@@ -1019,6 +1019,7 @@ DisplayError SDMServices::SetDemuraState(SDMParcel *input_parcel,
 
   auto ret = cb_->SetDemuraState(disp_id, state, demura_idx);
   if (ret != kErrorNone) {
+    output_parcel->writeInt32(ret);
     return ret;
   }
 
@@ -1033,6 +1034,7 @@ DisplayError SDMServices::SetDemuraConfig(SDMParcel *input_parcel,
   int config = input_parcel->readInt32();
   auto ret = cb_->SetDemuraConfig(disp_id, config);
   if (ret != kErrorNone) {
+    output_parcel->writeInt32(ret);
     return ret;
   }
 

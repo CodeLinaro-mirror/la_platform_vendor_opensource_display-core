@@ -421,6 +421,8 @@ enum PanelFeatureVendorServiceType {
   kTypeDemuraTnAodHandlerCtrl = 10,
   /* Setter: None */
   kTypeDemuraTnAgingSurfTransfer = 11,
+  /* Setter: None */
+  kTypeSwitchToDAC = 12,
   PanelFeatureVendorServiceTypeMax,
 };
 
