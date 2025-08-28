@@ -262,6 +262,10 @@ DisplayError SDMDisplayBuiltIn::PreValidateDisplay(bool *exit_validate) {
   current_refresh_rate_ = refresh_rate;
 
   if (sdm_layer_stack_->layer_set_.empty()) {
+    //Trigger flush to commit TUI request to driver.
+    if (secure_event_ != kSecureEventMax) {
+      display_intf_->Flush(&layer_stack_);
+    }
     // Avoid flush for Command mode panel.
     flush_ = !client_connected_;
     *exit_validate = true;
