@@ -727,6 +727,7 @@ public:
   bool prepare_phase_ = false;
   uint64_t scheduled_dynamic_dsi_clk_ = 0;
   int32_t rgba_split_support_ = 0;
+  bool valid_commit_ = false;
 
  private:
   bool CanSkipSdmPrepare(uint32_t *num_types, uint32_t *num_requests);
