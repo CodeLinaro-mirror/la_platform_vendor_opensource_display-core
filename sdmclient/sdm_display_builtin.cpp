@@ -283,10 +283,11 @@ DisplayError SDMDisplayBuiltIn::PreValidateDisplay(bool *exit_validate) {
 DisplayError SDMDisplayBuiltIn::CommitLayerStack() {
   SetDynamicDSIClock();
 
+  valid_commit_ = false;
   skip_commit_ = CanSkipCommit();
   DisplayError error = SDMDisplay::CommitLayerStack();
 
-  if (commit_counter_) {
+  if (valid_commit_ && commit_counter_) {
     commit_counter_ = false;
     callbacks_->OnRefresh(id_);
   }
@@ -1169,11 +1170,13 @@ DisplayError SDMDisplayBuiltIn::SetDynamicDSIClock() {
 }
 
 DisplayError SDMDisplayBuiltIn::ScheduleDynamicDSIClock(uint64_t bitclk) {
-  if (scheduled_dynamic_dsi_clk_) {
-    return kErrorPermission;
-  }
-
   DTRACE_SCOPED();
+  DLOGV_IF(kTagClient, "ScheduleDynamicDSIClock: %" PRIu64, bitclk);
+
+  if (scheduled_dynamic_dsi_clk_) {
+    scheduled_dynamic_dsi_clk_ = bitclk;
+    return kErrorNone;
+  }
 
   DisablePartialUpdateOneFrame();
   ControlIdlePowerCollapse(false, false);
@@ -1627,6 +1630,7 @@ DisplayError SDMDisplayBuiltIn::CommitOrPrepare(
   SetDynamicDSIClock();
 
   prepare_phase_ = true;
+  valid_commit_ = false;
   auto status = SDMDisplay::CommitOrPrepare(validate_only, out_retire_fence,
                                             out_num_types, out_num_requests,
                                             needs_commit);
@@ -1643,7 +1647,7 @@ DisplayError SDMDisplayBuiltIn::CommitOrPrepare(
   prepare_phase_ = false;
 
   // Need a commit call to flush the dsi dynamic clock
-  if (!(*needs_commit) && commit_counter_) {
+  if (valid_commit_ && commit_counter_) {
     commit_counter_ = false;
     callbacks_->OnRefresh(id_);
   }
