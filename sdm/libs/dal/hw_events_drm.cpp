@@ -104,6 +104,7 @@ void HWEventsDRM::HandleDRMOpen(int &fd) {
 }
 
 DisplayError HWEventsDRM::InitializePollFd() {
+  static std::bitset<8> core_id_map = 0;
   for (uint32_t i = 0; i < event_data_list_.size(); i++) {
     char data[kMaxStringLength]{};
     HWEventData &event_data = event_data_list_[i];
@@ -113,9 +114,10 @@ DisplayError HWEventsDRM::InitializePollFd() {
     switch (event_data.event_type) {
       case HWEvent::VSYNC: {
         poll_fds_[i].events = POLLIN | POLLPRI | POLLERR;
-        if (is_primary_) {
+        if (is_primary_ || !core_id_map.test(core_id_)) {
+          core_id_map[core_id_] = 1;
           DRMMaster *master = nullptr;
-          int ret = DRMMaster::GetInstance(&master);
+          int ret = DRMMaster::GetInstance(&master, core_id_);
           if (ret < 0) {
             DLOGE("Failed to acquire DRMMaster instance");
             return kErrorNotSupported;
