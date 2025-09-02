@@ -4344,7 +4344,7 @@ DisplayError SDMDisplay::SetRGBASplit(int32_t split_enable) {
 
   DisplayError error = display_intf_->SetRGBASplit(split_enable);
   DLOGI("Feature %s on display : %" PRId64 " %d-%d", split_enable ? "enabled" : "disabled", id_,
-        sdm_id_, type_, split_enable);
+        sdm_id_, type_);
 
   return error;
 }
