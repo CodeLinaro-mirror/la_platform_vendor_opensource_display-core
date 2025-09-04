@@ -187,9 +187,7 @@ public:
                                           int32_t format,
                                           CwbConfig &cwb_config);
   virtual DisplayError SetMaxMixerStages(uint32_t max_mixer_stages);
-  virtual DisplayError ControlPartialUpdate(bool enable, uint32_t *pending) {
-    return kErrorNotSupported;
-  }
+  virtual DisplayError ControlPartialUpdate(bool enable) { return kErrorNotSupported; }
   virtual SDMPowerMode GetCurrentPowerMode();
   virtual DisplayError SetFrameBufferResolution(uint32_t x_pixels,
                                                 uint32_t y_pixels);

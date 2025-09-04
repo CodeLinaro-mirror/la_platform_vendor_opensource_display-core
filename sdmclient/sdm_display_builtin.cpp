@@ -1028,12 +1028,11 @@ DisplayError SDMDisplayBuiltIn::SetHWDetailedEnhancerConfig(void *params) {
   return err;
 }
 
-DisplayError SDMDisplayBuiltIn::ControlPartialUpdate(bool enable,
-                                                     uint32_t *pending) {
+DisplayError SDMDisplayBuiltIn::ControlPartialUpdate(bool enable) {
   DisplayError error = kErrorNone;
 
   if (display_intf_) {
-    error = display_intf_->ControlPartialUpdate(enable, pending);
+    error = display_intf_->ControlPartialUpdate(enable);
   }
 
   return error;

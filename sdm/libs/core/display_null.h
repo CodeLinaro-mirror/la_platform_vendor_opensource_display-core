@@ -109,7 +109,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(SetActiveConfig(uint32_t))
   MAKE_NO_OP(SetActiveConfig(DisplayConfigVariableInfo *))
   MAKE_NO_OP(SetMaxMixerStages(uint32_t))
-  MAKE_NO_OP(ControlPartialUpdate(bool, uint32_t *))
+  MAKE_NO_OP(ControlPartialUpdate(bool))
   MAKE_NO_OP(DisablePartialUpdateOneFrame())
   MAKE_NO_OP(SetDisplayMode(uint32_t))
   MAKE_NO_OP(SetBppMode(uint32_t))

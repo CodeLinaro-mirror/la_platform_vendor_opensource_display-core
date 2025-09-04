@@ -192,7 +192,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError Init() override;
   DisplayError Deinit() override;
   DisplayError Prepare(LayerStack *layer_stack) override;
-  DisplayError ControlPartialUpdate(bool enable, uint32_t *pending) override;
+  DisplayError ControlPartialUpdate(bool enable) override;
   DisplayError DisablePartialUpdateOneFrame() override;
   DisplayError DisablePartialUpdateOneFrameInternal() override;
   DisplayError SetDisplayState(DisplayState state, bool teardown,
@@ -342,7 +342,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError HandleSPR();
   void CacheFrameROI();
   void PreCommit(LayerStack *layer_stack);
-  DisplayError ControlPartialUpdateLocked(bool enable, uint32_t *pending);
+  DisplayError ControlPartialUpdateLocked(bool enable);
   DisplayError SetDppsFeatureLocked(void *payload, size_t size);
   DisplayError HandleDemuraLayer(LayerStack *layer_stack);
   void NotifyDppsHdrPresent(LayerStack *layer_stack);

@@ -786,15 +786,13 @@ DisplayError DisplayBuiltIn::setColorSamplingState(SamplingState state) {
     histogramCtrl.value = sde_drm::HistModes::kHistEnabled;
     histogramIRQ.value = sde_drm::HistModes::kHistEnabled;
     if (client_ctx_.hw_panel_info.mode == kModeCommand) {
-      uint32_t pending;
-      ControlPartialUpdate(false /* enable */, &pending);
+      ControlPartialUpdate(false /* enable */);
     }
   } else {
     histogramCtrl.value = sde_drm::HistModes::kHistDisabled;
     histogramIRQ.value = sde_drm::HistModes::kHistDisabled;
     if (client_ctx_.hw_panel_info.mode == kModeCommand) {
-      uint32_t pending;
-      ControlPartialUpdate(true /* enable */, &pending);
+      ControlPartialUpdate(true /* enable */);
     }
   }
 
@@ -1620,9 +1618,8 @@ DisplayError DisplayBuiltIn::PostCommit() {
   }
 
   if (switch_to_cmd_) {
-    uint32_t pending;
     switch_to_cmd_ = false;
-    ControlPartialUpdateLocked(true /* enable */, &pending);
+    ControlPartialUpdateLocked(true /* enable */);
   }
 
   if (last_panel_mode_ != client_ctx_.hw_panel_info.mode) {
@@ -1695,8 +1692,7 @@ void DisplayBuiltIn::HandleQsyncPostCommit() {
 
 void DisplayBuiltIn::UpdateDisplayModeParams() {
   if (client_ctx_.hw_panel_info.mode == kModeVideo) {
-    uint32_t pending = 0;
-    ControlPartialUpdateLocked(false /* enable */, &pending);
+    ControlPartialUpdateLocked(false /* enable */);
   } else if (client_ctx_.hw_panel_info.mode == kModeCommand) {
     // Flush idle timeout value currently set.
     comp_manager_->SetIdleTimeoutMs(display_comp_ctx_, 0, 0);
@@ -1800,7 +1796,6 @@ DisplayError DisplayBuiltIn::SetDisplayMode(uint32_t mode) {
   {
     ClientLock lock(disp_mutex_);
     HWDisplayMode hw_display_mode = static_cast<HWDisplayMode>(mode);
-    uint32_t pending = 0;
 
     if (!active_) {
       DLOGW("Invalid display state = %d. Panel must be on.", state_);
@@ -1830,7 +1825,7 @@ DisplayError DisplayBuiltIn::SetDisplayMode(uint32_t mode) {
     DisplayBase::ReconfigureDisplay();
 
     if (mode == kModeVideo) {
-      ControlPartialUpdateLocked(false /* enable */, &pending);
+      ControlPartialUpdateLocked(false /* enable */);
       uint32_t active_ms = 0;
       uint32_t inactive_ms = 0;
       Debug::GetIdleTimeoutMs(&active_ms, &inactive_ms);
@@ -2212,35 +2207,24 @@ DisplayError DisplayBuiltIn::GetPanelMaxBrightness(uint32_t *max_brightness_leve
   return kErrorNone;
 }
 
-DisplayError DisplayBuiltIn::ControlPartialUpdate(bool enable, uint32_t *pending) {
+DisplayError DisplayBuiltIn::ControlPartialUpdate(bool enable) {
   ClientLock lock(disp_mutex_);
-  return ControlPartialUpdateLocked(enable, pending);
+  return ControlPartialUpdateLocked(enable);
 }
 
-DisplayError DisplayBuiltIn::ControlPartialUpdateLocked(bool enable, uint32_t *pending) {
-  if (!pending) {
-    return kErrorParameters;
-  }
-
+DisplayError DisplayBuiltIn::ControlPartialUpdateLocked(bool enable) {
   if (dpps_info_.disable_pu_ && enable) {
     // Nothing to be done.
     DLOGI("partial update is disabled by DPPS for display %d-%d", display_id_, display_type_);
     return kErrorNotSupported;
   }
 
-  *pending = 0;
   if (enable == partial_update_control_) {
     DLOGI("Same state transition is requested.");
     return kErrorNone;
   }
   validated_ = false;
   partial_update_control_ = enable;
-
-  if (!enable) {
-    // If the request is to turn off feature, new draw call is required to have
-    // the new setting into effect.
-    *pending = 1;
-  }
 
   return kErrorNone;
 }
@@ -2262,7 +2246,6 @@ DisplayError DisplayBuiltIn::DisablePartialUpdateOneFrameInternal() {
 
 DisplayError DisplayBuiltIn::DppsProcessOps(enum DppsOps op, void *payload, size_t size) {
   DisplayError error = kErrorNone;
-  uint32_t pending;
   bool enable = false;
   DppsDisplayInfo *info;
 
@@ -2298,7 +2281,7 @@ DisplayError DisplayBuiltIn::DppsProcessOps(enum DppsOps op, void *payload, size
       }
       enable = *(reinterpret_cast<bool *>(payload));
       dpps_info_.disable_pu_ = !enable;
-      ControlPartialUpdate(enable, &pending);
+      ControlPartialUpdate(enable);
       event_handler_->Refresh();
       {
         ClientLock lock(disp_mutex_);
