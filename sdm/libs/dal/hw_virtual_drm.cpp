@@ -240,6 +240,7 @@ DisplayError HWVirtualDRM::Commit(HWLayersInfo *hw_layers_info) {
   ConfigureDNSC(hw_layers_info);
   ConfigureWbConnectorDestRect(hw_layers_info->iwe_enabled);
   SetWbCSC();
+  ProgramDisplayDeviceConfig();
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_SYNC_TO, token_.conn_id, primary_disp_conn_id_);
   // Reset the ROI which may have been previously set by CWB. Need revisit when ROI enabled on
   // virtual.
@@ -293,9 +294,12 @@ DisplayError HWVirtualDRM::GetOutputBufferFBIds(HWLayersInfo *hw_layers_info,
     uint8_t fb_id_cache_limit = is_csc_buffers ? UI_FBID_LIMIT : REPROJECTION_FBID_LIMIT;
     registry_.SetOutputFbIdCacheLimit(fb_id_cache_limit);
     for (int i = 0; i < hw_layers_info->reprojection_output_buffers.size(); i++) {
-      std::shared_ptr<LayerBuffer> output_buffer = hw_layers_info->reprojection_output_buffers[i];
+      std::shared_ptr<LayerBuffer> &output_buffer = hw_layers_info->reprojection_output_buffers[i];
       auto fb_changed = false;
-      registry_.MapOutputBufferToFbId(output_buffer, &fb_changed);
+      if (registry_.MapOutputBufferToFbId(output_buffer, &fb_changed) < 0) {
+        DLOGE("MapOutputBufferToFbId failed for display %d", display_id_);
+        return kErrorUndefined;
+      }
       uint32_t fb_id = registry_.GetOutputFbId(output_buffer->handle_id);
       fb_modified |= fb_changed;
       secure |= output_buffer->flags.secure;
@@ -438,6 +442,149 @@ DisplayError HWVirtualDRM::Deinit() {
 #endif
 
   return HWDeviceDRM::Deinit();
+}
+
+DisplayError HWVirtualDRM::SetDisplayDeviceConfig(
+    SDMDisplayDeviceConfig sdm_display_device_config) {
+  display_device_config_ = sdm_display_device_config;
+  // TODO: Need to revisit
+  // create opaque for gamma for all 6 field array[6][256];
+  float field_gamma[6][256];
+  for (int i = 0; i < 6; i++) {
+    std::memcpy(field_gamma[i], display_device_config_.gamma, sizeof(display_device_config_.gamma));
+  }
+  void *field_gamma_ptr = malloc(sizeof(field_gamma));
+  std::memcpy(field_gamma_ptr, field_gamma, sizeof(field_gamma));
+  display_gamma_.size = sizeof(field_gamma);
+  display_gamma_.data = reinterpret_cast<__u64>(field_gamma_ptr);
+  display_gamma_.crc = 0;
+  display_gamma_.flags = 0;
+  set_display_device_config_ = true;
+  return kErrorNone;
+}
+
+DisplayError HWVirtualDRM::SetReprojectionConfig(
+    const struct ReprojectionConfig &reprojection_config) {
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPRO_SESSION_CONFIG, token_.conn_id,
+                            &reprojection_config.repro_session_config);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPRO_SESSION_CONFIG_DATA, token_.conn_id,
+                            &reprojection_config.repro_session_data_config);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_SPARSE_GRID, token_.conn_id,
+                            &reprojection_config.reproj_sparse_grid);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_RADIAL_DIS_GRID, token_.conn_id,
+                            &reprojection_config.reproj_radial_dis_grid);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_RADIAL_DIS_RESOLUTION, token_.conn_id,
+                            reprojection_config.distort_resolution);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_OPTICAL_AXIS_OFFSET, token_.conn_id,
+                            &reprojection_config.reproj_optical_axis_offset);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_GRID_SIZE, token_.conn_id,
+                            reprojection_config.reproj_grid_w, reprojection_config.reproj_grid_h);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_R_MAX, token_.conn_id,
+                            reprojection_config.reproj_r_max);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_ERROR_TO_L, token_.conn_id,
+                            reprojection_config.reproj_error_to_l);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_DISP_IM_SIZE, token_.conn_id,
+                            reprojection_config.reproj_disp_im_width,
+                            reprojection_config.reproj_disp_im_height);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_TILE_SIZE, token_.conn_id,
+                            reprojection_config.reproj_tile_w, reprojection_config.reproj_tile_h);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_MODE, token_.conn_id,
+                            reprojection_config.reprojection_mode);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_TO_LRGB, token_.conn_id,
+                            reprojection_config.reproj_to_lrgb_left,
+                            reprojection_config.reproj_to_lrgb_left);
+  return kErrorNone;
+}
+
+DisplayError HWVirtualDRM::InvertMatrix(float mat[REPROJ_MATRIX_ROWS][REPROJ_MATRIX_COLS],
+                                        float invert_mat[REPROJ_MATRIX_ROWS][REPROJ_MATRIX_COLS]) {
+  if (REPROJ_MATRIX_COLS != REPROJ_MATRIX_COLS) {
+    DLOGW("Matrix is not square");
+    return kErrorNotSupported;
+  }
+
+  int n = REPROJ_MATRIX_COLS;
+  std::vector<std::vector<float>> temp(n, std::vector<float>(2 * n));
+  // Create augmented matrix [A | I]
+  for (int i = 0; i < n; ++i) {
+    for (int j = 0; j < n; ++j) {
+      temp[i][j] = mat[i][j];
+    }
+    for (int j = n; j < 2 * n; ++j) {
+      temp[i][j] = (i == j - n) ? 1.0f : 0.0f;
+    }
+  }
+
+  // Gauss-Jordan elimination
+  for (int i = 0; i < n; ++i) {
+    float diag = temp[i][i];
+    if (std::fabs(diag) < 1e-6f) {
+      DLOGW("Singular Matrix");
+      return kErrorNotSupported;
+    }
+    for (int j = 0; j < 2 * n; ++j) {
+      temp[i][j] /= diag;
+    }
+
+    for (int k = 0; k < n; ++k) {
+      if (k == i) {
+        continue;
+      }
+      float factor = temp[k][i];
+      for (int j = 0; j < 2 * n; ++j) {
+        temp[k][j] -= factor * temp[i][j];
+      }
+    }
+  }
+
+  for (int i = 0; i < n; ++i) {
+    for (int j = 0; j < n; ++j) {
+      invert_mat[i][j] = temp[i][j + n];
+    }
+  }
+
+  return kErrorNone;
+}
+void HWVirtualDRM::ProgramDisplayDeviceConfig() {
+  if (!set_display_device_config_) {
+    return;
+  }
+
+  // set display projection matrix
+  // struct sde_drm_reproj_matrix {
+  // __u32 view_index;
+  // __u32 is_inverse;
+  // __u32 reproj_matrix[REPROJ_MATRIX_ROWS][REPROJ_MATRIX_COLS];
+  // };
+
+  drm_repro_matrix_ = {};
+  for (int i = 0; i < MAX_VIEWS; i++) {
+    auto matrix_idx = i * MAX_VIEWS;
+    drm_repro_matrix_.matrix_list[matrix_idx].view_index = i;
+    drm_repro_matrix_.matrix_list[matrix_idx].is_inverse = 0;
+    memcpy(&drm_repro_matrix_.matrix_list[matrix_idx].reproj_matrix,
+           &display_device_config_.projectionMatrix[i].prjMatrix,
+           sizeof(display_device_config_.projectionMatrix[i].prjMatrix));
+
+    // inverse matrix
+    matrix_idx++;
+    float inverse_matrix[REPROJ_MATRIX_ROWS][REPROJ_MATRIX_COLS];
+    auto error = InvertMatrix(display_device_config_.projectionMatrix[i].prjMatrix, inverse_matrix);
+    if (error != kErrorNone) {
+      DLOGE("Failed to calculate invertMatrix");
+      return;
+    }
+    drm_repro_matrix_.matrix_list[matrix_idx].view_index = i;
+    drm_repro_matrix_.matrix_list[matrix_idx].is_inverse = 1;
+    memcpy(&drm_repro_matrix_.matrix_list[matrix_idx].reproj_matrix, &inverse_matrix,
+           sizeof(inverse_matrix));
+  }
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CONFIG_MATRIX, token_.conn_id,
+                            &drm_repro_matrix_);
+
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_DISPLAY_GAMMA, token_.conn_id, &display_gamma_);
+
+  set_display_device_config_ = false;
 }
 
 }  // namespace sdm

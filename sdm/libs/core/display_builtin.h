@@ -312,6 +312,8 @@ class DisplayBuiltIn : public DisplayBase,
   // Implement SdmDisplayCbInterface
   int Notify(const TvmServiceCbEvent &) override;
 
+  DisplayError SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config) override;
+
  private:
   bool CanCompareFrameROI(LayerStack *layer_stack);
   bool CanSkipDisplayPrepare(LayerStack *layer_stack);

@@ -155,6 +155,9 @@ class DRMPlane {
 #ifdef UCSC_SUPPORTED
   uint32_t ucsc_csc_blob_id_ = 0;
 #endif
+  sde_drm_render_pose render_pose_copy_ = {};
+  sde_drm_render_frustum render_frustum_copy_ = {};
+  sde_drm_plane_equation plane_equation_copy_ = {};
 };
 
 class DRMPlaneManager {

@@ -1027,7 +1027,7 @@ DisplayError ConcurrencyMgr::SetDisplayElapseTime(Display display,
 }
 
 DisplayError ConcurrencyMgr::SetDisplayDeviceConfig(
-    Display display, sdm::SDMDisplayDeviceConfig sdm_display_device_config) {
+    Display display, SDMDisplayDeviceConfig sdm_display_device_config) {
   return CallDisplayFunction(display, &SDMDisplay::SetDisplayDeviceConfig,
                              sdm_display_device_config);
 }

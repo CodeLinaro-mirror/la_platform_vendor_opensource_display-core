@@ -1657,6 +1657,67 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       SetPrefillTime(req, config);
     } break;
 
+    case DRMOps::PLANE_SET_REFERENCE_SPACE_TYPE: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REFERENCE_SPACE_TYPE)) {
+        return;
+      }
+      uint32_t ref_space_type = va_arg(args, uint32_t);
+      prop_id = prop_mgr_.GetPropertyId(DRMProperty::REFERENCE_SPACE_TYPE);
+      AddProperty(req, obj_id, prop_id, ref_space_type, true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("Plane %d: Setting reference space type %d", obj_id, ref_space_type);
+    } break;
+    case DRMOps::PLANE_SET_RENDER_TYPE: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::RENDER_TYPE)) {
+        return;
+      }
+      uint32_t render_type = va_arg(args, uint32_t);
+      prop_id = prop_mgr_.GetPropertyId(DRMProperty::RENDER_TYPE);
+      AddProperty(req, obj_id, prop_id, render_type, true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("Plane %d: Setting render_type %d", obj_id, render_type);
+    } break;
+    case DRMOps::PLANE_SET_RENDER_POSE: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::RENDER_POSE)) {
+        return;
+      }
+      sde_drm_render_pose *handle = va_arg(args, sde_drm_render_pose *);
+      render_pose_copy_ = *handle;
+      prop_id = prop_mgr_.GetPropertyId(DRMProperty::RENDER_POSE);
+      AddProperty(req, obj_id, prop_id, reinterpret_cast<uint64_t>(&render_pose_copy_),
+                  true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("Plane %d: Setting render_pose", obj_id);
+    } break;
+    case DRMOps::PLANE_SET_RENDER_FRUSTUM: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::RENDER_FRUSTUM)) {
+        return;
+      }
+      sde_drm_render_frustum *handle = va_arg(args, sde_drm_render_frustum *);
+      render_frustum_copy_ = *handle;
+      prop_id = prop_mgr_.GetPropertyId(DRMProperty::RENDER_FRUSTUM);
+      AddProperty(req, obj_id, prop_id, reinterpret_cast<uint64_t>(&render_frustum_copy_),
+                  true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("Plane %d: Setting render_frustum", obj_id);
+    } break;
+    case DRMOps::PLANE_SET_PLANE_EQUATION: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::PLANE_EQUATION)) {
+        return;
+      }
+      sde_drm_plane_equation *handle = va_arg(args, sde_drm_plane_equation *);
+      plane_equation_copy_ = *handle;
+      prop_id = prop_mgr_.GetPropertyId(DRMProperty::PLANE_EQUATION);
+      AddProperty(req, obj_id, prop_id, reinterpret_cast<uint64_t>(&plane_equation_copy_),
+                  true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("Plane %d: Setting plane_equation", obj_id);
+    } break;
+    case DRMOps::PLANE_SET_LAYER_GAMMA: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::LAYER_GAMMA)) {
+        return;
+      }
+      uint32_t layer_gamma = va_arg(args, uint32_t);
+      prop_id = prop_mgr_.GetPropertyId(DRMProperty::LAYER_GAMMA);
+      AddProperty(req, obj_id, prop_id, layer_gamma, true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("Plane %d: Setting layer_gamma %d", obj_id, layer_gamma);
+    } break;
+
 #ifdef UCSC_SUPPORTED
     case DRMOps::PLANE_SET_UCSC_UNMULT_CONFIG: {
       prop_id = prop_mgr_.GetPropertyId(DRMProperty::SDE_SSPP_UCSC_UNMULT_V1);

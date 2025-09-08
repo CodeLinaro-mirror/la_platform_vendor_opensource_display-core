@@ -322,6 +322,9 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual bool IsDpuDmaModeEnabled();
   virtual DisplayError SetClientTargetCapability(
       const std::bitset<kClientCapabilityMax> &client_capabilities);
+  virtual DisplayError SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config) {
+    return kErrorNotSupported;
+  }
 
  protected:
   struct DisplayMutex {

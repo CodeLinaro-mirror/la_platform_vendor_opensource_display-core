@@ -765,7 +765,6 @@ public:
   uint32_t frame_interval_ns_ = 0;  // FrameInterval for current frame
   bool is_poms_mode_ = false;
   bool pending_privregions_update_ = false;
-  SDMDisplayDeviceConfig display_device_config_;
 };
 
 inline DisplayError SDMDisplay::Perform(uint32_t operation, ...) {

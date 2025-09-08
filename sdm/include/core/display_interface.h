@@ -1623,6 +1623,15 @@ class DisplayInterface {
   virtual DisplayError SetClientTargetCapability(
       const std::bitset<kClientCapabilityMax> &client_capabilities) = 0;
 
+  /*! @brief Method to set display device configuration for Late stage reprojection
+
+    @param[in] display_device_config: \link SDMDisplayDeviceConfig \endlink
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetDisplayDeviceConfig(
+      const SDMDisplayDeviceConfig &display_device_config) = 0;
+
  protected:
   virtual ~DisplayInterface() { }
 };

@@ -613,10 +613,10 @@ int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buff
   return 0;
 }
 
-void HWDeviceDRM::Registry::MapOutputBufferToFbId(std::shared_ptr<LayerBuffer> output_buffer,
-                                                  bool *fb_modified) {
+int HWDeviceDRM::Registry::MapOutputBufferToFbId(std::shared_ptr<LayerBuffer> output_buffer,
+                                                 bool *fb_modified) {
   if (output_buffer->planes[0].fd < 0) {
-    return;
+    return -1;
   }
 
   uint64_t handle_id = output_buffer->handle_id;
@@ -635,7 +635,7 @@ void HWDeviceDRM::Registry::MapOutputBufferToFbId(std::shared_ptr<LayerBuffer> o
         FrameBufferObject *fb_obj = static_cast<FrameBufferObject*>(itr->second.get());
         if (fb_obj->IsEqual(output_buffer->format, output_buffer->width, output_buffer->height,
                             secure_present)) {
-          return;
+          return 0;
         } else {
           output_buffer_map_.erase(it);
         }
@@ -649,7 +649,8 @@ void HWDeviceDRM::Registry::MapOutputBufferToFbId(std::shared_ptr<LayerBuffer> o
   }
 
   std::vector<uint32_t> fb_id(1);
-  if (CreateFbId(*output_buffer, &fb_id) >= 0) {
+  int ret = CreateFbId(*output_buffer, &fb_id);
+  if (ret >= 0) {
     std::unordered_map<uint32_t, std::shared_ptr<LayerBufferObject>> dpu_buffer_map;
     dpu_buffer_map[core_id_] = std::make_shared<FrameBufferObject>(
         fb_id[kColorNone], core_id_, output_buffer->format, output_buffer->width,
@@ -657,6 +658,7 @@ void HWDeviceDRM::Registry::MapOutputBufferToFbId(std::shared_ptr<LayerBuffer> o
     output_buffer_map_[handle_id] = dpu_buffer_map;
     *fb_modified = true;
   }
+  return ret;
 }
 
 void HWDeviceDRM::Registry::Clear() {
@@ -1915,7 +1917,8 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
           uint32_t fg_alpha = layer.plane_alpha;
           uint32_t bg_alpha = 0xffff - layer.plane_alpha;
 
-          if (pipe_info->cac_mode && (pipe_info->cac_mode != kModeLoopbackUnpack)) {
+          if ((pipe_info->cac_mode || (layer.input_buffer.planes[0].color != kColorNone)) &&
+              (pipe_info->cac_mode != kModeLoopbackUnpack)) {
             fg_alpha = bg_alpha = 0xffff;
           }
 
@@ -2072,6 +2075,29 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
           DRMMultiRectMode multirect_mode;
           SetMultiRectMode(pipe_info->flags, &multirect_mode);
           drm_atomic_intf_->Perform(DRMOps::PLANE_SET_MULTIRECT_MODE, pipe_id, multirect_mode);
+
+          SetDrmReferenceSpaceType(pipe_id, layer.reference_space_type);
+          SetDrmRenderPose(pipe_id, layer.layer_pose);
+          SetDrmFrustum(pipe_id, layer.layer_frustum);
+          SetDrmPlaneEquation(pipe_id, layer.plane_equation);
+          // TODO: Need to revisit
+          // + enum sde_drm_lsr_layer_type {
+          // +  SDE_LSR_LAYER_LOCAL = 0,
+          // +  SDE_LSR_LAYER_REMOTE
+          // +};
+          // driver has layer type structe as above (layer.comp_layer_type)
+          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_RENDER_TYPE, pipe_id, SDE_LSR_LAYER_LOCAL);
+
+          // enum sde_drm_layer_gamma_type {
+          // SDE_LAYER_GAMMA_NONE = 0,
+          // SDE_LAYER_GAMMA_1_0,
+          // SDE_LAYER_GAMMA_2_2,
+          // SDE_LAYER_GAMMA_2_6,
+          // SDE_LAYER_GAMMA_REC_601,
+          // SDE_LAYER_GAMMA_REC_709,
+          // SDE_LAYER_GAMMA_REC_SRGB
+          // };
+          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_LAYER_GAMMA, pipe_id, SDE_LAYER_GAMMA_NONE);
 
           SetSsppTonemapFeatures(pipe_info);
 
@@ -4348,6 +4374,61 @@ void HWDeviceDRM::SetPrivacyRegionsData(std::vector<PrivacyRegion> *privacy_regi
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_PRIVACY_REGIONS, token_.conn_id,
                             &privacy_layer_data_);
 #endif
+}
+
+void HWDeviceDRM::SetDrmReferenceSpaceType(
+    const uint32_t &pipe_id, const SDMRenderLayerReferenceSpaceType &reference_space) {
+  auto drm_reference_type = SDE_LSR_LAYER_LOCK_WORLD_LOCK;
+  switch (reference_space) {
+    case RENDER_LAYER_REFERENCE_SPACE_WORLD:
+      drm_reference_type = SDE_LSR_LAYER_LOCK_WORLD_LOCK;
+      break;
+    case RENDER_LAYER_REFERENCE_SPACE_HEAD:
+      drm_reference_type = SDE_LSR_LAYER_LOCK_HEAD_LOCK;
+      break;
+    case RENDER_LAYER_REFERENCE_SPACE_SPHERE:
+      drm_reference_type = SDE_LSR_LAYER_LOCK_SPHERE_LOCK;
+      break;
+    default:
+      return;
+  }
+  drm_atomic_intf_->Perform(DRMOps::PLANE_SET_REFERENCE_SPACE_TYPE, pipe_id, drm_reference_type);
+}
+
+void HWDeviceDRM::SetDrmRenderPose(const uint32_t &pipe_id, const SDMLayerPose &layer_pose) {
+  sde_drm_render_pose drm_render_pose;
+  memcpy(&drm_render_pose.x_position, &layer_pose.pos.x, sizeof(layer_pose.pos.x));
+  memcpy(&drm_render_pose.y_position, &layer_pose.pos.y, sizeof(layer_pose.pos.y));
+  memcpy(&drm_render_pose.z_position, &layer_pose.pos.z, sizeof(layer_pose.pos.z));
+  memcpy(&drm_render_pose.x_orientation, &layer_pose.orientation.x,
+         sizeof(layer_pose.orientation.x));
+  memcpy(&drm_render_pose.y_orientation, &layer_pose.orientation.y,
+         sizeof(layer_pose.orientation.y));
+  memcpy(&drm_render_pose.z_orientation, &layer_pose.orientation.z,
+         sizeof(layer_pose.orientation.z));
+  memcpy(&drm_render_pose.w_orientation, &layer_pose.orientation.w,
+         sizeof(layer_pose.orientation.w));
+  drm_atomic_intf_->Perform(DRMOps::PLANE_SET_RENDER_POSE, pipe_id, &drm_render_pose);
+}
+
+void HWDeviceDRM::SetDrmFrustum(const uint32_t &pipe_id, const SDMLayerFrustum &layer_frustum) {
+  sde_drm_render_frustum drm_render_frustum;
+  memcpy(&drm_render_frustum.angle_left, &layer_frustum.angleLeft, sizeof(layer_frustum.angleLeft));
+  memcpy(&drm_render_frustum.angle_right, &layer_frustum.angleRight,
+         sizeof(layer_frustum.angleRight));
+  memcpy(&drm_render_frustum.angle_up, &layer_frustum.angleUp, sizeof(layer_frustum.angleUp));
+  memcpy(&drm_render_frustum.angle_down, &layer_frustum.angleDown, sizeof(layer_frustum.angleDown));
+  drm_atomic_intf_->Perform(DRMOps::PLANE_SET_RENDER_FRUSTUM, pipe_id, &drm_render_frustum);
+}
+
+void HWDeviceDRM::SetDrmPlaneEquation(const uint32_t &pipe_id,
+                                      const SDMLayerPlaneEquation &layer_equation) {
+  sde_drm_plane_equation drm_plane_equation;
+  memcpy(&drm_plane_equation.a, &layer_equation.a, sizeof(layer_equation.a));
+  memcpy(&drm_plane_equation.b, &layer_equation.b, sizeof(layer_equation.b));
+  memcpy(&drm_plane_equation.c, &layer_equation.c, sizeof(layer_equation.c));
+  memcpy(&drm_plane_equation.d, &layer_equation.d, sizeof(layer_equation.d));
+  drm_atomic_intf_->Perform(DRMOps::PLANE_SET_PLANE_EQUATION, pipe_id, &drm_plane_equation);
 }
 
 }  // namespace sdm

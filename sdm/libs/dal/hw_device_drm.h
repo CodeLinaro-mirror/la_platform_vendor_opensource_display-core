@@ -206,6 +206,12 @@ class HWDeviceDRM : public HWInterface {
   virtual uint32_t GetMaxPrivacyRegionsSupported() {
     return 0;
   }
+  virtual DisplayError SetDisplayDeviceConfig(SDMDisplayDeviceConfig sdm_display_device_config) {
+    return kErrorNone;
+  }
+  virtual DisplayError SetReprojectionConfig(const struct ReprojectionConfig &reprojection_config) {
+    return kErrorNone;
+  }
 
   enum {
     kHWEventVSync,
@@ -289,6 +295,11 @@ class HWDeviceDRM : public HWInterface {
   };
   void SetCacType(const HWPipeCacMode &cac_mode, sde_drm::DRMCacMode *target);
   void SetPrivacyRegionsData(std::vector<PrivacyRegion> *privacy_regions);
+  void SetDrmReferenceSpaceType(const uint32_t &pipe_id,
+                                const SDMRenderLayerReferenceSpaceType &reference_space);
+  void SetDrmRenderPose(const uint32_t &pipe_id, const SDMLayerPose &layer_pose);
+  void SetDrmFrustum(const uint32_t &pipe_id, const SDMLayerFrustum &layer_frustum);
+  void SetDrmPlaneEquation(const uint32_t &pipe_id, const SDMLayerPlaneEquation &layer_equation);
 
   class Registry {
    public:
@@ -306,7 +317,7 @@ class HWDeviceDRM : public HWInterface {
     int MapBufferToFbId(Layer *layer, const LayerBuffer &buffer, bool *fb_modified,
                         bool is_cac_buffer, BufferInfo &loopback_cac_info);
     // Find handle_id in output buffer map. Else create fb_id and add <handle_id,fb_id> in map.
-    void MapOutputBufferToFbId(std::shared_ptr<LayerBuffer> buffer, bool *fb_modified);
+    int MapOutputBufferToFbId(std::shared_ptr<LayerBuffer> buffer, bool *fb_modified);
     // Find fb_id for given handle_id in the layer map.
     void GetFbId(Layer *layer, uint64_t handle_id, std::vector<uint32_t> *fb_id);
     // Find fb_id for given handle_id in output buffer map.
