@@ -234,6 +234,8 @@ struct LayerBufferPlane {
   uint32_t offset = 0;   //!< Offset of the plane in bytes from beginning of the buffer.
   uint32_t stride = 0;   //!< Stride in bytes i.e. length of a scanline including padding.
   ColorComponent color = kColorNone;  //!< Indicate if buffer content only one field
+  uint64_t buffer_id __attribute__((aligned(8))) = 0;  //!< buffer handle for multiple plane buffer
+  uint64_t handle_id = 0;  //!< This is the BufferInfo's ID for this plane
 };
 
 /*! @brief This structure defines flags associated with a layer buffer. The 1-bit flag can be set

@@ -609,6 +609,8 @@ public:
   void UpdateRefreshRate();
   void UpdateActiveConfig();
   void DumpInputBuffers(void);
+  void DumpToFile(SnapHandle *handle, std::string dump_dir_path, int32_t layer_index,
+                  int plane = 0);
   void RetrieveFences(shared_ptr<Fence> *out_retire_fence);
   void SetDrawMethod();
   void ClearRequestMaps();
