@@ -615,6 +615,7 @@ DisplayError HWPeripheralDRM::Flush(HWLayersInfo *hw_layers_info) {
   if ((hw_panel_info_.mode == kModeCommand) && (tui_state_ != kTUIStateNone)) {
     SetVMReqState();
   }
+  ResetDestScalarData();
   DisplayError err = HWDeviceDRM::Flush(hw_layers_info);
   if (err != kErrorNone) {
     return err;
