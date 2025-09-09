@@ -147,6 +147,7 @@ int DRMAtomicReq::Perform(DRMOps opcode, uint32_t obj_id, ...) {
     case DRMOps::CRTC_SET_NOISELAYER_CONFIG:
     case DRMOps::CRTC_SET_UBWC_CLK:
     case DRMOps::CRTC_SET_FLUSH_SYNC_EN:
+    case DRMOps::CRTC_SET_OFFLOAD_MODE:
     case DRMOps::CRTC_SET_COMMIT_PATH: {
       drm_mgr_->GetCrtcMgr()->Perform(opcode, obj_id, drm_atomic_req_, args);
     } break;

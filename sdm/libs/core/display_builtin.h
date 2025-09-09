@@ -197,6 +197,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError DisablePartialUpdateOneFrameInternal() override;
   DisplayError SetDisplayState(DisplayState state, bool teardown,
                                shared_ptr<Fence> *release_fence) override;
+  DisplayError SetOffloadMode(bool enable) override;
   void SetIdleTimeoutMs(uint32_t active_ms, uint32_t inactive_ms) override;
   DisplayError SetDisplayMode(uint32_t mode) override;
   DisplayError GetRefreshRateRange(uint32_t *min_refresh_rate,

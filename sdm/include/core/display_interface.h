@@ -686,6 +686,14 @@ class DisplayInterface {
   virtual DisplayError SetDisplayState(DisplayState state, bool teardown,
                                        shared_ptr<Fence> *release_fence) = 0;
 
+  /*! @brief Method to set offload mode (offload to co-processor).
+
+    @param[in] enable
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetOffloadMode(bool enable) = 0;
+
   /*! @brief Method to set active configuration for variable properties of the display device.
 
     @param[in] variable_info \link DisplayConfigVariableInfo \endlink
