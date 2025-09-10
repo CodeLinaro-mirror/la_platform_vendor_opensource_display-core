@@ -31,7 +31,7 @@ void GraphicsConstraintProvider::Init(
   lib_ = ::dlopen("libadreno_utils.so", RTLD_NOW);
   parser_ = SnapConstraintParser::GetInstance();
   if (lib_) {
-    DLOGI("Graphics lib is available");
+    DLOGD_IF(enable_logs, "Graphics lib is available");
     *reinterpret_cast<void **>(&LINK_adreno_compute_aligned_width_and_height) =
         ::dlsym(lib_, "compute_aligned_width_and_height");
     *reinterpret_cast<void **>(&LINK_adreno_compute_fmt_aligned_width_and_height) =
@@ -341,7 +341,7 @@ int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCo
 int GraphicsConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConstraints *out) {
 #ifdef __ANDROID__
   if (lib_ != nullptr && AdrenoSizeAPIAvaliable()) {
-    DLOGI("Using graphics libs for alignment calculations");
+    DLOGD_IF(enable_logs, "Using graphics libs for alignment calculations");
     BufferConstraints data;
     int status = 0;
     status = BuildConstraints(desc, &data, false);
