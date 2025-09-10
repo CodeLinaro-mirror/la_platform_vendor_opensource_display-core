@@ -843,6 +843,7 @@ typedef std::map<uint32_t, HWAIScalerInfo *> AIScalerInfoMap;
 enum {
   kUpdateAVRModeFlag,
   kUpdateAVRStepFlag,
+  kUpdateAVRStepFpsFlag,
   kUpdateAVRFlagMax,
 };
 
