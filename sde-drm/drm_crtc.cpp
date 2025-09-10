@@ -940,6 +940,7 @@ void DRMCrtc::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       if (!prop_mgr_.IsPropertyAvailable(DRMProperty::VM_REQ_STATE)) {
         return;
       }
+#ifndef DISABLE_SET_VM_REQ_STATE
       int drm_vm_req_state = va_arg(args, int);
       uint32_t vm_req_state = VM_REQ_STATE_NONE;
       switch (drm_vm_req_state) {
@@ -956,6 +957,9 @@ void DRMCrtc::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       AddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::VM_REQ_STATE), vm_req_state,
                   true /* cache */, tmp_prop_val_map_);
       DRM_LOGD("CRTC %d: Set vm_req_state %d", obj_id, vm_req_state);
+#else
+      return;
+#endif
     }; break;
 
     case DRMOps::CRTC_RESET_CACHE: {
