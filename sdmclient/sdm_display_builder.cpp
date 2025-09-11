@@ -184,24 +184,27 @@ void SDMDisplayBuilder::Init(Locker *locker) {
 
   // Init slots in accordance to h/w capability.
   uint32_t disp_count = UINT32(std::min(max_pluggable, kNumPluggable));
-  Display base_id = SDM_DISPLAY_EXTERNAL;
+  Display base_id = qdutilsDisplayType::DISPLAY_EXTERNAL;
   map_info_pluggable_.resize(disp_count);
   for (auto &map_info : map_info_pluggable_) {
-    map_info.client_id = base_id++;
+    map_info.client_id = base_id;
+    base_id += kDisplayTypeMax;
   }
 
-  base_id = SDM_DISPLAY_BUILTIN_2;
   disp_count = UINT32(std::min(max_builtin, kNumBuiltIn));
+  base_id = qdutilsDisplayType::DISPLAY_BUILTIN_2;
   map_info_builtin_.resize(disp_count);
   for (auto &map_info : map_info_builtin_) {
-    map_info.client_id = base_id++;
+    map_info.client_id = base_id;
+    base_id += kDisplayTypeMax;
   }
 
-  base_id = SDM_DISPLAY_VIRTUAL;
   disp_count = UINT32(std::min(max_virtual, kNumVirtual));
+  base_id = qdutilsDisplayType::DISPLAY_VIRTUAL;
   map_info_virtual_.resize(disp_count);
   for (auto &map_info : map_info_virtual_) {
-    map_info.client_id = base_id++;
+    map_info.client_id = base_id;
+    base_id += kDisplayTypeMax;
   }
 
   // resize HDR supported map to total number of displays.
@@ -565,16 +568,16 @@ bool SDMDisplayBuilder::IsHWDisplayConnected(Display client_id) {
       [&sdm_id](auto &info) { return sdm_id == info.second.display_id; });
 
   if (itr_hw == hw_displays_info.end()) {
-    DLOGW("client id: %d, sdm_id: %d not found in hw map", client_id, sdm_id);
+    DLOGW("client id: %" PRIu64 ", sdm_id: %d not found in hw map", client_id, sdm_id);
     return false;
   }
 
   if (!itr_hw->second.is_connected) {
-    DLOGW("client_id: %d, sdm_id: %d, not connected", client_id, sdm_id);
+    DLOGW("client_id: %" PRIu64 ", sdm_id: %d, not connected", client_id, sdm_id);
     return false;
   }
 
-  DLOGI("client_id: %d, sdm_id: %d, is connected", client_id, sdm_id);
+  DLOGI("client_id: %" PRIu64 ", sdm_id: %d, is connected", client_id, sdm_id);
   return true;
 }
 
@@ -1051,13 +1054,13 @@ DisplayError SDMDisplayBuilder::GetDisplayHwId(uint64_t disp_id,
                                                int32_t *disp_hw_id) {
   int disp_idx = GetDisplayIndex(disp_id);
   if (disp_idx == -1) {
-    DLOGE("Invalid display = %d", disp_id);
+    DLOGE("Invalid display = %" PRIu64, disp_id);
     return kErrorNotSupported;
   }
 
   SCOPE_LOCK(locker_[disp_id]);
   if (!cb_->GetDisplayFromClientId(disp_idx)) {
-    DLOGE("Display %d is not connected.", disp_id);
+    DLOGE("Display %" PRIu64 " is not connected.", disp_id);
     return kErrorNotSupported;
   }
 

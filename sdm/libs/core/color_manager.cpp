@@ -22,10 +22,8 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the
- * following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * ​​​​​Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries. 
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -257,15 +255,18 @@ ColorManagerProxy *ColorManagerProxy::CreateColorManagerProxy(SDMDisplayType typ
         delete color_manager_proxy->stc_intf_;
         color_manager_proxy->stc_intf_ = NULL;
       } else {
+        int ret = 0;
+#ifndef TRUSTED_VM
         // pass the display interface to STC manager for digital dimming
         ScPayload payload;
         payload.len = sizeof(disp_intf);
         payload.prop = snapdragoncolor::kDisplayIntf;
         payload.payload = reinterpret_cast<uint64_t>(disp_intf);
-        int ret = color_manager_proxy->stc_intf_->SetProperty(payload);
+        ret = color_manager_proxy->stc_intf_->SetProperty(payload);
         if (ret) {
           DLOGW("Failed to SetProperty, property = %d error = %d", payload.prop, ret);
         }
+#endif
 
         ScPayload pp_ver_pay;
         pp_ver_pay.len = sizeof(versions);
@@ -1570,7 +1571,7 @@ bool DPUColorManager::CompareSDEDisplayModes(vector<SDEDisplayMode>& mode) {
 
   for (int i = 1; i < mode.size(); i++) {
     if ((mode[0].id != mode[i].id) && (mode[0].type != mode[i].type) &&
-          (mode[0].name != mode[i].name))
+          (strcmp(mode[0].name, mode[i].name) != 0))
       is_same_mode = false;
   }
 
@@ -1880,7 +1881,7 @@ bool DPUColorManager::IsValidateNeeded() {
   for (int i = 1; i < color_mgr_cnt; i++) {
     if (needed[0] != needed[i]) {
       DLOGW("Need validate for DPU's are different, DPU0=%d, DPU%d=%d",
-                                    needed[0], i, needed[i]);
+                                    (int)needed[0], i, (int)needed[i]);
     }
   }
 

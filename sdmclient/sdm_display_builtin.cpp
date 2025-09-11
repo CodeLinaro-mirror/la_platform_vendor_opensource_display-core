@@ -27,8 +27,8 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <stdarg.h>
@@ -172,6 +172,8 @@ DisplayError SDMDisplayBuiltIn::Init() {
     large_comp_hint_threshold_ = value;
   }
 
+  dpu_dma_enabled_ = display_intf_->IsDpuDmaModeEnabled();
+
   uint32_t config_index = 0;
   GetActiveDisplayConfig(false, &config_index);
   DisplayConfigVariableInfo attr = {};
@@ -221,9 +223,10 @@ DisplayError SDMDisplayBuiltIn::PreValidateDisplay(bool *exit_validate) {
 
   auto status = kErrorNone;
   bool res_exhausted = false;
-  // If no resources are available for the current display, mark it for GPU by
+  // If no resources are available for the current display, or pass
+  // unsupported format in DPU DMA mode, mark it for GPU by
   // pass and continue to do invalidate until the resources are available
-  if (display_paused_ || CheckResourceState(&res_exhausted)) {
+  if (display_paused_ || CheckResourceState(&res_exhausted) || SetDpuDmaMode() != kErrorNone) {
     MarkLayersForGPUBypass();
     *exit_validate = true;
     return status;
@@ -1751,9 +1754,9 @@ DisplayError SDMDisplayBuiltIn::PerformCacConfig(CacConfig config, bool enable) 
   return error;
 }
 
-DisplayError SDMDisplayBuiltIn::SetDemuraState(int state) {
-  DLOGV("Display ID: %" PRId64 " state: %d", id_, state);
-  DisplayError error = display_intf_->SetDemuraState(state);
+DisplayError SDMDisplayBuiltIn::SetDemuraState(int state, int demura_idx) {
+  DLOGV("Display ID: %" PRId64 " state: %d, demura_idx: %d", id_, state, demura_idx);
+  DisplayError error = display_intf_->SetDemuraState(state, demura_idx);
 
   if (error != kErrorNone) {
     DLOGE("Failed. state = %d, error = %d", state, error);
@@ -1987,6 +1990,25 @@ void SDMDisplayBuiltIn::HandlePowerModeHint(SDMPowerMode mode) {
     default:
       break;
   }
+}
+
+DisplayError SDMDisplayBuiltIn::SetDpuDmaMode() {
+  if (!dpu_dma_enabled_)
+    return kErrorNone;
+
+  DisplayError error = kErrorNone;
+  for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
+    auto layer = sdm_layer->GetSDMLayer();
+    error = sdm_layer->TranslateToNV12Y(&layer->input_buffer);
+    if (error != kErrorNone)
+      return error;
+  }
+
+  return error;
+}
+
+bool SDMDisplayBuiltIn::IsDmaModeIncompatible(LayerComposition composition) {
+  return (composition == kCompositionGPU && dpu_dma_enabled_);
 }
 
 } // namespace sdm

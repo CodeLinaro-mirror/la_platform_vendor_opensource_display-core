@@ -162,6 +162,26 @@ SDMLayer::~SDMLayer() {
   id_mgr_.EraseId(id_);
 }
 
+DisplayError SDMLayer::TranslateToNV12Y(LayerBuffer *layer_buffer) {
+  float bpp = 1.0f;
+  switch (layer_buffer->format) {
+    case kFormatRAW10:
+      bpp = 1.25f;
+      break;
+    case kFormatRGB888:
+      bpp = 3.0f;
+      break;
+    default:
+      DLOGW("Unsupported DPU DMA mode format type = %d", layer_buffer->format);
+      return kErrorParameters;
+  }
+
+  layer_buffer->format = kFormatNV12Y;
+  layer_buffer->width = std::ceil(layer_buffer->width * bpp);
+  layer_buffer->unaligned_width = std::ceil(layer_buffer->unaligned_width * bpp);
+  return kErrorNone;
+}
+
 DisplayError SDMLayer::SetLayerBuffer(const SnapHandle *handle,
                                       shared_ptr<Fence> acquire_fence) {
   if (!handle) {
@@ -227,6 +247,7 @@ DisplayError SDMLayer::SetLayerBuffer(const SnapHandle *handle,
   }
   layer_buffer->unaligned_width = UINT32(width_temp);
   layer_buffer->unaligned_height = UINT32(height_temp);
+
   uint32_t buffer_type = 0;
   snapmapper_->GetMetadata(*handle, MetadataType::BUFFER_TYPE, &buffer_type);
 
@@ -442,7 +463,7 @@ DisplayError SDMLayer::SetLayerSourceCrop(SDMRect crop) {
        (crop.right != roundf(crop.right)) ||
        (crop.bottom != roundf(crop.bottom)));
   if (non_integral_source_crop_) {
-    DLOGV_IF(kTagClient, "Crop: LTRB %f %f %f %f", crop.left, crop.top,
+    DLOGV_IF(kTagClient, "Crop: LTRB %d %d %d %d", crop.left, crop.top,
              crop.right, crop.bottom);
   }
   if (layer_->src_rect != src_rect) {

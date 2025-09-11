@@ -363,8 +363,18 @@ DisplayError DisplayBuiltIn::Init() {
     if (demura_cnt > 0) {
       DisableDemuraForHandOff();
     }
-    Debug::Get()->GetProperty(ENABLE_DEMURA, &demura_prop_);
-    if (demura_prop_) {  // Create parser manager for demura
+
+    int demura_prop = 0;
+    Debug::Get()->GetProperty(ENABLE_DEMURA, &demura_prop);
+    int disable_demura_prop = 0;
+    if (IsPrimaryDisplay()) {
+      Debug::Get()->GetProperty(DISABLE_DEMURA_PRIMARY, &disable_demura_prop);
+    } else {
+      Debug::Get()->GetProperty(DISABLE_DEMURA_SECONDARY, &disable_demura_prop);
+    }
+    demura_enable_ = demura_prop && (!disable_demura_prop);
+
+    if (demura_enable_) {  // Create parser manager for demura
       pm_intf_ = pf_factory_->CreateDemuraParserManager(ipc_intf_, buffer_allocator_);
       if (!pm_intf_) {
         DLOGE("Failed to create Parser Manager intf");
@@ -381,9 +391,15 @@ DisplayError DisplayBuiltIn::Init() {
 
     if (abc_prop_) {
       SetupABC();
-    } else if (demura_prop_) {
-      SetupDemuraT0AndTn();
+    } else {
+      if (!demura_enable_) {
+        comp_manager_->FreeDemuraFetchResources(display_id_);
+        comp_manager_->SetDemuraStatusForDisplay(display_id_, false);
+      } else {
+        SetupDemuraT0AndTn();
+      }
     }
+
   } else {
     DLOGW("Skipping Panel Feature Setups!");
   }
@@ -495,7 +511,7 @@ DisplayError DisplayBuiltIn::Deinit() {
       vm_file_xfer_intf_ = nullptr;
     }
 
-    if (demura_prop_) {
+    if (demura_enable_) {
       if (pm_intf_ && pm_intf_.use_count() == 1) {
         GenericPayload dummy;
         int ret = pm_intf_->SetParameter(kDemuraParserManagerParamReleaseParsers, dummy);
@@ -718,8 +734,8 @@ void DisplayBuiltIn::UpdateQsyncConfig() {
   disp_layer_stack_->stack_info.common_info.hw_avr_info.mode = GetAvrMode(mode);
   disp_layer_stack_->stack_info.common_info.hw_avr_info.step_enabled = avr_step_enabled_;
 
-  DLOGV_IF(kTagDisplay, "display %d-%d update: %d mode: %d AVR Step state: %d", display_id_,
-           display_type_, disp_layer_stack_->stack_info.common_info.hw_avr_info.update, mode,
+  DLOGV_IF(kTagDisplay, "display %d-%d update: %" PRIu64 " mode: %d AVR Step state: %d", display_id_,
+           display_type_, disp_layer_stack_->stack_info.common_info.hw_avr_info.update.to_ullong(), mode,
            avr_step_enabled_);
 
   // Store active mode.
@@ -840,7 +856,7 @@ DisplayError DisplayBuiltIn::SetupSPR() {
   return kErrorNone;
 }
 
-DisplayError DisplayBuiltIn::SetupDemura() {
+DisplayError DisplayBuiltIn::SetupDemura(int current_idx) {
   DemuraInputConfig input_cfg;
   input_cfg.secure_session = false;  // TODO(user): Integrate with secure solution
   std::string brightness_base;
@@ -861,7 +877,7 @@ DisplayError DisplayBuiltIn::SetupDemura() {
   input_cfg.secure_session = true;
 #endif
   input_cfg.panel_id = panel_id_;
-  DLOGI("panel id %lx\n", input_cfg.panel_id);
+  DLOGI("panel id %" PRIX64 "\n", input_cfg.panel_id);
   input_cfg.panel_name = client_ctx_.hw_panel_info.panel_name;
   input_cfg.display_intf = this;
   std::unique_ptr<DemuraIntf> demura =
@@ -882,11 +898,9 @@ DisplayError DisplayBuiltIn::SetupDemura() {
     return kErrorUndefined;
   }
 
-  if (SetDemuraIntfStatus(true)) {
+  if (SetDemuraIntfStatus(true, current_idx)) {
     return kErrorUndefined;
   }
-
-  demura_current_idx_ = kDemuraDefaultIdx;
 
   comp_manager_->SetDemuraStatusForDisplay(display_id_, true);
   demura_intended_ = true;
@@ -1139,7 +1153,7 @@ DisplayError DisplayBuiltIn::SetupABCFeature() {
       *it = '_';
     }
   }
-  DLOGI("ABC panel id %lx actual panel-name %s\n", input_cfg.panel_id,
+  DLOGI("ABC panel id %" PRIX64 " actual panel-name %s\n", input_cfg.panel_id,
         input_cfg.panel_name.c_str());
   if (!abc_factory_) {
     DLOGE("Failed to get ABC feature Factory");
@@ -1186,10 +1200,10 @@ DisplayError DisplayBuiltIn::SetupABC() {
 
   if (IsPrimaryDisplay()) {
     Debug::Get()->GetProperty(DISABLE_ABC_PRIMARY, &value);
-    DLOGI("primary panel id value %lx\n", panel_id);
+    DLOGI("primary panel id value %" PRIX64 "\n", panel_id);
   } else {
     Debug::Get()->GetProperty(DISABLE_ABC_SECONDARY, &value);
-    DLOGI("secondary panel id value %lx\n", panel_id);
+    DLOGI("secondary panel id value %" PRIX64 "\n", panel_id);
   }
 
   if (value > 0) {
@@ -1205,7 +1219,7 @@ DisplayError DisplayBuiltIn::SetupABC() {
     info.prop_id = kPanelFeatureDemuraPanelId;
     ret = prop_intf_->GetPanelFeature(&info);
     if (ret) {
-      DLOGE("Failed to get panel id, error = %d", ret);
+      DLOGE("Failed to get panel id, error = %" PRIu64, ret);
       return kErrorUndefined;
     }
   }
@@ -1227,7 +1241,7 @@ DisplayError DisplayBuiltIn::SetupABC() {
 
 DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
   DisplayError error = kErrorNone;
-  int ret = 0, value = 0, panel_id_w = 0;
+  int ret = 0, panel_id_w = 0;
   uint64_t panel_id = 0;
 
   if (IsPrimaryDisplay()) {
@@ -1235,23 +1249,13 @@ DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
     panel_id = static_cast<uint32_t>(panel_id_w);
     Debug::Get()->GetProperty(DEMURA_PRIMARY_PANEL_OVERRIDE_HIGH, &panel_id_w);
     panel_id |= ((static_cast<uint64_t>(panel_id_w)) << 32);
-    Debug::Get()->GetProperty(DISABLE_DEMURA_PRIMARY, &value);
-    DLOGI("panel overide total value for primary display %lx\n", panel_id);
+    DLOGI("panel overide total value for primary display %" PRIX64 "\n", panel_id);
   } else {
     Debug::Get()->GetProperty(DEMURA_SECONDARY_PANEL_OVERRIDE_LOW, &panel_id_w);
     panel_id = static_cast<uint32_t>(panel_id_w);
     Debug::Get()->GetProperty(DEMURA_SECONDARY_PANEL_OVERRIDE_HIGH, &panel_id_w);
     panel_id |= ((static_cast<uint64_t>(panel_id_w)) << 32);
-    Debug::Get()->GetProperty(DISABLE_DEMURA_SECONDARY, &value);
-    DLOGI("panel overide total value for secondary display %lx\n", panel_id);
-  }
-
-  if (value > 0) {
-    comp_manager_->FreeDemuraFetchResources(display_id_);
-    comp_manager_->SetDemuraStatusForDisplay(display_id_, false);
-    return kErrorNone;
-  } else if (value < 0) {
-    return kErrorUndefined;
+    DLOGI("panel overide total value for secondary display %" PRIX64 "\n", panel_id);
   }
 
   PanelFeaturePropertyInfo info;
@@ -1265,7 +1269,7 @@ DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
     }
   }
   panel_id_ = panel_id;
-  DLOGI("panel_id 0x%lx", panel_id_);
+  DLOGI("panel_id 0x%" PRIX64, panel_id_);
 
   PanelFeaturePropertyInfo demura_info;
   bool double_buffer_codebook_supported = false;
@@ -1384,10 +1388,10 @@ DisplayError DisplayBuiltIn::ValidateDemuraLicense() {
   return kErrorNone;
 }
 
-DisplayError DisplayBuiltIn::SetupDemuraT0() {
+DisplayError DisplayBuiltIn::SetupDemuraT0(int current_idx) {
   DisplayError error = kErrorNone;
 
-  error = SetupDemura();
+  error = SetupDemura(current_idx);
   if (error != kErrorNone) {
     DLOGE("Demura failed to initialize on display %d-%d, Error %d", display_id_, display_type_,
           error);
@@ -1425,7 +1429,7 @@ DisplayError DisplayBuiltIn::SendPanelIdToParserManager() {
     return kErrorResources;
   }
 
-  DLOGI("Successfully set panel ID 0x%lx to parser manager intf, is_primary_display %d", panel_id_,
+  DLOGI("Successfully set panel ID 0x%" PRIX64 " to parser manager intf, is_primary_display %d", panel_id_,
         panel_ids_info->is_primary_display);
   return kErrorNone;
 }
@@ -1879,6 +1883,7 @@ DisplayError DisplayBuiltIn::SetPanelBrightness(float brightness, bool apply_imm
       level_remainder = t - level;
     }
 
+    abc_brightness_level_ = level;
     err = dpu_core_mux_->SetPanelBrightness(level, apply_immediately);
     if (err == kErrorNone) {
       level_remainder_ = level_remainder;
@@ -2523,6 +2528,7 @@ std::string DisplayBuiltIn::Dump() {
   os << " clk: " << display_attributes.clock_khz;
   os << " Topology: " << display_attributes.topology;
   os << " Qsync mode: " << active_qsync_mode_;
+  os << " RGBA Split Mode enable: " << rgba_split_enable_;
   os << " CAC enabled: " << disp_layer_stack_->stack_info.enable_cac;
   os << (disp_layer_stack_->stack_info.enable_cac
              ? (cac_version == kCacVersionLoopback) ? " (CACLoopback)" : " (CACV2)"
@@ -3114,6 +3120,7 @@ DisplayError DisplayBuiltIn::BuildLayerStackStats(LayerStack *layer_stack) {
   stack_info.enable_cac = enable_cac_;
   stack_info.enable_anamorphic_fov = IsAnamorphicFoveationEnabled(layer_stack);
   stack_info.cac_config = cac_config_;
+  stack_info.rgba_split_enable = rgba_split_enable_;
 
   int index = 0;
   for (auto &layer : layers) {
@@ -3367,6 +3374,7 @@ PrimariesTransfer DisplayBuiltIn::GetBlendSpaceFromStcColorMode(
 DisplayError DisplayBuiltIn::GetConfig(DisplayConfigFixedInfo *fixed_info) {
   ClientLock lock(disp_mutex_);
   fixed_info->is_cmdmode = (client_ctx_.hw_panel_info.mode == kModeCommand);
+  fixed_info->vhm_support = client_ctx_.hw_panel_info.vhm_support;
   bool hdr_supported = true;
   bool has_concurrent_writeback = true;
 
@@ -3559,6 +3567,7 @@ int DisplayBuiltIn::SetDemuraIntfStatus(bool enable, int current_idx) {
       return ret;
     }
   }
+  demura_current_idx_ = current_idx;
   DLOGI("Demura is now %s and current index is %d ", enable ? "Enabled" : "Disabled", current_idx);
   return ret;
 }
@@ -3751,7 +3760,7 @@ void DisplayIPCVmCallbackImpl::ExportHFCBuffer() {
   export_buf_in_params->panel_id = panel_id_;
   export_buf_in_params->mem_handle = buffer_info_hfc_.alloc_buffer_info.mem_handle;
 
-  DLOGI("Allocated hfc buffer mem_handle %d size %d panel id :%x", export_buf_in_params->mem_handle,
+  DLOGI("Allocated hfc buffer mem_handle %" PRId64 " size %d panel id :%" PRIX64, export_buf_in_params->mem_handle,
         export_buf_in_params->size, export_buf_in_params->panel_id);
   if ((ret = ipc_intf_->SetParameter(kIpcParamSetHFCBuffer, in))) {
     DLOGE("Failed to export demura buffers, error = %d", ret);
@@ -4043,7 +4052,7 @@ uint32_t DisplayBuiltIn::SanitizeRefreshRate(uint32_t req_refresh_rate, uint32_t
   return refresh_rate;
 }
 
-DisplayError DisplayBuiltIn::SetDemuraState(int state) {
+DisplayError DisplayBuiltIn::SetDemuraState(int state, int demura_idx) {
   int ret = 0;
   DisplayError error = kErrorNone;
 
@@ -4052,6 +4061,7 @@ DisplayError DisplayBuiltIn::SetDemuraState(int state) {
     return kErrorUndefined;
   }
 
+  DLOGI("Setting the Demura state %d, config = %d", state, demura_idx);
   if (!demura_intended_ && state) {
     if (!demura_allowed_) {
       // Validate demura license again in case failed during boot up
@@ -4067,12 +4077,11 @@ DisplayError DisplayBuiltIn::SetDemuraState(int state) {
         return error;
       }
       DLOGI("Start Demura feature now");
-      if ((error = SetupDemuraT0()) != kErrorNone) {
+      if ((error = SetupDemuraT0(demura_idx)) != kErrorNone) {
         DLOGE("Failed to enable Demura dynamically, error = %d", error);
         return error;
       }
       demura_dynamic_enabled_ = true;
-      demura_current_idx_ = kDemuraDefaultIdx;
       // Disable Partial Update for one frame.
       DisablePartialUpdateOneFrameInternal();
     } else {
@@ -4087,14 +4096,13 @@ DisplayError DisplayBuiltIn::SetDemuraState(int state) {
       return kErrorUndefined;
     }
 
-    ret = SetDemuraIntfStatus(true);
+    ret = SetDemuraIntfStatus(true, demura_idx);
     if (ret) {
       DLOGE("Failed to set demura status to true, ret = %d", ret);
       return kErrorUndefined;
     }
     comp_manager_->SetDemuraStatusForDisplay(display_id_, true);
     demura_dynamic_enabled_ = true;
-    demura_current_idx_ = kDemuraDefaultIdx;
   } else if (!state && comp_manager_->GetDemuraStatusForDisplay(display_id_)) {
     ret = SetDemuraIntfStatus(false);
     if (ret) {
@@ -4155,7 +4163,6 @@ DisplayError DisplayBuiltIn::SetDemuraConfig(int demura_idx) {
     return kErrorUndefined;
   }
 
-  demura_current_idx_ = demura_idx;
   DLOGV("Demura config updated to config index %d", demura_idx);
   HandleSelfRefresh();
 
@@ -4607,8 +4614,7 @@ DisplayError DisplayBuiltIn::SetABCState(bool state) {
 
   // Enable or Disable ABC
   if (SetDemuraIntfStatus(state)) {
-    DLOGE("Failed to set demura status to %s on Display %d, ret = %d", ret,
-          state ? "true" : "false", display_id_);
+    DLOGE("Failed to set demura status to %s on Display %d, ret = %d", state ? "true" : "false", display_id_, ret);
     return kErrorUndefined;
   }
 
@@ -4706,6 +4712,30 @@ DisplayError DisplayBuiltIn::SetABCMode(const string &mode_name) {
     DLOGE("Unable to setup ABC layer on Display %d", display_id_);
     return kErrorUndefined;
   }
+
+#ifdef TRUSTED_VM
+  if (abc_brightness_level_ >= 0) {
+    int ret = 0;
+    GenericPayload pl;
+    uint32_t *brightness_level = nullptr;
+    ret = pl.CreatePayload<uint32_t>(brightness_level);
+    if (ret) {
+      DLOGE("Failed to create kDemuraFeatureParamUpdateBrightness payload");
+      return kErrorUndefined;
+    }
+
+    // Set the ABC feature with new brightness level and updated mode name
+    *brightness_level = abc_brightness_level_;
+    ret = demura_->SetParameter(kDemuraFeatureParamUpdateBrightness, pl);
+    if (ret) {
+      DLOGE("Failed to set brightness level for ABC feature %d", ret);
+      return kErrorUndefined;
+    }
+
+    abc_brightness_level_ = -1;
+    return kErrorNone;
+  }
+#endif
 
   // Set the ABC feature with updated mode name
   GenericPayload pl;
@@ -4883,7 +4913,7 @@ DisplayError DisplayBuiltIn::ExportABCFiles() {
 }
 
 DisplayError DisplayBuiltIn::StartTvmServices() {
-  if (!abc_prop_ && !demura_prop_) {
+  if (!abc_prop_ && !demura_enable_) {
     return kErrorNone;
   }
 
@@ -5015,7 +5045,7 @@ int DisplayBuiltIn::StartVmFileServiceAndExportFiles() {
   }
 
   // Export files
-  if (demura_prop_) {
+  if (demura_enable_) {
     error = ExportDemuraFiles();
     if (error) {
       DLOGE("Failed to export demura files, error %d", error);
@@ -5145,7 +5175,10 @@ DisplayError DisplayBuiltIn::CleanupDemuraConfig(void *data, DemuraTnCleanupType
 }
 
 bool DisplayBuiltIn::GetDemuraTnUserCtrl() {
-  std::ifstream in(kDemuraTnUserCtrlFile, std::ios::binary);
+  std::stringstream ss_id;
+  ss_id << "_" << std::setfill('0') << std::setw(16) << std::hex << panel_id_;
+  std::string filename = kDemuraTnUserCtrlFile + ss_id.str();
+  std::ifstream in(filename, std::ios::binary);
   if (!in.is_open()) {
     return false;
   }
@@ -5171,8 +5204,10 @@ bool DisplayBuiltIn::GetDemuraTnUserCtrl() {
 
 int DisplayBuiltIn::UpdateDemuraTnUserCtrl(bool user_ctrl) {
   int ret = 0;
-  std::ofstream out(kDemuraTnUserCtrlFile, std::ios::binary | std::ios::trunc);
-
+  std::stringstream ss_id;
+  ss_id << "_" << std::setfill('0') << std::setw(16) << std::hex << panel_id_;
+  std::string filename = kDemuraTnUserCtrlFile + ss_id.str();
+  std::ofstream out(filename, std::ios::binary | std::ios::trunc);
   if (out.fail()) {
     DLOGW("Failed to open the file %s %s", kDemuraTnUserCtrlFile.c_str(), strerror(errno));
     return -ENOENT;

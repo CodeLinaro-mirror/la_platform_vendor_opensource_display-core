@@ -303,6 +303,12 @@ enum struct DRMOps {
    */
   PLANES_BUFFER_MODE,
   /*
+   * Op: Sets plane color mask override
+   * Arg: uint32_t - Plane ID
+   *      uint32_t - layer color mask override
+   */
+  PLANE_SET_COLOR_MASK_OVERRIDE,
+  /*
    * Op: Activate or deactivate a CRTC
    * Arg: uint32_t - CRTC ID
    *      uint32_t - 1 to enable, 0 to disable
@@ -1107,6 +1113,7 @@ struct DRMConnectorInfo {
   DMSType dms_type = DMSType::DMS_VID_DISABLED;
   bool fsc_panel = false;
   uint32_t num_fsc_fields = 0;
+  bool dpu_dma_enabled = false;
 };
 
 // All DRM Connectors as map<Connector_id , connector_info>
@@ -1307,6 +1314,7 @@ enum DRMCscType {
   kCscYuv2Rgb2020FR,
   kCscYuv2RgbDolbyVisionP5,
   kCscYuv2RgbDCIP3FR,
+  kCscYuv2RgbDCIP3L,
   kCscTypeMax,
 };
 
@@ -1455,6 +1463,13 @@ enum struct DRMAvrStepState {
 enum struct DRMBufferMode {
   INDEPENDENT = 0,
   SINGLE,
+};
+
+enum struct DRMReserveColor {
+  RED = 1 << 0,
+  GREEN = 1 << 1,
+  BLUE = 1 << 2,
+  ALPHA = 1 << 3,
 };
 
 /* DRM Atomic Request Property Set.

@@ -211,6 +211,11 @@ DisplayError ConcurrencyMgr::Init(BufferAllocator *buffer_allocator, SocketHandl
   DLOGI("disable_get_screen_decorator_support: %d",
         disable_get_screen_decorator_support_);
 
+  value = 0;
+  Debug::Get()->GetProperty(ENABLE_SELECTIVE_PANEL_DEAD, &value);
+  selective_panel_dead_ = (value == 1);
+  DLOGI("selective_panel_dead: %d", selective_panel_dead_);
+
   auto err = InitSubModules(debug);
   if (err != kErrorNone) {
     return err;
@@ -585,6 +590,23 @@ DisplayError ConcurrencyMgr::GetDisplayLuts(
   return status;
 }
 
+DisplayError ConcurrencyMgr::GetBufferLuts(Display display,
+                                           const std::vector<SnapHandle *> &buffers,
+                                           std::unique_ptr<std::vector<Lut3d *>> &out_luts) {
+  if (display >= kNumDisplays) {
+    return kErrorParameters;
+  }
+
+  SCOPE_LOCK(locker_[display]);
+  auto status = kErrorParameters;
+  if (sdm_display_[display]) {
+    auto sdm_display = sdm_display_[display];
+    status = sdm_display->GetBufferLuts(buffers, out_luts);
+  }
+
+  return status;
+}
+
 DisplayError ConcurrencyMgr::GetDisplayType(uint64_t display,
                                             int32_t *out_type) {
   return CallDisplayFunction(display, &SDMDisplay::GetDisplayType, out_type);
@@ -616,8 +638,12 @@ DisplayError ConcurrencyMgr::getDisplayDecorationSupport(Display display,
     return kErrorNotSupported;
   }
 
-  return CallDisplayFunction(display, &SDMDisplay::getDisplayDecorationSupport,
-                             format, alpha);
+  // ScreenDecoration layers supported even if RC HW is disabled since its
+  // coming from framework and is independent of RC HW support.
+  *format = static_cast<uint32_t>(SDMPixelFormat::PIXEL_FORMAT_R_8);
+  *alpha = static_cast<uint32_t>(SDMAlphaInterpretation::COVERAGE);
+
+  return kErrorNone;
 }
 
 void ConcurrencyMgr::PerformQsyncCallback(Display display, bool qsync_enabled,
@@ -775,7 +801,7 @@ DisplayError ConcurrencyMgr::Hotplug(Display display, bool state) {
   }
 
   // External display hotplug events are handled asynchronously
-  if (display == SDM_DISPLAY_EXTERNAL || display == SDM_DISPLAY_EXTERNAL_2) {
+  if (display % kDisplayTypeMax == kPluggable) {
     std::thread(&ConcurrencyMgr::SendHotplug, this, display, state).detach();
   } else {
     callbacks_.OnHotplug(display, state);
@@ -819,17 +845,8 @@ void ConcurrencyMgr::RegisterCompositorCallback(SDMCompositorCbIntf *cb, bool en
       hpd_ = nullptr;
     }
 
-    if (services_) {
-      services_->Deinit();
-      services_ = nullptr;
-    }
   } else {
     GetPendingHotplug(pending_hotplugs);
-
-    if (!services_) {
-      services_ = new SDMServices(this, buffer_allocator_, socket_handler_);
-      services_->Init(disp_, buffer_allocator_, locker_, tui_);
-    }
 
     if (sdm_display_[SDM_DISPLAY_PRIMARY]) {
       DLOGI("Hotplugging primary...");
@@ -1197,8 +1214,8 @@ DisplayError ConcurrencyMgr::SetDimmingMinBl(Display display, int32_t min_bl) {
   return CallDisplayFunction(display, &SDMDisplay::SetDimmingMinBl, min_bl);
 }
 
-DisplayError ConcurrencyMgr::SetDemuraState(Display display, int32_t state) {
-  return CallDisplayFunction(display, &SDMDisplay::SetDemuraState, state);
+DisplayError ConcurrencyMgr::SetDemuraState(Display display, int32_t state, int demura_idx) {
+  return CallDisplayFunction(display, &SDMDisplay::SetDemuraState, state, demura_idx);
 }
 
 DisplayError ConcurrencyMgr::SetDemuraConfig(Display display,
@@ -1302,7 +1319,7 @@ void ConcurrencyMgr::CompositorSync(CompositorSyncType sync_type) {
   }
 }
 
-void ConcurrencyMgr::PerformDisplayPowerReset() {
+void ConcurrencyMgr::PerformDisplayPowerReset(int32_t recovery_display) {
   disp_->RemoveDisconnectedPluggableDisplays();
 
   // Wait until all commands are flushed.
@@ -1321,6 +1338,9 @@ void ConcurrencyMgr::PerformDisplayPowerReset() {
   for (Display display = SDM_DISPLAY_PRIMARY; display < kNumDisplays;
        display++) {
     if (sdm_display_[display] != NULL) {
+      if (selective_panel_dead_ && (display != recovery_display)) {
+        continue;
+      }
       last_power_mode[display] = sdm_display_[display]->GetCurrentPowerMode();
       DLOGI("Powering off display = %d", INT32(display));
       status = sdm_display_[display]->SetPowerMode(SDMPowerMode::POWER_MODE_OFF,
@@ -1335,6 +1355,9 @@ void ConcurrencyMgr::PerformDisplayPowerReset() {
   for (Display display = SDM_DISPLAY_PRIMARY; display < kNumDisplays;
        display++) {
     if (sdm_display_[display] != NULL) {
+      if (selective_panel_dead_ && (display != recovery_display)) {
+        continue;
+      }
       SDMPowerMode mode = last_power_mode[display];
       DLOGI("Setting display %d to mode = %d", INT32(display), mode);
       status = sdm_display_[display]->SetPowerMode(mode, false /* teardown */);
@@ -1375,10 +1398,10 @@ void ConcurrencyMgr::PerformDisplayPowerReset() {
   }
 }
 
-void ConcurrencyMgr::DisplayPowerReset() {
+void ConcurrencyMgr::DisplayPowerReset(int32_t display) {
   // Do Power Reset in a different thread to avoid blocking of SDM event thread
   // when disconnecting display.
-  std::thread(&ConcurrencyMgr::PerformDisplayPowerReset, this).detach();
+  std::thread(&ConcurrencyMgr::PerformDisplayPowerReset, this, display).detach();
 }
 
 void ConcurrencyMgr::VmReleaseDone(Display display) {
@@ -2019,7 +2042,7 @@ DisplayError ConcurrencyMgr::TUIEventHandler(uint64_t disp_id,
 
 DisplayError ConcurrencyMgr::TeardownConcurrentWriteback(Display display) {
   if (!sdm_display_[display]) {
-    DLOGW("Invalid display (id = %d) detected as input parameter!", display);
+    DLOGW("Invalid display (id = %" PRIu64 ") detected as input parameter!", display);
   }
 
   for (int id = 0; id < kNumRealDisplays; id++) {
@@ -2164,12 +2187,12 @@ DisplayError ConcurrencyMgr::SetDisplayStatus(uint64_t disp_id,
   int disp_idx = GetDisplayIndex(disp_id);
   DisplayError err = kErrorNotSupported;
   if (disp_idx == -1) {
-    DLOGE("Invalid display = %d", disp_id);
+    DLOGE("Invalid display = %" PRIu64, disp_id);
     return kErrorNotSupported;
   }
 
   if (disp_idx == qdutilsDisplayType::DISPLAY_PRIMARY) {
-    DLOGE("Not supported for this display");
+    DLOGW("Not supported for this display");
     return err;
   }
 
@@ -2331,7 +2354,7 @@ DisplayError ConcurrencyMgr::SetContentFps(const std::string &name, int32_t fps)
 
 int ConcurrencyMgr::GetDisplayConfigGroup(uint64_t display, DisplayConfigGroupInfo variable_config) {
   if (display < 0) {
-    DLOGE("Invalid display = %d", display);
+    DLOGE("Invalid display = %" PRIu64, display);
     return kErrorNotSupported;
   }
 
@@ -2463,7 +2486,7 @@ ConcurrencyMgr::GetSupportedDSIClock(uint64_t disp_id,
   SCOPE_LOCK(locker_[disp_id]);
 
   if (!sdm_display_[disp_id]) {
-    DLOGW("Display:%d is not connected", disp_id);
+    DLOGW("Display:%" PRIu64 " is not connected", disp_id);
     return kErrorResources;
   }
 
@@ -2475,7 +2498,7 @@ DisplayError ConcurrencyMgr::GetDSIClk(uint64_t disp_id, uint64_t *bit_clk) {
   SCOPE_LOCK(locker_[disp_id]);
 
   if (!sdm_display_[disp_id]) {
-    DLOGW("Invalid display:%d", disp_id);
+    DLOGW("Invalid display:%" PRIu64, disp_id);
     return kErrorResources;
   }
 
@@ -2486,7 +2509,7 @@ DisplayError ConcurrencyMgr::SetDSIClk(uint64_t disp_id, uint64_t bit_clk) {
   SCOPE_LOCK(locker_[disp_id]);
 
   if (!sdm_display_[disp_id]) {
-    DLOGW("Invalid display:%d", disp_id);
+    DLOGW("Invalid display:%" PRIu64, disp_id);
     return kErrorResources;
   }
 
@@ -2497,7 +2520,7 @@ DisplayError ConcurrencyMgr::SetQsyncMode(uint64_t disp_id, QSyncMode mode) {
   SEQUENCE_WAIT_SCOPE_LOCK(locker_[disp_id]);
 
   if (!sdm_display_[disp_id]) {
-    DLOGW("Invalid display:%d", disp_id);
+    DLOGW("Invalid display:%" PRIu64, disp_id);
     return kErrorResources;
   }
 
@@ -2510,7 +2533,7 @@ DisplayError ConcurrencyMgr::IsSmartPanelConfig(uint64_t disp_id,
   SCOPE_LOCK(locker_[disp_id]);
 
   if (!sdm_display_[disp_id]) {
-    DLOGW("Invalid display:%d", disp_id);
+    DLOGW("Invalid display:%" PRIu64, disp_id);
     return kErrorResources;
   }
 
@@ -2539,13 +2562,13 @@ DisplayError ConcurrencyMgr::GetDisplayHwId(uint64_t disp_id,
 
 bool ConcurrencyMgr::IsModeSwitchAllowed(uint64_t disp_id, int32_t config) {
   if (disp_id < 0) {
-    DLOGW("Invalid display = %d", disp_id);
+    DLOGW("Invalid display = %" PRIu64, disp_id);
     return false;
   }
 
   SCOPE_LOCK(locker_[disp_id]);
   if (!sdm_display_[disp_id]) {
-    DLOGW("Display %d is not connected.", disp_id);
+    DLOGW("Display %" PRIu64 " is not connected.", disp_id);
     return false;
   }
 
@@ -2580,13 +2603,13 @@ void ConcurrencyMgr::RegisterSideBandCallback(SDMSideBandCompositorCbIntf *cb, b
 DisplayError ConcurrencyMgr::SetSsrcMode(uint64_t display_id, const std::string &mode_name) {
   int disp_idx = GetDisplayIndex(display_id);
   if (disp_idx == -1) {
-    DLOGW("Invalid display = %d", display_id);
+    DLOGW("Invalid display = %" PRIu64, display_id);
     return kErrorResources;
   }
 
   SCOPE_LOCK(locker_[disp_idx]);
   if (!sdm_display_[disp_idx]) {
-    DLOGW("Display %d is not connected.", display_id);
+    DLOGW("Display %" PRIu64 " is not connected.", display_id);
     return kErrorResources;
   }
 
@@ -2596,13 +2619,13 @@ DisplayError ConcurrencyMgr::SetSsrcMode(uint64_t display_id, const std::string 
 DisplayError ConcurrencyMgr::EnableCopr(uint64_t display_id, bool enable) {
   int disp_idx = GetDisplayIndex(display_id);
   if (disp_idx == -1) {
-    DLOGW("Invalid display = %d", display_id);
+    DLOGW("Invalid display = %" PRIu64, display_id);
     return kErrorParameters;
   }
 
   SCOPE_LOCK(locker_[disp_idx]);
   if (!sdm_display_[disp_idx]) {
-    DLOGW("Display %d is not connected.", display_id);
+    DLOGW("Display %" PRIu64 " is not connected.", display_id);
     return kErrorResources;
   }
 
@@ -2612,13 +2635,13 @@ DisplayError ConcurrencyMgr::EnableCopr(uint64_t display_id, bool enable) {
 DisplayError ConcurrencyMgr::GetCoprStats(uint64_t display_id, std::vector<int32_t> *copr_stats) {
   int disp_idx = GetDisplayIndex(display_id);
   if (disp_idx == -1) {
-    DLOGW("Invalid display = %d", display_id);
+    DLOGW("Invalid display = %" PRIu64, display_id);
     return kErrorParameters;
   }
 
   SCOPE_LOCK(locker_[disp_idx]);
   if (!sdm_display_[disp_idx]) {
-    DLOGW("Display %d is not connected.", display_id);
+    DLOGW("Display %" PRIu64 " is not connected.", display_id);
     return kErrorResources;
   }
 
@@ -2648,7 +2671,7 @@ DisplayError ConcurrencyMgr::SetFrameIntervalNs(Display display, uint32_t frame_
 
 int ConcurrencyMgr::GetNotifyEptConfig(Display display) {
   if (display < 0) {
-    DLOGE("Invalid display = %d", display);
+    DLOGE("Invalid display = %" PRIu64, display);
     return -1;
   }
 
@@ -2658,13 +2681,13 @@ int ConcurrencyMgr::GetNotifyEptConfig(Display display) {
 DisplayError ConcurrencyMgr::SetABCState(uint64_t display_id, bool state) {
   int disp_idx = GetDisplayIndex(display_id);
   if (disp_idx == -1) {
-    DLOGW("Invalid display = %d", display_id);
+    DLOGW("Invalid display = %" PRIu64, display_id);
     return kErrorResources;
   }
 
   SCOPE_LOCK(locker_[disp_idx]);
   if (!sdm_display_[disp_idx]) {
-    DLOGW("Display %d is not connected.", display_id);
+    DLOGW("Display %" PRIu64 " is not connected.", display_id);
     return kErrorResources;
   }
 
@@ -2674,13 +2697,13 @@ DisplayError ConcurrencyMgr::SetABCState(uint64_t display_id, bool state) {
 DisplayError ConcurrencyMgr::SetABCReconfig(uint64_t display_id) {
   int disp_idx = GetDisplayIndex(display_id);
   if (disp_idx == -1) {
-    DLOGW("Invalid display = %d", display_id);
+    DLOGW("Invalid display = %" PRIu64, display_id);
     return kErrorResources;
   }
 
   SCOPE_LOCK(locker_[disp_idx]);
   if (!sdm_display_[disp_idx]) {
-    DLOGW("Display %d is not connected.", display_id);
+    DLOGW("Display %" PRIu64 " is not connected.", display_id);
     return kErrorResources;
   }
 
@@ -2690,13 +2713,13 @@ DisplayError ConcurrencyMgr::SetABCReconfig(uint64_t display_id) {
 DisplayError ConcurrencyMgr::SetABCMode(uint64_t display_id, string mode_name) {
   int disp_idx = GetDisplayIndex(display_id);
   if (disp_idx == -1) {
-    DLOGW("Invalid display = %d", display_id);
+    DLOGW("Invalid display = %" PRIu64, display_id);
     return kErrorResources;
   }
 
   SCOPE_LOCK(locker_[disp_idx]);
   if (!sdm_display_[disp_idx]) {
-    DLOGW("Display %d is not connected.", display_id);
+    DLOGW("Display %" PRIu64 " is not connected.", display_id);
     return kErrorResources;
   }
 
@@ -2706,13 +2729,13 @@ DisplayError ConcurrencyMgr::SetABCMode(uint64_t display_id, string mode_name) {
 DisplayError ConcurrencyMgr::SetAIScalerMode(uint64_t display_id, uint32_t mode_id) {
   int disp_idx = GetDisplayIndex(display_id);
   if (disp_idx == -1) {
-    DLOGW("Invalid display = %d", display_id);
+    DLOGW("Invalid display = %" PRIu64, display_id);
     return kErrorResources;
   }
 
   SCOPE_LOCK(locker_[disp_idx]);
   if (!sdm_display_[disp_idx]) {
-    DLOGW("Display %d is not connected.", display_id);
+    DLOGW("Display %" PRIu64 " is not connected.", display_id);
     return kErrorResources;
   }
 

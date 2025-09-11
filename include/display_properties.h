@@ -193,6 +193,8 @@
 #define ANTI_AGING_IDLE_TIMER_SECONDARY               DISPLAY_PROP("demura_idle_timer_secondary")
 #define ANTI_AGING_RECALIB_TIMER_DIVIDER_SECONDARY    DISPLAY_PROP("demura_recalib_timer_divider_secondary")
 #define ANTI_AGING_SERVICE_RETRY_WAIT_TIME            DISPLAY_PROP("antiaging_service_retry_wait_time")
+#define ANTI_AGING_DISABLE_CWB_DOWNSCALING_PRIMARY    DISPLAY_PROP("antiaging_disable_cwb_downscaling_primary")
+#define ANTI_AGING_DISABLE_CWB_DOWNSCALING_SECONDARY  DISPLAY_PROP("antiaging_disable_cwb_downscaling_secondary")
 
 // PERF hint properties
 #define ENABLE_PERF_HINT_LARGE_COMP_CYCLE    DISPLAY_PROP("enable_perf_hint_large_comp_cycle")
@@ -233,6 +235,9 @@
 #define AIQE_SSRC_DEFAULT_MODE         DISPLAY_PROP("default_aiqe_ssrc_mode")
 #define AIQE_COPR_ENABLE               DISPLAY_PROP("enable_aiqe_copr")
 
+// RGBA Split feature
+#define RGBA_SPLIT_SUPPORT             DISPLAY_PROP("rgba_split_support")
+
 // Add all vendor.display properties above
 
 #define DISABLE_AHARDWARE_BUFFER_PROP        GRALLOC_PROP("disable_ahardware_buffer")
@@ -268,6 +273,7 @@
 #define DISABLE_CWB_OPTIMIZATION             DISPLAY_PROP("disable_cwb_optimization")
 #define FORCE_REFRESH_TO_PROCESS_CWB         DISPLAY_PROP("force_refresh_to_process_cwb")
 #define ENABLE_CLIENT_CONTROL_CWB_REFRESH    DISPLAY_PROP("enable_client_control_cwb_refresh")
+#define DISABLE_CWB_DOWNSCALE                DISPLAY_PROP("disable_cwb_downscale")
 #define ENABLE_ASYNC_POWER_OFF_WAIT          DISPLAY_PROP("enable_async_power_off_wait")
 #define TRANSIENT_FPS_CYCLE_COUNT            DISPLAY_PROP("transient_fps_cycle_count")
 #define CORE_ID_MASK                         DISPLAY_PROP("core_id_mask")
@@ -286,6 +292,7 @@
 #define DISABLE_FP16_SUPPORT                 DISPLAY_PROP("disable_fp16_support")
 #define LSR_VARIANT                          DISPLAY_PROP("lsr_variant")
 #define ENABLE_SPLIT_VOTE                    DISPLAY_PROP("enable_split_vote")
+#define ENABLE_SELECTIVE_PANEL_DEAD          DISPLAY_PROP("selective_panel_dead")
 
 // Enable AI Scaler
 #define ENABLE_AI_SCALER_PROP                DISPLAY_PROP("enable_ai_scaler")

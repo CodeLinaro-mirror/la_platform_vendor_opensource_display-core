@@ -451,6 +451,8 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                                   int32_t *out_layer_requests);
   DisplayError GetDisplayLuts(Display display,
                               std::unique_ptr<std::vector<std::pair<LayerId, Lut3d *>>> &out_luts);
+  DisplayError GetBufferLuts(Display display, const std::vector<SnapHandle *> &buffers,
+                             std::unique_ptr<std::vector<Lut3d *>> &out_luts);
   DisplayError GetReleaseFences(Display display, uint32_t *out_num_elements,
                                 LayerId *out_layers,
                                 std::vector<shared_ptr<Fence>> *out_fences);
@@ -468,7 +470,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError
   GetClientTargetProperty(Display display,
                           SDMClientTargetProperty *outClientTargetProperty);
-  DisplayError SetDemuraState(Display display, int32_t state);
+  DisplayError SetDemuraState(Display display, int32_t state, int32_t demura_idx);
   DisplayError SetDemuraConfig(Display display, int32_t demura_idx);
 
   DisplayError SetDisplayedContentSamplingEnabled(Display display, bool enabled,
@@ -491,8 +493,8 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   int GetDisplayConfigGroup(uint64_t display, DisplayConfigGroupInfo variable_config);
 
   // SDMDisplayEventHandler
-  virtual void DisplayPowerReset();
-  virtual void PerformDisplayPowerReset();
+  virtual void DisplayPowerReset(int32_t display);
+  virtual void PerformDisplayPowerReset(int32_t display);
   virtual void PerformQsyncCallback(Display display, bool qsync_enabled,
                                     uint32_t refresh_rate,
                                     uint32_t qsync_refresh_rate);
@@ -676,6 +678,7 @@ private:
   std::shared_ptr<IPCIntf> ipc_intf_ = nullptr;
   Locker primary_display_lock_;
   bool primary_pending_ = true;
+  bool selective_panel_dead_ = false;
 
   std::map<uint64_t, std::future<DisplayError>> commit_done_future_;
   bool disable_get_screen_decorator_support_ = false;

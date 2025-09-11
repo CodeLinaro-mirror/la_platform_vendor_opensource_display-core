@@ -81,6 +81,9 @@
 #ifndef DRM_FORMAT_MOD_QCOM_FSC_TILE
 #define DRM_FORMAT_MOD_QCOM_FSC_TILE fourcc_mod_code(QCOM, 0x20)
 #endif
+#ifndef DRM_FORMAT_MOD_QCOM_DMA
+#define DRM_FORMAT_MOD_QCOM_DMA fourcc_mod_code(QCOM, 0x400)
+#endif
 
 #define __CLASS__ "HWInfoDRM"
 
@@ -118,12 +121,13 @@ static HWQseedStepVersion GetQseedStepVersion(sde_drm::QSEEDStepVersion drm_vers
       break;
     case sde_drm::QSEEDStepVersion::V3LITE_V9:
       sdm_version = kQseed3litev9;
-      [[fallthrough]];
+      break;
     case sde_drm::QSEEDStepVersion::V3LITE_V10:
       sdm_version = kQseed3litev10;
-      [[fallthrough]];
+      break;
     case sde_drm::QSEEDStepVersion::V3LITE_V11:
-      [[fallthrough]];
+      sdm_version = kQseed3litev11;
+      break;
     default:
       sdm_version = kQseed3litev11;
       break;
@@ -302,7 +306,9 @@ DisplayError HWInfoDRM::GetHWResourceInfo(HWResourceInfo *hw_resource) {
   DLOGI("Destination scaler %sfound. Block count = %d.", hw_resource->hw_dest_scalar_info.count ?
         "": "disabled or not ", hw_resource->hw_dest_scalar_info.count);
   DLOGI("Max plane width = %d", hw_resource->max_pipe_width);
-  DLOGI("Max cursor width = %d", hw_resource->max_cursor_size);
+  if (hw_resource->num_cursor_pipe) {
+    DLOGI("Max cursor width = %d", hw_resource->max_cursor_size);
+  }
   DLOGI("Max plane upscale = %d", hw_resource->max_scale_up);
   DLOGI("Max plane downscale = %d", hw_resource->max_scale_down);
   DLOGI("Has Decimation = %d", hw_resource->has_decimation);
@@ -1015,13 +1021,15 @@ void HWInfoDRM::GetSDMFormat(uint32_t drm_format, uint64_t drm_format_modifier,
                                          DRM_FORMAT_MOD_QCOM_DX)) {
         fmts.push_back(kFormatYCbCr420P010Ubwc);
       } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_COMPRESSED) {
-         fmts.push_back(kFormatYCbCr420SPVenusUbwc);
+        fmts.push_back(kFormatYCbCr420SPVenusUbwc);
       } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_DX) {
         fmts.push_back(kFormatYCbCr420P010);
         fmts.push_back(kFormatYCbCr420P010Venus);
+      } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_DMA) {
+        fmts.push_back(kFormatNV12Y);
       } else {
-         fmts.push_back(kFormatYCbCr420SemiPlanarVenus);
-         fmts.push_back(kFormatYCbCr420SemiPlanar);
+        fmts.push_back(kFormatYCbCr420SemiPlanarVenus);
+        fmts.push_back(kFormatYCbCr420SemiPlanar);
       }
       break;
     case DRM_FORMAT_NV21:
@@ -1296,6 +1304,11 @@ uint32_t HWInfoDRM::GetMaxMixerCount() {
 }
 
 uint32_t HWInfoDRM::GetMaxDNSCBlurBlockCount() {
+  int32_t disable_cwb_dnsc = 0;
+  Debug::Get()->GetProperty(DISABLE_CWB_DOWNSCALE, &disable_cwb_dnsc);
+  if (disable_cwb_dnsc == 1) {
+    return 0;
+  }
 #ifdef FEATURE_DNSC_BLUR
   return 1;
 #else
