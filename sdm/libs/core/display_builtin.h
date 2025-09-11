@@ -372,6 +372,7 @@ class DisplayBuiltIn : public DisplayBase,
   int HandleTvmServiceEvent(const TvmServiceCbEvent &event);
   DisplayError DisableDemuraForHandOff();
   DisplayError ValidateDemuraLicense();
+  DisplayError SetAvrStepFpsState(uint32_t index, bool enable);
 
   const uint32_t kPuTimeOutMs = 1000;
   std::map<uint32_t, std::vector<HWEvent>> event_list_;

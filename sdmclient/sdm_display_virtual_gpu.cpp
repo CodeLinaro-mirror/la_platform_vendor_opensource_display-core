@@ -59,7 +59,7 @@ DisplayError SDMDisplayVirtualGPU::Init() {
   return SDMDisplayVirtual::Init();
 }
 
-DisplayError SDMDisplayVirtualGPU::Deinit() {
+DisplayError SDMDisplayVirtualGPU::Deinit(bool deinit_layer_builder) {
   // Destory color convert instance. This destroys thread and underlying GL
   // resources.
   color_convert_task_.PerformTask(ColorConvertTaskCode::kCodeDestroyInstance,

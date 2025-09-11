@@ -28,39 +28,9 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- *
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted (subject to the limitations in the
- * disclaimer below) provided that the following conditions are met:
- *
- *    * Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
- *
- *    * Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
- *      disclaimer in the documentation and/or other materials provided
- *      with the distribution.
- *
- *    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
- *      contributors may be used to endorse or promote products derived
- *      from this software without specific prior written permission.
- *
- * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
- * GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
- * HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
- * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #include <stdint.h>
@@ -348,6 +318,18 @@ static inline vector<uint64_t> GetBitClkRates(const string &bitclk_rates) {
   return dyn_bitclk_list;
 }
 
+static inline vector<uint32_t> GetEmSyncFpsList(const string &emsync_fps_list) {
+  stringstream line(emsync_fps_list);
+  string emsync_fps{};
+  vector<uint32_t> em_sync_fps_list{};
+
+  DRM_LOGI("Setting em sync fps list: %s", emsync_fps_list.c_str());
+  while (line >> emsync_fps) {
+    em_sync_fps_list.push_back(std::stoi(emsync_fps));
+  }
+  return em_sync_fps_list;
+}
+
 static inline vector<uint32_t> GetFpValues(const string &fp_list) {
   stringstream line(fp_list);
   string fp {};
@@ -477,7 +459,7 @@ void DRMConnectorManager::GetConnectorList(std::vector<uint32_t> *conn_ids) {
 static bool IsTVConnector(uint32_t type) {
   return (type == DRM_MODE_CONNECTOR_TV || type == DRM_MODE_CONNECTOR_HDMIA ||
           type == DRM_MODE_CONNECTOR_HDMIB || type == DRM_MODE_CONNECTOR_DisplayPort ||
-          type == DRM_MODE_CONNECTOR_VGA);
+          type == DRM_MODE_CONNECTOR_VGA || type == DRM_MODE_CONNECTOR_eDP);
 }
 
 int DRMConnectorManager::Reserve(DRMDisplayType disp_type, DRMDisplayToken *token,
@@ -715,6 +697,7 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
   const string fsc_panel = "is fsc panel=";
   const string num_fsc_fields = "num fsc fields=";
   const string dpu_dma_enabled = "dpu_dma_enabled=";
+  const string emsync_switch_enabled = "emsync_switch_enabled=";
 
   while (std::getline(stream, line)) {
     if (line.find(pixel_formats) != string::npos) {
@@ -781,6 +764,8 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
       info->num_fsc_fields = std::stoi(string(line, num_fsc_fields.length()));
     } else if (line.find(dpu_dma_enabled) != string::npos) {
       info->dpu_dma_enabled = (std::stoi(string(line, dpu_dma_enabled.length())) == 1);
+    } else if (line.find(emsync_switch_enabled) != string::npos) {
+      info->emsync_switch_enabled = (string(line, emsync_switch_enabled.length()) == "true");
     }
   }
 
@@ -862,6 +847,7 @@ void DRMConnector::ParseModeProperties(uint64_t blob_id, DRMConnectorInfo *info)
   const string avr_step_fps = "avr_step_fps=";
   const string early_ept_timeout = "early_ept_timeout=";
   const string vhm_support = "has_vhm_support=";
+  const string emsync_fps_list = "emsync_fps_list=";
 
   DRMModeInfo *mode_item = &info->modes.at(0);
   DRMSubModeInfo *submode_item = NULL;
@@ -981,6 +967,14 @@ void DRMConnector::ParseModeProperties(uint64_t blob_id, DRMConnectorInfo *info)
       mode_item->early_ept_timeout = std::stoi(string(line, early_ept_timeout.length()));
     } else if (line.find(vhm_support) != string::npos) {
       mode_item->vhm_support = (std::stoi(string(line, vhm_support.length())) == 1);
+    } else if (line.find(emsync_fps_list) != string::npos) {
+      if (!submode_item) {
+        DRMSubModeInfo submode = {};
+        mode_item->sub_modes.push_back(submode);
+        submode_item = &mode_item->sub_modes.at(submode_index++);
+        submode_index = 0;
+      }
+      submode_item->emsync_fps_list = GetEmSyncFpsList(string(line, emsync_fps_list.length()));
     }
   }
 
@@ -1623,6 +1617,16 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::USECASE_IDX),
                                usecase_idx);
       DRM_LOGD("Connector %d: Setting usecase idx = %d", obj_id, usecase_idx);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_EMSYNC_FPS: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::EMSYNC_FPS)) {
+        return;
+      }
+      uint32_t avr_step_fps = va_arg(args, uint32_t);
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::EMSYNC_FPS),
+                               avr_step_fps);
+      DRM_LOGD("Connector %d: Setting Avr Step Fps = %d", obj_id, avr_step_fps);
     } break;
 
     default:

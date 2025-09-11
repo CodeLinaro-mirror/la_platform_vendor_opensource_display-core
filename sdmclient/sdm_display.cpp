@@ -770,7 +770,7 @@ void SDMDisplay::UpdateConfigs() {
   }
 }
 
-DisplayError SDMDisplay::Deinit() {
+DisplayError SDMDisplay::Deinit(bool deinit_layer_builder) {
   DisplayError error = core_intf_->DestroyDisplay(display_intf_);
   if (error != kErrorNone) {
     DLOGE("Display destroy failed. Error = %d", error);
@@ -793,8 +793,10 @@ DisplayError SDMDisplay::Deinit() {
     delete color_mode_;
   }
 
-  layer_builder_->DeInit(id_);
-  layer_builder_ = nullptr;
+  if (deinit_layer_builder) {
+    layer_builder_->DeInit(id_);
+    layer_builder_ = nullptr;
+  }
 
   return kErrorNone;
 }
@@ -3070,6 +3072,7 @@ SDMDisplay::GetDisplayConfigGroup(DisplayConfigGroupInfo variable_config) {
 bool SDMDisplay::IsModeSwitchAllowed(uint32_t config) {
   DisplayError error = kErrorNone;
   uint32_t allowed_mode_switch = 0;
+  uint32_t checking_config = config;
 
   if (variable_config_map_.find(config) == variable_config_map_.end()) {
     DLOGE("Invalid config: %d", config);
@@ -3077,8 +3080,14 @@ bool SDMDisplay::IsModeSwitchAllowed(uint32_t config) {
   }
 
   bool is_new_config_virtual = variable_config_map_[config].is_virtual_config;
+  bool allowed_vrr_mode_switch = variable_config_map_[config].allowed_vrr_mode_switch;
   if (is_new_config_virtual) {
-    return true;
+    if (allowed_vrr_mode_switch) {
+      //For VRR virtual mode, use the parent config to check whether mode switching is allowed
+      checking_config = variable_config_map_[config].parent_config_index;
+    } else {
+      return true;
+    }
   }
 
   error = display_intf_->IsSupportedOnDisplay(kSupportedModeSwitch,
@@ -3092,7 +3101,7 @@ bool SDMDisplay::IsModeSwitchAllowed(uint32_t config) {
           "configuration.");
   }
 
-  if (allowed_mode_switch == 0 || (allowed_mode_switch & (1 << config))) {
+  if (allowed_mode_switch == 0 || (allowed_mode_switch & (1 << checking_config))) {
     DLOGV_IF(kTagClient, "Allowed to switch to mode:%d", config);
     return true;
   }
@@ -3137,7 +3146,8 @@ DisplayError SDMDisplay::SetActiveConfigWithConstraints(
     return kErrorNotSupported;
   } else {
     std::lock_guard<std::mutex> lock(active_config_lock_);
-    if (variable_config_map_[config].is_virtual_config || IsVirtualConfig(active_config_index_)) {
+    if ((variable_config_map_[config].is_virtual_config || IsVirtualConfig(active_config_index_)) &&
+        !variable_config_map_[config].allowed_vrr_mode_switch) {
       DisplayError error = SetFBForExtendedResolution(config, &is_vconfig_fps_switched);
       if (!is_vconfig_fps_switched || (error != kErrorNone)) {
         if ((error == kErrorNone) && (info_client_requested.x_pixels != fb_width_ ||
@@ -4231,7 +4241,10 @@ DisplayError SDMDisplay::FinalizeDisplayConfig(bool check_pending_config, Config
   }
 
   auto &info = variable_config_map_[new_config];
-  Config new_real_config = (info.is_virtual_config) ? info.parent_config_index : new_config;
+  //VRR virtual mode doesn't needs use parent config index
+  Config new_real_config = (info.is_virtual_config && !info.allowed_vrr_mode_switch)
+                               ? info.parent_config_index
+                               : new_config;
   Config current_real_config = 0;
   auto error = display_intf_->GetActiveConfig(&current_real_config);
   if (current_real_config != new_real_config || error == kErrorConfigMismatch) {
@@ -4344,7 +4357,7 @@ DisplayError SDMDisplay::SetRGBASplit(int32_t split_enable) {
 
   DisplayError error = display_intf_->SetRGBASplit(split_enable);
   DLOGI("Feature %s on display : %" PRId64 " %d-%d", split_enable ? "enabled" : "disabled", id_,
-        sdm_id_, type_, split_enable);
+        sdm_id_, type_);
 
   return error;
 }

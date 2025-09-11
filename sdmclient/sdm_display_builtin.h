@@ -59,7 +59,7 @@ public:
                             SDMCompositorCallbacks *callbacks,
                             SDMDisplayEventHandler *event_handler, Display id, int32_t sdm_id,
                             SDMDisplay **sdm_display);
- static void Destroy(SDMDisplay *sdm_display);
+ static void Destroy(SDMDisplay *sdm_display, bool deinit_layer_builder = true);
  virtual DisplayError Init();
  virtual DisplayError Present(shared_ptr<Fence> *out_retire_fence);
  virtual DisplayError CommitLayerStack();
@@ -105,7 +105,7 @@ public:
                                       float hdr_sdr_ratio);
  virtual bool IsSmartPanelConfig(uint32_t config_id);
  virtual bool HasSmartPanelConfig(void);
- virtual DisplayError Deinit();
+ virtual DisplayError Deinit(bool deinit_layer_builder = true);
  virtual DisplayError PostInit();
 
  virtual DisplayError SetDisplayedContentSamplingEnabledVndService(bool enabled);
