@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include <unistd.h>
@@ -65,6 +65,12 @@ Error SnapAllocCore::AllocateBuffer(AllocData *ad, AllocData *m_data,
 Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
                               std::vector<SnapHandleInternal *> *handles, bool test_alloc) {
   std::lock_guard<std::mutex> buffer_lock(buffer_lock_);
+
+  if (desc.usage & vendor_qti_hardware_display_common_BufferUsage::PROTECTED) {
+    DLOGE("Protected usage not supported - usage : %d", desc.usage);
+    return Error::UNSUPPORTED;
+  }
+
   for (int i = 0; i < count; i++) {
     OVERFLOW_ERR_RETURN(desc.reservedSize, sizeof(SnapMetadata), OverflowType::ADD);
     OVERFLOW_ERR_RETURN((desc.reservedSize + sizeof(SnapMetadata)), PAGE_SIZE, OverflowType::ADD);
