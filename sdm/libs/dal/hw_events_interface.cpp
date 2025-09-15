@@ -28,9 +28,9 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-  SPDX-License-Identifier: BSD-3-Clause-Clear
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
 #include <utils/utils.h>
@@ -49,7 +49,7 @@ namespace sdm {
 DisplayError HWEventsInterface::Create(DisplayId display_id, SDMDisplayType display_type,
                                        HWEventHandler *event_handler,
                                        const std::map<uint32_t, std::vector<HWEvent>> &event_list,
-                                       std::vector<HWEventsInterface *> *intf) {
+                                       std::map<uint32_t, HWEventsInterface *> *intf) {
   DisplayError error = kErrorNone;
 #ifndef TARGET_HEADLESS
   for (auto map_entry : event_list) {
@@ -59,7 +59,7 @@ DisplayError HWEventsInterface::Create(DisplayId display_id, SDMDisplayType disp
     if (error != kErrorNone) {
       delete hw_events;
     } else {
-      intf->push_back(hw_events);
+      (*intf)[map_entry.first] = hw_events;
     }
   }
 #endif
@@ -67,15 +67,15 @@ DisplayError HWEventsInterface::Create(DisplayId display_id, SDMDisplayType disp
   return error;
 }
 
-DisplayError HWEventsInterface::Destroy(std::vector<HWEventsInterface *> *intf) {
+DisplayError HWEventsInterface::Destroy(std::map<uint32_t, HWEventsInterface *> *intf) {
   if (!intf) {
     return kErrorParameters;
   }
 
-  for (int i = 0; i < intf->size(); i++) {
-    if (intf->at(i)) {
-      intf->at(i)->Deinit();
-      delete intf->at(i);
+  for (auto &entry : *intf) {
+    if (entry.second) {
+      entry.second->Deinit();
+      delete entry.second;
     }
   }
   intf->clear();
