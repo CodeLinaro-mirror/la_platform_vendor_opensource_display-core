@@ -3698,7 +3698,7 @@ void DisplayBase::UpdateFrameBuffer() {
 
 void DisplayBase::PostCommitLayerParams() {
   for (auto& info : disp_layer_stack_->info) {
-    cached_qos_data_.at(info.first) = info.second.qos_data;
+    cached_qos_data_[info.first] = info.second.qos_data;
   }
 }
 

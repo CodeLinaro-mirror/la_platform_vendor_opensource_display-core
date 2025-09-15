@@ -104,6 +104,7 @@ void HWEventsDRM::HandleDRMOpen(int &fd) {
 }
 
 DisplayError HWEventsDRM::InitializePollFd() {
+  static std::bitset<8> core_id_map = 0;
   for (uint32_t i = 0; i < event_data_list_.size(); i++) {
     char data[kMaxStringLength]{};
     HWEventData &event_data = event_data_list_[i];
@@ -113,9 +114,10 @@ DisplayError HWEventsDRM::InitializePollFd() {
     switch (event_data.event_type) {
       case HWEvent::VSYNC: {
         poll_fds_[i].events = POLLIN | POLLPRI | POLLERR;
-        if (is_primary_) {
+        if (is_primary_ || !core_id_map.test(core_id_)) {
+          core_id_map[core_id_] = 1;
           DRMMaster *master = nullptr;
-          int ret = DRMMaster::GetInstance(&master);
+          int ret = DRMMaster::GetInstance(&master, core_id_);
           if (ret < 0) {
             DLOGE("Failed to acquire DRMMaster instance");
             return kErrorNotSupported;
@@ -223,7 +225,7 @@ DisplayError HWEventsDRM::SetEventParser() {
   for (auto &event_data : event_data_list_) {
     switch (event_data.event_type) {
       case HWEvent::VSYNC:
-        event_data.event_parser = &HWEventsDRM::HandlePageFlip;
+        event_data.event_parser = &HWEventsDRM::HandleVSync;
         break;
       case HWEvent::CEC_READ_MESSAGE:
         event_data.event_parser = &HWEventsDRM::HandleCECMessage;
@@ -833,6 +835,8 @@ void HWEventsDRM::HandleVSync(char *data) {
   drmEventContext event = {};
   event.version = DRM_EVENT_CONTEXT_VERSION;
   event.vblank_handler = &HWEventsDRM::VSyncHandlerCallback;
+  event.page_flip_handler = &HWEventsDRM::PFlipHandlerCallback;
+
   int error = drmHandleEvent(poll_fds_[vsync_index_].fd, &event);
   if (error != 0) {
     DLOGE("drmHandleEvent failed: %i", error);
@@ -846,18 +850,6 @@ void HWEventsDRM::HandleVSync(char *data) {
       ret = RegisterVSync();
       if (ret == kErrorNone)
         registered_hw_events_.set(HWEvent::VSYNC);
-    }
-  }
-}
-
-void HWEventsDRM::HandlePageFlip(char *data) {
-  if (poll_fds_[vsync_index_].revents & (POLLIN | POLLPRI)) {
-    drmEventContext event = {};
-    event.version = DRM_EVENT_CONTEXT_VERSION;
-    event.page_flip_handler = &HWEventsDRM::PFlipHandlerCallback;
-    int error = drmHandleEvent(poll_fds_[vsync_index_].fd, &event);
-    if (error != 0) {
-      DLOGE("drmHandleEvent failed: %i", error);
     }
   }
 }

@@ -80,7 +80,6 @@ class HWEventsDRM : public HWEventsInterface {
                                    unsigned int tv_usec, void *data);
   void *DisplayEventHandler();
   void HandleVSync(char *data);
-  void HandlePageFlip(char *data);
   void HandleCECMessage(char *data);
   void HandleThreadExit(char *data) {}
   void HandleThermal(char *data) {}
