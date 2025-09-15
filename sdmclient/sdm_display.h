@@ -26,11 +26,13 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #ifndef __SDM_DISPLAY_H__
 #define __SDM_DISPLAY_H__
 
@@ -171,7 +173,7 @@ public:
   virtual ~SDMDisplay() {}
 
   virtual DisplayError Init();
-  virtual DisplayError Deinit();
+  virtual DisplayError Deinit(bool deinit_layer_builder = true);
 
   virtual DisplayError GetFixedConfig(DisplayConfigFixedInfo *info);
 
@@ -317,9 +319,9 @@ public:
                                                    float max_lum) {
     return kErrorNotSupported;
   }
-  virtual DisplayError
-  SetClientTarget(const SnapHandle *target, shared_ptr<Fence> acquire_fence,
-                  int32_t dataspace, const SDMRegion &damage, uint32_t version);
+  virtual DisplayError SetClientTarget(const SnapHandle *target, shared_ptr<Fence> acquire_fence,
+                                       int32_t dataspace, const SDMRegion &damage, uint32_t version,
+                                       float hdr_sdr_ratio);
   virtual DisplayError GetClientTarget(const SnapHandle *target,
                                        shared_ptr<Fence> acquire_fence,
                                        int32_t dataspace, SDMRegion damage);
@@ -360,7 +362,7 @@ public:
     return kErrorNotSupported;
   }
   virtual DisplayError SetPendingRefresh() { return kErrorNotSupported; }
-  virtual DisplayError SetPanelBrightness(float brightness) {
+  virtual DisplayError SetPanelBrightness(float brightness, bool apply_immediately) {
     return kErrorNotSupported;
   }
   virtual DisplayError GetPanelBrightness(float *brightness) {
@@ -389,6 +391,10 @@ public:
                                           uint32_t *out_num_elements,
                                           LayerId *out_layers,
                                           int32_t *out_layer_requests);
+  virtual DisplayError GetDisplayLuts(
+      std::unique_ptr<std::vector<std::pair<LayerId, Lut3d *>>> &out_luts);
+  virtual DisplayError GetBufferLuts(const std::vector<SnapHandle *> &buffers,
+                                     std::unique_ptr<std::vector<Lut3d *>> &out_luts);
   virtual DisplayError GetDisplayName(uint32_t *out_size, char *out_name);
   virtual DisplayError GetDisplayType(int32_t *out_type);
   virtual DisplayError SetCursorPosition(LayerId layer, int x, int y);
@@ -478,13 +484,14 @@ public:
     return kErrorNotSupported;
   }
   virtual DisplayError RetrieveDemuraTnFiles() { return kErrorNotSupported; }
-  virtual DisplayError SetDemuraState(int state) { return kErrorNotSupported; }
+  virtual DisplayError SetDemuraState(int state, int demura_idx) { return kErrorNotSupported; }
   virtual DisplayError SetDemuraConfig(int demura_idx) {
     return kErrorNotSupported;
   }
   virtual DisplayError SetABCState(bool state) { return kErrorNotSupported; }
   virtual DisplayError SetABCReconfig() { return kErrorNotSupported; }
   virtual DisplayError SetABCMode(string mode_name) { return kErrorNotSupported; }
+  virtual DisplayError SetAIScalerMode(uint32_t mode_id) { return kErrorNotSupported; }
   virtual DisplayError
   GetClientTargetProperty(SDMClientTargetProperty *out_client_target_property);
   virtual void GetConfigInfo(
@@ -530,6 +537,9 @@ public:
   DisplayError GetCachedActiveConfig(bool get_real_config, Config *config);
   virtual void TimeoutOnBuiltins(){};
   virtual void IdleTimeout(){};
+  DisplayError SetStandbyMode(bool enable, bool is_twm);
+  DisplayError SetRGBASplit(int32_t split_enable);
+  virtual bool IsDmaModeIncompatible(LayerComposition composition) { return false; }
 
  protected:
   static uint32_t throttling_refresh_rate_;
@@ -600,6 +610,7 @@ public:
   void DumpInputBuffers(void);
   void RetrieveFences(shared_ptr<Fence> *out_retire_fence);
   void SetDrawMethod();
+  void ClearRequestMaps();
 
   // CWB related methods
   void HandleFrameOutput();
@@ -616,12 +627,20 @@ public:
   SDMDisplayType type_ = kDisplayTypeMax;
   Display id_ = UINT64_MAX;
   int32_t sdm_id_ = -1;
-  DisplayInterface *display_intf_ = NULL;
+  DisplayInterface *display_intf_ = nullptr;
+  // Used to store null display interface (if required)
+  DisplayInterface *display_null_intf_ = nullptr;
+  // Used to store display_intf_ pointer if null display is active
+  DisplayInterface *stored_display_intf_ = nullptr;
+  bool null_display_active_ = false;
   LayerStack layer_stack_;
   SDMLayer *client_target_ = nullptr; // Also known as framebuffer target
 
   std::map<LayerId, SDMCompositionType> layer_changes_;
   std::map<LayerId, SDMLayerRequest> layer_requests_;
+  // mapping 3d luts to layer id and handle id to retrieve info and pass to client
+  std::map<LayerId, Lut3d *> display_luts_;
+  std::map<uint64_t, Lut3d *> buffer_luts_;
   bool flush_on_error_ = false;
   bool flush_ = false;
   SDMPowerMode current_power_mode_ = SDMPowerMode::POWER_MODE_OFF;
@@ -708,6 +727,7 @@ public:
   SDMLayerStack *sdm_layer_stack_ = nullptr;
   bool prepare_phase_ = false;
   uint64_t scheduled_dynamic_dsi_clk_ = 0;
+  int32_t rgba_split_support_ = 0;
 
  private:
   bool CanSkipSdmPrepare(uint32_t *num_types, uint32_t *num_requests);

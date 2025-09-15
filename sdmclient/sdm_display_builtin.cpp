@@ -27,8 +27,8 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <stdarg.h>
@@ -94,8 +94,8 @@ DisplayError SDMDisplayBuiltIn::Create(CoreInterface *core_intf, BufferAllocator
   return status;
 }
 
-void SDMDisplayBuiltIn::Destroy(SDMDisplay *sdm_display) {
-  sdm_display->Deinit();
+void SDMDisplayBuiltIn::Destroy(SDMDisplay *sdm_display, bool deinit_layer_builder) {
+  sdm_display->Deinit(deinit_layer_builder);
   delete sdm_display;
 }
 
@@ -110,13 +110,6 @@ SDMDisplayBuiltIn::SDMDisplayBuiltIn(CoreInterface *core_intf, BufferAllocator *
       layer_stitch_task_(*this) {}
 
 DisplayError SDMDisplayBuiltIn::Init() {
-  cpu_hint_ = new CPUHint();
-  if (cpu_hint_->Init(static_cast<SDMDebugHandler *>(SDMDebugHandler::Get()), callbacks_) !=
-      kErrorNone) {
-    delete cpu_hint_;
-    cpu_hint_ = NULL;
-  }
-
   layer_stack_.flags.use_metadata_refresh_rate = true;
   int disable_metadata_dynfps = 0;
   SDMDebugHandler::Get()->GetProperty(DISABLE_METADATA_DYNAMIC_FPS_PROP,
@@ -179,6 +172,8 @@ DisplayError SDMDisplayBuiltIn::Init() {
     large_comp_hint_threshold_ = value;
   }
 
+  dpu_dma_enabled_ = display_intf_->IsDpuDmaModeEnabled();
+
   uint32_t config_index = 0;
   GetActiveDisplayConfig(false, &config_index);
   DisplayConfigVariableInfo attr = {};
@@ -228,9 +223,10 @@ DisplayError SDMDisplayBuiltIn::PreValidateDisplay(bool *exit_validate) {
 
   auto status = kErrorNone;
   bool res_exhausted = false;
-  // If no resources are available for the current display, mark it for GPU by
+  // If no resources are available for the current display, or pass
+  // unsupported format in DPU DMA mode, mark it for GPU by
   // pass and continue to do invalidate until the resources are available
-  if (display_paused_ || CheckResourceState(&res_exhausted)) {
+  if (display_paused_ || CheckResourceState(&res_exhausted) || SetDpuDmaMode() != kErrorNone) {
     MarkLayersForGPUBypass();
     *exit_validate = true;
     return status;
@@ -266,6 +262,10 @@ DisplayError SDMDisplayBuiltIn::PreValidateDisplay(bool *exit_validate) {
   current_refresh_rate_ = refresh_rate;
 
   if (sdm_layer_stack_->layer_set_.empty()) {
+    //Trigger flush to commit TUI request to driver.
+    if (secure_event_ != kSecureEventMax) {
+      display_intf_->Flush(&layer_stack_);
+    }
     // Avoid flush for Command mode panel.
     flush_ = !client_connected_;
     *exit_validate = true;
@@ -381,32 +381,14 @@ DisplayError SDMDisplayBuiltIn::SetPowerMode(SDMPowerMode mode, bool teardown) {
            : (mode == SDMPowerMode::POWER_MODE_DOZE) ? "DOZE"
                                                      : "DOZE_SUSPEND",
            sdm_id_, type_);
-  if (cpu_hint_) {
-    switch (mode) {
-    case SDMPowerMode::POWER_MODE_DOZE:
-    case SDMPowerMode::POWER_MODE_DOZE_SUSPEND:
-      // Perf hal doesn't differentiate b/w doze and doze-suspend, so send doze
-      // hint for both.
-      cpu_hint_->ReqEvent(kPerfHintDisplayDoze);
-      break;
-    case SDMPowerMode::POWER_MODE_ON:
-      if (abc_defer_reconfig_) {
-        DisplayError error = display_intf_->SetABCReconfig();
-        if (error != kErrorNone) {
-          DLOGE("Failed to Reconfig ABC feature, error = %d", error);
-        }
 
-        abc_defer_reconfig_ = false;
-      }
-
-      cpu_hint_->ReqEvent(kPerfHintDisplayOn);
-      break;
-    case SDMPowerMode::POWER_MODE_OFF:
-      cpu_hint_->ReqEvent(kPerfHintDisplayOff);
-      break;
-    default:
-      break;
+  HandlePowerModeHint(mode);
+  if (mode == SDMPowerMode::POWER_MODE_ON && abc_defer_reconfig_) {
+    DisplayError error = display_intf_->SetABCReconfig();
+    if (error != kErrorNone) {
+      DLOGE("Failed to Reconfig ABC feature, error = %d", error);
     }
+    abc_defer_reconfig_ = false;
   }
 
   if (mode != SDMPowerMode::POWER_MODE_OFF) {
@@ -885,6 +867,18 @@ DisplayError SDMDisplayBuiltIn::SetHWDetailedEnhancerConfig(void *params) {
           de_tuning_cfg_data->params.de_lpf_m,
           de_tuning_cfg_data->params.de_lpf_l);
 #endif
+#ifdef DISP_DE_VER_3005
+      DLOGV_IF(kTagQDCM,
+               "sharpen_level1 %d, sharpen_level2 %d, filter_config %d, "
+               "polarity_en %d, halo suppress factor %d, detail suppress factor %d, "
+               "optimization mode %d",
+               de_tuning_cfg_data->params.sharpen_level1, de_tuning_cfg_data->params.sharpen_level2,
+               de_tuning_cfg_data->params.filter_config, de_tuning_cfg_data->params.polarity_en,
+               de_tuning_cfg_data->params.halo_suppression_factor,
+               de_tuning_cfg_data->params.detail_suppression_factor,
+               de_tuning_cfg_data->params.optimization_mode);
+#endif
+
       if (de_tuning_cfg_data->params.flags & kDeTuningFlagSharpFactor) {
         de_data.sharp_factor = de_tuning_cfg_data->params.sharp_factor;
       }
@@ -925,6 +919,11 @@ DisplayError SDMDisplayBuiltIn::SetHWDetailedEnhancerConfig(void *params) {
         case kDeContentQualHigh:
           de_data.quality_level = kContentQualityHigh;
           break;
+#ifdef DISP_DE_VER_3005
+        case kDeContentQualExtreme:
+          de_data.quality_level = kContentQualityExtreme;
+          break;
+#endif
         case kDeContentQualUnknown:
         default:
           de_data.quality_level = kContentQualityUnknown;
@@ -958,12 +957,72 @@ DisplayError SDMDisplayBuiltIn::SetHWDetailedEnhancerConfig(void *params) {
         de_data.de_lpf_l = de_tuning_cfg_data->params.de_lpf_l;
       }
 #endif
+#ifdef DISP_DE_VER_3005
+      if (de_tuning_cfg_data->params.flags & kDeTuningFlagSharpenLevel1) {
+        de_data.override_flags |= kOverrideDESharpen1;
+        de_data.sharpen_level1 = de_tuning_cfg_data->params.sharpen_level1;
+      }
+
+      if (de_tuning_cfg_data->params.flags & kDeTuningFlagSharpenLevel2) {
+        de_data.override_flags |= kOverrideDESharpen2;
+        de_data.sharpen_level2 = de_tuning_cfg_data->params.sharpen_level2;
+      }
+
+      if (de_tuning_cfg_data->params.flags & kDeTuningFlagPolarityEn) {
+        de_data.override_flags |= kOverrideDEPolarityEn;
+        de_data.polarity_en = de_tuning_cfg_data->params.polarity_en;
+      }
+
+      de_data.halo_suppression_factor = de_tuning_cfg_data->params.halo_suppression_factor;
+      de_data.detail_suppression_factor = de_tuning_cfg_data->params.detail_suppression_factor;
+
+      if (de_tuning_cfg_data->params.flags & kDeTuningFlagFilterConfig) {
+        de_data.override_flags |= kOverrideDEFilterConfig;
+        switch (de_tuning_cfg_data->params.filter_config) {
+          case kDeFilterEdgeDirected:
+            de_data.filter_config = kFilterEdgeDirected;
+            break;
+          case kDeFilterCircular:
+            de_data.filter_config = kFilterCircular;
+            break;
+          case kDeFilterSeparable:
+            de_data.filter_config = kFilterSeparable;
+            break;
+          case kDeFilterBilinear:
+            de_data.filter_config = kFilterBilinear;
+            break;
+          default:
+            de_data.filter_config = kFilterMax;
+            de_data.override_flags &= ~kOverrideDEFilterConfig;
+            break;
+        }
+      }
+      switch (de_tuning_cfg_data->params.optimization_mode) {
+        case kDeOptimizationQuality:
+          de_data.optimization_mode = kOptimizationQuality;
+          break;
+        case kDeOptimizationBalanced:
+          de_data.optimization_mode = kOptimizationBalanced;
+          break;
+        case kDeOptimizationPower:
+          de_data.optimization_mode = kOptimizationPower;
+          break;
+        case kDeOptimizationBalancedHigh:
+          de_data.optimization_mode = kOptimizationBalancedHigh;
+          break;
+        case kDeOptimizationBalancedLow:
+          de_data.optimization_mode = kOptimizationBalancedLow;
+          break;
+        default:
+          de_data.optimization_mode = kOptimizationQuality;
+          break;
+      }
+#endif
     }
     err = SetDetailEnhancerConfig(de_data);
     if (err) {
       DLOGW("SetDetailEnhancerConfig failed. err = %d", err);
     }
-    de_tuning_cfg_data->cfg_pending = false;
   }
   return err;
 }
@@ -1165,12 +1224,11 @@ void SDMDisplayBuiltIn::IdleTimeout() {
   display_intf_->TriggerIdleTimeout();
 }
 
-DisplayError SDMDisplayBuiltIn::SetPanelBrightness(float brightness) {
-  DisplayError ret = display_intf_->SetPanelBrightness(brightness);
+DisplayError SDMDisplayBuiltIn::SetPanelBrightness(float brightness, bool apply_immediately) {
+  DisplayError ret = display_intf_->SetPanelBrightness(brightness, apply_immediately);
   if (ret != kErrorNone) {
     return kErrorResources;
   }
-
   return kErrorNone;
 }
 
@@ -1179,7 +1237,6 @@ DisplayError SDMDisplayBuiltIn::GetPanelBrightness(float *brightness) {
   if (ret != kErrorNone) {
     return kErrorResources;
   }
-
   return kErrorNone;
 }
 
@@ -1212,13 +1269,12 @@ DisplayError SDMDisplayBuiltIn::SetBLScale(uint32_t level) {
 }
 
 DisplayError SDMDisplayBuiltIn::SetClientTarget(const SnapHandle *target,
-                                                shared_ptr<Fence> acquire_fence,
-                                                int32_t dataspace,
-                                                const SDMRegion &damage,
-                                                uint32_t version) {
+                                                shared_ptr<Fence> acquire_fence, int32_t dataspace,
+                                                const SDMRegion &damage, uint32_t version,
+                                                float hdr_sdr_ratio) {
   DTRACE_SCOPED();
-  DisplayError error = SDMDisplay::SetClientTarget(target, acquire_fence,
-                                                   dataspace, damage, version);
+  DisplayError error =
+      SDMDisplay::SetClientTarget(target, acquire_fence, dataspace, damage, version, hdr_sdr_ratio);
   if (error != kErrorNone) {
     return error;
   }
@@ -1279,13 +1335,13 @@ bool SDMDisplayBuiltIn::HasSmartPanelConfig(void) {
   return false;
 }
 
-DisplayError SDMDisplayBuiltIn::Deinit() {
+DisplayError SDMDisplayBuiltIn::Deinit(bool deinit_layer_builder) {
   // Destory color convert instance. This destroys thread and underlying GL
   // resources.
   callbacks_->DestroyLayerStitch(id_);
 
   callbacks_->StopHistogram(id_, true);
-  return SDMDisplay::Deinit();
+  return SDMDisplay::Deinit(deinit_layer_builder);
 }
 
 void SDMDisplayBuiltIn::OnTask(const LayerStitchTaskCode &task_code,
@@ -1433,33 +1489,29 @@ DisplayError SDMDisplayBuiltIn::PostInit() {
 }
 
 bool SDMDisplayBuiltIn::NeedsLargeCompPerfHint() {
-  if (!cpu_hint_) {
-    DLOGV_IF(kTagResources, "CPU hint is not initialized");
+  if (active_refresh_rate_ < 90) {
+    DLOGV_IF(kTagResources, "Current fps %d doesn't qualify for large comp hint",
+             active_refresh_rate_);
     return false;
   }
 
-  if (active_refresh_rate_ < 120) {
-    return false;
-  }
-
+  std::string trace;
   if (large_comp_hint_threshold_ > 0 &&
       sdm_layer_stack_->layer_set_.size() >= large_comp_hint_threshold_) {
-    DLOGV_IF(
-        kTagResources,
-        "Number of app layers %d meet requirement %d. Set perf hint for large "
-        "comp cycle",
-        sdm_layer_stack_->layer_set_.size(), large_comp_hint_threshold_);
+    trace = "app layers " + to_string(sdm_layer_stack_->layer_set_.size()) + " threshold " +
+            to_string(large_comp_hint_threshold_);
+    DTRACE_BEGIN(trace.c_str());
+    DTRACE_END();
     return true;
   }
 
   // Send hints when the device is in multi-display or when a skip layer is
   // present.
   if (layer_stack_.flags.skip_present || is_multi_display_) {
-    DLOGV_IF(
-        kTagResources,
-        "Found skip_layer:%d or is_multidisplay:%d. Set perf hint for large "
-        "comp cycle",
-        layer_stack_.flags.skip_present, is_multi_display_);
+    trace = "skip layer " + to_string(layer_stack_.flags.skip_present) + " multidisplay " +
+            to_string(is_multi_display_);
+    DTRACE_BEGIN(trace.c_str());
+    DTRACE_END();
     return true;
   }
 
@@ -1493,10 +1545,9 @@ bool SDMDisplayBuiltIn::NeedsLargeCompPerfHint() {
 
   // Send hints when the number of GPU layers reaches the threshold for the
   // active refresh rate.
-  DLOGV_IF(
-      kTagResources,
-      "Reached max GPU layers for %dfps. Set perf hint for large comp cycle",
-      active_refresh_rate_);
+  trace = "gpu layers " + to_string(gpu_layer_count) + " fps " + to_string(active_refresh_rate_);
+  DTRACE_BEGIN(trace.c_str());
+  DTRACE_END();
   return true;
 }
 
@@ -1580,7 +1631,11 @@ DisplayError SDMDisplayBuiltIn::CommitOrPrepare(
                                             out_num_types, out_num_requests,
                                             needs_commit);
 
-  if (perf_hint_large_comp_cycle_) {
+  if (enable_perf_hints_) {
+    InitializePerfHints();
+  }
+
+  if (cpu_hint_ && perf_hint_large_comp_cycle_) {
     bool needs_hint = NeedsLargeCompPerfHint();
     HandleLargeCompositionHint(!needs_hint);
   }
@@ -1703,9 +1758,9 @@ DisplayError SDMDisplayBuiltIn::PerformCacConfig(CacConfig config, bool enable) 
   return error;
 }
 
-DisplayError SDMDisplayBuiltIn::SetDemuraState(int state) {
-  DLOGV("Display ID: %" PRId64 " state: %d", id_, state);
-  DisplayError error = display_intf_->SetDemuraState(state);
+DisplayError SDMDisplayBuiltIn::SetDemuraState(int state, int demura_idx) {
+  DLOGV("Display ID: %" PRId64 " state: %d, demura_idx: %d", id_, state, demura_idx);
+  DisplayError error = display_intf_->SetDemuraState(state, demura_idx);
 
   if (error != kErrorNone) {
     DLOGE("Failed. state = %d, error = %d", state, error);
@@ -1765,49 +1820,64 @@ DisplayError SDMDisplayBuiltIn::SetABCMode(string mode_name) {
   return kErrorNone;
 }
 
-void SDMDisplayBuiltIn::HandleLargeCompositionHint(bool release) {
-  if (!cpu_hint_) {
-    return;
+DisplayError SDMDisplayBuiltIn::SetAIScalerMode(uint32_t mode_id) {
+  DLOGV("Display ID: %" PRId64 " Mode ID: %d", id_, mode_id);
+  DisplayError error = display_intf_->SetAIScalerMode(mode_id);
+
+  if (error != kErrorNone) {
+    DLOGE("Failed to set AI Scaler mode ID %d, error = %d", mode_id, error);
+    return kErrorParameters;
   }
 
+  callbacks_->OnRefresh(id_);
+
+  return kErrorNone;
+}
+
+void SDMDisplayBuiltIn::HandleLargeCompositionHint(bool release) {
   int tid = gettid();
+  bool updated_tid = (sdm_tid_ != tid);
+  nsecs_t current_time = callbacks_->SystemTime(SYSTEM_TIME_MONOTONIC);
+  std::string trace;
+
+  if (release && hint_start_time_ == 0 && updated_tid) {
+    trace = "SDM's tid " + to_string(sdm_tid_) + " is updated to " + to_string(tid) +
+            ", send ReqHint()";
+    DLOGV_IF(kTagResources, "%s", trace.c_str());
+    DTRACE_BEGIN(trace.c_str());
+    DTRACE_END();
+
+    int ret = cpu_hint_->ReqHint(kSDM, tid);
+    if (!ret) {
+      sdm_tid_ = tid;
+    }
+  }
+
+  // For long term large composition hint, release or acquire handle after 100 milliseconds to
+  // avoid resending hints in animation launch use cases and others. Return immediately when
+  // there's no active hints and hint isn't needed.
+  if ((release && hint_start_time_ == 0) ||
+      (hint_start_time_ != 0 &&
+       nanoseconds_to_milliseconds(current_time - hint_start_time_) < elapse_time_threshold_)) {
+    return;
+  }
 
   if (release) {
-    if (sdm_tid_ != tid) {
-      DLOGV_IF(kTagResources, "SDM's tid:%d is updated to :%d", sdm_tid_, tid);
-      int ret = cpu_hint_->ReqHint(kSDM, tid);
-      if (!ret) {
-        sdm_tid_ = tid;
-      }
-    }
+    DTRACE_BEGIN("Release LargeCompositionHint");
+    DTRACE_END();
 
-    // For long term large composition hint, release the acquired handle after
-    // 100 milliseconds to avoid resending hints in animation launch use cases
-    // and others.
-    if (hint_release_start_time_ == 0) {
-      hint_release_start_time_ = callbacks_->SystemTime(SYSTEM_TIME_MONOTONIC);
-    }
-
-    nsecs_t current_time = callbacks_->SystemTime(SYSTEM_TIME_MONOTONIC);
-    if (nanoseconds_to_milliseconds(current_time - hint_release_start_time_) >=
-        elapse_time_threshold_) {
-      cpu_hint_->ReqHintRelease();
-    }
-    return;
-  }
-
-  if (sdm_tid_ != tid) {
-    DLOGV_IF(kTagResources, "SDM's tid:%d is updated to :%d", sdm_tid_, tid);
-    cpu_hint_->ReqHintsOffload(kPerfHintLargeCompCycle, tid);
-    sdm_tid_ = tid;
+    cpu_hint_->ReqHintRelease();
+    // Reset time when large composition hint is active
+    hint_start_time_ = 0;
   } else {
+    DTRACE_BEGIN("Send LargeCompositionHint");
+    DTRACE_END();
     // Sending tid as 0 indicates to Perf HAL that SDM's tid is unchanged for
     // the current frame
-    cpu_hint_->ReqHintsOffload(kPerfHintLargeCompCycle, 0);
+    cpu_hint_->ReqHintsOffload(kPerfHintLargeCompCycle, (updated_tid) ? tid : 0);
+    hint_start_time_ = current_time;
+    sdm_tid_ = tid;
   }
-
-  // Reset time when large composition hint is active
-  hint_release_start_time_ = 0;
 }
 
 void SDMDisplayBuiltIn::ReqPerfHintRelease() {
@@ -1862,6 +1932,87 @@ DisplayError SDMDisplayBuiltIn::EnableCopr(bool en) {
 
 DisplayError SDMDisplayBuiltIn::GetCoprStats(std::vector<int> *stats) {
   return display_intf_->GetCoprStats(stats);
+}
+
+void SDMDisplayBuiltIn::InitializePerfHints() {
+  // First, detect that boot has reached complete stage
+  if (!boot_completed_time_) {
+    int value = 0;
+    SDMDebugHandler::Get()->GetProperty("vendor.post_boot.parsed", &value);
+    bool boot_done = (value == 1);
+    boot_completed_time_ = boot_done ? callbacks_->SystemTime(SYSTEM_TIME_MONOTONIC) : 0;
+    return;
+  }
+
+  // Allow perf hal to initialize and boot up for 100ms after boot completed. At time T+100ms,
+  // check if perf hints will be enabled/disabled.
+  if (enable_perf_hints_ && !cpu_hint_) {
+    nsecs_t current_time = callbacks_->SystemTime(SYSTEM_TIME_MONOTONIC);
+    if (nanoseconds_to_milliseconds(current_time - boot_completed_time_) > elapse_time_threshold_) {
+      int value = 0;
+      SDMDebugHandler::Get()->GetProperty("vendor.mpctl.init.complete", &value);
+      enable_perf_hints_ = (value == 1);
+
+      if (enable_perf_hints_) {
+        cpu_hint_ = new CPUHint();
+        if (cpu_hint_->Init(static_cast<SDMDebugHandler *>(SDMDebugHandler::Get()), callbacks_) !=
+            kErrorNone) {
+          delete cpu_hint_;
+          cpu_hint_ = NULL;
+          DLOGW("CPU Hints failed to initialize");
+          return;
+        }
+        DLOGI("Perf hints enabled");
+      } else {
+        DLOGI("Perf hints disabled");
+      }
+
+      // Reset to indicate perf hints initialization is done
+      enable_perf_hints_ = false;
+    }
+  }
+}
+
+void SDMDisplayBuiltIn::HandlePowerModeHint(SDMPowerMode mode) {
+  if (!cpu_hint_) {
+    return;
+  }
+
+  switch (mode) {
+    case SDMPowerMode::POWER_MODE_ON:
+      cpu_hint_->ReqEvent(kPerfHintDisplayOn);
+      break;
+    case SDMPowerMode::POWER_MODE_OFF:
+      cpu_hint_->ReqEvent(kPerfHintDisplayOff);
+      break;
+    case SDMPowerMode::POWER_MODE_DOZE:
+    case SDMPowerMode::POWER_MODE_DOZE_SUSPEND:
+      // Perf hal doesn't differentiate b/w doze and doze-suspend, so send doze
+      // hint for both.
+      cpu_hint_->ReqEvent(kPerfHintDisplayDoze);
+      break;
+    default:
+      break;
+  }
+}
+
+DisplayError SDMDisplayBuiltIn::SetDpuDmaMode() {
+  if (!dpu_dma_enabled_)
+    return kErrorNone;
+
+  DisplayError error = kErrorNone;
+  for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
+    auto layer = sdm_layer->GetSDMLayer();
+    error = sdm_layer->TranslateToNV12Y(&layer->input_buffer);
+    if (error != kErrorNone)
+      return error;
+  }
+
+  return error;
+}
+
+bool SDMDisplayBuiltIn::IsDmaModeIncompatible(LayerComposition composition) {
+  return (composition == kCompositionGPU && dpu_dma_enabled_);
 }
 
 } // namespace sdm

@@ -26,11 +26,13 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #ifndef __CONCURRENCY_MGR_H__
 #define __CONCURRENCY_MGR_H__
 
@@ -61,7 +63,7 @@
 #include "sdm_display_builtin.h"
 #include "sdm_display_intf_aiqe.h"
 #include "sdm_display_intf_caps.h"
-#include "sdm_display_intf_drawcycle.h"
+#include "sdm_display_intf_drawcycle_v2.h"
 #include "sdm_display_intf_lifecycle.h"
 #include "sdm_display_intf_parcel.h"
 #include "sdm_display_intf_settings.h"
@@ -86,7 +88,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                        public SDMDisplayCapsIntf,
                        public SDMDisplaySettingsIntf,
                        public SDMDisplayLifeCycleIntf,
-                       public SDMDisplayDrawCycleIntf,
+                       public SDMDisplayDrawCycleIntfV2,
                        public SDMTrustedUICbIntf,
                        public SDMServicesCbIntf,
                        public SDMHotPlugCbIntf,
@@ -416,7 +418,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   GetDisplayCapabilities(Display display,
                          vector<SDMDisplayCapability> *capabilities);
   DisplayError GetDisplayBrightnessSupport(Display display, bool *outSupport);
-  DisplayError SetDisplayBrightness(Display display, float brightness);
+  DisplayError SetDisplayBrightness(Display display, float brightness, bool performing_commit);
   DisplayError WaitForResources(bool wait_for_resources,
                                 Display active_builtin_id,
                                 Display display_id) override;
@@ -447,13 +449,19 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                                   uint32_t *out_num_elements,
                                   LayerId *out_layers,
                                   int32_t *out_layer_requests);
+  DisplayError GetDisplayLuts(Display display,
+                              std::unique_ptr<std::vector<std::pair<LayerId, Lut3d *>>> &out_luts);
+  DisplayError GetBufferLuts(Display display, const std::vector<SnapHandle *> &buffers,
+                             std::unique_ptr<std::vector<Lut3d *>> &out_luts);
   DisplayError GetReleaseFences(Display display, uint32_t *out_num_elements,
                                 LayerId *out_layers,
                                 std::vector<shared_ptr<Fence>> *out_fences);
   DisplayError SetClientTarget(uint64_t display, const SnapHandle *target,
-                               shared_ptr<Fence> acquire_fence,
-                               int32_t dataspace, const SDMRegion &region,
-                               uint32_t version);
+                               shared_ptr<Fence> acquire_fence, int32_t dataspace,
+                               const SDMRegion &region, uint32_t version);
+  DisplayError SetClientTarget(uint64_t display, const SnapHandle *target,
+                               shared_ptr<Fence> acquire_fence, int32_t dataspace,
+                               const SDMRegion &region, uint32_t version, float hdr_sdr_ratio);
   DisplayError SetCursorPosition(Display display, LayerId layer, int32_t x,
                                  int32_t y);
   DisplayError GetDataspaceSaturationMatrix(int32_t /*Dataspace*/ int_dataspace,
@@ -462,7 +470,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError
   GetClientTargetProperty(Display display,
                           SDMClientTargetProperty *outClientTargetProperty);
-  DisplayError SetDemuraState(Display display, int32_t state);
+  DisplayError SetDemuraState(Display display, int32_t state, int32_t demura_idx);
   DisplayError SetDemuraConfig(Display display, int32_t demura_idx);
 
   DisplayError SetDisplayedContentSamplingEnabled(Display display, bool enabled,
@@ -485,12 +493,13 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   int GetDisplayConfigGroup(uint64_t display, DisplayConfigGroupInfo variable_config);
 
   // SDMDisplayEventHandler
-  virtual void DisplayPowerReset();
-  virtual void PerformDisplayPowerReset();
+  virtual void DisplayPowerReset(int32_t display);
+  virtual void PerformDisplayPowerReset(int32_t display);
   virtual void PerformQsyncCallback(Display display, bool qsync_enabled,
                                     uint32_t refresh_rate,
                                     uint32_t qsync_refresh_rate);
   virtual void VmReleaseDone(Display display);
+  virtual void VmReclaimDone(Display display);
   virtual DisplayError NotifyCwbDone(int dpy_index, int32_t status,
                                      uint64_t handle_id);
   virtual int NotifyIdleStatus(bool idle_status);
@@ -536,6 +545,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError SetABCState(uint64_t display_id, bool state);
   DisplayError SetABCReconfig(uint64_t display_id);
   DisplayError SetABCMode(uint64_t display_id, string mode_name);
+  DisplayError SetAIScalerMode(uint64_t display_id, uint32_t mode_id);
   DisplayError SetPanelFeatureConfig(Display display, int32_t type, void *data);
 
   static const int locker_count_ = pluggable_lock_index_ + 1;
@@ -668,6 +678,7 @@ private:
   std::shared_ptr<IPCIntf> ipc_intf_ = nullptr;
   Locker primary_display_lock_;
   bool primary_pending_ = true;
+  bool selective_panel_dead_ = false;
 
   std::map<uint64_t, std::future<DisplayError>> commit_done_future_;
   bool disable_get_screen_decorator_support_ = false;
@@ -681,6 +692,9 @@ private:
   int hpd_pattern_ = 0;
   int hpd_connected_ = 0;
   SDMServices *services_ = nullptr;
+
+  uint32_t idle_time_active_ms_ = 0;
+  uint32_t idle_time_inactive_ms_ = 0;
 
   std::vector<Display> pending_hotplugs_{};
 

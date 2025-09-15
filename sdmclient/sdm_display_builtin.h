@@ -27,8 +27,8 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #ifndef __SDM_DISPLAY_BUILTIN_H__
@@ -59,7 +59,7 @@ public:
                             SDMCompositorCallbacks *callbacks,
                             SDMDisplayEventHandler *event_handler, Display id, int32_t sdm_id,
                             SDMDisplay **sdm_display);
- static void Destroy(SDMDisplay *sdm_display);
+ static void Destroy(SDMDisplay *sdm_display, bool deinit_layer_builder = true);
  virtual DisplayError Init();
  virtual DisplayError Present(shared_ptr<Fence> *out_retire_fence);
  virtual DisplayError CommitLayerStack();
@@ -95,16 +95,17 @@ public:
  virtual DisplayError GetSupportedDSIClock(std::vector<uint64_t> *bitclk_rates);
  virtual DisplayError UpdateDisplayId(Display id);
  virtual DisplayError SetPendingRefresh();
- virtual DisplayError SetPanelBrightness(float brightness);
+ virtual DisplayError SetPanelBrightness(float brightness, bool apply_immediately);
  virtual DisplayError GetPanelBrightness(float *brightness);
  virtual DisplayError GetPanelMaxBrightness(uint32_t *max_brightness_level);
  virtual DisplayError SetFrameTriggerMode(uint32_t mode);
  virtual DisplayError SetBLScale(uint32_t level);
  virtual DisplayError SetClientTarget(const SnapHandle *target, shared_ptr<Fence> acquire_fence,
-                                      int32_t dataspace, const SDMRegion &damage, uint32_t version);
+                                      int32_t dataspace, const SDMRegion &damage, uint32_t version,
+                                      float hdr_sdr_ratio);
  virtual bool IsSmartPanelConfig(uint32_t config_id);
  virtual bool HasSmartPanelConfig(void);
- virtual DisplayError Deinit();
+ virtual DisplayError Deinit(bool deinit_layer_builder = true);
  virtual DisplayError PostInit();
 
  virtual DisplayError SetDisplayedContentSamplingEnabledVndService(bool enabled);
@@ -133,7 +134,7 @@ public:
  virtual DisplayError SetDimmingMinBl(int min_bl);
  virtual DisplayError RetrieveDemuraTnFiles();
  virtual DisplayError UpdateTransferTime(uint32_t transfer_time);
- virtual DisplayError SetDemuraState(int state);
+ virtual DisplayError SetDemuraState(int state, int demura_idx);
  virtual DisplayError SetDemuraConfig(int demura_idx);
  virtual DisplayError PerformCacConfig(CacConfig config, bool enable);
  virtual DisplayError IsCacV2Supported(bool *supported);
@@ -145,7 +146,10 @@ public:
  virtual DisplayError SetABCState(bool state);
  virtual DisplayError SetABCReconfig();
  virtual DisplayError SetABCMode(string mode_name);
+ virtual DisplayError SetAIScalerMode(uint32_t mode_id);
  virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data);
+ virtual DisplayError SetDpuDmaMode();
+ virtual bool IsDmaModeIncompatible(LayerComposition composition);
 
 private:
  SDMDisplayBuiltIn(CoreInterface *core_intf, BufferAllocator *buffer_allocator,
@@ -175,6 +179,8 @@ private:
  void LoadMixedModePerfHintThreshold();
  void HandleLargeCompositionHint(bool release);
  void ReqPerfHintRelease();
+ void InitializePerfHints();
+ void HandlePowerModeHint(SDMPowerMode mode);
 
  // SyncTask methods.
  void OnTask(const LayerStitchTaskCode &task_code,
@@ -218,8 +224,10 @@ private:
  // Long term large composition hint
  int sdm_tid_ = 0;
  uint32_t large_comp_hint_threshold_ = 0;
- nsecs_t hint_release_start_time_ = 0;
+ nsecs_t hint_start_time_ = 0;
  nsecs_t elapse_time_threshold_ = 100;  // Time is in milliseconds
+ nsecs_t boot_completed_time_ = 0;
+ bool enable_perf_hints_ = true;
 
  // Nominal VSync multiplier for Notify EPT heads-up
  const int32_t notify_ept_heads_up_config_ = 2;
@@ -229,6 +237,9 @@ private:
 
  // Defer ABC reconfiguration
  bool abc_defer_reconfig_ = false;
+
+ // Whether the DPU DMA mode is enabled.
+ bool dpu_dma_enabled_ = false;
 };
 
 } // namespace sdm

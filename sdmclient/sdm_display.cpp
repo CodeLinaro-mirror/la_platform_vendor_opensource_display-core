@@ -26,13 +26,13 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #include <errno.h>
 #include <math.h>
 #include <sys/stat.h>
@@ -541,6 +541,10 @@ SDMDisplay::SDMDisplay(CoreInterface *core_intf, BufferAllocator *buffer_allocat
 
   auto sdm_factory = SDMInterfaceFactoryImpl::GetSDMFactoryInternal();
   layer_builder_ = sdm_factory->GetLayerBuilderInternal();
+  if (layer_builder_ == nullptr) {
+    DLOGE("Layer Builder is NULL");
+    return;
+  }
   layer_builder_->Init(buffer_allocator, id);
 
   auto error = layer_builder_->GetSDMLayerStack(id, &sdm_layer_stack_);
@@ -625,6 +629,7 @@ DisplayError SDMDisplay::Init() {
   display_intf_->GetConfig(&fixed_info);
   is_cmd_mode_ = fixed_info.is_cmdmode;
 
+  SDMDebugHandler::Get()->GetProperty(RGBA_SPLIT_SUPPORT, &rgba_split_support_);
   game_supported_ = display_intf_->GameEnhanceSupported();
 
   if (!sdm_layer_stack_) {
@@ -765,11 +770,20 @@ void SDMDisplay::UpdateConfigs() {
   }
 }
 
-DisplayError SDMDisplay::Deinit() {
+DisplayError SDMDisplay::Deinit(bool deinit_layer_builder) {
   DisplayError error = core_intf_->DestroyDisplay(display_intf_);
   if (error != kErrorNone) {
     DLOGE("Display destroy failed. Error = %d", error);
     return kErrorNotSupported;
+  }
+
+  // Destroy display_null interface if it was created.
+  if (nullptr != display_null_intf_) {
+    error = core_intf_->DestroyNullDisplay(display_null_intf_);
+    if (kErrorNone != error) {
+      DLOGE("NullDisplay destroy failed. Error = %d", error);
+      return error;
+    }
   }
 
   delete client_target_;
@@ -779,23 +793,12 @@ DisplayError SDMDisplay::Deinit() {
     delete color_mode_;
   }
 
-  layer_builder_->DeInit(id_);
-  layer_builder_ = nullptr;
+  if (deinit_layer_builder) {
+    layer_builder_->DeInit(id_);
+    layer_builder_ = nullptr;
+  }
 
   return kErrorNone;
-}
-
-static bool IsHDRLayerPresent(Layer *layer) {
-  if (layer->input_buffer.dataspace.colorPrimaries ==
-          QtiColorPrimaries_BT2020 &&
-      (layer->input_buffer.dataspace.transfer == QtiTransfer_SMPTE_ST2084 ||
-       layer->input_buffer.dataspace.transfer == QtiTransfer_HLG)) {
-    return true;
-  } else if (IsExtendedRange(layer->input_buffer)) {
-    // Treat input format FP16 with extended range as HDR layer
-    return true;
-  }
-  return false;
 }
 
 void SDMDisplay::BuildLayerStack() {
@@ -817,18 +820,37 @@ void SDMDisplay::BuildLayerStack() {
 
     Layer *layer = sdm_layer->GetSDMLayer();
     layer->flags = {}; // Reset earlier flags
-    // Mark all layers to skip, when client target handle is NULL
-    if (sdm_layer->GetClientRequestedCompositionType() ==
-            SDMCompositionType::COMP_CLIENT ||
-        !client_target_->GetSDMLayer()->input_buffer.buffer_id) {
+    SDMCompositionType requested_composition = sdm_layer->GetClientRequestedCompositionType();
+
+    // Mark all layers to skip, when client target handle is NULL in default draw
+    if ((!client_target_->GetSDMLayer()->input_buffer.buffer_id) &&
+        (draw_method_ == kDrawDefault)) {
       layer->flags.skip = true;
-    } else if (sdm_layer->GetClientRequestedCompositionType() ==
-               SDMCompositionType::COMP_SOLID_COLOR) {
+      DLOGV_IF(kTagClient,
+               "Layer [%" PRIu64
+               "] marked as skip due to null client target handle "
+               "for display [%" PRIu64 "]-[%" PRIu32 "]",
+               sdm_layer->GetId(), id_, type_);
+    }
+
+    if (requested_composition == SDMCompositionType::COMP_CLIENT) {
+      layer->flags.skip = true;
+      DLOGV_IF(kTagClient,
+               "Layer [%" PRIu64
+               "] marked as skip due to client requested composition "
+               "for display [%" PRIu64 "]-[%" PRIu32 "]",
+               sdm_layer->GetId(), id_, type_);
+    } else if (requested_composition == SDMCompositionType::COMP_SOLID_COLOR) {
       layer->flags.solid_fill = true;
     }
 
     if (!sdm_layer->IsDataSpaceSupported()) {
       layer->flags.skip = true;
+      DLOGV_IF(kTagClient,
+               "Layer [%" PRIu64
+               "] marked as skip due to unsupported dataspace "
+               "for display [%" PRIu64 "]-[%" PRIu32 "]",
+               sdm_layer->GetId(), id_, type_);
     }
 
     if (swap_interval_zero_) {
@@ -892,7 +914,7 @@ void SDMDisplay::BuildLayerStack() {
     // hdr flag is reset since same layer can switch b/w hdr & non-hdr content
     // eg: switching b/w hdr & sdr videos in pip
     layer->input_buffer.flags.hdr = false;
-    bool hdr_layer = IsHDRLayerPresent(layer);
+    bool hdr_layer = IsHDRLayer(layer->input_buffer);
     if (hdr_layer && !disable_hdr_handling_) {
       // Dont honor HDR when its handling is disabled
       layer->input_buffer.flags.hdr = true;
@@ -908,10 +930,14 @@ void SDMDisplay::BuildLayerStack() {
         !layer->flags.single_buffer && !layer->flags.solid_fill && !is_video &&
         !layer->flags.is_game) {
       layer->flags.skip = true;
+      DLOGV_IF(kTagClient,
+               "Layer [%" PRIu64
+               "] marked as skip due to non-integral source crop "
+               "for display [%" PRIu64 "]-[%" PRIu32 "]",
+               sdm_layer->GetId(), id_, type_);
     }
 
-    if (!layer->flags.skip && (sdm_layer->GetClientRequestedCompositionType() ==
-                               SDMCompositionType::COMP_CURSOR)) {
+    if (!layer->flags.skip && (requested_composition == SDMCompositionType::COMP_CURSOR)) {
       // Currently we support only one SDMursor & only at top most z-order
       if ((*sdm_layer_stack_->layer_set_.rbegin())->GetId() ==
           sdm_layer->GetId()) {
@@ -925,6 +951,11 @@ void SDMDisplay::BuildLayerStack() {
     if (layer->flags.solid_fill && layer->layer_brightness != 1.0f) {
       layer->flags.skip = true;
       layer->flags.solid_fill = false;
+      DLOGV_IF(kTagClient,
+               "Layer [%" PRIu64
+               "] marked as skip due to layer dimming on solid fill "
+               "for display [%" PRIu64 "]-[%" PRIu32 "]",
+               sdm_layer->GetId(), id_, type_);
     }
 
     if (layer->flags.skip) {
@@ -1014,9 +1045,12 @@ void SDMDisplay::BuildLayerStack() {
       dump_frame_count_ && (dump_output_to_file_ || dump_input_layers_);
   DLOGV_IF(kTagClient, "layer_stack_.client_incompatible : %d",
            layer_stack_.client_incompatible);
+
+  if (layer_stack_.flags.front_buffer_layer_present) {
+    DLOGV_IF(kTagClient, "front buffer layer present");
+  }
+
   SDMDebugHandler::ATRACE_INT("HDRPresent ", layer_stack_.flags.hdr_present ? 1 : 0);
-  SDMDebugHandler::ATRACE_INT("FrontBufferPresent ",
-                              layer_stack_.flags.front_buffer_layer_present ? 1 : 0);
 }
 
 void SDMDisplay::BuildSolidFillStack() {
@@ -1037,7 +1071,7 @@ void SDMDisplay::BuildSolidFillStack() {
 DisplayError SDMDisplay::SetLayerType(LayerId layer_id, SDMLayerTypes type) {
   const auto map_layer = sdm_layer_stack_->layer_map_.find(layer_id);
   if (map_layer == sdm_layer_stack_->layer_map_.end()) {
-    DLOGW("display [%" PRIu64 "]-[%" PRIu64 "] SetLayerType (%" PRIu64
+    DLOGW("display [%" PRIu64 "]-[%" PRIu32 "] SetLayerType (%" PRIu64
           ") failed to find layer",
           id_, type_, layer_id);
     return kErrorNotSupported;
@@ -1305,11 +1339,9 @@ DisplayError SDMDisplay::GetActiveConfig(bool get_real_config, Config *out_confi
   return kErrorNone;
 }
 
-DisplayError SDMDisplay::SetClientTarget(const SnapHandle *target,
-                                         shared_ptr<Fence> acquire_fence,
-                                         int32_t dataspace,
-                                         const SDMRegion &damage,
-                                         uint32_t version) {
+DisplayError SDMDisplay::SetClientTarget(const SnapHandle *target, shared_ptr<Fence> acquire_fence,
+                                         int32_t dataspace, const SDMRegion &damage,
+                                         uint32_t version, float hdr_sdr_ratio) {
   DTRACE_SCOPED();
   // moved this check here from sdm_display
   // TODO(user): SurfaceFlinger gives us a null pointer here when doing full SDE composition
@@ -1327,6 +1359,7 @@ DisplayError SDMDisplay::SetClientTarget(const SnapHandle *target,
   Layer *sdm_layer = client_target_->GetSDMLayer();
   sdm_layer->frame_rate =
       std::min(current_refresh_rate_, SDMDisplay::GetThrottlingRefreshRate());
+  sdm_layer->hdr_sdr_ratio = hdr_sdr_ratio;
 
   SetClientTargetDataSpace(dataspace);
   client_target_->SetLayerSurfaceDamage(damage);
@@ -1374,7 +1407,7 @@ DisplayError SDMDisplay::SetActiveConfig(Config config) {
       }
     }
   } else {
-    DLOGE("Invalid config: %d for display [%" PRIu64 "]-[%" PRIu64 "]", config, id_, type_);
+    DLOGE("Invalid config: %d for display [%" PRIu64 "]-[%" PRIu32 "]", config, id_, type_);
     return kErrorParameters;
   }
 
@@ -1396,7 +1429,7 @@ DisplayError SDMDisplay::SetActiveConfig(Config config) {
     pending_first_commit_config_ = false;
   }
 
-  DLOGI("Active configuration changed to: %d for display [%" PRIu64 "]-[%" PRIu64 "]", config, id_,
+  DLOGI("Active configuration changed to: %d for display [%" PRIu64 "]-[%" PRIu32 "]", config, id_,
         type_);
 
   {
@@ -1567,7 +1600,7 @@ DisplayError SDMDisplay::HandleEvent(DisplayEvent event) {
     // most likely result in a failure since ESD/HWR has been requested during
     // this time period.
     if (event_handler_) {
-      event_handler_->DisplayPowerReset();
+      event_handler_->DisplayPowerReset(id_);
     } else {
       DLOGW("Cannot execute DisplayPowerReset (client_id = %" PRId64
             "), event_handler_ is null",
@@ -1589,6 +1622,13 @@ DisplayError SDMDisplay::HandleEvent(DisplayEvent event) {
             id_);
     }
   } break;
+  case kVmReclaimDone: {
+    if (event_handler_) {
+      event_handler_->VmReclaimDone(id_);
+    } else {
+      DLOGW("Cannot execute VmReclaimDone (client_id = %" PRId64 "), event_handler_ is null", id_);
+    }
+  } break;
   case kIdleTimeout:
     ReqPerfHintRelease();
     break;
@@ -1604,10 +1644,14 @@ DisplayError SDMDisplay::HistogramEvent(int /* fd */, uint32_t /* blob_fd */) {
   return kErrorNone;
 }
 
-DisplayError SDMDisplay::PrepareLayerStack(uint32_t *out_num_types,
-                                           uint32_t *out_num_requests) {
+void SDMDisplay::ClearRequestMaps() {
   layer_changes_.clear();
   layer_requests_.clear();
+  display_luts_.clear();
+}
+
+DisplayError SDMDisplay::PrepareLayerStack(uint32_t *out_num_types, uint32_t *out_num_requests) {
+  ClearRequestMaps();
   has_client_composition_ = false;
   display_idle_ = false;
 
@@ -1617,7 +1661,7 @@ DisplayError SDMDisplay::PrepareLayerStack(uint32_t *out_num_types,
   }
 
   if (CanSkipSdmPrepare(out_num_types, out_num_requests)) {
-    return ((*out_num_types > 0) ? kErrorNeedsCommit : kErrorNone);
+    return (layer_changes_.size()) ? kErrorNeedsCommit : kErrorNone;
   }
 
   UpdateRefreshRate();
@@ -1660,26 +1704,41 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
   // clear geometry_changes_on_doze_suspend_ on successful prepare.
   geometry_changes_on_doze_suspend_ = GeometryChanges::kNone;
 
-  layer_changes_.clear();
-  layer_requests_.clear();
+  ClearRequestMaps();
   has_client_composition_ = false;
   for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
     Layer *layer = sdm_layer->GetSDMLayer();
     LayerComposition &composition = layer->composition;
 
+    if (IsDmaModeIncompatible(composition))
+      DLOGW("DPU DMA mode should not use %d Comp", composition);
+
     if (composition == kCompositionSDE || composition == kCompositionStitch) {
       layer_requests_[sdm_layer->GetId()] = SDMLayerRequest::ClearClientTarget;
     }
 
-    SDMCompositionType requested_composition =
-        sdm_layer->GetClientRequestedCompositionType();
+    SDMCompositionType requested_composition = sdm_layer->GetClientRequestedCompositionType();
     // Set SDM composition to SDM3 type in SDMLayer
     sdm_layer->SetComposition(composition);
     SDMCompositionType device_composition =
         sdm_layer->GetDeviceSelectedCompositionType();
+
     if (device_composition == SDMCompositionType::COMP_CLIENT) {
       has_client_composition_ = true;
+
+      if (layer->lut_3d.validLutEntries) {
+        display_luts_[sdm_layer->GetId()] = &layer->lut_3d;
+      }
     }
+
+    // map handle ids to luts so client can retrieve it through getLuts call
+    // used in screenshot layer during rotation, suspend resume, etc.
+    if (layer->lut_3d.lutEntries != nullptr) {
+      buffer_luts_[layer->input_buffer.handle_id] = &layer->lut_3d;
+    } else if (buffer_luts_.find(layer->input_buffer.handle_id) != buffer_luts_.end()) {
+      buffer_luts_.erase(layer->input_buffer.handle_id);
+    }
+
     // Update the changes list only if the requested composition is different
     // from SDM comp type
     if (requested_composition != device_composition) {
@@ -1691,13 +1750,12 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
   client_target_->ResetValidation();
   *out_num_types = UINT32(layer_changes_.size());
   *out_num_requests = UINT32(layer_requests_.size());
+
   layer_stack_invalid_ = false;
-
   layer_stack_.client_incompatible = false;
-
   validate_done_ = true;
 
-  return ((*out_num_types > 0) ? kErrorNeedsCommit : kErrorNone);
+  return (layer_changes_.size() || display_luts_.size()) ? kErrorNeedsCommit : kErrorNone;
 }
 
 DisplayError SDMDisplay::AcceptDisplayChanges() {
@@ -1728,6 +1786,10 @@ DisplayError SDMDisplay::GetChangedCompositionTypes(uint32_t *out_num_elements,
     return kErrorNone;
   }
 
+  if (out_num_elements == nullptr) {
+    return kErrorNotSupported;
+  }
+
   if (!validate_done_) {
     DLOGW("Display is not validated");
     return kErrorNeedsValidate;
@@ -1735,26 +1797,29 @@ DisplayError SDMDisplay::GetChangedCompositionTypes(uint32_t *out_num_elements,
 
   *out_num_elements = UINT32(layer_changes_.size());
   if (out_layers != nullptr && out_types != nullptr) {
-    int i = 0;
-    for (auto change : layer_changes_) {
-      out_layers[i] = change.first;
-      out_types[i] = INT32(change.second);
-      i++;
+    auto it = layer_changes_.begin();
+    for (uint32_t i = 0; i < *out_num_elements; i++, it++) {
+      out_layers[i] = it->first;
+      out_types[i] = INT32(it->second);
     }
   }
+
   return kErrorNone;
 }
 
 DisplayError
 SDMDisplay::GetReleaseFences(uint32_t *out_num_elements, LayerId *out_layers,
                              std::vector<shared_ptr<Fence>> *out_fences) {
+  if (sdm_layer_stack_->layer_set_.empty()) {
+    return kErrorNone;
+  }
+
   if (out_num_elements == nullptr) {
     return kErrorNotSupported;
   }
 
+  *out_num_elements = UINT32(sdm_layer_stack_->layer_set_.size());
   if (out_layers != nullptr && out_fences != nullptr) {
-    *out_num_elements = std::min(*out_num_elements,
-                                 UINT32(sdm_layer_stack_->layer_set_.size()));
     auto it = sdm_layer_stack_->layer_set_.begin();
     for (uint32_t i = 0; i < *out_num_elements; i++, it++) {
       auto sdm_layer = *it;
@@ -1763,8 +1828,6 @@ SDMDisplay::GetReleaseFences(uint32_t *out_num_elements, LayerId *out_layers,
       shared_ptr<Fence> &fence = (*out_fences)[i];
       fence = sdm_layer->GetReleaseFence();
     }
-  } else {
-    *out_num_elements = UINT32(sdm_layer_stack_->layer_set_.size());
   }
 
   return kErrorNone;
@@ -1791,22 +1854,62 @@ DisplayError SDMDisplay::GetDisplayRequests(int32_t *out_display_requests,
     return kErrorNeedsValidate;
   }
 
+  *out_num_elements = UINT32(layer_requests_.size());
   *out_display_requests = 0;
   if (out_layers != nullptr && out_layer_requests != nullptr) {
-    *out_num_elements =
-        std::min(*out_num_elements, UINT32(layer_requests_.size()));
     auto it = layer_requests_.begin();
     for (uint32_t i = 0; i < *out_num_elements; i++, it++) {
       out_layers[i] = it->first;
       out_layer_requests[i] = INT32(it->second);
     }
-  } else {
-    *out_num_elements = UINT32(layer_requests_.size());
   }
 
   auto client_target_layer = client_target_->GetSDMLayer();
   if (client_target_layer->request.flags.flip_buffer) {
     *out_display_requests = INT32(SDMDisplayRequest::FlipClientTarget);
+  }
+
+  return kErrorNone;
+}
+
+DisplayError SDMDisplay::GetDisplayLuts(
+    std::unique_ptr<std::vector<std::pair<LayerId, Lut3d *>>> &out_luts) {
+  if (sdm_layer_stack_->layer_set_.empty()) {
+    return kErrorNone;
+  }
+
+  if (out_luts == nullptr) {
+    return kErrorNotSupported;
+  }
+
+  if (!validate_done_) {
+    DLOGW("Display is not validated");
+    return kErrorNeedsValidate;
+  }
+
+  for (auto it = display_luts_.begin(); it != display_luts_.end(); it++) {
+    out_luts->push_back(std::make_pair(it->first, it->second));
+  }
+
+  return kErrorNone;
+}
+
+DisplayError SDMDisplay::GetBufferLuts(const std::vector<SnapHandle *> &buffers,
+                                       std::unique_ptr<std::vector<Lut3d *>> &out_luts) {
+  if (out_luts == nullptr) {
+    return kErrorNotSupported;
+  }
+
+  uint32_t num_elements = buffers.size();
+  for (uint32_t i = 0; i < num_elements; i++) {
+    uint64_t handle_id = 0;
+    GetMetadata(buffers.at(i), MetadataType::BUFFER_ID, &handle_id, snapmapper_);
+    auto it = buffer_luts_.find(handle_id);
+    if (it != buffer_luts_.end()) {
+      out_luts->push_back(it->second);
+    } else {
+      out_luts->push_back(nullptr);
+    }
   }
 
   return kErrorNone;
@@ -1935,7 +2038,6 @@ DisplayError SDMDisplay::CommitLayerStack(void) {
     // A commit is successfully submitted, start flushing on failure now
     // onwards.
     flush_on_error_ = true;
-    first_cycle_ = false;
   } else {
     if (error == kErrorShutDown) {
       shutdown_pending_ = true;
@@ -1984,6 +2086,7 @@ SDMDisplay::PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence) {
   flush_ = false;
   skip_commit_ = false;
   client_target_3_1_set_ = false;
+  first_cycle_ = false;
 
   if (display_pause_pending_) {
     DLOGI("Pause display %d-%d", sdm_id_, type_);
@@ -2106,15 +2209,15 @@ void SDMDisplay::DumpInputBuffers() {
     Fence::Wait(layer->input_buffer.acquire_fence);
 
     if (!handle) {
-      DLOGW("Buffer handle is detected as null for layer: %s(%d) out of %lu "
+      DLOGW("Buffer handle is detected as null for layer: %s(%" PRIu64 ") out of %" PRIu32 " "
             "layers with layer "
             "flag value: %u",
             layer->layer_name.c_str(), layer->layer_id,
-            layer_stack_.layers.size(), layer->flags);
+            layer_stack_.layers.size(), layer->flags.flags);
       continue;
     }
 
-    DLOGI("Dump layer[%d] of %lu handle %p", i, layer_stack_.layers.size(),
+    DLOGI("Dump layer[%" PRIu32 "] of %" PRIu32 " handle %p", i, layer_stack_.layers.size(),
           handle);
 
     // start mapbuffer func
@@ -2878,13 +2981,16 @@ bool SDMDisplay::CanSkipSdmPrepare(uint32_t *num_types,
 
   bool skip_prepare = true;
   for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
+    // TODO(user): Add check for lut update / tonemapping_query_mandatory so we don't skip prepare
+    // This function is called for virtual DPU & external displays
     if (!sdm_layer->GetSDMLayer()->flags.skip ||
         (sdm_layer->GetDeviceSelectedCompositionType() !=
          SDMCompositionType::COMP_CLIENT)) {
       skip_prepare = false;
-      layer_changes_.clear();
+      ClearRequestMaps();
       break;
     }
+
     if (sdm_layer->GetClientRequestedCompositionType() !=
         SDMCompositionType::COMP_CLIENT) {
       layer_changes_[sdm_layer->GetId()] = SDMCompositionType::COMP_CLIENT;
@@ -2966,6 +3072,7 @@ SDMDisplay::GetDisplayConfigGroup(DisplayConfigGroupInfo variable_config) {
 bool SDMDisplay::IsModeSwitchAllowed(uint32_t config) {
   DisplayError error = kErrorNone;
   uint32_t allowed_mode_switch = 0;
+  uint32_t checking_config = config;
 
   if (variable_config_map_.find(config) == variable_config_map_.end()) {
     DLOGE("Invalid config: %d", config);
@@ -2973,8 +3080,14 @@ bool SDMDisplay::IsModeSwitchAllowed(uint32_t config) {
   }
 
   bool is_new_config_virtual = variable_config_map_[config].is_virtual_config;
+  bool allowed_vrr_mode_switch = variable_config_map_[config].allowed_vrr_mode_switch;
   if (is_new_config_virtual) {
-    return true;
+    if (allowed_vrr_mode_switch) {
+      //For VRR virtual mode, use the parent config to check whether mode switching is allowed
+      checking_config = variable_config_map_[config].parent_config_index;
+    } else {
+      return true;
+    }
   }
 
   error = display_intf_->IsSupportedOnDisplay(kSupportedModeSwitch,
@@ -2988,7 +3101,7 @@ bool SDMDisplay::IsModeSwitchAllowed(uint32_t config) {
           "configuration.");
   }
 
-  if (allowed_mode_switch == 0 || (allowed_mode_switch & (1 << config))) {
+  if (allowed_mode_switch == 0 || (allowed_mode_switch & (1 << checking_config))) {
     DLOGV_IF(kTagClient, "Allowed to switch to mode:%d", config);
     return true;
   }
@@ -3014,14 +3127,14 @@ DisplayError SDMDisplay::SetActiveConfigWithConstraints(
   DTRACE_SCOPED();
 
   if (variable_config_map_.find(config) == variable_config_map_.end()) {
-    DLOGE("Invalid config: %d for display [%" PRIu64 "]-[%" PRIu64 "]", config, id_, type_);
+    DLOGE("Invalid config: %d for display [%" PRIu64 "]-[%" PRIu32 "]", config, id_, type_);
     return kErrorNotSupported;
   }
 
   if (vsync_period_change_constraints->seamlessRequired && !AllowSeamless(config)) {
     DLOGE(
         "Seamless switch to the config: %d, is not allowed! for display "
-        "[%" PRIu64 "]-[%" PRIu64 "]",
+        "[%" PRIu64 "]-[%" PRIu32 "]",
         config, id_, type_);
     return kSeamlessNotAllowed;
   }
@@ -3033,7 +3146,8 @@ DisplayError SDMDisplay::SetActiveConfigWithConstraints(
     return kErrorNotSupported;
   } else {
     std::lock_guard<std::mutex> lock(active_config_lock_);
-    if (variable_config_map_[config].is_virtual_config || IsVirtualConfig(active_config_index_)) {
+    if ((variable_config_map_[config].is_virtual_config || IsVirtualConfig(active_config_index_)) &&
+        !variable_config_map_[config].allowed_vrr_mode_switch) {
       DisplayError error = SetFBForExtendedResolution(config, &is_vconfig_fps_switched);
       if (!is_vconfig_fps_switched || (error != kErrorNone)) {
         if ((error == kErrorNone) && (info_client_requested.x_pixels != fb_width_ ||
@@ -3747,7 +3861,7 @@ SDMDisplay::GetReadbackBufferFenceForClient(CWBClient client,
       DLOGV_IF(
           kTagQDCM,
           "Need to wait for release fence, and retry to get it for client:%d, "
-          "buffer_id: %u",
+          "buffer_id: %" PRIu64,
           client, handle_id);
       status = kCWBReleaseFencePending;
     }
@@ -3766,10 +3880,10 @@ SDMDisplay::GetReadbackBufferFenceForClient(CWBClient client,
       status == kCWBReleaseFenceWaitTimedOut) {
     DLOGV_IF(kTagQDCM,
              "Fence is available, but either fence wait is timed-out, or "
-             "CWB Manager is not yet notified for client:%d, buffer_id: %u",
+             "CWB Manager is not yet notified for client:%d, buffer_id: %" PRIu64,
              client, handle_id);
   } else if (status == kCWBReleaseFenceUnknownError) {
-    DLOGE("CWB Manager notified unknown error for client:%d, buffer_id: %u",
+    DLOGE("CWB Manager notified unknown error for client:%d, buffer_id: %" PRIu64,
           client, handle_id);
   }
 
@@ -3974,7 +4088,7 @@ void SDMDisplay::NotifyCwbDone(int32_t status, const LayerBuffer &buffer) {
 
     const auto map_cwb_buffer = cwb_buffer_map_.find(handle_id);
     if (map_cwb_buffer == cwb_buffer_map_.end()) {
-      DLOGV_IF(kTagClient, "CWB Buffer(id = %u) not found in buffer-client map",
+      DLOGV_IF(kTagClient, "CWB Buffer(id = %" PRIu64 ") not found in buffer-client map",
                handle_id);
       return;
     }
@@ -4006,7 +4120,7 @@ void SDMDisplay::NotifyCwbDone(int32_t status, const LayerBuffer &buffer) {
 
   DLOGV_IF(
       kTagClient,
-      "CWB notified for client = %d with buffer = %u, return status = %s(%d)",
+      "CWB notified for client = %d with buffer = %" PRIu64 ", return status = %s(%d)",
       client, handle_id,
       (!status)                   ? "Handled"
       : (status == kErrorTimeOut) ? "Timedout"
@@ -4031,9 +4145,10 @@ bool SDMDisplay::NotifyIdleNow() {
 DisplayError SDMDisplay::GetSDMActiveConfig(bool get_real_config, Config *config_index) {
   Config real_config;
   DisplayError error = display_intf_->GetActiveConfig(&real_config);
-  if (error != kErrorNone) {
+  if (error != kErrorNone && error != kErrorConfigMismatch) {
     return error;
   }
+
   *config_index = real_config;
 
   if (get_real_config) {
@@ -4117,7 +4232,7 @@ DisplayError SDMDisplay::FinalizeDisplayConfig(bool check_pending_config, Config
 
   if (variable_config_map_.find(new_config) == variable_config_map_.end()) {
     if (!check_pending_config) {
-      DLOGE("Invalid config index : %u for display [%" PRIu64 "]-[%" PRIu64 "]", new_config, id_,
+      DLOGE("Invalid config index : %u for display [%" PRIu64 "]-[%" PRIu32 "]", new_config, id_,
             type_);
       return kErrorParameters;
     }
@@ -4126,15 +4241,18 @@ DisplayError SDMDisplay::FinalizeDisplayConfig(bool check_pending_config, Config
   }
 
   auto &info = variable_config_map_[new_config];
-  Config new_real_config = (info.is_virtual_config) ? info.parent_config_index : new_config;
+  //VRR virtual mode doesn't needs use parent config index
+  Config new_real_config = (info.is_virtual_config && !info.allowed_vrr_mode_switch)
+                               ? info.parent_config_index
+                               : new_config;
   Config current_real_config = 0;
-  display_intf_->GetActiveConfig(&current_real_config);
-  if (current_real_config != new_real_config) {
-    auto error = display_intf_->SetActiveConfig(new_real_config);
+  auto error = display_intf_->GetActiveConfig(&current_real_config);
+  if (current_real_config != new_real_config || error == kErrorConfigMismatch) {
+    error = display_intf_->SetActiveConfig(new_real_config);
     if (error != kErrorNone) {
       DLOGW(
           "Failed to set new real config:%d from current real config:%d! Error: %d"
-          " for display [%" PRIu64 "]-[%" PRIu64 "]",
+          " for display [%" PRIu64 "]-[%" PRIu32 "]",
           new_real_config, current_real_config, error, id_, type_);
       return kErrorNotSupported;
     }
@@ -4143,7 +4261,7 @@ DisplayError SDMDisplay::FinalizeDisplayConfig(bool check_pending_config, Config
   auto current_config = active_config_index_;
   DLOGV_IF(kTagClient,
            "Active configuration changed from config %d to %d"
-           " for display [%" PRIu64 "]-[%" PRIu64 "]",
+           " for display [%" PRIu64 "]-[%" PRIu32 "]",
            current_config, new_config, id_, type_);
   // Update client visible configuration
   active_config_index_ = new_config;
@@ -4174,4 +4292,74 @@ DisplayError SDMDisplay::GetParentConfig(Config *config) {
 
   return kErrorNotSupported;
 }
+
+DisplayError SDMDisplay::SetStandbyMode(bool enable, bool is_twm) {
+  DisplayError error = kErrorNone;
+
+  if (enable) {
+    if (nullptr == display_null_intf_) {
+      // Create null display
+      error = core_intf_->CreateNullDisplay(&display_null_intf_);
+      if (kErrorNone != error) {
+        DLOGE("Failed to create Null Display. Error = %d", error);
+        return error;
+      }
+    }
+
+    if (!null_display_active_) {
+      stored_display_intf_ = display_intf_;
+      display_intf_ = display_null_intf_;
+      shared_ptr<Fence> release_fence = nullptr;
+
+      if (is_twm && current_power_mode_ == SDMPowerMode::POWER_MODE_ON) {
+        DLOGD("Display is in ON state and device is entering TWM mode.");
+        error =
+            stored_display_intf_->SetDisplayState(kStateDoze, false /* teardown */, &release_fence);
+        if (error != kErrorNone) {
+          if (error == kErrorShutDown) {
+            shutdown_pending_ = true;
+            return error;
+          }
+          DLOGE("Set state failed. Error = %d", error);
+          return error;
+        } else {
+          current_power_mode_ = SDMPowerMode::POWER_MODE_DOZE;
+          DLOGD("Display moved to DOZE state.");
+        }
+      }
+
+      null_display_active_ = true;
+      DLOGD("Null display is connected successfully");
+    } else {
+      DLOGD("Null display is already connected.");
+    }
+  } else {
+    if (null_display_active_) {
+      if (is_twm) {
+        DLOGE("Unexpected event. Display state may be inconsistent.");
+        return kErrorNotSupported;
+      }
+      display_intf_ = stored_display_intf_;
+      null_display_active_ = false;
+      DLOGD("Null Display is disconnected successfully");
+    } else {
+      DLOGD("Null Display is already disconnected.");
+    }
+  }
+  return kErrorNone;
+}
+
+DisplayError SDMDisplay::SetRGBASplit(int32_t split_enable) {
+  if (!rgba_split_support_) {
+    DLOGW("Feature not supported on display: %" PRId64 " %d-%d", id_, sdm_id_, type_);
+    return kErrorNotSupported;
+  }
+
+  DisplayError error = display_intf_->SetRGBASplit(split_enable);
+  DLOGI("Feature %s on display : %" PRId64 " %d-%d", split_enable ? "enabled" : "disabled", id_,
+        sdm_id_, type_);
+
+  return error;
+}
+
 }  // namespace sdm

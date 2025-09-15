@@ -30,7 +30,7 @@
  * Changes from Qualcomm Innovation Center, Inc. are provided under the
  * following license:
  *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #ifndef __SDM_DISPLAY_VIRTUAL_DPU_H__
@@ -56,6 +56,13 @@ public:
                                       uint32_t *out_num_types, uint32_t *out_num_requests,
                                       bool *needs_commit);
  virtual DisplayError SetColorTransform(const float *matrix, SDMColorTransform hint);
+
+ // Color mode and render intent methods
+ DisplayError SetColorMode(SDMColorMode mode);
+ DisplayError SetColorModeWithRenderIntent(SDMColorMode mode, SDMRenderIntent intent);
+ DisplayError GetColorModes(uint32_t *out_num_modes, SDMColorMode *out_modes);
+ DisplayError GetRenderIntents(SDMColorMode mode, uint32_t *out_num_intents,
+                               SDMRenderIntent *out_intents);
 
 private:
   DisplayError SetConfig(uint32_t width, uint32_t height);

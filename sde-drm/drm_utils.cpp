@@ -29,7 +29,7 @@
 
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
-* Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -52,11 +52,11 @@ using std::vector;
 namespace sde_drm {
 
 void ParseFormats(const string &line, vector<pair<uint32_t, uint64_t>> *formats) {
-  // Match fourcc strings like RA24 or those with modifier like RA24/5/1. The
-  // digit after first / is vendor code, the digit after second / is modifier
-  // code.
-  regex exp_base("[[:alnum:]]{4}(/[[:digit:]]/([[:digit:]]){1,3})?");
-  regex exp_modifier("[[:alnum:]]{4}(/[[:digit:]]/([[:digit:]]){1,3})");
+  // Match fourcc strings like RA24 or C8<space><space> or those with modifier like
+  // RA24/5/1 or C8<space><space>/5/1. The digit after first / is vendor code, the digit
+  // after second / is modifier code.
+  regex exp_base("[[:alnum:]]{2}([[:alnum:]]{2}|[[:space:]]{2})(/[[:digit:]]/([[:digit:]]){1,3})?");
+  regex exp_mod("[[:alnum:]]{2}([[:alnum:]]{2}|[[:space:]]{2})(/[[:digit:]]/([[:digit:]]){1,3})");
   string tmp_line = line;
   std::smatch str_match;  // Resultant match
   while (std::regex_search(tmp_line, str_match, exp_base)) { //clang_sa_ignore[core.CallAndMessage]
@@ -64,7 +64,7 @@ void ParseFormats(const string &line, vector<pair<uint32_t, uint64_t>> *formats)
     string final_format_str = {};
     uint64_t modifier = 0;
 
-    if (std::regex_match(matched_sub_str, exp_modifier)) { //clang_sa_ignore[core.CallAndMessage]
+    if (std::regex_match(matched_sub_str, exp_mod)) {  //clang_sa_ignore[core.CallAndMessage]
       // Here we try to parse formats with vendor code and modifier like
       // RA24/5/1
 
@@ -119,6 +119,80 @@ void AddProperty(drmModeAtomicReqPtr req, uint32_t object_id, uint32_t property_
   if (cache)
     prop_val_map[property_id] = value;
 #endif
+}
+
+// TODO(user): Use FP16 library instead for conversions
+uint16_t DRM_float_2_FP16(const float in) {
+  if (in == 0) {
+    return static_cast<uint16_t>(in);
+  }
+
+  float f = 0;
+  float *pf = nullptr;
+  uint32_t *pu = nullptr;
+  uint32_t b = 0;
+  uint32_t mi = 0;
+  uint32_t mo = 0;
+  int32_t ei = 0;
+  int32_t eo = 0;
+  uint32_t si = 0;
+  uint16_t out = 0;
+
+  f = in;
+  pf = &f;
+  // this is to obtain the uint32_t representation
+  // of floating-point input
+  pu = reinterpret_cast<uint32_t *>(pf);
+  b = *pu;
+  // this is to find the uint16_t representation
+  // of the uint32_t type
+  mi = (b >> 13) & 0x3FF;
+  ei = (b >> 23) & 0xFF;
+  si = b >> 31;
+  eo = ei - 127 + 15;
+  mo = mi;
+  if (eo <= 0) {
+    mo = (mi | 0x400) >> (1 - eo);
+    eo = 0;
+  }
+  out = (uint16_t)((si << 15) | ((uint16_t)eo << 10) | mo);
+
+  return out;
+}
+
+// TODO(user): Use FP16 library instead for conversions
+float DRM_FP16_2_float(const uint16_t in) {
+  if (in == 0) {
+    return static_cast<float>(in);
+  }
+
+  float *pf = nullptr;
+  uint32_t *pu = nullptr;
+  uint32_t b = 0;
+  uint32_t mi = 0;
+  uint32_t mo = 0;
+  int32_t ei = 0;
+  int32_t eo = 0;
+  uint32_t si = 0;
+  float out = 0;
+
+  // this is to find the uint32_t representation
+  // of the uint16_t type
+  mi = in & 0x3FF;
+  ei = (in >> 10) & 0x1F;
+  si = in >> 15;
+  eo = ei - 15 + 127;
+  mo = mi;
+
+  b = (uint32_t)((si << 31) | ((uint32_t)eo << 23) | (mo << 13));
+
+  pu = &b;
+  // this is to obtain the floating_point representation
+  // of uint32_t input
+  pf = reinterpret_cast<float *>(pu);
+  out = *pf;
+
+  return out;
 }
 
 }  // namespace sde_drm

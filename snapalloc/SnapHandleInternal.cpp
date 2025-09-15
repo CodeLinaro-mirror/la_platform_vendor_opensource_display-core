@@ -1,16 +1,13 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include "SnapHandleInternal.h"
 #include <array>
 #include <fcntl.h>
 
 namespace snapalloc {
-
-struct SnapHandleInternal::FdPair {
-  int fd;
-  int fd_metadata;
-};
 
 struct SnapHandleInternal::SnapHandleProperties {
   uint32_t view;
@@ -173,7 +170,7 @@ std::vector<SnapHandleInternal::FdPair> SnapHandleInternal::getFds() {
   return fd_pairs;
 }
 
-SnapHandleInternal *SnapHandleInternal::CreateViewHandle(uint32_t view) {
+SnapHandleInternal *SnapHandleInternal::CreateViewHandle(uint32_t view, uint32_t view_in_handle) {
   int N = getN();
 
   if (N > 2) {
@@ -201,6 +198,9 @@ SnapHandleInternal *SnapHandleInternal::CreateViewHandle(uint32_t view) {
 
   size_t handle_size = sizeof(SnapHandleProperties) + sizeof(FdPair) + sizeof(SnapHandle);
   SnapHandleData<1> *view_handle = static_cast<SnapHandleData<1> *>(malloc(handle_size));
+  if (view_handle == nullptr) {
+    return view_handle;
+  }
 
   view_handle->num_ints = SnapHandleData<1>::getExpectedNumInts();
   view_handle->num_fds = SnapHandleData<1>::getExpectedNumFds();
@@ -215,6 +215,7 @@ SnapHandleInternal *SnapHandleInternal::CreateViewHandle(uint32_t view) {
                 F_DUPFD_CLOEXEC, 0);
       view_handle->getProperties(0) =
           static_cast<SnapHandleData<2> *>(this)->getProperties(view_index);
+      view_handle->propertiesArray[0].view = view_in_handle;
       break;
     default:
       DLOGE("Unsupported Meta Handle");
@@ -300,6 +301,9 @@ SnapHandleInternal *SnapHandleInternal::createSingleHandle(
     unsigned custom_content_md_size) {
   size_t handle_size = sizeof(SnapHandleProperties) + sizeof(FdPair) + sizeof(SnapHandle);
   SnapHandleData<1> *h = static_cast<SnapHandleData<1> *>(malloc(handle_size));
+  if (h == nullptr) {
+    return h;
+  }
 
   h->num_ints = SnapHandleData<1>::getExpectedNumInts();
   h->num_fds = SnapHandleData<1>::getExpectedNumFds();
@@ -326,6 +330,9 @@ SnapHandleInternal *SnapHandleInternal::createMultiviewHandle(
     unsigned custom_content_md_size) {
   size_t handle_size = ((sizeof(SnapHandleProperties) + sizeof(FdPair)) * 2 + sizeof(SnapHandle));
   SnapHandleData<2> *h = static_cast<SnapHandleData<2> *>(malloc(handle_size));
+  if (h == nullptr) {
+    return h;
+  }
 
   h->num_ints = SnapHandleData<2>::getExpectedNumInts();
   h->num_fds = SnapHandleData<2>::getExpectedNumFds();

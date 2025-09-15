@@ -31,7 +31,7 @@
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following
  * license:
  *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted (subject to the limitations in the
@@ -62,6 +62,12 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #ifndef __DRM_PROPERTY_H__
@@ -168,6 +174,7 @@ enum struct DRMProperty {
   SDE_DSPP_PA_DITHER_V2,
   SDE_PP_DITHER_V1,
   SDE_PP_DITHER_V2,
+  SDE_PP_DITHER_V3,
   INVERSE_PMA,
   CSC_DMA_V1,
   SDE_DGM_1D_LUT_IGC_V5,
@@ -190,6 +197,7 @@ enum struct DRMProperty {
   SDE_DSPP_SV_BL_SCALE,
   SDE_DSPP_BL_SCALE,
   SDE_DSPP_SPR_DITHER_V1,
+  SDE_DSPP_SPR_DITHER_V2,
   CAPTURE_MODE,
   QSYNC_MODE,
   IDLE_PC_STATE,
@@ -218,12 +226,14 @@ enum struct DRMProperty {
   BPP_MODE,
   DEMURA_INIT_CFG_V1,
   DEMURA_INIT_CFG_V3,
+  DEMURA_INIT_CFG_V4,
   DEMURA_PANEL_ID,
   DEMURA_BOOT_PLANE_V1,
   DEMURA_CFG0_PARAM2,
   DEMURA_BACKLIGHT_V1,
   DYN_BIT_CLK,
   SDE_PP_CWB_DITHER_V2,
+  SDE_PP_CWB_DITHER_V3,
   NOISE_LAYER_V1,
   DSC_MODE,
   DIMMING_BL_LUT,
@@ -235,6 +245,7 @@ enum struct DRMProperty {
   EARLY_FENCE_LINE,
   DNSC_BLR,
   WB_USAGE_TYPE,
+  WB_CSC_CONFIG,
   SDE_SSPP_FP16_IGC_V1,
   SDE_SSPP_FP16_GC_V1,
   SDE_SSPP_FP16_CSC_V1,
@@ -257,6 +268,7 @@ enum struct DRMProperty {
   SDE_DSPP_AIQE_SSRC_DATA_V1,
   AI_SCALER_CFG_V1,
   SDE_DSPP_AIQE_MDNIE_V1,
+  SDE_DSPP_AIQE_MDNIE_V2,
   SDE_DSPP_AIQE_MDNIE_ART_V1,
   SDE_DSPP_AIQE_MDNIE_IPC_V1,
   SDE_DSPP_AIQE_COPR_V1,
@@ -265,6 +277,14 @@ enum struct DRMProperty {
   FRAME_INTERVAL,
   USECASE_IDX,
   BRIGHTNESS,
+  FLUSH_SYNC_EN,
+  COMMIT_PATH,
+  PREFILL_SIZE,
+  PREFILL_TIME,
+  SYS_CACHE_TYPE,
+  BUFFER_MODE,
+  COLOR_MASK_OVERRIDE,
+  EMSYNC_FPS,
 
   // Insert above
   MAX

@@ -30,7 +30,7 @@
  * Changes from Qualcomm Innovation Center, Inc. are provided under the
  * following license:
  *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <cstring>
@@ -191,6 +191,7 @@ int IPCImpl::SetParameter(IPCParams param, const GenericPayload &in) {
         DLOGI("Send display config %s to SVM", cmd_disp_configs.abc_mode);
       }
 
+      cmd_disp_configs.ai_scaler_mode_id = disp_configs->ai_scaler_mode_id;
       DLOGI("Send display configs: h_total %d v_total %d, fps %d, %s panel, "
             "disp_type %d to SVM",
             cmd_disp_configs.h_total, cmd_disp_configs.v_total,
@@ -274,7 +275,7 @@ int IPCImpl::SetParameter(IPCParams param, const GenericPayload &in) {
       cmd_export_demura_buffer.demura_mem_info.hfc_mem_size = hfc_buffer->size;
       cmd_export_demura_buffer.demura_mem_info.panel_id = hfc_buffer->panel_id;
 
-      DLOGI("Sending hfc params %d",
+      DLOGI("Sending hfc params %" PRId64,
             cmd_export_demura_buffer.demura_mem_info.hfc_mem_hdl);
       ret = qrtr_client_intf_->SendCommand(&cmd, sizeof(Command));
       if (ret != 0) {
@@ -346,7 +347,7 @@ int IPCImpl::ProcessExportBuffers(const GenericPayload &in,
       }
       exported_fds.emplace(buf_type, temp_fd);
     }
-    DLOGI("Sending hfc: mem_hdl %ld, size %d panel_id %lu",
+    DLOGI("Sending hfc: mem_hdl %" PRId64 ", size %d panel_id %" PRIu64,
           demura_mem_info.hfc_mem_hdl, demura_mem_info.hfc_mem_size,
           demura_mem_info.panel_id);
     ret = qrtr_client_intf_->SendCommand(&cmd, sizeof(Command));

@@ -1,5 +1,7 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __SNAP_METADATA_MANAGER_H__
 #define __SNAP_METADATA_MANAGER_H__
@@ -48,6 +50,8 @@ class SnapMetadataManager {
   typedef Error (SnapMetadataManager::*MetadataHelper)(SnapMetadata *metadata,
                                                        SnapHandleInternal *handle, void *in_set,
                                                        void *out_get, BufferDescriptor *buf_des);
+  Error GetViewToImport(SnapHandleInternal *hnd, const uint32_t view_requested, uint32_t *view);
+  Error GetBaseView(SnapHandleInternal *hnd, uint32_t *view);
 
  private:
   ~SnapMetadataManager();
@@ -244,6 +248,8 @@ class SnapMetadataManager {
   Error ThreeDimensionalRefInfoHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
                                       void *in_set = nullptr, void *out_get = nullptr,
                                       BufferDescriptor *buf_des = nullptr);
+  Error ViewIdHelper(SnapMetadata *metadata, SnapHandleInternal *handle, void *in_set = nullptr,
+                     void *out_get = nullptr, BufferDescriptor *buf_des = nullptr);
 
   struct DRMFormatDescriptor {
     uint32_t drm_format;
@@ -369,6 +375,14 @@ class SnapMetadataManager {
            {.drm_format = DRM_FORMAT_NV12,
             .drm_modifier =
                 static_cast<int>(DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_DX)}},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_P210,
+            .compression_type = COMPRESSION_NONE},
+           {.drm_format = DRM_FORMAT_P210, .drm_modifier = DRM_FORMAT_MOD_QCOM_DX}},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_P210,
+            .compression_type = QTI_COMPRESSION_UBWC},
+           {.drm_format = DRM_FORMAT_P210,
+            .drm_modifier =
+                static_cast<int>(DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_DX)}},
           {{.format = vendor_qti_hardware_display_common_PixelFormat::TP10,
             .compression_type = QTI_COMPRESSION_UBWC},
            {.drm_format = DRM_FORMAT_NV12,
@@ -472,6 +486,7 @@ class SnapMetadataManager {
           {BASE_VIEW, &SnapMetadataManager::BaseViewHelper},
           {MULTI_VIEW_INFO, &SnapMetadataManager::MultiViewHelper},
           {THREE_DIMENSIONAL_REF_INFO, &SnapMetadataManager::ThreeDimensionalRefInfoHelper},
+          {VIEW_ID, &SnapMetadataManager::ViewIdHelper},
   };
   struct metadata_traits {
     bool is_settable;
@@ -513,7 +528,7 @@ class SnapMetadataManager {
           {ALIGNED_HEIGHT_IN_PIXELS, {false}},
           {STANDARD_METADATA_STATUS, {true}},
           {VENDOR_METADATA_STATUS, {true}},
-          {BUFFER_TYPE, {false}},
+          {BUFFER_TYPE, {true}},
           {VIDEO_TS_INFO, {true}},
           {CUSTOM_DIMENSIONS_STRIDE, {false}},
           {CUSTOM_DIMENSIONS_HEIGHT, {false}},
@@ -543,6 +558,7 @@ class SnapMetadataManager {
           {BASE_VIEW, {false}},
           {MULTI_VIEW_INFO, {false}},
           {THREE_DIMENSIONAL_REF_INFO, {true}},
+          {VIEW_ID, {true}},
       };
 };
 }  // namespace snapalloc

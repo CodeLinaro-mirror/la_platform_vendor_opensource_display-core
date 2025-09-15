@@ -69,7 +69,7 @@ DisplayError SDMConcurrentWriteBack::PostBuffer(const CwbConfig &cwb_config,
       for (auto &qnode : session_map.queue) {
         if (qnode->handle_id == node_handle_id) {
           error = kErrorParameters;
-          DLOGW("CWB Buffer with handle id %lu is already available in Queue "
+          DLOGW("CWB Buffer with handle id %" PRIu64 " is already available in Queue "
                 "for processing!",
                 node_handle_id);
           break;
@@ -86,7 +86,7 @@ DisplayError SDMConcurrentWriteBack::PostBuffer(const CwbConfig &cwb_config,
       }
     } else {
       error = kErrorParameters;
-      DLOGE("Unable to allocate node for CWB request(handle id: %lu)!",
+      DLOGE("Unable to allocate node for CWB request(handle id: %" PRIu64 ")!",
             node_handle_id);
     }
   }
@@ -99,7 +99,7 @@ DisplayError SDMConcurrentWriteBack::PostBuffer(const CwbConfig &cwb_config,
   }
 
   if (error == kErrorNone) {
-    DLOGV_IF(kTagCwb, "Successfully configured CWB buffer(handle id: %lu).",
+    DLOGV_IF(kTagCwb, "Successfully configured CWB buffer(handle id: %" PRIu64 ").",
              node_handle_id);
   } else {
     std::unique_lock<std::mutex> lock(session_map.lock);
@@ -187,6 +187,11 @@ void SDMConcurrentWriteBack::ProcessCWBStatus(int dpy_index) {
       }
 
       cwb_node = session_map.queue.front();
+      if (cwb_node == nullptr) {
+        DLOGW("Spurious nullptr");
+        session_map.queue.pop_front();
+        continue;
+      }
       if (!cwb_node->request_completed) {
         // Need to continue to recheck until node specific client call
         // completes.

@@ -28,43 +28,17 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted (subject to the limitations in the
- * disclaimer below) provided that the following conditions are met:
- *
- *    * Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
- *
- *    * Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
- *      disclaimer in the documentation and/or other materials provided
- *      with the distribution.
- *
- *    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
- *      contributors may be used to endorse or promote products derived
- *      from this software without specific prior written permission.
- *
- * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
- * GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
- * HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
- * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #ifndef __DRM_INTERFACE_H__
 #define __DRM_INTERFACE_H__
+
+#ifndef TARGET_INCLUDES_NEO
+#include <display/drm/msm_drm_aiqe.h>
+#endif
 
 #include <map>
 #include <string>
@@ -76,9 +50,7 @@
 
 #include "xf86drm.h"
 #include "xf86drmMode.h"
-#include <display/drm/msm_drm_aiqe.h>
 #include <display/drm/msm_drm_pp.h>
-#include <display/drm/msm_drm_aiqe.h>
 #include <display/drm/sde_drm.h>
 #include <drm/msm_drm.h>
 namespace sde_drm {
@@ -218,7 +190,7 @@ enum struct DRMOps {
   /*
    * Op: Sets FP16 CSC config on this plane.
    * Arg: uint32_t - Plane ID
-   *      uint32_t - csc type
+   *      DRMFp16CscConfig* - CSC config
    */
   PLANE_SET_FP16_CSC_CONFIG,
   /*
@@ -306,6 +278,36 @@ enum struct DRMOps {
    *      DRMRect  - Image ROI Rectangle
    */
   PLANE_SET_IMG_SIZE_RECT,
+  /*
+   * Op: Sets plane prefill size
+   * Arg: uint32_t - Plane ID
+   *      uint32_t - size value
+   */
+  PLANES_SET_PREFILL_SIZE,
+  /*
+   * Op: Sets plane prefill time
+   * Arg: uint32_t - Plane ID
+   *      uint32_t - time value
+   */
+  PLANES_SET_PREFILL_TIME,
+  /*
+   * Op: Sets plane EVA cache
+   * Arg: uint32_t - Plane ID
+   *      uint32_t - cache type
+   */
+  PLANES_SET_SYS_CACHE_TYPE,
+  /*
+   * Op: Sets plane buffer mode
+   * Arg: uint32_t - Plane ID
+   *      uint32_t - independent or single
+   */
+  PLANES_BUFFER_MODE,
+  /*
+   * Op: Sets plane color mask override
+   * Arg: uint32_t - Plane ID
+   *      uint32_t - layer color mask override
+   */
+  PLANE_SET_COLOR_MASK_OVERRIDE,
   /*
    * Op: Activate or deactivate a CRTC
    * Arg: uint32_t - CRTC ID
@@ -463,6 +465,12 @@ enum struct DRMOps {
    *       uin32_t - ubwc_clk
    */
   CRTC_SET_UBWC_CLK,
+  /*
+   * Op: Enables/disables flush sync between the DPU cores
+   * Args: uint32_t CRTC ID
+   *       uin32_t - flush sync state
+   */
+  CRTC_SET_FLUSH_SYNC_EN,
   /*
    * Op: Returns retire fence for this commit. Should be called after Commit()
    * on DRMAtomicReqInterface. Arg: uint32_t - Connector ID int * - Pointer to
@@ -640,6 +648,11 @@ enum struct DRMOps {
    */
   CONNECTOR_WB_USAGE_TYPE,
   /*
+   * Op: WB csc config (BT2020/BT601)
+   * Arg: drmModeAtomicReq - Atomic request
+   */
+  CONNECTOR_WB_CSC_CONFIG,
+  /*
    * Op: Sets Cache state for Connector.
    * Arg: uint32_t - Connector ID
    *      uint32_t - Cache state
@@ -681,6 +694,20 @@ enum struct DRMOps {
    *      uint32_t - Brightness Level
    */
   CONNECTOR_SET_BRIGHTNESS,
+
+  /*
+   * Op: Sets commit path to HFI or HWIO
+   * Arg: uint32_t - CRTC id
+   *      uint32_t - Commit path, 1 for HFI, 0 for HWIO
+   */
+  CRTC_SET_COMMIT_PATH,
+
+  /*
+   * Op: Sets emsync fps
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - Emsync Fps
+   */
+  CONNECTOR_SET_EMSYNC_FPS,
 };
 
 enum struct DRMRotation {
@@ -770,6 +797,7 @@ enum struct QSEEDStepVersion {
   V3LITE_V8,
   V3LITE_V9,
   V3LITE_V10,
+  V3LITE_V11,
 };
 
 enum struct SmartDMARevision {
@@ -795,6 +823,7 @@ enum struct CacVersion {
 
 /* DDR Version */
 enum struct DDRVersion {
+  kDDRVersionNone,
   kDDRVersion4,
   kDDRVersion5,
   kDDRVersion5x,
@@ -848,6 +877,7 @@ struct DRMCrtcInfo {
   bool has_micro_idle = false;
   uint32_t ubwc_version = 1;
   bool has_spr = false;
+  bool has_spr_dither = false;
   uint32_t rc_count = 0;
   uint64_t rc_total_mem_size = 0;
   uint32_t demura_count = 0;
@@ -857,7 +887,7 @@ struct DRMCrtcInfo {
   bool has_noise_layer = false;
   uint32_t dsc_block_count = 0;
   CacVersion cac_version = CacVersion::NONE;
-  DDRVersion ddr_version = DDRVersion::kDDRVersion5;
+  DDRVersion ddr_version = DDRVersion::kDDRVersionNone;
   bool has_cesta = false;
   uint32_t ai_scaler_count = 0;
 };
@@ -871,6 +901,21 @@ enum struct DRMPlaneType {
   DMA,
   // Supports a small dimension and doesn't use a CRTC stage
   CURSOR,
+  // Used for LSR usecase on CSC WB connector only
+  CSC,
+  // Used for LSR usecase on  Repro WB connector only
+  REPRO,
+  MAX,
+};
+
+enum struct DRMConnectorIdentifier {
+  DPU = 0,
+  // Use to handle Video usecase using EVA FW
+  LSR_CSC,
+  // Use to handle UI and CSC output using EVA FW
+  LSR_REPRO,
+  // Used for CAC loopback
+  CAC_LOOPBACK,
   MAX,
 };
 
@@ -926,6 +971,7 @@ struct DRMPlaneTypeInfo {
   uint32_t master_plane_id;
   // FourCC format enum and modifier
   std::vector<std::pair<uint32_t, uint64_t>> formats_supported;
+  std::vector<std::pair<uint32_t, uint64_t>> cac_formats_supported;
   uint32_t max_linewidth;
   uint32_t max_scaler_linewidth;
   uint32_t max_rotation_linewidth; // inline rotation limitation
@@ -984,6 +1030,7 @@ struct DRMSubModeInfo {
   DRMTopology topology;
   std::vector<uint64_t> dyn_bitclk_list;
   uint32_t bpp_mode;
+  std::vector<uint32_t> emsync_fps_list;
 };
 
 enum DynamicFrontPorchType {
@@ -1030,6 +1077,8 @@ struct DRMModeInfo {
   uint32_t avr_step_fps = 0;
   uint32_t early_ept_timeout;
   bool vhm_support = false;
+  bool is_virtual_config = false;
+  int32_t parent_config_index = -1;
 };
 
 /* Per Connector Info*/
@@ -1069,7 +1118,13 @@ struct DRMConnectorInfo {
   bool has_disp_in_other_core = false;
   bool dpu_ctl_op_sync = false;
   bool has_cac_loopback = false;
+  bool is_wb_csc = false;
+  bool is_wb_repro = false;
   DMSType dms_type = DMSType::DMS_VID_DISABLED;
+  bool fsc_panel = false;
+  uint32_t num_fsc_fields = 0;
+  bool dpu_dma_enabled = false;
+  bool emsync_switch_enabled = false;
 };
 
 // All DRM Connectors as map<Connector_id , connector_info>
@@ -1227,6 +1282,8 @@ enum DRMPanelFeatureID {
   kDRMPanelFeatureAiqeCopr,
   kDRMPanelFeatureABC,
   kDRMPanelFeatureDemuraBacklight,
+  // This prop is used for user space only, it is not an actual drm property
+  kDRMPanelFeatureDemuraDoubleBufferCbFlags,
   kDRMPanelFeatureMax,
 };
 
@@ -1268,6 +1325,7 @@ enum DRMCscType {
   kCscYuv2Rgb2020FR,
   kCscYuv2RgbDolbyVisionP5,
   kCscYuv2RgbDCIP3FR,
+  kCscYuv2RgbDCIP3L,
   kCscTypeMax,
 };
 
@@ -1377,17 +1435,29 @@ enum struct DRMWBUsageType {
   WB_USAGE_OFFLINE_WB,
 };
 
+enum DRMWBCSCConfig {
+  RGB2YUV601L,
+  RGB2YUV2020L,
+  CscTypeMax,
+};
+
 enum DRMFp16CscType {
   kFP16CscSrgb2Dcip3 = 0,
   kFP16CscSrgb2Bt2020,
+  kFP16CscTypeUnity,  // to apply HDR/SDR ratio
   kFP16CscTypeMax,
 };
 
+struct DRMFp16CscConfig {
+  DRMFp16CscType csc_type = kFP16CscTypeMax;
+  float hdr_sdr_ratio = 1.0;
+};
+
 struct DRMFp16Config {
-  uint32_t igc_en;
-  uint32_t unmult_en;
-  uint32_t csc_idx;
-  drm_msm_fp16_gc gc;
+  uint32_t igc_en = 0;
+  uint32_t unmult_en = 0;
+  DRMFp16CscConfig csc_config = {};
+  drm_msm_fp16_gc gc_config = {.flags = 0, .mode = FP16_GC_MODE_INVALID};
 };
 
 enum struct DRMCacheWBState {
@@ -1399,6 +1469,18 @@ enum struct DRMAvrStepState {
   NONE = 0,
   ENABLE,
   DISABLE,
+};
+
+enum struct DRMBufferMode {
+  INDEPENDENT = 0,
+  SINGLE,
+};
+
+enum struct DRMReserveColor {
+  RED = 1 << 0,
+  GREEN = 1 << 1,
+  BLUE = 1 << 2,
+  ALPHA = 1 << 3,
 };
 
 /* DRM Atomic Request Property Set.
@@ -1504,6 +1586,12 @@ class DRMManagerInterface {
   virtual void GetCrtcPPInfo(uint32_t crtc_id, DRMPPFeatureInfo *info) = 0;
 
   /*
+   * Will query post propcessing feature info of a Connector.
+   * [output]: DRMPPFeatureInfo: Connector post processing feature info
+   */
+  virtual void GetConnectorPPInfo(uint32_t conn_id, DRMPPFeatureInfo *info) = 0;
+
+  /*
    * Register a logical display to receive a token.
    * Each display pipeline in DRM is identified by its CRTC and Connector(s). On display connect
    * (bootup or hotplug), clients should invoke this interface to establish the pipeline for the
@@ -1512,12 +1600,12 @@ class DRMManagerInterface {
    * needed.
    *
    * [input]: disp_type - Peripheral / TV / Virtual
-   * [input]: has_cac_loopback - set if loopback connector needed
+   * [input]: connector identifier - used when one display type has multiple connector type.
    * [output]: DRMDisplayToken - CRTC and Connector IDs for the display.
    * [return]: 0 on success, a negative error value otherwise.
    */
   virtual int RegisterDisplay(DRMDisplayType disp_type, DRMDisplayToken *tok,
-                              bool has_cac_loopback = false) = 0;
+                              DRMConnectorIdentifier identifier = DRMConnectorIdentifier::DPU) = 0;
 
   /*
    * Register a logical display to receive a token.

@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #ifndef __UBWC_POLICY_H__
@@ -36,7 +36,9 @@ class UBWCPolicy {
    * @param: UBWCCapabilities containing UBWC support info
    * @return: AllocData to be used by memory allocation backend
    */
-  Error GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, AllocData *out_ad,
+  Error GetUBWCAlloc(BufferDescriptor desc,
+                     std::map<SnapConstraintProvider *, CapabilitySet> const &providers,
+                     UBWCCapabilities caps, AllocData *out_ad,
                      vendor_qti_hardware_display_common_BufferLayout *out_layout);
 
   void Init(std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map);
@@ -56,7 +58,8 @@ class UBWCPolicy {
   Debug *debug_;
   int GetConstraints(BufferDescriptor desc, BufferConstraints *out);
   std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map_;
-  std::map<vendor_qti_hardware_display_common_PixelFormat, BufferConstraints> constraint_set_map_;
+  std::unordered_map<SnapFormatDescriptor, BufferConstraints, SnapFormatDescriptorHash>
+      constraint_set_map_;
   int OffTargetAlloc(BufferDescriptor desc, AllocData *out_ad,
                      vendor_qti_hardware_display_common_BufferLayout *out_layout);
   uint64_t GetMetaPlaneSize(uint64_t width, uint64_t height, uint32_t block_width,

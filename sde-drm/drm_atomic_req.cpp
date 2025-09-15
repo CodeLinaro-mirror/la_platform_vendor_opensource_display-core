@@ -29,44 +29,14 @@
 
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted (subject to the limitations in the
-* disclaimer below) provided that the following conditions are met:
-*
-*    * Redistributions of source code must retain the above copyright
-*      notice, this list of conditions and the following disclaimer.
-*
-*    * Redistributions in binary form must reproduce the above
-*      copyright notice, this list of conditions and the following
-*      disclaimer in the documentation and/or other materials provided
-*      with the distribution.
-*
-*    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
-*      contributors may be used to endorse or promote products derived
-*      from this software without specific prior written permission.
-*
-* NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
-* GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
-* HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
-* WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-* IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
-* GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-* INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
-* IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-* OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-* IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -142,7 +112,12 @@ int DRMAtomicReq::Perform(DRMOps opcode, uint32_t obj_id, ...) {
     case DRMOps::PLANE_SET_UCSC_IGC_CONFIG:
     case DRMOps::PLANE_SET_UCSC_CSC_CONFIG:
     case DRMOps::PLANE_SET_UCSC_GC_CONFIG:
-    case DRMOps::PLANE_SET_UCSC_ALPHA_DITHER_CONFIG: {
+    case DRMOps::PLANE_SET_UCSC_ALPHA_DITHER_CONFIG:
+    case DRMOps::PLANES_SET_PREFILL_SIZE:
+    case DRMOps::PLANES_SET_PREFILL_TIME:
+    case DRMOps::PLANES_SET_SYS_CACHE_TYPE:
+    case DRMOps::PLANES_BUFFER_MODE:
+    case DRMOps::PLANE_SET_COLOR_MASK_OVERRIDE: {
       drm_mgr_->GetPlaneMgr()->Perform(opcode, obj_id, drm_atomic_req_, args);
     } break;
     case DRMOps::CRTC_SET_POST_PROC:
@@ -170,7 +145,9 @@ int DRMAtomicReq::Perform(DRMOps opcode, uint32_t obj_id, ...) {
     case DRMOps::CRTC_SET_VM_REQ_STATE:
     case DRMOps::CRTC_RESET_CACHE:
     case DRMOps::CRTC_SET_NOISELAYER_CONFIG:
-    case DRMOps::CRTC_SET_UBWC_CLK: {
+    case DRMOps::CRTC_SET_UBWC_CLK:
+    case DRMOps::CRTC_SET_FLUSH_SYNC_EN:
+    case DRMOps::CRTC_SET_COMMIT_PATH: {
       drm_mgr_->GetCrtcMgr()->Perform(opcode, obj_id, drm_atomic_req_, args);
     } break;
     case DRMOps::CONNECTOR_SET_CRTC:
@@ -199,12 +176,14 @@ int DRMAtomicReq::Perform(DRMOps opcode, uint32_t obj_id, ...) {
     case DRMOps::CONNECTOR_EARLY_FENCE_LINE:
     case DRMOps::CONNECTOR_DNSC_BLR:
     case DRMOps::CONNECTOR_WB_USAGE_TYPE:
+    case DRMOps::CONNECTOR_WB_CSC_CONFIG:
     case DRMOps::CONNECTOR_SET_CACHE_STATE:
     case DRMOps::CONNECTOR_SET_EPT:
     case DRMOps::CONNECTOR_SET_BPP_MODE:
     case DRMOps::CONNECTOR_SET_AVR_STEP_STATE:
     case DRMOps::CONNECTOR_SET_FRAME_INTERVAL:
-    case DRMOps::CONNECTOR_SET_USECASE_IDX: {
+    case DRMOps::CONNECTOR_SET_USECASE_IDX:
+    case DRMOps::CONNECTOR_SET_EMSYNC_FPS: {
       drm_mgr_->GetConnectorMgr()->Perform(opcode, obj_id, drm_atomic_req_, args);
     } break;
     case DRMOps::DPPS_CACHE_FEATURE: {

@@ -23,9 +23,8 @@
 */
 
 /*
-* ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-*
-* Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -69,6 +68,13 @@
 #define BITS_TO_BYTES(x) (((x) + (BITS_PER_BYTE - 1)) / (BITS_PER_BYTE))
 
 #define INT_TO_PAIR(x) ((INT(x) + 1) / 2)
+
+#define LSB_MASK(nbits) (~((~UINT32(0)) << ((nbits)&0x1f)))
+#define SHIFT_TO_LSB(x, from_nth_bit) (UINT32(x) >> ((from_nth_bit)&0x1f))
+#define BIT_TO_BOOL(x, nth_bit) (!!(UINT32(x) & (1 << (nth_bit))))
+#define BITS_TO_UINT32(x, from_nth_bit, bitcount) \
+  (SHIFT_TO_LSB(x, from_nth_bit) & LSB_MASK(bitcount))
+#define MAX_VALUE_LIMIT(nbits) ((UINT32(1) << (nbits)) - 1)
 
 // factor value should be in powers of 2(eg: 1, 2, 4, 8)
 template <class T1, class T2>

@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #ifndef __SNAP_CONSTRAINT_MANAGER_H__
@@ -121,6 +121,7 @@ class SnapConstraintManager {
 
   std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map_;
   UBWCPolicy *ubwc_policy_;
+  CameraConstraintProvider *camera_provider_;
   std::vector<vendor_qti_hardware_display_common_PixelFormat>
       formats_with_w_h_constraints{
           vendor_qti_hardware_display_common_PixelFormat::YV12,

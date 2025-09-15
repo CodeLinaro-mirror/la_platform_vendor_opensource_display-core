@@ -33,9 +33,8 @@
  */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -61,6 +60,10 @@ class CwbCallback {
   virtual void NotifyCwbDone(int32_t display_id, int32_t status, const LayerBuffer& buffer) = 0;
   virtual void TriggerRefresh(int32_t display_id) = 0;
   virtual void TriggerCwbTeardown(int32_t display_id, bool sync_teardown) {}
+  virtual DisplayError ValidateCwbRequest(int32_t display_id, const LayerBuffer &output_buffer,
+                                          CwbConfig &cwb_config) {
+    return kErrorNone;
+  }
 };
 
 class CwbManagerInterface {

@@ -25,7 +25,7 @@
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -77,6 +77,25 @@ enum HWFeature {
   kMaxSupportedCwb,
 };
 
+enum DriverCommitPath {
+  kHWIO,
+  kHFI,
+};
+
+inline std::string to_string(DriverCommitPath path) {
+  switch (path) {
+    case kHWIO:
+      return "HWIO";
+      break;
+    case kHFI:
+      return "HFI";
+      break;
+    default:
+      return "Unknown";
+      break;
+  }
+}
+
 // HWEventHandler - Implemented in DisplayBase and HWInterface implementation
 class HWEventHandler {
  public:
@@ -92,6 +111,7 @@ class HWEventHandler {
   virtual void MMRMEvent(uint32_t clk) = 0;
   virtual void HandlePowerEvent() = 0;
   virtual void HandleVmReleaseEvent() = 0;
+  virtual void HandleVmReclaimEvent() = 0;
   virtual void GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) = 0;
   virtual bool IsPrimaryDisplay() = 0;
   virtual DisplayError GetPanelBrightnessBasePath(std::string *base_path) = 0;
@@ -133,7 +153,7 @@ class HWInterface {
   virtual DisplayError SetDisplayMode(const HWDisplayMode hw_display_mode) = 0;
   virtual DisplayError SetBppMode(uint32_t bpp) = 0;
   virtual DisplayError SetRefreshRate(uint32_t refresh_rate) = 0;
-  virtual DisplayError SetPanelBrightness(int level) = 0;
+  virtual DisplayError SetPanelBrightness(int level, bool apply_immediately) = 0;
   virtual DisplayError GetHWScanInfo(HWScanInfo *scan_info) = 0;
   virtual DisplayError GetVideoFormat(uint32_t config_index, uint32_t *video_format) = 0;
   virtual DisplayError GetMaxCEAFormat(uint32_t *max_cea_format) = 0;
@@ -178,6 +198,7 @@ class HWInterface {
                                              uint32_t frame_interval_ns) = 0;
   virtual bool IsVRRSupported() = 0;
   virtual void DisplayEarlyWakeUp() = 0;
+  virtual DisplayError setDriverCommitPath(DriverCommitPath path) = 0;
 
  protected:
   virtual ~HWInterface() { }

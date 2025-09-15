@@ -66,7 +66,7 @@
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -183,6 +183,7 @@ void HWScaleDRM::SetScalerV2(const HWScaleData &scale_data, sde_drm_scaler_v2 *s
     scaler->src_height[i] = plane.src_height;
 
     // cac params
+#ifndef TARGET_INCLUDES_NEO
     scaler->cac_cfg.cac_le_phase_init2_x[i] = plane.cac_le_phase_init2_x;
     scaler->cac_cfg.cac_le_phase_init2_y[i] = plane.cac_le_phase_init2_y;
     scaler->cac_cfg.cac_re_phase_init2_y[i] = plane.cac_re_phase_init2_y;
@@ -197,6 +198,7 @@ void HWScaleDRM::SetScalerV2(const HWScaleData &scale_data, sde_drm_scaler_v2 *s
     scaler->cac_cfg.cac_le_inc_skip_y[i] = plane.cac_le_inc_skip_y;
     scaler->cac_cfg.cac_re_inc_skip_x[i] = plane.cac_re_inc_skip_y;
     scaler->cac_cfg.cac_re_inc_skip_y[i] = plane.cac_re_inc_skip_y;
+#endif
   }
 
   scaler->dst_width = scale_data.dst_width;
@@ -238,6 +240,17 @@ void HWScaleDRM::SetScalerV2(const HWScaleData &scale_data, sde_drm_scaler_v2 *s
       det_enhance->adjust_b[i] = scale_data.detail_enhance.adjust_b[i];
       det_enhance->adjust_c[i] = scale_data.detail_enhance.adjust_c[i];
     }
+
+#ifdef SDE_DRM_QSEED7
+    scaler->adaptive_de_en = scale_data.detail_enhance.adaptive_de_en;
+    scaler->strength_slope = scale_data.detail_enhance.ade_strength_slope;
+    scaler->strength_const = scale_data.detail_enhance.ade_strength_const;
+    scaler->strength_coeff_tl = scale_data.detail_enhance.ade_strength_coeff_tl;
+    scaler->strength_coeff_th = scale_data.detail_enhance.ade_strength_coeff_th;
+    scaler->halo_suppress_coeff = scale_data.detail_enhance.halo_suppress_coeff;
+    scaler->polarity_en = scale_data.detail_enhance.polarity_en;
+    scaler->edge_bleed_sup_en = scale_data.detail_enhance.edge_bleed_sup_en;
+#endif
   }
 
 #ifdef SDE_DRM_INLINE_PREDOWNSCALE
@@ -247,6 +260,7 @@ void HWScaleDRM::SetScalerV2(const HWScaleData &scale_data, sde_drm_scaler_v2 *s
   scaler->pre_downscale_y_1 = scale_data.src_y_pre_down_scale_1;
 #endif
 
+#ifndef TARGET_INCLUDES_NEO
   // cac params
   scaler->cac_cfg.cac_mode = scale_data.cac_mode;
   scaler->cac_cfg.cac_dst_uv_w = scale_data.cac_dst_uv_w;
@@ -261,6 +275,7 @@ void HWScaleDRM::SetScalerV2(const HWScaleData &scale_data, sde_drm_scaler_v2 *s
   scaler->cac_cfg.cac_asym_phase_step_v = scale_data.cac_asym_phase_step_v;
   scaler->cac_cfg.cac_re_phase_step_v = scale_data.cac_re_phase_step_v;
   scaler->cac_cfg.cac_re_asym_phase_step_v = scale_data.cac_re_asym_phase_step_v;
+#endif
 
   return;
 }

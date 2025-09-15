@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #ifndef __SNAP_UTILS_H__
@@ -31,15 +31,19 @@ inline int roundUpToPageSize(int x) {
   return (x + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
 }
 
+using SnapPixelFormat = vendor_qti_hardware_display_common_PixelFormat;
+using SnapPixelFormatModifier = vendor_qti_hardware_display_common_PixelFormatModifier;
+using SnapUsage = vendor_qti_hardware_display_common_BufferUsage;
+
 enum OverflowType { ADD = 0, MUL };
 
-#define OVERFLOW_MUL(x, y)                                                               \
-  (sizeof(x) == 4) ? (((y) != 0) && ((x) > (std::numeric_limits<int32_t>::max() / (y)))) \
-                   : (((y) != 0) && ((x) > (std::numeric_limits<int64_t>::max() / (y))))
+#define OVERFLOW_MUL(x, y)                                                                \
+  (sizeof(x) == 4) ? (((y) != 0) && ((x) > (std::numeric_limits<uint32_t>::max() / (y)))) \
+                   : (((y) != 0) && ((x) > (std::numeric_limits<uint64_t>::max() / (y))))
 
-#define OVERFLOW_ADD(x, y)                                                              \
-  (sizeof(x) == 4) ? (((y) > 0) && ((x) > (std::numeric_limits<int32_t>::max() - (y)))) \
-                   : (((y) > 0) && ((x) > (std::numeric_limits<int64_t>::max() - (y))))
+#define OVERFLOW_ADD(x, y)                                                               \
+  (sizeof(x) == 4) ? (((y) > 0) && ((x) > (std::numeric_limits<uint32_t>::max() - (y)))) \
+                   : (((y) > 0) && ((x) > (std::numeric_limits<uint64_t>::max() - (y))))
 
 #define OVERFLOW_ERR_RETURN(x, y, type)                       \
   {                                                           \
@@ -74,13 +78,13 @@ inline int ALIGN(int operand, int alignment) {
 
 uint64_t GetPixelFormatModifier(BufferDescriptor desc);
 
-bool CpuCanRead(vendor_qti_hardware_display_common_BufferUsage usage);
-bool CpuCanWrite(vendor_qti_hardware_display_common_BufferUsage usage);
-bool CpuCanAccess(vendor_qti_hardware_display_common_BufferUsage usage);
+bool CpuCanRead(SnapUsage usage);
+bool CpuCanWrite(SnapUsage usage);
+bool CpuCanAccess(SnapUsage usage);
 
 struct SnapFormatDescriptor {
-  vendor_qti_hardware_display_common_PixelFormat format;
-  vendor_qti_hardware_display_common_PixelFormatModifier modifier;
+  SnapPixelFormat format;
+  SnapPixelFormatModifier modifier;
 
   bool operator==(const SnapFormatDescriptor &snap_fmt_desc) const {
     if (format == snap_fmt_desc.format && modifier == snap_fmt_desc.modifier) {
@@ -147,62 +151,69 @@ class MmmColorFormatMapper {
     return MMM_COLOR_FMT_BUFFER_SIZE_USED(color_fmt, width, height, interlace);
   }
 
-  int MapPixelFormatWithMmmColorFormat(
-      vendor_qti_hardware_display_common_PixelFormat snap_format,
-      vendor_qti_hardware_display_common_BufferUsage usage,
-      vendor_qti_hardware_display_common_PixelFormatModifier modifier, bool ubwc_enabled,
-      int compression_ratio = 0) {
+  int MapPixelFormatWithMmmColorFormat(SnapPixelFormat snap_format, SnapUsage usage,
+                                       SnapPixelFormatModifier modifier, bool ubwc_enabled,
+                                       int compression_ratio = 0) {
     switch (snap_format) {
-      case vendor_qti_hardware_display_common_PixelFormat::RGBA_8888:
-      case vendor_qti_hardware_display_common_PixelFormat::RGBX_8888: {
+      case SnapPixelFormat::RGBA_8888:
+      case SnapPixelFormat::RGBX_8888: {
         if (ubwc_enabled) {
-          #ifdef DRM_FORMAT_MOD_QCOM_LOSSY_8_5
-          if (usage & vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC_L_8_TO_5) {
+#ifdef DRM_FORMAT_MOD_QCOM_LOSSY_8_5
+          if (usage & SnapUsage::QTI_ALLOC_UBWC_L_8_TO_5) {
             return mmm_color_fmts::MMM_COLOR_FMT_RGBA8888_L_8_5_UBWC;
           }
-          if (usage & vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC_L_2_TO_1) {
+          if (usage & SnapUsage::QTI_ALLOC_UBWC_L_2_TO_1) {
             return mmm_color_fmts::MMM_COLOR_FMT_RGBA8888_L_2_1_UBWC;
           }
-          #endif
+#endif
           return mmm_color_fmts::MMM_COLOR_FMT_RGBA8888_UBWC;
         }
         return mmm_color_fmts::MMM_COLOR_FMT_RGBA8888;
       }
-      case vendor_qti_hardware_display_common_PixelFormat::RGBA_1010102: {
+      case SnapPixelFormat::RGBA_1010102: {
         if (ubwc_enabled) {
           return mmm_color_fmts::MMM_COLOR_FMT_RGBA1010102_UBWC;
         }
         return -1;
       }
-      case vendor_qti_hardware_display_common_PixelFormat::BGR_565:
-      case vendor_qti_hardware_display_common_PixelFormat::RGB_565: {
+      case SnapPixelFormat::BGR_565:
+      case SnapPixelFormat::RGB_565: {
         if (ubwc_enabled) {
           return mmm_color_fmts::MMM_COLOR_FMT_RGB565_UBWC;
         }
         return -1;
       }
-      case vendor_qti_hardware_display_common_PixelFormat::RGBA_FP16: {
+      case SnapPixelFormat::RGBA_FP16: {
         if (ubwc_enabled) {
           return MMM_COLOR_FMT_RGBA16161616F_UBWC;
         }
         return -1;
       }
-      case vendor_qti_hardware_display_common_PixelFormat::YCBCR_P010: {
+      case SnapPixelFormat::YCBCR_P010: {
         if (ubwc_enabled) {
           return mmm_color_fmts::MMM_COLOR_FMT_P010_UBWC;
         }
-        if (usage & vendor_qti_hardware_display_common_BufferUsage::HW_IMAGE_ENCODER) {
+        if (modifier == PIXEL_FORMAT_MODIFIER_HEIF ||
+            modifier == PIXEL_FORMAT_MODIFIER_1K_ALIGNED) {
+          return -1;
+        }
+        if (usage & SnapUsage::HW_IMAGE_ENCODER) {
           return mmm_color_fmts::MMM_COLOR_FMT_P010_512;
         }
         return mmm_color_fmts::MMM_COLOR_FMT_P010;
       }
-      case vendor_qti_hardware_display_common_PixelFormat::YCbCr_420_SP: {
+      case SnapPixelFormat::YCbCr_420_SP: {
         if (ubwc_enabled) {
+#ifndef TARGET_INCLUDES_NEO
           if (modifier == PIXEL_FORMAT_MODIFIER_4R) {
             return mmm_color_fmts::MMM_COLOR_FMT_NV124R_UBWC;
           }
+#endif
           return mmm_color_fmts::MMM_COLOR_FMT_NV12_UBWC;
-        } else if (usage & vendor_qti_hardware_display_common_BufferUsage::HW_IMAGE_ENCODER) {
+        } else if (modifier == PIXEL_FORMAT_MODIFIER_1K_ALIGNED) {
+          return -1;
+        } else if (usage & SnapUsage::HW_IMAGE_ENCODER ||
+                   (modifier == PIXEL_FORMAT_MODIFIER_HEIF)) {
           return mmm_color_fmts::MMM_COLOR_FMT_NV12_512;
         } else if ((modifier == PIXEL_FORMAT_MODIFIER_UBWC_FLEX) ||
                    (modifier == PIXEL_FORMAT_MODIFIER_UBWC_FLEX_2_BATCH) ||
@@ -213,12 +224,20 @@ class MmmColorFormatMapper {
           return mmm_color_fmts::MMM_COLOR_FMT_NV12;
         }
       }
-      case vendor_qti_hardware_display_common_PixelFormat::YCrCb_420_SP: {
+      case SnapPixelFormat::YCrCb_420_SP: {
         return mmm_color_fmts::MMM_COLOR_FMT_NV21;
       }
-      case vendor_qti_hardware_display_common_PixelFormat::TP10: {
+      case SnapPixelFormat::TP10: {
         return mmm_color_fmts::MMM_COLOR_FMT_NV12_BPP10_UBWC;
       }
+#ifndef TARGET_INCLUDES_NEO
+      case SnapPixelFormat::YCBCR_P210: {
+        if (ubwc_enabled) {
+          return mmm_color_fmts::MMM_COLOR_FMT_P210_UBWC;
+        }
+        return mmm_color_fmts::MMM_COLOR_FMT_P210;
+      }
+#endif
       default:
         return -1;
     }
@@ -236,16 +255,15 @@ struct FormatTraits {
   bool height_even;
 };
 
-bool IsUbwcSupported(vendor_qti_hardware_display_common_PixelFormat format);
-bool IsTileRendered(vendor_qti_hardware_display_common_PixelFormat format);
-bool IsAstc(vendor_qti_hardware_display_common_PixelFormat format);
-bool IsRgb(vendor_qti_hardware_display_common_PixelFormat format);
-bool IsYuv(vendor_qti_hardware_display_common_PixelFormat format);
-bool IsGpuDepthStencil(vendor_qti_hardware_display_common_PixelFormat format);
-bool CheckWidthConstraints(
-    vendor_qti_hardware_display_common_PixelFormat format, int width);
-bool CheckHeightConstraints(
-    vendor_qti_hardware_display_common_PixelFormat format, int height);
+bool IsUbwcSupported(SnapPixelFormat format);
+bool IsTileRendered(SnapPixelFormat format);
+bool IsAstc(SnapPixelFormat format);
+bool IsRgb(SnapPixelFormat format);
+bool IsYuv(SnapPixelFormat format);
+bool IsGpuDepthStencil(SnapPixelFormat format);
+bool CheckWidthConstraints(SnapPixelFormat format, int width);
+bool CheckHeightConstraints(SnapPixelFormat format, int height);
+bool IsCameraCustomFormat(SnapPixelFormat format, SnapPixelFormatModifier modifier);
 
 #define QTI_VT_TIMESTAMP 10000
 #define IS_VENDOR_METADATA_TYPE(x) (x >= QTI_VT_TIMESTAMP)

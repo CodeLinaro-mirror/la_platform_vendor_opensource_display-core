@@ -28,7 +28,7 @@
 */
 
 /*
-* Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022, 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
   SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -56,7 +56,7 @@ class DRMManager : public DRMManagerInterface {
  public:
   virtual ~DRMManager();
   virtual int RegisterDisplay(DRMDisplayType disp_type, DRMDisplayToken *token,
-                              bool has_cac_loopback);
+                              DRMConnectorIdentifier identifier);
   virtual int RegisterDisplay(int32_t display_id, DRMDisplayToken *token);
   virtual void UnregisterDisplay(DRMDisplayToken *token);
   virtual void GetPlanesInfo(DRMPlanesInfo *info);
@@ -66,6 +66,7 @@ class DRMManager : public DRMManagerInterface {
   virtual int GetEncoderInfo(uint32_t encoder_id, DRMEncoderInfo *info);
   virtual int GetEncodersInfo(DRMEncodersInfo *infos);
   virtual void GetCrtcPPInfo(uint32_t crtc_id, DRMPPFeatureInfo *info);
+  virtual void GetConnectorPPInfo(uint32_t conn_id, DRMPPFeatureInfo *info);
   virtual int CreateAtomicReq(const DRMDisplayToken &token, DRMAtomicReqInterface **intf);
   virtual int DestroyAtomicReq(DRMAtomicReqInterface *intf);
   virtual int SetScalerLUT(const DRMScalerLUTInfo &lut_info);

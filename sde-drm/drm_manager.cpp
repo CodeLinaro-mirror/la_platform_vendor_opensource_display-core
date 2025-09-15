@@ -28,9 +28,9 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  *
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  *
  */
@@ -218,6 +218,10 @@ void DRMManager::GetPlanesInfo(DRMPlanesInfo *info) {
   plane_mgr_->GetPlanesInfo(info);
 }
 
+void DRMManager::GetConnectorPPInfo(uint32_t conn_id, DRMPPFeatureInfo *info) {
+  conn_mgr_->GetPPInfo(conn_id, info);
+}
+
 void DRMManager::GetCrtcPPInfo(uint32_t crtc_id, DRMPPFeatureInfo *info) {
   crtc_mgr_->GetPPInfo(crtc_id, info);
 }
@@ -243,8 +247,8 @@ DRMDppsManagerIntf *DRMManager::GetDppsMgrIntf() {
 }
 
 int DRMManager::RegisterDisplay(DRMDisplayType disp_type, DRMDisplayToken *token,
-                                bool has_cac_loopback) {
-  int ret = conn_mgr_->Reserve(disp_type, token, has_cac_loopback);
+                                DRMConnectorIdentifier identifier) {
+  int ret = conn_mgr_->Reserve(disp_type, token, identifier);
   if (ret) {
     if (ret == -ENODEV) {
       DRM_LOGI("display type %d is not present", disp_type);

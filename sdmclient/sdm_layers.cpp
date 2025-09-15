@@ -26,13 +26,13 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #include "sdm_layers.h"
 #include "sdm_debugger.h"
 #include <UBWCVersion.h>
@@ -51,11 +51,16 @@ namespace sdm {
 
 using UBWCVersion = vendor_qti_hardware_display_common_UBWCVersion;
 
-std::atomic<LayerId> SDMLayer::next_id_(1);
+IdManager SDMLayer::id_mgr_;
+bool SDMLayer::auto_create_layer_id_ = false;
 
 Error GetMetadata(const SnapHandle *handle, MetadataType type, void *out,
                   std::shared_ptr<ISnapMapper> snapmapper_) {
   bool metadata_set = false;
+  if (!snapmapper_) {
+    DLOGE("SnapMapper is not initialized.. Exiting");
+    return Error::BAD_VALUE;
+  }
 
   snapmapper_->GetMetadataState(*handle, type, &metadata_set);
   if (!metadata_set) {
@@ -65,6 +70,10 @@ Error GetMetadata(const SnapHandle *handle, MetadataType type, void *out,
 }
 
 Error SetCSC(const SnapHandle *handle, ColorMetadata *color_metadata, std::shared_ptr<ISnapMapper> snapmapper_) {
+  if (!snapmapper_) {
+    DLOGE("SnapMapper is not initialized.. Exiting");
+    return Error::BAD_VALUE;
+  }
   snapmapper_->GetMetadata(*handle, MetadataType::DATASPACE, &color_metadata->dataspace);
   snapmapper_->GetMetadata(*handle, MetadataType::MATRIX_COEFFICIENTS, &color_metadata->matrixCoefficients);
   snapmapper_->GetMetadata(*handle, MetadataType::MASTERING_DISPLAY, &color_metadata->masteringDisplayInfo);
@@ -106,8 +115,10 @@ static bool IsSdrDimmingDisabled() {
 
 // Layer operations
 SDMLayer::SDMLayer(Display display_id, BufferAllocator *buf_allocator)
-    : id_(next_id_++), display_id_(display_id),
-      buffer_allocator_(buf_allocator) {
+    : SDMLayer(display_id, id_mgr_.GetNextPossibleId(auto_create_layer_id_), buf_allocator) {}
+
+SDMLayer::SDMLayer(Display display_id, LayerId layer_id, BufferAllocator *buf_allocator)
+    : id_(id_mgr_.LogId(layer_id)), display_id_(display_id), buffer_allocator_(buf_allocator) {
   layer_ = new Layer();
   geometry_changes_ |= kAdded;
 
@@ -137,8 +148,38 @@ SDMLayer::~SDMLayer() {
     if (buffer_fd_ >= 0) {
       ::close(buffer_fd_);
     }
+
+    // Delete luts if they are still valid
+    if (layer_->lut_3d.lutEntries != nullptr) {
+      delete[] layer_->lut_3d.lutEntries;
+    }
+    if (layer_->lut_3d.gridEntries != nullptr) {
+      delete[] layer_->lut_3d.gridEntries;
+    }
+
     delete layer_;
   }
+  id_mgr_.EraseId(id_);
+}
+
+DisplayError SDMLayer::TranslateToNV12Y(LayerBuffer *layer_buffer) {
+  float bpp = 1.0f;
+  switch (layer_buffer->format) {
+    case kFormatRAW10:
+      bpp = 1.25f;
+      break;
+    case kFormatRGB888:
+      bpp = 3.0f;
+      break;
+    default:
+      DLOGW("Unsupported DPU DMA mode format type = %d", layer_buffer->format);
+      return kErrorParameters;
+  }
+
+  layer_buffer->format = kFormatNV12Y;
+  layer_buffer->width = std::ceil(layer_buffer->width * bpp);
+  layer_buffer->unaligned_width = std::ceil(layer_buffer->unaligned_width * bpp);
+  return kErrorNone;
 }
 
 DisplayError SDMLayer::SetLayerBuffer(const SnapHandle *handle,
@@ -153,6 +194,11 @@ DisplayError SDMLayer::SetLayerBuffer(const SnapHandle *handle,
     } else {
       return kErrorNone;
     }
+  }
+
+  if (!snapmapper_) {
+    DLOGE("SnapMapper is not initialized.. Exiting");
+    return kErrorParameters;
   }
 
   int fd;
@@ -201,6 +247,7 @@ DisplayError SDMLayer::SetLayerBuffer(const SnapHandle *handle,
   }
   layer_buffer->unaligned_width = UINT32(width_temp);
   layer_buffer->unaligned_height = UINT32(height_temp);
+
   uint32_t buffer_type = 0;
   snapmapper_->GetMetadata(*handle, MetadataType::BUFFER_TYPE, &buffer_type);
 
@@ -416,7 +463,7 @@ DisplayError SDMLayer::SetLayerSourceCrop(SDMRect crop) {
        (crop.right != roundf(crop.right)) ||
        (crop.bottom != roundf(crop.bottom)));
   if (non_integral_source_crop_) {
-    DLOGV_IF(kTagClient, "Crop: LTRB %f %f %f %f", crop.left, crop.top,
+    DLOGV_IF(kTagClient, "Crop: LTRB %d %d %d %d", crop.left, crop.top,
              crop.right, crop.bottom);
   }
   if (layer_->src_rect != src_rect) {
@@ -673,6 +720,7 @@ void SDMLayer::GetUBWCStatsFromMetaData(UBWCStats *cr_stats, UbwcCrStatsVector *
   // in layer_buffer or copy directly to Vector
   if (cr_stats->bDataValid) {
     switch (cr_stats->version) {
+      case UBWCVersion::UBWC_VERSION_6_0:
       case UBWCVersion::UBWC_VERSION_5_0:
       case UBWCVersion::UBWC_VERSION_4_0:
       case UBWCVersion::UBWC_VERSION_3_0:
@@ -693,6 +741,10 @@ void SDMLayer::GetUBWCStatsFromMetaData(UBWCStats *cr_stats, UbwcCrStatsVector *
 }
 
 DisplayError SDMLayer::SetMetaData(const SnapHandle *handle, Layer *layer) {
+  if (!snapmapper_) {
+    DLOGE("SnapMapper is not initialized.. Exiting");
+    return kErrorParameters;
+  }
   LayerBuffer *layer_buffer = &layer->input_buffer;
 
   std::string name = "";

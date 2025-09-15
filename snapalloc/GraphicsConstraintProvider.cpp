@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "GraphicsConstraintProvider.h"
@@ -8,7 +8,6 @@
 #include <fstream>
 #include <iostream>
 
-#include "SnapConstraintParser.h"
 #include "SnapUtils.h"
 #include "UBWCPolicy.h"
 
@@ -30,7 +29,7 @@ GraphicsConstraintProvider *GraphicsConstraintProvider::GetInstance(
 void GraphicsConstraintProvider::Init(
     std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map) {
   lib_ = ::dlopen("libadreno_utils.so", RTLD_NOW);
-  SnapConstraintParser *parser = SnapConstraintParser::GetInstance();
+  parser_ = SnapConstraintParser::GetInstance();
   if (lib_) {
     DLOGI("Graphics lib is available");
     *reinterpret_cast<void **>(&LINK_adreno_compute_aligned_width_and_height) =
@@ -52,14 +51,14 @@ void GraphicsConstraintProvider::Init(
     *reinterpret_cast<void **>(&LINK_adreno_get_aligned_gpu_buffer_size) =
         ::dlsym(lib_, "adreno_get_aligned_gpu_buffer_size");
   } else {
-    DLOGW("Graphics lib is not available - read json file");
+    DLOGW_IF(enable_logs, "Graphics lib is not available - read json file");
     // change to shared pointer
-    parser->ParseAlignments("/vendor/etc/display/graphics_alignments.json", &constraint_set_map_);
+    parser_->ParseAlignments("/vendor/etc/display/graphics_alignments.json", &constraint_set_map_);
   }
   if (!format_data_map.empty()) {
     format_data_map_ = format_data_map;
   } else {
-    parser->ParseFormats(&format_data_map_);
+    parser_->ParseFormats(&format_data_map_);
   }
 
   gfx_ubwc_disable_ = Debug::GetInstance()->IsUBWCDisabled();
@@ -174,7 +173,7 @@ ADRENOPIXELFORMAT GraphicsConstraintProvider::GetGpuPixelFormat(
   if (snap_to_adreno_pixel_format_.find(snap_desc) != snap_to_adreno_pixel_format_.end()) {
     format = snap_to_adreno_pixel_format_.at(snap_desc);
   } else {
-    DLOGW("%s: No map for format: 0x%x", __FUNCTION__, snap_format);
+    DLOGW_IF(enable_logs, "%s: No map for format: 0x%x", __FUNCTION__, snap_format);
   }
   return format;
 }
@@ -227,12 +226,14 @@ int GraphicsConstraintProvider::GetCapabilities(BufferDescriptor desc, Capabilit
   return 0;
 }
 
-int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferConstraints *data) {
+int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferConstraints *data,
+                                                 bool is_ubwc_supported_by_gpu) {
   vendor_qti_hardware_display_common_PixelFormat snap_format = desc.format;
   int format = static_cast<uint64_t>(snap_format);
   uint64_t pixel_format_modifier = GetPixelFormatModifier(desc);
   if (format_data_map_.find(snap_format) == format_data_map_.end()) {
-    DLOGW("%s: could not find entry for format %lu", __FUNCTION__, static_cast<uint64_t>(format));
+    DLOGW_IF(enable_logs, "%s: could not find entry for format %lu", __FUNCTION__,
+             static_cast<uint64_t>(format));
     return -1;
   }
 
@@ -247,10 +248,11 @@ int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCo
 
     plane_layout.size_align = 1;  // GetGpuPixelAlignment();
 
-    tile_enabled = IsTileRendered(snap_format);
+    tile_enabled = IsTileRendered(snap_format) ? true : is_ubwc_supported_by_gpu;
     unsigned int aligned_w, aligned_h = 0;
     if (format_data.bits_per_pixel % 8 != 0)
-      DLOGW("Bpp is float: %f", static_cast<float>(format_data.bits_per_pixel) / 8.0f);
+      DLOGW_IF(enable_logs, "Bpp is float: %f",
+               static_cast<float>(format_data.bits_per_pixel) / 8.0f);
 
     if (IsRgb(snap_format) && IsAstc(snap_format)) {
       plane_layout.stride.horizontal_stride = desc.width;
@@ -318,7 +320,8 @@ int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCo
             static_cast<uint64_t>(aligned_w) * floor(format_data.bits_per_pixel / 8.0f);
         plane_layout.scanline.scanline = static_cast<uint64_t>(aligned_h);
       } else {
-        DLOGW(
+        DLOGW_IF(
+            enable_logs,
             "Not able to call LINK_adreno_compute_fmt_aligned_width_and_height - snap format %d "
             "graphics format %d",
             desc.format, gpu_format);
@@ -341,9 +344,9 @@ int GraphicsConstraintProvider::GetConstraints(BufferDescriptor desc, BufferCons
     DLOGI("Using graphics libs for alignment calculations");
     BufferConstraints data;
     int status = 0;
-    status = BuildConstraints(desc, &data);
+    status = BuildConstraints(desc, &data, false);
     if (status != Error::NONE) {
-      DLOGW("Error while getting constraints from graphics libs");
+      DLOGW_IF(enable_logs, "Error while getting constraints from graphics libs");
       return status;
     }
     *out = data;
@@ -351,13 +354,12 @@ int GraphicsConstraintProvider::GetConstraints(BufferDescriptor desc, BufferCons
   }
 #endif
   if (constraint_set_map_.empty()) {
-    DLOGW("Graphics constraint set map is empty");
+    DLOGW_IF(enable_logs, "Graphics constraint set map is empty");
     return -1;
   }
-  if (constraint_set_map_.find(desc.format) != constraint_set_map_.end()) {
-    *out = constraint_set_map_.at(desc.format);
-  } else {
-    DLOGW("Graphics could not find entry for format %d", static_cast<uint64_t>(desc.format));
+  if (!(parser_->GetBufferConstraints(constraint_set_map_, desc, out))) {
+    DLOGW_IF(enable_logs, "Graphics could not find entry for format %d",
+             static_cast<uint64_t>(desc.format));
     return -1;
   }
   return 0;

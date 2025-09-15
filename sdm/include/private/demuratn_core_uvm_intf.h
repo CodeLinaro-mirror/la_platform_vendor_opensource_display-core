@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -37,6 +37,8 @@ enum DemuraTnCoreUvmParams {
   kDemuraTnCoreUvmParamBatchId,
   /* Setter: None  */
   kDemuraTnCoreUvmParamAodHandlerCtrl,
+  /* Setter: None  */
+  kDemuraTnCoreUvmParamAgingSurfTransfer,
   kDemuraTnCoreUvmParamsMax = 2048,
   kDemuraTnCoreUvmPrivParamsStart = 2049,
   kDemuraTnCoreUvmPrivParamsEnd = 4096,

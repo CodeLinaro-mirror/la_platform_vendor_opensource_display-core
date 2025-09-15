@@ -23,8 +23,8 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -130,7 +130,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual bool IsUnderscanSupported() {
     return false;
   }
-  virtual DisplayError SetPanelBrightness(float brightness, bool return_error = false) {
+  virtual DisplayError SetPanelBrightness(float brightness, bool apply_immediately,
+                                          bool return_error = false) {
     return kErrorNotSupported;
   }
   virtual DisplayError SetBppMode(uint32_t bpp) {
@@ -192,6 +193,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError HandleSecureEvent(SecureEvent secure_event, bool *needs_refresh);
   virtual DisplayError ValidateCwbRoiWithOutputBuffer(const LayerBuffer &output_buffer,
                                                       CwbConfig &cwb_config);
+  virtual bool ValidateCwbConfigForDownscale(const LayerBuffer &output_buffer,
+                                             CwbConfig &cwb_config);
   virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config);
   virtual DisplayError PostHandleSecureEvent(SecureEvent secure_event) {
     return kErrorNotSupported;
@@ -266,13 +269,15 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual void NotifyCwbDone(int32_t status, const LayerBuffer& buffer);
   virtual void Refresh();
   virtual void OnCwbTeardown(bool sync_teardown);
+  virtual DisplayError OnCwbValidation(const LayerBuffer &output_buffer, CwbConfig &cwb_config);
   virtual bool HandleCwbTeardown();
   virtual uint32_t GetAvailableMixerCount();
-  virtual DisplayError SetDemuraState(int state) { return kErrorNotSupported; }
+  virtual DisplayError SetDemuraState(int state, int demura_idx) { return kErrorNotSupported; }
   virtual DisplayError SetDemuraConfig(int demura_idx) { return kErrorNotSupported; }
   virtual DisplayError SetABCState(bool state) { return kErrorNotSupported; }
   virtual DisplayError SetABCReconfig() { return kErrorNotSupported; }
   virtual DisplayError SetABCMode(const string &mode_name) { return kErrorNotSupported; }
+  virtual DisplayError SetAIScalerMode(uint32_t mode_id) { return kErrorNotSupported; }
   virtual void RefreshOnIdleTimeoutForCwb(bool is_cwb_requested);
   virtual void ResetDispLayerStack();
   virtual bool HasNoiseLayer();
@@ -314,6 +319,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError DumpDemuraSurface(const char *dir_path, uint32_t frame_index) {
     return kErrorNotSupported;
   }
+  DisplayError SetRGBASplit(int32_t split_enable);
+  virtual bool IsDpuDmaModeEnabled();
 
  protected:
   struct DisplayMutex {
@@ -414,6 +421,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
                                                   vector<pair<uint32_t, uint32_t>> *fin_disp_res);
 
   DisplayMutex disp_mutex_;
+  bool need_async_poweroff_wait_ = false;
+  SyncPoints cached_sync_points_;
   std::thread commit_thread_;
   DisplayId display_id_info_ = {};
   int32_t display_id_ = -1;
@@ -529,6 +538,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool enable_hal_self_refresh_ = false;
   int hal_refresh_headroom_ = 4;  // In msec
   bool is_mirror_mode_active_ = false;
+  uint32_t active_config_index_ = 0;
+  int rgba_split_enable_ = false;
 
  private:
   // Max tolerable power-state-change wait-times in milliseconds.
@@ -579,7 +590,6 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   std::condition_variable cv_;
   Layer noise_layer_ = {};
   DisplayError ConfigureCwbForIdleFallback(LayerStack *layer_stack);
-  bool cwb_fence_wait_ = false;
   bool enable_cwb_cpu_boosting_ = false;
   bool force_refresh_to_process_cwb_ = false;
   bool enable_client_control_cwb_refresh_ = false;
@@ -593,6 +603,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   uint32_t idle_active_ms_ = 0;
   int32_t mirror_src_display_id_ = -1;
   bool needs_mirror_source_validation_ = false;
+  bool wb_downscale_supports_ = false;
   bool enable_ai_scaler_ = false;
   uint64_t next_expected_present_ = 0;
 };

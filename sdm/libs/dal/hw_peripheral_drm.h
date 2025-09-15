@@ -28,40 +28,10 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted (subject to the limitations in the
-* disclaimer below) provided that the following conditions are met:
-*
-*    * Redistributions of source code must retain the above copyright
-*      notice, this list of conditions and the following disclaimer.
-*
-*    * Redistributions in binary form must reproduce the above
-*      copyright notice, this list of conditions and the following
-*      disclaimer in the documentation and/or other materials provided
-*      with the distribution.
-*
-*    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
-*      contributors may be used to endorse or promote products derived
-*      from this software without specific prior written permission.
-*
-* NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
-* GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
-* HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
-* WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-* IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
-* GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-* INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
-* IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-* OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-* IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __HW_PERIPHERAL_DRM_H__
 #define __HW_PERIPHERAL_DRM_H__
@@ -106,7 +76,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   virtual DisplayError SetBppMode(uint32_t bpp);
   virtual DisplayError SetRefreshRate(uint32_t refresh_rate);
   virtual DisplayError SetFrameTrigger(FrameTriggerMode mode);
-  virtual DisplayError SetPanelBrightness(int level);
+  virtual DisplayError SetPanelBrightness(int level, bool apply_immediately);
   virtual DisplayError GetPanelBrightness(int *level);
   virtual void GetHWPanelMaxBrightness();
   virtual DisplayError SetBLScale(uint32_t level);
@@ -116,12 +86,14 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   void SetDestScalarData(const HWLayersInfo &hw_layer_info);
   virtual uint32_t GetAVRStep(uint32_t config_index);
   virtual bool IsVRRSupported();
+  virtual DisplayError setDriverCommitPath(DriverCommitPath path);
 
  private:
   void InitDestScaler();
   void SetDestScalarData(const DestScaleInfoMap dest_scale_info_map);
   void SetAIScalerData(const AIScalerInfoMap ai_scale_info_map);
   void ResetDestScalarCache();
+  void ResetDestScalarData();
   void CreatePanelFeaturePropertyMap();
   void SetIdlePCState() {
     drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_IDLE_PC_STATE, token_.crtc_id,
@@ -141,17 +113,21 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
     uint32_t flags = {};
   };
 
+#ifndef TARGET_INCLUDES_NEO
   struct AIScalerCache {
     struct drm_msm_ai_scaler scaler_data = {};
+    uint32_t mode_id;
   };
+  struct drm_msm_ai_scaler sde_ai_scaler_cfg_ = {};
+  std::vector<AIScalerCache> ai_scaler_cache_ = {};
+  uint32_t ai_scaler_current_mode_id_ = 0;
+#endif
 
   sde_drm_dest_scaler_data sde_dest_scalar_data_ = {};
-  struct drm_msm_ai_scaler sde_ai_scaler_cfg_ = {};
   std::vector<SDEScaler> scalar_data_ = {};
   sde_drm::DRMIdlePCState idle_pc_state_ = sde_drm::DRMIdlePCState::NONE;
   bool idle_pc_enabled_ = true;
   std::vector<DestScalarCache> dest_scalar_cache_ = {};
-  std::vector<AIScalerCache> ai_scaler_cache_ = {};
   drm_msm_ad4_roi_cfg ad4_roi_cfg_ = {};
   bool needs_ds_update_ = false;
   bool needs_ai_scaler_update_ = false;
@@ -162,6 +138,9 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   bool ltm_hist_en_ = false;
   bool aba_hist_en_ = false;
   std::map<PanelFeaturePropertyID, sde_drm::DRMPanelFeatureID> panel_feature_property_map_ {};
+  bool use_hfi_path_ = false;
+  bool hwio_path_switch_pending_ = false;
+  bool set_tui_none_ = false;
 };
 
 }  // namespace sdm

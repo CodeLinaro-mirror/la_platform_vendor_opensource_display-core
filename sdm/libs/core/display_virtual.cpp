@@ -23,11 +23,10 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-*
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include <utils/constants.h>
 #include <utils/debug.h>
@@ -87,7 +86,7 @@ DisplayError DisplayVirtual::Init() {
     default_clock_hz_.insert(std::pair<uint32_t, uint32_t>(i, 0));
     cached_framebuffer_.insert(std::pair<uint32_t, LayerBuffer>(i, {}));
     cached_qos_data_.insert(std::pair<uint32_t, HWQosData>(i, {}));
-    disp_layer_stack_->info.insert(std::pair<uint32_t, HWLayersInfo>(i, {}));
+    disp_layer_stack_->info.insert(std::pair<uint32_t, HWLayersInfo>(i, HWLayersInfo()));
   }
 
   for (auto info_intf = hw_info_intf_.Begin(); info_intf != hw_info_intf_.End(); info_intf++) {
@@ -107,6 +106,8 @@ DisplayError DisplayVirtual::Init() {
     max_mixer_stages = std::min(UINT32(property_value), max_mixer_stages);
   }
   DisplayBase::SetMaxMixerStages(max_mixer_stages);
+
+  InitializeColorModes();
 
   return error;
 }
@@ -171,7 +172,7 @@ DisplayError DisplayVirtual::SetActiveConfig(DisplayConfigVariableInfo *variable
   if (set_max_lum_ != -1.0 || set_min_lum_ != -1.0) {
     client_ctx.hw_panel_info.peak_luminance = set_max_lum_;
     client_ctx.hw_panel_info.blackness_level = set_min_lum_;
-    DLOGI("set peak_luminance %f blackness_level %f for display %d-%d", display_id_,
+    DLOGI("for display %d-%d: set peak_luminance %f blackness_level %f", display_id_,
           display_type_, client_ctx.hw_panel_info.peak_luminance,
           client_ctx.hw_panel_info.blackness_level);
   }
@@ -234,9 +235,12 @@ DisplayError DisplayVirtual::Prepare(LayerStack *layer_stack) {
 
 DisplayError DisplayVirtual::GetColorModeCount(uint32_t *mode_count) {
   ClientLock lock(disp_mutex_);
+  if (!mode_count) {
+    return kErrorParameters;
+  }
 
-  // Color Manager isn't supported for virtual displays.
-  *mode_count = 1;
+  DLOGI("Display = %d Number of modes = %d", display_type_, num_color_modes_);
+  *mode_count = num_color_modes_;
 
   return kErrorNone;
 }
@@ -253,6 +257,174 @@ DisplayError DisplayVirtual::colorSamplingOn() {
 
 DisplayError DisplayVirtual::colorSamplingOff() {
     return kErrorNone;
+}
+
+DisplayError DisplayVirtual::InitializeColorModes() {
+  PrimariesTransfer pt = {};
+  AttrVal var = {};
+  int sink_support = 0, i = 0;
+
+  Debug::Get()->GetProperty("vendor.display.wcm.sink_support", &sink_support);
+
+  if (sink_support) {
+    // kDisplayBt2020
+    pt.primaries = QtiColorPrimaries_BT2020;
+    pt.transfer = QtiTransfer_sRGB;
+    var.clear();
+    var.push_back(std::make_pair(kColorGamutAttribute, kBt2020));
+    var.push_back(std::make_pair(kPictureQualityAttribute, kStandard));
+    var.push_back(std::make_pair(kRenderIntentAttribute, "0"));
+    var.push_back(std::make_pair(kGammaTransferAttribute, kSrgb));
+    color_modes_cs_.push_back(pt);
+    color_mode_attr_map_.insert(std::make_pair(kDisplayBt2020, var));
+
+    // BT2020_PQ
+    pt.primaries = QtiColorPrimaries_BT2020;
+    pt.transfer = QtiTransfer_SMPTE_ST2084;
+    var.clear();
+    var.push_back(std::make_pair(kColorGamutAttribute, kBt2020));
+    var.push_back(std::make_pair(kPictureQualityAttribute, kStandard));
+    var.push_back(std::make_pair(kRenderIntentAttribute, "0"));
+    var.push_back(std::make_pair(kGammaTransferAttribute, kSt2084));
+    color_modes_cs_.push_back(pt);
+    color_mode_attr_map_.insert(std::make_pair(kBt2020Pq, var));
+
+    // BT2020_HLG
+    pt.primaries = QtiColorPrimaries_BT2020;
+    pt.transfer = QtiTransfer_SMPTE_ST2084;
+    var.clear();
+    var.push_back(std::make_pair(kColorGamutAttribute, kBt2020));
+    var.push_back(std::make_pair(kPictureQualityAttribute, kStandard));
+    var.push_back(std::make_pair(kRenderIntentAttribute, "0"));
+    var.push_back(std::make_pair(kGammaTransferAttribute, kHlg));
+    color_modes_cs_.push_back(pt);
+    color_mode_attr_map_.insert(std::make_pair(kBt2020Hlg, var));
+  }
+  // SRGB mode
+  pt.primaries = QtiColorPrimaries_BT709_5;
+  pt.transfer = QtiTransfer_sRGB;
+  var.clear();
+  var.push_back(std::make_pair(kColorGamutAttribute, kSrgb));
+  var.push_back(std::make_pair(kDynamicRangeAttribute, kSdr));
+  var.push_back(std::make_pair(kPictureQualityAttribute, kStandard));
+  var.push_back(std::make_pair(kRenderIntentAttribute, "0"));
+  color_modes_cs_.push_back(pt);
+  color_mode_attr_map_.insert(std::make_pair(kSrgb, var));
+
+  current_color_mode_ = kSrgb;
+
+  num_color_modes_ = UINT32(color_mode_attr_map_.size());
+  color_modes_.resize(num_color_modes_);
+  for (ColorModeAttrMap::iterator it = color_mode_attr_map_.begin();
+       ((i < num_color_modes_) && (it != color_mode_attr_map_.end())); i++, it++) {
+    color_modes_[i].id = INT32(i);
+    std::size_t length = (it->first).copy(color_modes_[i].name, sizeof(SDEDisplayMode::name) - 1);
+    color_modes_[i].name[length] = '\0';
+    color_mode_map_.insert(std::make_pair(color_modes_[i].name, &color_modes_[i]));
+    DLOGI("Sink support = %d, Color mode[%d] = %s", sink_support, i, color_modes_[i].name);
+  }
+
+  return kErrorNone;
+}
+
+DisplayError DisplayVirtual::GetColorModes(uint32_t *mode_count,
+                                           std::vector<std::string> *color_modes) {
+  ClientLock lock(disp_mutex_);
+  if (!mode_count || !color_modes) {
+    return kErrorParameters;
+  }
+
+  for (uint32_t i = 0; i < num_color_modes_; i++) {
+    DLOGI_IF(kTagDisplay, "DisplayVirtual: ColorMode[%d] = %s", i, color_modes_[i].name);
+    color_modes->at(i) = color_modes_[i].name;
+  }
+
+  return kErrorNone;
+}
+
+DisplayError DisplayVirtual::GetColorModeAttr(const std::string &color_mode, AttrVal *attr) {
+  ClientLock lock(disp_mutex_);
+  if (!attr) {
+    return kErrorParameters;
+  }
+
+  auto it = color_mode_attr_map_.find(color_mode);
+  if (it == color_mode_attr_map_.end()) {
+    DLOGI("Mode %s has no attribute for display %d-%d", color_mode.c_str(), display_id_,
+          display_type_);
+    return kErrorNotSupported;
+  }
+  *attr = it->second;
+
+  return kErrorNone;
+}
+
+static PrimariesTransfer GetBlendSpaceFromAttributes(const std::string &color_gamut,
+                                                     const std::string &transfer) {
+  PrimariesTransfer blend_space_ = {};
+  if (color_gamut == kNative) {  // Native mode is identified by Max
+    blend_space_.primaries = QtiColorPrimaries_Max;
+    blend_space_.transfer = QtiTransfer_Max;
+  } else if (color_gamut == kBt2020) {
+    blend_space_.primaries = QtiColorPrimaries_BT2020;
+    if (transfer == kHlg) {
+      blend_space_.transfer = QtiTransfer_HLG;
+    } else if (transfer == kSt2084) {
+      blend_space_.transfer = QtiTransfer_SMPTE_ST2084;
+    } else if (transfer == kSrgb) {
+      blend_space_.transfer = QtiTransfer_sRGB;
+    }
+  } else if (color_gamut == kSrgb) {
+    blend_space_.primaries = QtiColorPrimaries_BT709_5;
+    blend_space_.transfer = QtiTransfer_sRGB;
+  } else {
+    DLOGW("Failed to Get blend space color_gamut = %s transfer = %s", color_gamut.c_str(),
+          transfer.c_str());
+  }
+  DLOGI("Blend Space Primaries = %d Transfer = %d", blend_space_.primaries, blend_space_.transfer);
+
+  return blend_space_;
+}
+
+DisplayError DisplayVirtual::SetColorMode(const std::string &color_mode) {
+  auto current_color_attr_ = color_mode_attr_map_.find(color_mode);
+  if (current_color_attr_ == color_mode_attr_map_.end()) {
+    DLOGE("Failed to get the color mode for display %d-%d = %s", display_id_, display_type_,
+          color_mode.c_str());
+    return kErrorNone;
+  }
+  AttrVal attr = current_color_attr_->second;
+  std::string color_gamut = kNative, transfer = {};
+
+  if (attr.begin() != attr.end()) {
+    for (auto &it : attr) {
+      if (it.first.find(kColorGamutAttribute) != std::string::npos) {
+        color_gamut = it.second;
+      } else if (it.first.find(kGammaTransferAttribute) != std::string::npos) {
+        transfer = it.second;
+      }
+    }
+  }
+
+  DisplayError error = kErrorNone;
+  PrimariesTransfer blend_space = GetBlendSpaceFromAttributes(color_gamut, transfer);
+  error = comp_manager_->SetBlendSpace(display_comp_ctx_, blend_space);
+  if (error != kErrorNone) {
+    DLOGE("Failed Set blend space, error = %d for display %d-%d", error, display_id_,
+          display_type_);
+  }
+
+  error = dpu_core_mux_->SetBlendSpace(blend_space);
+  if (error != kErrorNone) {
+    DLOGE("Failed to pass blend space, error = %d for display %d-%d", error, display_id_,
+          display_type_);
+  }
+
+  current_color_mode_ = color_mode;
+  DLOGI(
+      "Set color mode %s for display %d-%d, blend_space.primaries = %d, blend_space.transfer = %d",
+      color_mode.c_str(), display_id_, display_type_, blend_space.primaries, blend_space.transfer);
+  return kErrorNone;
 }
 
 }  // namespace sdm

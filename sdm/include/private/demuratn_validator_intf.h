@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -17,6 +17,8 @@ enum DemuraTnValidatorParams {
   kDemuraTnValidatorCleanupFiles,
   /* Delete the files, input: struct DemuraPanelInfo */
   kDemuraTnValidatorDeleteFiles,
+  /* Double buffer codebook flags, input: bool */
+  kDemuraTnValidatorDoubleBufferCodebookFlags,
   kDemuraTnValidatorParamsMax = 0xff,
 };
 

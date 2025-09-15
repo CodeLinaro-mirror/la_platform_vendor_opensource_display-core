@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #ifndef __GRAPHICS_CONSTRAINT_PROVIDER_H__
@@ -8,6 +8,7 @@
 #include <mutex>
 
 #include "SnapConstraintProvider.h"
+#include "SnapConstraintParser.h"
 #include "SnapUtils.h"
 
 typedef enum {
@@ -95,6 +96,7 @@ typedef enum {
   ADRENO_PIXELFORMAT_Y8 = 625,        //  Single 8-bit luma only channel YUV format
   ADRENO_PIXELFORMAT_TP10 = 654,      // YUV 4:2:0 planar 10 bits/comp (2 planes)
   ADRENO_PIXELFORMAT_NV12_4R = 660,   // Same as NV12, but with different tiling
+  ADRENO_PIXELFORMAT_P210 = 709,
 } ADRENOPIXELFORMAT;
 
 namespace snapalloc {
@@ -126,16 +128,19 @@ class GraphicsConstraintProvider : public SnapConstraintProvider {
   uint32_t AdrenoGetAlignedGpuBufferSize(void *metadata_blob);
   bool IsUBWCSupportedByGPU(vendor_qti_hardware_display_common_PixelFormat format,
                             vendor_qti_hardware_display_common_PixelFormatModifier modifier);
-  int BuildConstraints(BufferDescriptor desc, BufferConstraints *data);
+  int BuildConstraints(BufferDescriptor desc, BufferConstraints *data,
+                       bool is_ubwc_supported_by_gpu);
 
  private:
   GraphicsConstraintProvider(){};
   ~GraphicsConstraintProvider(){};
   static std::mutex graphics_provider_mutex_;
   static GraphicsConstraintProvider *instance_;
+  SnapConstraintParser *parser_ = nullptr;
 
   void *lib_ = nullptr;
-  std::map<vendor_qti_hardware_display_common_PixelFormat, BufferConstraints> constraint_set_map_;
+  std::unordered_map<SnapFormatDescriptor, BufferConstraints, SnapFormatDescriptorHash>
+      constraint_set_map_;
   std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map_;
   void GetAlignedWidthAndHeight(int width, int height, int format, int usage,
                                 unsigned int *aligned_w, unsigned int *aligned_h, bool ubwc_enabled,
@@ -380,8 +385,13 @@ class GraphicsConstraintProvider : public SnapConstraintProvider {
           {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_422_I,
             .modifier = PIXEL_FORMAT_MODIFIER_NONE},
            ADRENO_PIXELFORMAT_YUY2},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_P210,
+            .modifier = PIXEL_FORMAT_MODIFIER_NONE},
+           ADRENO_PIXELFORMAT_P210},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_P210,
+            .modifier = PIXEL_FORMAT_MODIFIER_EXPLICIT_UBWC},
+           ADRENO_PIXELFORMAT_P210},
       };
-
 };
 }  // namespace snapalloc
 

@@ -30,7 +30,7 @@
  * Changes from Qualcomm Innovation Center, Inc. are provided under the
  * following license:
  *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #ifndef __SDM_SERVICES_H__
@@ -58,6 +58,7 @@ enum {
   SDM_SERVICE_SET_PANEL_BRIGHTNESS = 3,           // Provides ability to set the panel brightness
   SDM_SERVICE_CONNECT_SDM_CLIENT = 4,             // Connect to qservice
   SDM_SERVICE_SCREEN_REFRESH = 5,                 // Refresh screen through SF invalidate
+  SDM_SERVICE_RGBA_SPLIT = 6,                     // Splits RGBA into parts(Ex: RGB|A)
   SDM_SERVICE_GET_DISPLAY_VISIBLE_REGION = 11,    // Get the visibleRegion for dpy
   SDM_SERVICE_SET_SECONDARY_DISPLAY_STATUS = 12,  // Sets secondary display status
   SDM_SERVICE_SET_MAX_PIPES_PER_MIXER = 13,       // Set max pipes per mixer for MDPComp
@@ -109,6 +110,8 @@ enum {
   SDM_SERVICE_SET_BPP_MODE = 62,              // Set Panel bpp to 24bpp or 30bpp
   SDM_SERVICE_PERFORM_CAC_CONFIG = 63,        // Set CAC Configuration for the display
   SDM_SERVICE_SET_PANEL_FEATURE_CONFIG = 64,  // Common function, Set cfg for panel features
+  SDM_SERVICE_GET_PANEL_RESOLUTION = 65,      // Get panel resolution
+  SDM_SERVICE_SET_STANDBY_MODE = 66,          // Set standby mode
   SDM_SERVICE_COMMAND_LIST_END = 400,
 };
 
@@ -189,6 +192,7 @@ public:
                                    uint32_t factor_out);
   DisplayError SetActiveConfigIndex(int disp_id, uint32_t config);
   DisplayError SetIdleTimeout(int value);
+  DisplayError SetRGBASplit(int disp_id, int enable);
   DisplayError SetCameraLaunchStatus(int camera_status);
   DisplayError DisplayBWTransactionPending(bool *state);
   DisplayError GetDisplayMaxBrightness(uint32_t display,
@@ -244,6 +248,7 @@ private:
 
   DisplayError DynamicDebug(SDMParcel *input_parcel);
   DisplayError SetIdleTimeout(SDMParcel *input_parcel);
+  DisplayError SetRGBASplit(SDMParcel *input_parcel);
   DisplayError SetFrameDumpConfig(SDMParcel *input_parcel);
   DisplayError SetMaxMixerStages(SDMParcel *input_parcel);
   DisplayError SetDisplayMode(SDMParcel *input_parcel);
@@ -314,6 +319,8 @@ private:
                                            SDMParcel *output_parcel);
   DisplayError GetDisplayPortId(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError SetPanelFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
+  DisplayError GetPanelResolution(SDMParcel *input_parcel, SDMParcel *output_parcel);
+  DisplayError SetStandbyMode(SDMParcel *input_parcel);
 
   typedef DisplayError (SDMServices::*VndCmdSetHandler)(
       SDMParcel *input_parcel);
@@ -324,6 +331,7 @@ private:
       {SDM_SERVICE_DYNAMIC_DEBUG, &SDMServices::DynamicDebug},
       {SDM_SERVICE_SCREEN_REFRESH, &SDMServices::RefreshScreen},
       {SDM_SERVICE_SET_IDLE_TIMEOUT, &SDMServices::SetIdleTimeout},
+      {SDM_SERVICE_RGBA_SPLIT, &SDMServices::SetRGBASplit},
       {SDM_SERVICE_SET_FRAME_DUMP_CONFIG, &SDMServices::SetFrameDumpConfig},
       {SDM_SERVICE_SET_MAX_PIPES_PER_MIXER, &SDMServices::SetMaxMixerStages},
       {SDM_SERVICE_SET_DISPLAY_MODE, &SDMServices::SetDisplayMode},
@@ -351,6 +359,7 @@ private:
       {SDM_SERVICE_UPDATE_TRANSFER_TIME, &SDMServices::UpdateTransferTime},
       {SDM_SERVICE_PERFORM_CAC_CONFIG, &SDMServices::PerformCacConfig},
       {SDM_SERVICE_SET_BPP_MODE, &SDMServices::SetBppMode},
+      {SDM_SERVICE_SET_STANDBY_MODE, &SDMServices::SetStandbyMode},
   };
 
   std::unordered_map<uint32_t, VndCmdGetHandler> vnd_handlers_get_ = {
@@ -378,6 +387,7 @@ private:
       {SDM_SERVICE_SET_DEMURA_CONFIG, &SDMServices::SetDemuraConfig},
       {SDM_SERVICE_GET_DISPLAY_PORT_ID, &SDMServices::GetDisplayPortId},
       {SDM_SERVICE_SET_PANEL_FEATURE_CONFIG, &SDMServices::SetPanelFeatureConfig},
+      {SDM_SERVICE_GET_PANEL_RESOLUTION, &SDMServices::GetPanelResolution},
   };
 
   int bw_mode_release_fd_ = -1;

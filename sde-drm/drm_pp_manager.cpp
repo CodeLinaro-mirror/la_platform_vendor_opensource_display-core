@@ -192,14 +192,14 @@ void DRMPPManager::Init(const DRMPropertyManager &pm , uint32_t object_type) {
       DRM_LOGI("PA Dither version %d, prop_id %d", pp_prop_map_[kFeaturePADither].version,
                pp_prop_map_[kFeaturePADither].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_PP_DITHER_V1 &&
-               i <= (uint32_t)DRMProperty::SDE_PP_DITHER_V2) {
+               i <= (uint32_t)DRMProperty::SDE_PP_DITHER_V3) {
       pp_prop_map_[kFeatureDither].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeatureDither].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeatureDither].version = i - (uint32_t)DRMProperty::SDE_PP_DITHER_V1 + 1;
       DRM_LOGI("PP dither version %d, prop_id %d", pp_prop_map_[kFeatureDither].version,
                pp_prop_map_[kFeatureDither].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_DSPP_SPR_DITHER_V1 &&
-               i <= (uint32_t)DRMProperty::SDE_DSPP_SPR_DITHER_V1) {
+               i <= (uint32_t)DRMProperty::SDE_DSPP_SPR_DITHER_V2) {
       pp_prop_map_[kFeatureSprDither].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeatureSprDither].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeatureSprDither].version = i - (uint32_t)DRMProperty::SDE_DSPP_SPR_DITHER_V1 + 1;
@@ -234,7 +234,7 @@ void DRMPPManager::Init(const DRMPropertyManager &pm , uint32_t object_type) {
       DRM_LOGI("Dgm Gc version %d, prop_id %d", pp_prop_map_[kFeatureDgmGc].version,
                pp_prop_map_[kFeatureDgmGc].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_PP_CWB_DITHER_V2 &&
-               i <= (uint32_t)DRMProperty::SDE_PP_CWB_DITHER_V2) {
+               i <= (uint32_t)DRMProperty::SDE_PP_CWB_DITHER_V3) {
       pp_prop_map_[kFeatureCWBDither].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeatureCWBDither].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeatureCWBDither].version = i - (uint32_t)DRMProperty::SDE_PP_CWB_DITHER_V2 + 2;

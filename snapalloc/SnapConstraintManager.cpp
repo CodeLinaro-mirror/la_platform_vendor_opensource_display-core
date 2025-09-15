@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapConstraintManager.h"
@@ -38,9 +38,8 @@ void SnapConstraintManager::Init() {
       GraphicsConstraintProvider::GetInstance(format_data_map_);
   providers_.push_back(graphics_provider);
 
-  CameraConstraintProvider *camera_provider =
-      CameraConstraintProvider::GetInstance(format_data_map_);
-  providers_.push_back(camera_provider);
+  camera_provider_ = CameraConstraintProvider::GetInstance(format_data_map_);
+  providers_.push_back(camera_provider_);
 
   DisplayConstraintProvider *disp_provider =
       DisplayConstraintProvider::GetInstance(format_data_map_);
@@ -63,7 +62,7 @@ bool SnapConstraintManager::CanAllocateZSLForSecureCamera() {
   }
   std::string secure_preview_buffer_format_prop;
   debug_->IsSecurePreviewBufferFormatEnabled(&secure_preview_buffer_format_prop);
-  if (!(secure_preview_buffer_format_prop.compare("420_sp") == 0)) {
+  if (secure_preview_buffer_format_prop.compare("420_sp") == 0) {
     can_allocate = false;
   }
   inited = true;
@@ -102,6 +101,13 @@ void SnapConstraintManager::GetImplDefinedFormat(
       } else if (format == vendor_qti_hardware_display_common_PixelFormat::YCBCR_420_888) {
         *out_format = vendor_qti_hardware_display_common_PixelFormat::YCbCr_420_SP;
         *out_modifier = PIXEL_FORMAT_MODIFIER_VENUS;
+      } else if (usage & vendor_qti_hardware_display_common_BufferUsage::QTI_PRIVATE_WFD &&
+                 usage & vendor_qti_hardware_display_common_BufferUsage::QTI_PRIVATE_10BIT) {
+        if (usage & vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC) {
+          *out_format = vendor_qti_hardware_display_common_PixelFormat::TP10;
+        } else {
+          *out_format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_P010;
+        }
       } else {
         *out_format = vendor_qti_hardware_display_common_PixelFormat::YCbCr_420_SP;
         *out_modifier = PIXEL_FORMAT_MODIFIER_ENCODEABLE;
@@ -232,8 +238,14 @@ Error SnapConstraintManager::GetAllocationData(
   bool ubwc_enabled = !ubwc_disabled_prop && ubwc_policy_->IsUBWCAlloc(*out_desc);
   SetSnapPrivateFlags(out_desc->format, out_desc->usage, ubwc_enabled, out_priv_flags);
   out_ad->uncached = UseUncached(out_desc->format, out_desc->usage, ubwc_enabled);
-
-  if (ubwc_enabled) {
+  vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
+      static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
+          GetPixelFormatModifier(*out_desc));
+  if (IsCameraCustomFormat(out_desc->format, pixel_format_modifier)) {
+    DLOGD_IF(enable_logs, "Camera MIPMAP formats - calling into camera APIs");
+    // Camera custom formats. Need to use camera lib.
+    camera_provider_->GetCameraAlloc(*out_desc, out_ad, out_layout);
+  } else if (ubwc_enabled) {
     DLOGD_IF(enable_logs, "IsUBWCAlloc is true");
     int ubwc_version = 0;
     for (auto const &cap : cap_map) {
@@ -242,7 +254,7 @@ Error SnapConstraintManager::GetAllocationData(
       }
     }
     ubwc_caps_.version = ubwc_version;
-    err = ubwc_policy_->GetUBWCAlloc(*out_desc, ubwc_caps_, out_ad, out_layout);
+    err = ubwc_policy_->GetUBWCAlloc(*out_desc, cap_map, ubwc_caps_, out_ad, out_layout);
   } else {
     if (ubwc_disabled_prop) {
       // Reset UBWC bit for UBWC disabled case
@@ -264,12 +276,10 @@ Error SnapConstraintManager::GetAllocationData(
   }
 
   // Final buffer size must be aligned at minimum to page size
-  vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
-      static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
-          GetPixelFormatModifier(*out_desc));
   auto align = GetDataAlignment(out_desc->format, out_desc->usage, pixel_format_modifier);
   OVERFLOW_ERR_RETURN(ALIGN(out_ad->size, align), out_desc->layerCount, OverflowType::MUL);
   out_ad->size = ALIGN(out_ad->size, align) * out_desc->layerCount;
+  out_layout->size_in_bytes = out_ad->size;
 
   return err;
 }
@@ -522,14 +532,27 @@ Error SnapConstraintManager::AlignmentToAlignedConstraints(BufferDescriptor desc
         // bpp = 3 case special handling. Multiply by bpp to convert into bytes
         if ((desc.format == vendor_qti_hardware_display_common_PixelFormat::RGB_888) ||
             (desc.format == vendor_qti_hardware_display_common_PixelFormat::BGR_888)) {
+          OVERFLOW_ERR_RETURN(ALIGN(desc.width, alignment.planes[i].stride.horizontal_stride_align),
+                              (format_data.bits_per_pixel / 8), OverflowType::MUL);
           plane.stride.horizontal_stride =
               ALIGN(desc.width, alignment.planes[i].stride.horizontal_stride_align) *
               (format_data.bits_per_pixel / 8);
+        } else if (format_data.planes[0].sample_increment_bits % 8 != 0) {
+          // 8.0f to handle for formats whose bpp is not aligned with 8 ex:raw10 has 10 bpp
+          DLOGD_IF(enable_logs, "Bpp is float: %f",
+                   static_cast<float>(format_data.bits_per_pixel) / 8.0f);
+          OVERFLOW_ERR_RETURN(static_cast<uint64_t>(desc.width),
+                              (format_data.planes[0].sample_increment_bits / 8.0f),
+                              OverflowType::MUL);
+          // TODO: Need to avoid overflow here.
+          plane.stride.horizontal_stride =
+              ALIGN(desc.width * format_data.planes[0].sample_increment_bits / 8,
+                    alignment.planes[i].stride.horizontal_stride_align);
         } else {
           OVERFLOW_ERR_RETURN(desc.width, (format_data.planes[0].sample_increment_bits / 8),
                               OverflowType::MUL);
           plane.stride.horizontal_stride =
-              ALIGN(desc.width * format_data.planes[0].sample_increment_bits / 8,
+              ALIGN(desc.width * (format_data.planes[0].sample_increment_bits / 8),
                     alignment.planes[i].stride.horizontal_stride_align);
         }
         if ((IsYuv(desc.format)) &&

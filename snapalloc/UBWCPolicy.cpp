@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "UBWCPolicy.h"
@@ -178,11 +178,9 @@ int UBWCPolicy::OffTargetAlloc(BufferDescriptor desc, AllocData *out_ad,
     DLOGE("Constraint set map is empty");
     return Error::NO_RESOURCES;
   }
-  if (constraint_set_map_.find(desc.format) != constraint_set_map_.end()) {
-    ubwc_constraints = constraint_set_map_.at(desc.format);
-  } else {
-    DLOGE("%s: could not find entry for format %lu", __FUNCTION__,
-          static_cast<uint64_t>(desc.format));
+  if (!(constraint_parser_->GetBufferConstraints(constraint_set_map_, desc, &ubwc_constraints))) {
+    DLOGE("%s: could not find entry for format %lu & modifier %d", __FUNCTION__,
+          static_cast<uint64_t>(desc.format), GetPixelFormatModifier(desc));
     return Error::UNSUPPORTED;
   }
   if (ubwc_constraints.planes.empty()) {
@@ -254,7 +252,9 @@ int UBWCPolicy::OffTargetAlloc(BufferDescriptor desc, AllocData *out_ad,
   return 0;
 }
 
-Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, AllocData *out_ad,
+Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc,
+                               std::map<SnapConstraintProvider *, CapabilitySet> const &providers,
+                               UBWCCapabilities caps, AllocData *out_ad,
                                vendor_qti_hardware_display_common_BufferLayout *out_layout) {
   (void)desc;
   (void)caps;
@@ -309,6 +309,8 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
           GetPixelFormatModifier(desc));
   mmm_color_format = mapper.MapPixelFormatWithMmmColorFormat(
       desc.format, desc.usage, pixel_format_modifier, true);  // true indicates ubwc is enabled
+  bool use_adreno_for_size =
+      (providers.size() == 1) && (providers.begin()->first->GetProviderType() == kGraphics);
   if (mmm_color_format != -1) {
     // Double the number of planes to account for meta planes
     out_layout->plane_count = format_data.planes.size() * 2;
@@ -447,13 +449,15 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
              out_layout->aligned_width_in_bytes, out_layout->size_in_bytes);
     out_layout->aligned_height = out_layout->planes[0].scanlines;
   } else {
-    // TODO: meta plane handling (if needed)
+    // TODO: meta plane handling is needed. Need to revisit this logic. Avoid using this.
     DLOGD_IF(enable_logs, "using graphics to get UBWC allocation");
     vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
         static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
             GetPixelFormatModifier(desc));
+    bool is_ubwc_supported_by_gpu = false;
     if (graphics_provider_->IsUBWCSupportedByGPU(desc.format, pixel_format_modifier)) {
       int size = 0;
+      is_ubwc_supported_by_gpu = true;
       if (graphics_provider_ != nullptr) {
         vendor_qti_hardware_display_common_GraphicsMetadata graphics_metadata;
 
@@ -468,7 +472,7 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
       // Plane layout
       BufferConstraints data;
       int status = 0;
-      status = graphics_provider_->BuildConstraints(desc, &data);
+      status = graphics_provider_->BuildConstraints(desc, &data, is_ubwc_supported_by_gpu);
       if (status != 0) {
         DLOGE("Error while getting constraints from graphics libs");
         return Error::NO_RESOURCES;
@@ -508,6 +512,25 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
     }
   }
 
+  if (use_adreno_for_size) {
+    // UBWC with only graphics provider case. As per legacy gralloc, only size is queried from
+    // graphics and other attributes are calculated by gralloc.
+    DLOGD_IF(enable_logs, "using graphics to get UBWC allocation");
+    vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
+        static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
+            GetPixelFormatModifier(desc));
+    if ((graphics_provider_ != nullptr) &&
+        (graphics_provider_->IsUBWCSupportedByGPU(desc.format, pixel_format_modifier))) {
+      int size = 0;
+      vendor_qti_hardware_display_common_GraphicsMetadata graphics_metadata;
+      int ret = graphics_provider_->GetInitialMetadata(desc, &graphics_metadata, true);
+      if (!ret) {
+        size = graphics_provider_->AdrenoGetAlignedGpuBufferSize(graphics_metadata.data);
+        if (size > 0)
+          out_ad->size = size;
+      }
+    }
+  }
   if (interlaced) {
     vendor_qti_hardware_display_common_BufferLayout temp_layout = *out_layout;
     if (IsYuv(desc.format)) {

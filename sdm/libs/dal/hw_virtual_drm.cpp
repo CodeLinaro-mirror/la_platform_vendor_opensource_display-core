@@ -28,16 +28,8 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
-
-/*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -95,6 +87,18 @@ void HWVirtualDRM::ConfigureWbConnectorDestRect(bool reset) {
 void HWVirtualDRM::ConfigureWbConnectorSecureMode(bool secure) {
   DRMSecureMode secure_mode = secure ? DRMSecureMode::SECURE : DRMSecureMode::NON_SECURE;
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_FB_SECURE_MODE, token_.conn_id, secure_mode);
+}
+
+void HWVirtualDRM::SetWbCSC() {
+  sde_drm::DRMWBCSCConfig wb_csc_cfg = sde_drm::DRMWBCSCConfig::RGB2YUV601L;
+
+  if (blend_space_.primaries == QtiColorPrimaries_BT2020) {
+    wb_csc_cfg = sde_drm::DRMWBCSCConfig::RGB2YUV2020L;
+  }
+
+  DLOGV_IF(kTagDriverConfig, "Set WB CSC config: %d for blend space primaries: %d, transfer: %d",
+           wb_csc_cfg, blend_space_.primaries, blend_space_.transfer);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_WB_CSC_CONFIG, token_.conn_id, wb_csc_cfg);
 }
 
 void HWVirtualDRM::InitializeConfigs() {
@@ -158,44 +162,8 @@ void HWVirtualDRM::ConfigureDNSC(HWLayersInfo *hw_layers_info) {
     topology_control_ |= UINT32(sde_drm::DRMTopologyControl::DNSC_BLUR);
   }
 
-  HWDNSCInfo& dnsc = hw_layers_info->dnsc_cfg;
-  dnsc_cfg_ = {};
-
-  if (dnsc.enabled) {
-    dnsc_cfg_.flags = dnsc.flags;
-    dnsc_cfg_.num_blocks = dnsc.num_blocks;
-
-    dnsc_cfg_.src_width = dnsc.src_width;
-    dnsc_cfg_.src_height = dnsc.src_height;
-    dnsc_cfg_.dst_width = dnsc.dst_width;
-    dnsc_cfg_.dst_height = dnsc.dst_height;
-
-    dnsc_cfg_.flags_h = dnsc.flags_h;
-    dnsc_cfg_.flags_v = dnsc.flags_v;
-
-    dnsc_cfg_.phase_init_h = dnsc.pcmn_data.phase_init_h;
-    dnsc_cfg_.phase_step_h = dnsc.pcmn_data.phase_step_h;
-    dnsc_cfg_.phase_init_v = dnsc.pcmn_data.phase_init_v;
-    dnsc_cfg_.phase_step_v = dnsc.pcmn_data.phase_step_v;
-
-    dnsc_cfg_.norm_h = dnsc.gaussian_data.norm_h;
-    dnsc_cfg_.ratio_h = dnsc.gaussian_data.ratio_h;
-    dnsc_cfg_.norm_v = dnsc.gaussian_data.norm_v;
-    dnsc_cfg_.ratio_v = dnsc.gaussian_data.ratio_v;
-
-    for (int i = 0; i < DNSC_BLUR_COEF_NUM && i < dnsc.gaussian_data.coef_hori.size(); i++) {
-      dnsc_cfg_.coef_hori[i] = dnsc.gaussian_data.coef_hori[i];
-    }
-
-    for (int i = 0; i < DNSC_BLUR_COEF_NUM && i < dnsc.gaussian_data.coef_vert.size(); i++) {
-      dnsc_cfg_.coef_vert[i] = dnsc.gaussian_data.coef_vert[i];
-    }
-  }
-
   uint32_t conn_id = token_.conn_id;
-  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_CACHE_STATE, conn_id, dnsc.cache_state);
-  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_EARLY_FENCE_LINE, conn_id, dnsc.early_fence_line);
-  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_DNSC_BLR, conn_id, &dnsc_cfg_);
+  ConfigureDNSCbase(hw_layers_info, conn_id, dnsc_cfg_);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_WB_USAGE_TYPE, conn_id, usage_mode);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_FRAME_TRIGGER, conn_id, trigger_mode);
 #endif
@@ -221,6 +189,7 @@ DisplayError HWVirtualDRM::Commit(HWLayersInfo *hw_layers_info) {
   ConfigureWbConnectorSecureMode(output_buffer->flags.secure);
   ConfigureDNSC(hw_layers_info);
   ConfigureWbConnectorDestRect(hw_layers_info->iwe_enabled);
+  SetWbCSC();
   // Reset the ROI which may have been previously set by CWB. Need revisit when ROI enabled on
   // virtual.
   ResetROI();
@@ -265,6 +234,7 @@ DisplayError HWVirtualDRM::Validate(HWLayersInfo *hw_layers_info) {
   ConfigureWbConnectorFbId(fb_id);
   ConfigureWbConnectorDestRect();
   ConfigureWbConnectorSecureMode(output_buffer->flags.secure);
+  SetWbCSC();
 
   return HWDeviceDRM::Validate(hw_layers_info);
 }
@@ -368,6 +338,7 @@ DisplayError HWVirtualDRM::Deinit() {
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_EARLY_FENCE_LINE, conn_id, 0);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_DNSC_BLR, conn_id, &dnsc_cfg_);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_WB_USAGE_TYPE, conn_id, usage_mode);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_WB_CSC_CONFIG, conn_id, 0);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_FRAME_TRIGGER, conn_id, trigger_mode);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_TOPOLOGY_CONTROL, conn_id, 0);
 #endif

@@ -28,40 +28,10 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted (subject to the limitations in the
-* disclaimer below) provided that the following conditions are met:
-*
-* * Redistributions of source code must retain the above copyright
-* notice, this list of conditions and the following disclaimer.
-*
-* * Redistributions in binary form must reproduce the above
-* copyright notice, this list of conditions and the following
-* disclaimer in the documentation and/or other materials provided
-* with the distribution.
-*
-* * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
-* contributors may be used to endorse or promote products derived
-* from this software without specific prior written permission.
-*
-* NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
-* GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
-* HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
-* WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-* IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
-* GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-* INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
-* IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-* OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-* IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -102,6 +72,7 @@ using std::lock_guard;
 
 #define MAX_SCALER_LINEWIDTH 2560
 
+// clang-format off
 static struct sde_drm_csc_v1 csc_10bit_convert[kCscTypeMax] = {
   [kCscYuv2Rgb601L] = {
     {
@@ -191,6 +162,17 @@ static struct sde_drm_csc_v1 csc_10bit_convert[kCscTypeMax] = {
     { 0x0, 0x3ff, 0x0, 0x3ff, 0x0, 0x3ff,},
     { 0x0, 0x3ff, 0x0, 0x3ff, 0x0, 0x3ff,},
   },
+  [kCscYuv2RgbDCIP3L] = {
+     {
+       0x12b000000, 0x000000000, 0x1ce000000,
+       0x12b000000, 0xfcc000000, 0xf7a000000,
+       0x12b000000, 0x220800000, 0x000000000,
+      },
+      { 0xffc0, 0xfe00, 0xfe00,},
+      { 0x0, 0x0, 0x0,},
+      { 0x40, 0x3ac, 0x40, 0x3c0, 0x40, 0x3c0,},
+      { 0x0, 0x3ff, 0x0, 0x3ff, 0x0, 0x3ff,},
+   },
 };
 
 static struct drm_msm_fp16_csc csc_fp16_convert[kFP16CscTypeMax] = {
@@ -216,7 +198,19 @@ static struct drm_msm_fp16_csc csc_fp16_convert[kFP16CscTypeMax] = {
       FP16_CSC_CFG1_PARAM_LEN,
       {0xD527, 0x5A7D, 0XCC26, 0x586D, 0xCB6C, 0x585D, 0x0, 0x57D0,}
   },
+  [kFP16CscTypeUnity] = {
+      0x0,  // flags -- currently unused
+      FP16_CSC_CFG0_PARAM_LEN,
+      {
+        0x3C00, 0x0, 0x0, 0x0,
+        0x0, 0x3C00, 0x0, 0x0,
+        0x0, 0x0, 0x3C00, 0x0,
+      },
+      FP16_CSC_CFG1_PARAM_LEN,
+      {0xFFFF, 0x7FFF, 0xFFFF, 0x7FFF, 0xFFFF, 0x7FFF, 0x0, 0x3C00,}
+  },
 };
+// clang-format on
 
 static uint8_t REFLECT_X = 0;
 static uint8_t REFLECT_Y = 0;
@@ -261,6 +255,10 @@ static uint8_t CAC_UNPACK = 0x1;
 static uint8_t CAC_FETCH = 0x2;
 static uint8_t CAC_LOOPBACK_UNPACK = 0x4;
 static uint8_t CAC_LOOPBACK_FETCH = 0x8;
+
+// Buffer Type
+static uint8_t BUFFER_INDEPENDENT = 0;
+static uint8_t BUFFER_SINGLE = 1;
 
 static void SetRect(DRMRect &source, drm_clip_rect *target) {
   target->x1 = uint16_t(source.left);
@@ -326,17 +324,16 @@ static InlineRotationVersion PopulateInlineRotationVersion(uint32_t ver) {
 
 static QSEEDStepVersion PopulateQseedStepVersion(uint32_t hw_ver) {
   switch (hw_ver) {
-    case 0x1003: return QSEEDStepVersion::V3;
-    case 0x1004: return QSEEDStepVersion::V4;
-    case 0x2004: return QSEEDStepVersion::V3LITE_V4;
     case 0x3000: return QSEEDStepVersion::V3LITE_V5;
     case 0x3001: return QSEEDStepVersion::V3LITE_V7;
     case 0x3002: return QSEEDStepVersion::V3LITE_V8;
     case 0x3003: return QSEEDStepVersion::V3LITE_V9;
     case 0x3004:
       return QSEEDStepVersion::V3LITE_V10;
-    // default value. also corresponds to (hw_ver == 0x1002)
-    default: return QSEEDStepVersion::V2;
+    case 0x3005:
+    // update default value to newest available version
+    default:
+      return QSEEDStepVersion::V3LITE_V11;
   }
 }
 
@@ -354,6 +351,21 @@ static void PopulateMultiRectModes(drmModePropertyRes *prop) {
       }
     }
     multirect_modes_populated = true;
+  }
+}
+
+static void PopulateBufferModes(drmModePropertyRes *prop) {
+  static bool buffer_modes_populated = false;
+  if (!buffer_modes_populated) {
+    for (auto i = 0; i < prop->count_enums; i++) {
+      string enum_name(prop->enums[i].name);
+      if (enum_name == "independent") {
+        BUFFER_INDEPENDENT = prop->enums[i].value;
+      } else if (enum_name == "single") {
+        BUFFER_SINGLE = prop->enums[i].value;
+      }
+    }
+    buffer_modes_populated = true;
   }
 }
 
@@ -721,18 +733,19 @@ void DRMPlane::GetTypeInfo(const PropertyMap &prop_map) {
   if (info->type == DRMPlaneType::CURSOR) {
     info->max_linewidth = 128;
   }
-  // TODO(user): change default to V2 once we start getting V3 via capabilities blob
-  info->qseed3_version = QSEEDStepVersion::V3;
+
+  info->qseed3_version = QSEEDStepVersion::V3LITE_V11;
   info->has_excl_rect = has_excl_rect_;
 
   // We may have multiple lines with each one dedicated for something specific
   // like formats etc
   stringstream stream(fmt_str);
   DRM_LOGI("stream str %s len %zu blob str %s len %d", stream.str().c_str(), stream.str().length(),
-           blob->data, blob->length);
+           (char *)(blob->data), blob->length);
 
   string line = {};
   string pixel_formats = "pixel_formats=";
+  string cac_supported_formats = "cac_supported_formats=";
   string max_linewidth = "max_linewidth=";
   string max_upscale = "max_upscale=";
   string max_downscale = "max_downscale=";
@@ -752,6 +765,7 @@ void DRMPlane::GetTypeInfo(const PropertyMap &prop_map) {
   string demura_block = "demura_block=";
   string cac_mode = "cac_mode=";
   string cac_parent_rect = "cac_parent_rec=";
+  string plane_type = "plane_type=";
 
   while (std::getline(stream, line)) {
     if (line.find(inline_rot_pixel_formats) != string::npos) {
@@ -762,6 +776,10 @@ void DRMPlane::GetTypeInfo(const PropertyMap &prop_map) {
       vector<pair<uint32_t, uint64_t>> formats_supported;
       ParseFormats(line.erase(0, pixel_formats.length()), &formats_supported);
       info->formats_supported = std::move(formats_supported);
+    } else if (line.find(cac_supported_formats) != string::npos) {
+      vector<pair<uint32_t, uint64_t>> cac_formats_supported;
+      ParseFormats(line.erase(0, cac_supported_formats.length()), &cac_formats_supported);
+      info->cac_formats_supported = std::move(cac_formats_supported);
     } else if (line.find(max_linewidth) != string::npos) {
       info->max_linewidth = std::stoi(line.erase(0, max_linewidth.length()));
     } else if (line.find(max_upscale) != string::npos) {
@@ -795,23 +813,27 @@ void DRMPlane::GetTypeInfo(const PropertyMap &prop_map) {
         true_inline_dwnscale_rt_denominator.length()));
     } else if (line.find(true_inline_max_height) != string::npos) {
       info->max_rotation_linewidth = std::stoi(line.erase(0, true_inline_max_height.length()));
-    }  else if (line.find(pipe_idx) != string::npos) {
+    } else if (line.find(pipe_idx) != string::npos) {
       info->pipe_idx = std::stoi(line.erase(0, pipe_idx.length()));
-    }  else if (line.find(demura_block) != string::npos) {
+    } else if (line.find(demura_block) != string::npos) {
       info->demura_block_capability = std::stoi(line.erase(0, demura_block.length()));
-    }  else if (line.find(cac_mode) != string::npos) {
+    } else if (line.find(cac_mode) != string::npos) {
       // Assign first four bits of cac mode to bitset
       info->cac_mode = 0xF & std::stoi(line.erase(0, cac_mode.length()));
-    }  else if (line.find(cac_parent_rect) != string::npos) {
+    } else if (line.find(cac_parent_rect) != string::npos) {
       info->cac_parent_rect = std::stoi(line.erase(0, cac_parent_rect.length()));
+    } else if (line.find(plane_type) != string::npos) {
+      if (string(line, plane_type.length()) == "csc") {
+        info->type = DRMPlaneType::CSC;
+      } else if (string(line, plane_type.length()) == "repro") {
+        info->type = DRMPlaneType::REPRO;
+      }
     }
-
   }
 
 // TODO(user): Get max_scaler_linewidth and non_scaler_linewidth from driver
 // max_linewidth can be smaller than 2560 for few target, so make sure to assign the minimum of both
-  info->max_scaler_linewidth = (info->qseed3_version < QSEEDStepVersion::V4) ? info->max_linewidth :
-                               std::min((uint32_t)MAX_SCALER_LINEWIDTH, info->max_linewidth);
+  info->max_scaler_linewidth = std::min((uint32_t)MAX_SCALER_LINEWIDTH, info->max_linewidth);
 
   drmModeFreePropertyBlob(blob);
   delete[] fmt_str;
@@ -860,9 +882,11 @@ void DRMPlane::ParseProperties() {
       PopulateUcscIgcMode(info);
     } else if (prop_enum == DRMProperty::SDE_SSPP_UCSC_GC_V1) {
       PopulateUcscGcMode(info);
+    } else if (prop_enum == DRMProperty::BUFFER_MODE) {
+      PopulateBufferModes(info);
     }
 
-    if (prop_enum == DRMProperty::ALPHA) {
+    if ((prop_enum == DRMProperty::ALPHA) && info->values) {
       alpha_range_.first = info->values[0];
       alpha_range_.second = info->values[1];
     }
@@ -960,8 +984,10 @@ void DRMPlane::InitAndParse(drmModePlane *plane) {
   ParseProperties();
 
   unique_ptr<DRMPPManager> pp_mgr(new DRMPPManager(fd_));
-  pp_mgr_ = std::move(pp_mgr);
-  pp_mgr_->Init(prop_mgr_, DRM_MODE_OBJECT_PLANE);
+  if (pp_mgr != nullptr) {
+    pp_mgr_ = std::move(pp_mgr);
+    pp_mgr_->Init(prop_mgr_, DRM_MODE_OBJECT_PLANE);
+  }
 }
 
 bool DRMPlane::ConfigureScalerLUT(drmModeAtomicReq *req, uint32_t dir_lut_blob_id,
@@ -1072,16 +1098,17 @@ bool DRMPlane::SetCscConfig(drmModeAtomicReq *req, DRMCscType csc_type) {
   return true;
 }
 
-bool DRMPlane::SetFp16CscConfig(drmModeAtomicReq *req, DRMFp16CscType csc_type) {
-  if (csc_type > kFP16CscTypeMax) {
+bool DRMPlane::SetFp16CscConfig(drmModeAtomicReq *req, DRMFp16CscConfig *csc_config) {
+  if (csc_config->csc_type > kFP16CscTypeMax) {
     return false;
   }
+
   auto prop_id = prop_mgr_.GetPropertyId(DRMProperty::SDE_SSPP_FP16_CSC_V1);
   if (!prop_id) {
     return false;
   }
 
-  if (csc_type == kFP16CscTypeMax) {
+  if (csc_config->csc_type == kFP16CscTypeMax) {
 // Since logic for setting FP16 properties is in SetupAtomic, adding optimization for setting and
 // resetting blob properties leads to AddProperty being called in Validate and ignored during
 // Commit call. This invalidates the current FP16 test cases, and to avoid this we need to add
@@ -1095,17 +1122,31 @@ bool DRMPlane::SetFp16CscConfig(drmModeAtomicReq *req, DRMFp16CscType csc_type) 
     AddProperty(req, drm_plane_->plane_id, prop_id, 0, false /* cache */, tmp_prop_val_map_);
   } else {
 #ifndef SDM_VIRTUAL_DRIVER
-    if (csc_type == fp16_csc_type_) {
+    if ((csc_config->csc_type == fp16_csc_config_.csc_type) &&
+        (csc_config->hdr_sdr_ratio == fp16_csc_config_.hdr_sdr_ratio)) {
       return true;
     }
 #endif
     UnsetFp16CscConfig();
-    drmModeCreatePropertyBlob(fd_, reinterpret_cast<void *>(&csc_fp16_convert[csc_type]),
-                              sizeof(drm_msm_fp16_csc), &fp16_csc_blob_id_);
+
+    drm_msm_fp16_csc fp16_csc_copy = csc_fp16_convert[csc_config->csc_type];
+    drm_msm_fp16_csc *fp16_csc = &fp16_csc_copy;
+
+    if (csc_config->csc_type == kFP16CscTypeUnity) {
+      for (uint32_t index = 0; index < fp16_csc->cfg_param_0_len; index++) {
+        fp16_csc->cfg_param_0[index] = DRM_float_2_FP16(
+            DRM_FP16_2_float(fp16_csc->cfg_param_0[index]) / csc_config->hdr_sdr_ratio);
+      }
+    }
+
+    drmModeCreatePropertyBlob(fd_, reinterpret_cast<void *>(fp16_csc), sizeof(drm_msm_fp16_csc),
+                              &fp16_csc_blob_id_);
     AddProperty(req, drm_plane_->plane_id, prop_id, fp16_csc_blob_id_, false /* cache */,
                 tmp_prop_val_map_);
   }
-  fp16_csc_type_ = csc_type;
+
+  fp16_csc_config_.csc_type = csc_config->csc_type;
+  fp16_csc_config_.hdr_sdr_ratio = csc_config->hdr_sdr_ratio;
 
   return true;
 }
@@ -1132,14 +1173,52 @@ bool DRMPlane::SetFp16UnmultConfig(drmModeAtomicReq *req, uint32_t unmult_en) {
   return true;
 }
 
-bool DRMPlane::SetFp16GcConfig(drmModeAtomicReq *req, drm_msm_fp16_gc *fp16_gc_config) {
+bool DRMPlane::SetPrefillSize(drmModeAtomicReq *req, uint32_t prefill_size) {
+  auto prop_id = prop_mgr_.GetPropertyId(DRMProperty::PREFILL_SIZE);
+  if (!prop_id) {
+    return false;
+  }
+
+  AddProperty(req, drm_plane_->plane_id, prop_id, prefill_size, true /* cache */,
+              tmp_prop_val_map_);
+  DRM_LOGV("Plane %d: Setting prefill size %d", drm_plane_->plane_id, prefill_size);
+
+  return true;
+}
+
+bool DRMPlane::SetPrefillTime(drmModeAtomicReq *req, uint32_t prefill_time) {
+  auto prop_id = prop_mgr_.GetPropertyId(DRMProperty::PREFILL_TIME);
+  if (!prop_id) {
+    return false;
+  }
+
+  AddProperty(req, drm_plane_->plane_id, prop_id, prefill_time, true /* cache */,
+              tmp_prop_val_map_);
+  DRM_LOGV("Plane %d: Setting prefill time %d", drm_plane_->plane_id, prefill_time);
+
+  return true;
+}
+
+bool DRMPlane::SetSysCacheType(drmModeAtomicReq *req, uint32_t sys_cache_type) {
+  auto prop_id = prop_mgr_.GetPropertyId(DRMProperty::SYS_CACHE_TYPE);
+  if (!prop_id) {
+    return false;
+  }
+
+  AddProperty(req, drm_plane_->plane_id, prop_id, sys_cache_type, true /* cache */,
+              tmp_prop_val_map_);
+  DRM_LOGV("Plane %d: Setting sys cache %d", drm_plane_->plane_id, sys_cache_type);
+
+  return true;
+}
+
+bool DRMPlane::SetFp16GcConfig(drmModeAtomicReq *req, drm_msm_fp16_gc *gc_config) {
   auto prop_id = prop_mgr_.GetPropertyId(DRMProperty::SDE_SSPP_FP16_GC_V1);
   if (!prop_id) {
     return false;
   }
 
-
-  if (fp16_gc_config->mode == FP16_GC_MODE_INVALID) {
+  if (gc_config->mode == FP16_GC_MODE_INVALID) {
 #ifndef SDM_VIRTUAL_DRIVER
     if (!fp16_gc_blob_id_) {
       return true;
@@ -1149,19 +1228,18 @@ bool DRMPlane::SetFp16GcConfig(drmModeAtomicReq *req, drm_msm_fp16_gc *fp16_gc_c
     AddProperty(req, drm_plane_->plane_id, prop_id, 0, false /* cache */, tmp_prop_val_map_);
   } else {
 #ifndef SDM_VIRTUAL_DRIVER
-    if (fp16_gc_config->mode == fp16_gc_config_.mode &&
-        fp16_gc_config->flags == fp16_gc_config_.flags) {
+    if (gc_config->mode == fp16_gc_config_.mode && gc_config->flags == fp16_gc_config_.flags) {
       return true;
     }
 #endif
     UnsetFp16GcConfig();
-    drmModeCreatePropertyBlob(fd_, reinterpret_cast<void *>(fp16_gc_config),
-                              sizeof(drm_msm_fp16_gc), &fp16_gc_blob_id_);
+    drmModeCreatePropertyBlob(fd_, reinterpret_cast<void *>(gc_config), sizeof(drm_msm_fp16_gc),
+                              &fp16_gc_blob_id_);
     AddProperty(req, drm_plane_->plane_id, prop_id, fp16_gc_blob_id_, false /* cache */,
                 tmp_prop_val_map_);
   }
-  fp16_gc_config_.mode = fp16_gc_config->mode;
-  fp16_gc_config_.flags = fp16_gc_config->flags;
+  fp16_gc_config_.mode = gc_config->mode;
+  fp16_gc_config_.flags = gc_config->flags;
 
   return true;
 }
@@ -1540,8 +1618,10 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
     } break;
 
     case DRMOps::PLANE_SET_FP16_CSC_CONFIG: {
-      uint32_t config = va_arg(args, uint32_t);
-      SetFp16CscConfig(req, (DRMFp16CscType)config);
+      DRMFp16CscConfig *config = va_arg(args, DRMFp16CscConfig *);
+      if (config) {
+        SetFp16CscConfig(req, config);
+      }
     } break;
 
     case DRMOps::PLANE_SET_FP16_GC_CONFIG: {
@@ -1566,6 +1646,15 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       }
       DRMCacMode cac_mode = (DRMCacMode)va_arg(args, uint32_t);
       SetCacType(req, cac_mode);
+    } break;
+    case DRMOps::PLANES_SET_PREFILL_SIZE: {
+      uint32_t config = va_arg(args, uint32_t);
+      SetPrefillSize(req, config);
+    } break;
+
+    case DRMOps::PLANES_SET_PREFILL_TIME: {
+      uint32_t config = va_arg(args, uint32_t);
+      SetPrefillTime(req, config);
     } break;
 
 #ifdef UCSC_SUPPORTED
@@ -1668,6 +1757,43 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
                ucsc_alpha_dither ? "Setting" : "Resetting");
     } break;
 #endif
+
+    case DRMOps::PLANES_SET_SYS_CACHE_TYPE: {
+      uint32_t config = va_arg(args, uint32_t);
+      SetSysCacheType(req, config);
+    } break;
+
+    case DRMOps::PLANES_BUFFER_MODE: {
+      int buffer = va_arg(args, int);
+      uint32_t buffer_mode = BUFFER_INDEPENDENT;
+      switch (buffer) {
+        case (int)DRMBufferMode::INDEPENDENT:
+          buffer_mode = BUFFER_INDEPENDENT;
+          break;
+        case (int)DRMBufferMode::SINGLE:
+          buffer_mode = BUFFER_SINGLE;
+          break;
+        default:
+          DRM_LOGE("Invalid buffer mode %d to set on plane %d", buffer, obj_id);
+          break;
+      }
+
+      prop_id = prop_mgr_.GetPropertyId(DRMProperty::BUFFER_MODE);
+      AddProperty(req, obj_id, prop_id, buffer_mode, true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("Plane %d: Setting buffer mode %d", obj_id, buffer_mode);
+    } break;
+
+    case DRMOps::PLANE_SET_COLOR_MASK_OVERRIDE: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::COLOR_MASK_OVERRIDE)) {
+        DRM_LOGD("Layer color mask override property isn't exposed");
+        break;
+      }
+      DRMReserveColor color_override = (DRMReserveColor)va_arg(args, uint32_t);
+      prop_id = prop_mgr_.GetPropertyId(DRMProperty::COLOR_MASK_OVERRIDE);
+      AddProperty(req, obj_id, prop_id, (uint32_t)color_override, true /* cache */,
+                  tmp_prop_val_map_);
+      DRM_LOGD("Plane = %d : Layer Color mask override = %d", obj_id, color_override);
+    } break;
 
     default:
       DRM_LOGE("Invalid opcode %d for DRM Plane %d", code, obj_id);
@@ -1785,6 +1911,7 @@ void DRMPlane::Unset(bool is_commit, drmModeAtomicReq *req) {
   PerformWrapper(DRMOps::PLANE_SET_SRC_RECT_EXT, req, rect);
   PerformWrapper(DRMOps::PLANE_SET_DST_RECT_EXT, req, rect);
   PerformWrapper(DRMOps::PLANE_SET_IMG_SIZE_RECT, req, rect);
+  PerformWrapper(DRMOps::PLANE_SET_COLOR_MASK_OVERRIDE, req, 0);
   if (plane_type_info_.inverse_pma) {
     PerformWrapper(DRMOps::PLANE_SET_INVERSE_PMA, req, 0);
   }
@@ -1801,11 +1928,19 @@ void DRMPlane::Unset(bool is_commit, drmModeAtomicReq *req) {
   ResetColorLUTs(is_commit, req);
 
   // Reset FP16 properties
-  PerformWrapper(DRMOps::PLANE_SET_FP16_CSC_CONFIG, req, kFP16CscTypeMax);
+  DRMFp16CscConfig fp16_csc_config = {.csc_type = kFP16CscTypeMax, .hdr_sdr_ratio = 1.0f};
+  PerformWrapper(DRMOps::PLANE_SET_FP16_CSC_CONFIG, req, &fp16_csc_config);
   PerformWrapper(DRMOps::PLANE_SET_FP16_IGC_CONFIG, req, 0);
   PerformWrapper(DRMOps::PLANE_SET_FP16_UNMULT_CONFIG, req, 0);
   drm_msm_fp16_gc fp16_gc_config = {.flags = 0, .mode = FP16_GC_MODE_INVALID};
   PerformWrapper(DRMOps::PLANE_SET_FP16_GC_CONFIG, req, &fp16_gc_config);
+
+  // Reset ucsc properties
+  PerformWrapper(DRMOps::PLANE_SET_UCSC_UNMULT_CONFIG, req, false);
+  PerformWrapper(DRMOps::PLANE_SET_UCSC_IGC_CONFIG, req, DRMUcscIgcMode::UCSC_IGC_MODE_DISABLE);
+  PerformWrapper(DRMOps::PLANE_SET_UCSC_CSC_CONFIG, req, nullptr);
+  PerformWrapper(DRMOps::PLANE_SET_UCSC_GC_CONFIG, req, DRMUcscGcMode::UCSC_GC_MODE_DISABLE);
+  PerformWrapper(DRMOps::PLANE_SET_UCSC_ALPHA_DITHER_CONFIG, req, false);
 
   tmp_prop_val_map_.clear();
   committed_prop_val_map_.clear();
