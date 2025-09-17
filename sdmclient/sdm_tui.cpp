@@ -27,8 +27,8 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <algorithm>
@@ -136,9 +136,9 @@ DisplayError SDMTrustedUI::TUITransitionPrepare(int disp_id) {
     target_display = disp_->GetActiveBuiltinDisplay();
   }
 
-  if (target_display != qdutilsDisplayType::DISPLAY_PRIMARY &&
-      target_display != qdutilsDisplayType::DISPLAY_BUILTIN_2) {
-    DLOGE("Display %" PRIu64 " not supported", target_display);
+  if (disp_id != qdutilsDisplayType::DISPLAY_PRIMARY &&
+      disp_id != qdutilsDisplayType::DISPLAY_BUILTIN_2) {
+    DLOGE("Display %" PRIu64 " not supported", disp_id);
     return kErrorNotSupported;
   }
 
@@ -467,7 +467,7 @@ void SDMTrustedUI::VmReleaseDone(Display display) {
 
   if (clients_waiting_for_vm_release_.test(display)) {
     vm_release_locker_[display].Signal();
-    DLOGI("Signal vm release done!! for display %d", display);
+    DLOGI("Signal vm release done!! for display %" PRIu64, display);
     clients_waiting_for_vm_release_.reset(display);
   }
 }
@@ -477,7 +477,7 @@ void SDMTrustedUI::VmReclaimDone(Display display) {
 
   if (clients_waiting_for_vm_reclaim_.test(display)) {
     vm_reclaim_locker_[display].Signal();
-    DLOGI("Signal vm reclaim done!! for display %d", display);
+    DLOGI("Signal vm reclaim done!! for display %" PRIu64, display);
     clients_waiting_for_vm_reclaim_.reset(display);
   }
   vm_reclaim_done_ = true;

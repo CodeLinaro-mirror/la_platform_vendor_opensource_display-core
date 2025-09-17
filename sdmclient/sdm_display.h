@@ -539,6 +539,7 @@ public:
   virtual void IdleTimeout(){};
   DisplayError SetStandbyMode(bool enable, bool is_twm);
   DisplayError SetRGBASplit(int32_t split_enable);
+  virtual bool IsDmaModeIncompatible(LayerComposition composition) { return false; }
 
  protected:
   static uint32_t throttling_refresh_rate_;

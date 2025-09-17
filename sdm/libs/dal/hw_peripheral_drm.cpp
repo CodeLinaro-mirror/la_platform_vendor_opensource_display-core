@@ -612,11 +612,17 @@ void HWPeripheralDRM::SetSelfRefreshState() {
 
 DisplayError HWPeripheralDRM::Flush(HWLayersInfo *hw_layers_info) {
   ConfigureLoopbackCAC(false /* cac disabled */);
+  if ((hw_panel_info_.mode == kModeCommand) && (tui_state_ != kTUIStateNone)) {
+    SetVMReqState();
+  }
   DisplayError err = HWDeviceDRM::Flush(hw_layers_info);
   if (err != kErrorNone) {
     return err;
   }
 
+  if ((hw_panel_info_.mode == kModeCommand) && (tui_state_ != kTUIStateNone)) {
+    SetTUIState();
+  }
   ResetDestScalarCache();
   return kErrorNone;
 }
@@ -692,6 +698,8 @@ DisplayError HWPeripheralDRM::HandleSecureEvent(SecureEvent secure_event,
     case kTUITransitionUnPrepare:
       if (tui_state_ == kTUIStateNone) {
         tui_state_ = kTUIStateInProgress;
+      } else {
+        tui_state_ = kTUIStateNone;
       }
       break;
     case kTUITransitionStart: {
@@ -957,7 +965,7 @@ DisplayError HWPeripheralDRM::DozeSuspend(const HWQosData &qos_data, SyncPoints 
 DisplayError HWPeripheralDRM::SetDisplayAttributes(uint32_t index) {
   if (doze_poms_switch_done_ || pending_poms_switch_ || bit_clk_rate_) {
     DLOGW("Bailing. Pending operations: doze_poms_switch_done_=%d, pending_poms_switch_=%d,"
-     "bit_clk_rate_=%d", doze_poms_switch_done_, pending_poms_switch_, bit_clk_rate_);
+     "bit_clk_rate_=%" PRIu64, doze_poms_switch_done_, pending_poms_switch_, bit_clk_rate_);
     return kErrorDeferred;
   }
 

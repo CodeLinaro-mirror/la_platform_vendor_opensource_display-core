@@ -162,6 +162,17 @@ static struct sde_drm_csc_v1 csc_10bit_convert[kCscTypeMax] = {
     { 0x0, 0x3ff, 0x0, 0x3ff, 0x0, 0x3ff,},
     { 0x0, 0x3ff, 0x0, 0x3ff, 0x0, 0x3ff,},
   },
+  [kCscYuv2RgbDCIP3L] = {
+     {
+       0x12b000000, 0x000000000, 0x1ce000000,
+       0x12b000000, 0xfcc000000, 0xf7a000000,
+       0x12b000000, 0x220800000, 0x000000000,
+      },
+      { 0xffc0, 0xfe00, 0xfe00,},
+      { 0x0, 0x0, 0x0,},
+      { 0x40, 0x3ac, 0x40, 0x3c0, 0x40, 0x3c0,},
+      { 0x0, 0x3ff, 0x0, 0x3ff, 0x0, 0x3ff,},
+   },
 };
 
 static struct drm_msm_fp16_csc csc_fp16_convert[kFP16CscTypeMax] = {
@@ -730,7 +741,7 @@ void DRMPlane::GetTypeInfo(const PropertyMap &prop_map) {
   // like formats etc
   stringstream stream(fmt_str);
   DRM_LOGI("stream str %s len %zu blob str %s len %d", stream.str().c_str(), stream.str().length(),
-           blob->data, blob->length);
+           (char *)(blob->data), blob->length);
 
   string line = {};
   string pixel_formats = "pixel_formats=";

@@ -172,6 +172,8 @@ DisplayError SDMDisplayBuiltIn::Init() {
     large_comp_hint_threshold_ = value;
   }
 
+  dpu_dma_enabled_ = display_intf_->IsDpuDmaModeEnabled();
+
   uint32_t config_index = 0;
   GetActiveDisplayConfig(false, &config_index);
   DisplayConfigVariableInfo attr = {};
@@ -221,9 +223,10 @@ DisplayError SDMDisplayBuiltIn::PreValidateDisplay(bool *exit_validate) {
 
   auto status = kErrorNone;
   bool res_exhausted = false;
-  // If no resources are available for the current display, mark it for GPU by
+  // If no resources are available for the current display, or pass
+  // unsupported format in DPU DMA mode, mark it for GPU by
   // pass and continue to do invalidate until the resources are available
-  if (display_paused_ || CheckResourceState(&res_exhausted)) {
+  if (display_paused_ || CheckResourceState(&res_exhausted) || SetDpuDmaMode() != kErrorNone) {
     MarkLayersForGPUBypass();
     *exit_validate = true;
     return status;
@@ -259,6 +262,10 @@ DisplayError SDMDisplayBuiltIn::PreValidateDisplay(bool *exit_validate) {
   current_refresh_rate_ = refresh_rate;
 
   if (sdm_layer_stack_->layer_set_.empty()) {
+    //Trigger flush to commit TUI request to driver.
+    if (secure_event_ != kSecureEventMax) {
+      display_intf_->Flush(&layer_stack_);
+    }
     // Avoid flush for Command mode panel.
     flush_ = !client_connected_;
     *exit_validate = true;
@@ -1991,6 +1998,25 @@ void SDMDisplayBuiltIn::HandlePowerModeHint(SDMPowerMode mode) {
     default:
       break;
   }
+}
+
+DisplayError SDMDisplayBuiltIn::SetDpuDmaMode() {
+  if (!dpu_dma_enabled_)
+    return kErrorNone;
+
+  DisplayError error = kErrorNone;
+  for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
+    auto layer = sdm_layer->GetSDMLayer();
+    error = sdm_layer->TranslateToNV12Y(&layer->input_buffer);
+    if (error != kErrorNone)
+      return error;
+  }
+
+  return error;
+}
+
+bool SDMDisplayBuiltIn::IsDmaModeIncompatible(LayerComposition composition) {
+  return (composition == kCompositionGPU && dpu_dma_enabled_);
 }
 
 } // namespace sdm

@@ -693,6 +693,9 @@ private:
   int hpd_connected_ = 0;
   SDMServices *services_ = nullptr;
 
+  uint32_t idle_time_active_ms_ = 0;
+  uint32_t idle_time_inactive_ms_ = 0;
+
   std::vector<Display> pending_hotplugs_{};
 
   // debug callbacks

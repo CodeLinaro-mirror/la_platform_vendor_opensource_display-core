@@ -284,6 +284,7 @@ enum struct DRMProperty {
   SYS_CACHE_TYPE,
   BUFFER_MODE,
   COLOR_MASK_OVERRIDE,
+  EMSYNC_FPS,
 
   // Insert above
   MAX

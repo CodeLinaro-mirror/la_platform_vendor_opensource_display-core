@@ -100,6 +100,9 @@
 #ifndef SDE_SYSCACHE_LLCC_DISP_RIGHT
 #define SDE_SYSCACHE_LLCC_DISP_RIGHT 2
 #endif
+#ifndef DRM_FORMAT_MOD_QCOM_DMA
+#define DRM_FORMAT_MOD_QCOM_DMA fourcc_mod_code(QCOM, 0x400)
+#endif
 
 #define DEST_SCALAR_OVERFETCH_SIZE 5
 #define OFFSET_ALIGN(x, align) ((x) - ((x) % (align)))
@@ -361,6 +364,10 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
       *drm_format = DRM_FORMAT_P210;
       *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_DX;
       break;
+    case kFormatNV12Y:
+      *drm_format = DRM_FORMAT_NV12;
+      *drm_format_modifier = DRM_FORMAT_MOD_QCOM_DMA;
+      break;
     default:
       DLOGW("Unsupported format %s", GetFormatString(format));
   }
@@ -496,7 +503,7 @@ int HWDeviceDRM::Registry::CreateFbId(const LayerBuffer &buffer, std::vector<uin
     if (ret < 0) {
       DLOGE(
           "CreateFbId failed. width %d, height %d, format: %s, stride %u, "
-          "cac_color %d, usage %d error %d",
+          "cac_color %d, usage %" PRIu64 " error %d",
           layout.width, layout.height, GetFormatString(buf_info.format), layout.stride[0], color,
           buffer.usage, errno);
     }
@@ -886,6 +893,21 @@ void HWDeviceDRM::InitializeConfigs() {
   // Set mode with preferred panel mode if supported, otherwise set based on capability
   for (uint32_t mode_index = 0; mode_index < modes_count; mode_index++) {
     uint32_t sub_mode_index = connector_info_.modes[mode_index].curr_submode_index;
+
+    // The block is used to find which mode has emsync_fps_list, then we will use the emsync fps
+    // in the emsync_fps_list and the mode to create a new mode.
+    uint32_t emsync_fps_submode_index = 0;
+    sde_drm::DRMModeInfo current_mode = connector_info_.modes[mode_index];
+    for (uint32_t submode_idx = 0; submode_idx < current_mode.sub_modes.size(); submode_idx++) {
+      if (current_mode.sub_modes[submode_idx].emsync_fps_list.size() > 1) {
+        emsync_fps_submode_index = submode_idx;
+        break;
+      }
+    }
+    uint32_t emsync_fps_list_size = connector_info_.modes[mode_index]
+                                        .sub_modes[emsync_fps_submode_index]
+                                        .emsync_fps_list.size();
+
     connector_info_.modes[mode_index].curr_compression_mode =
               connector_info_.modes[mode_index].sub_modes[sub_mode_index].panel_compression_mode;
     connector_info_.modes[mode_index].curr_bpp_mode =
@@ -909,6 +931,21 @@ void HWDeviceDRM::InitializeConfigs() {
               ? DRM_MODE_FLAG_VID_MODE_PANEL
               : DRM_MODE_FLAG_CMD_MODE_PANEL;
       connector_info_.modes.push_back(mode_item);
+    }
+    // Add mode variant if emsync fps list is not empty, and doesn't support DS mode switch
+    if (connector_info_.emsync_switch_enabled && (emsync_fps_list_size > 1) &&
+        !hw_resource_.hw_dest_scalar_info.count) {
+      std::vector<uint32_t> emsync_fps_list =
+          connector_info_.modes[mode_index].sub_modes[emsync_fps_submode_index].emsync_fps_list;
+      sde_drm::DRMModeInfo mode_item = connector_info_.modes[mode_index];
+      for (uint32_t i = 0; i < emsync_fps_list.size(); i++) {
+        if (mode_item.avr_step_fps != emsync_fps_list[i]) {
+          mode_item.avr_step_fps = emsync_fps_list[i];
+          connector_info_.modes.push_back(mode_item);
+          connector_info_.modes[connector_info_.modes.size() - 1].is_virtual_config = true;
+          connector_info_.modes[connector_info_.modes.size() - 1].parent_config_index = mode_index;
+        }
+      }
     }
   }
   // Update current mode with preferred mode
@@ -1010,6 +1047,11 @@ DisplayError HWDeviceDRM::PopulateDisplayAttributes(uint32_t index) {
   display_attributes_[index].allowed_mode_switch = connector_info_.modes[index].allowed_mode_switch;
   display_attributes_[index].avr_step = connector_info_.modes[index].avr_step_fps;
   display_attributes_[index].early_ept_timeout = connector_info_.modes[index].early_ept_timeout;
+  display_attributes_[index].is_virtual_config = connector_info_.modes[index].is_virtual_config;
+  display_attributes_[index].parent_config_index = connector_info_.modes[index].parent_config_index;
+  //Indicate that this is a switchable VRR mode
+  display_attributes_[index].allowed_vrr_mode_switch =
+      connector_info_.emsync_switch_enabled && connector_info_.modes[index].avr_step_fps;
 
   UpdateDisplayAttributesForFSC(&display_attributes_[index]);
 
@@ -1110,6 +1152,7 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
   hw_panel_info_.dynamic_fps = connector_info_.dynamic_fps;
   hw_panel_info_.qsync_support = connector_info_.qsync_support;
   hw_panel_info_.has_cwb_crop = has_cwb_crop_;
+  hw_panel_info_.dpu_dma_enabled = connector_info_.dpu_dma_enabled;
   if (connector_info_.dms_type == sde_drm::DMSType::DMS_VID_SEAMLESS) {
     hw_panel_info_.dms_type = kDMSVIDSeamless;
   } else if (connector_info_.dms_type == sde_drm::DMSType::DMS_VID_NON_SEAMLESS) {
@@ -1342,11 +1385,14 @@ void HWDeviceDRM::SetDisplaySwitchMode(uint32_t index) {
     panel_mode_changed_ = mode_flag;
   }
 
+  //In VRR use case, there are two modes with the same mode info but different avr_step_fps,
+  //So still need to configure display mode index with to_set mode index
   for (uint32_t mode_index = 0; mode_index < connector_info_.modes.size(); mode_index++) {
     if ((to_set.mode.vdisplay == connector_info_.modes[mode_index].mode.vdisplay) &&
         (to_set.mode.hdisplay == connector_info_.modes[mode_index].mode.hdisplay) &&
         (to_set.mode.vrefresh == connector_info_.modes[mode_index].mode.vrefresh) &&
-        (mode_flag & connector_info_.modes[mode_index].cur_panel_mode)) {
+        (mode_flag & connector_info_.modes[mode_index].cur_panel_mode) &&
+        (!connector_info_.emsync_switch_enabled)) {
       for (uint32_t submode_idx = 0; submode_idx <
            connector_info_.modes[mode_index].sub_modes.size(); submode_idx++) {
         sde_drm::DRMSubModeInfo sub_mode = connector_info_.modes[mode_index].sub_modes[submode_idx];
@@ -1537,7 +1583,7 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   if (ret) {
     DLOGE(
         "Failed with error: %d, dynamic_fps=%d, seamless_mode_switch_=%d, vrefresh_=%d,"
-        "panel_mode_changed_=%d bit_clk_rate_=%d bpp_mode_changed_=%d",
+        "panel_mode_changed_=%d bit_clk_rate_=%" PRIu64 " bpp_mode_changed_=%d",
         ret, hw_panel_info_.dynamic_fps, seamless_mode_switch_, vrefresh_, panel_mode_changed_,
         bit_clk_rate_, bpp_mode_changed_);
     bpp_mode_changed_ = 0;
@@ -1926,6 +1972,7 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
           SetBlending(layer_blend, &blending);
           drm_atomic_intf_->Perform(DRMOps::PLANE_SET_BLEND_TYPE, pipe_id, blending);
 
+          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_COLOR_MASK_OVERRIDE, pipe_id, 0x0);
           if (hw_layers_info->layer_exts.size() && hw_layers_info->layer_exts.at(i).rgba_split) {
             DLOGI_IF(kTagDriverConfig,
                      "RGBA Split Layer[%d] Blend(curr) = %d being set to opaque,"
@@ -2149,6 +2196,11 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
                                          ? sde_drm::DRMAvrStepState::ENABLE
                                          : sde_drm::DRMAvrStepState::DISABLE;
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_AVR_STEP_STATE, token_.conn_id, state);
+  }
+
+  if (hw_layers_info->common_info->hw_avr_info.update.test(kUpdateAVRStepFpsFlag)) {
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_EMSYNC_FPS, token_.conn_id,
+                              current_mode.avr_step_fps);
   }
 
   // dpps commit feature ops doesn't use the obj id, set it as -1
@@ -2695,7 +2747,7 @@ DisplayError HWDeviceDRM::SelectCscTypeWithMatrixCoEfficients(const LayerBuffer 
       break;
     case QtiMatrixCoEff_DCIP3:
       *type = ((input_buffer.dataspace.range == QtiRange_Full) ? DRMCscType::kCscYuv2RgbDCIP3FR
-                                                               : DRMCscType::kCscTypeMax);
+                                                               : DRMCscType::kCscYuv2RgbDCIP3L);
       break;
     default:
       return kErrorNotSupported;
@@ -2720,8 +2772,8 @@ void HWDeviceDRM::SelectCscTypeWithColorPrimaries(const LayerBuffer &input_buffe
                 DRMCscType::kCscYuv2Rgb2020FR : DRMCscType::kCscYuv2Rgb2020L);
       break;
     case QtiColorPrimaries_DCIP3:
-      *type = ((input_buffer.dataspace.range == QtiRange_Full) ?
-                DRMCscType::kCscYuv2RgbDCIP3FR : DRMCscType::kCscTypeMax);
+      *type = ((input_buffer.dataspace.range == QtiRange_Full) ? DRMCscType::kCscYuv2RgbDCIP3FR
+                                                               : DRMCscType::kCscYuv2RgbDCIP3L);
       break;
     default:
       break;
@@ -3408,7 +3460,7 @@ void HWDeviceDRM::SetUcscCsc(const HWUcscCsc &ucsc_csc, drm_msm_ucsc_csc *csc) {
   csc->cfg_param_0_len = UCSC_CSC_CFG0_PARAM_LEN;
   for (i = 0; i < csc->cfg_param_0_len; i++) {
     csc->cfg_param_0[i] = ucsc_csc.cfg_param_0[i];
-    DLOGV_IF(kTagDriverConfig, " UCSC csc[%d] = %lld", i, csc->cfg_param_0[i]);
+    DLOGV_IF(kTagDriverConfig, " UCSC csc[%d] = %" PRIu32, i, csc->cfg_param_0[i]);
   }
   csc->cfg_param_1_len = UCSC_CSC_CFG1_PARAM_LEN;
   for (i = 0; i < csc->cfg_param_1_len; i++) {
