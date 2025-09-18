@@ -4072,6 +4072,41 @@ DisplayError DisplayBuiltIn::SetDemuraState(int state, int demura_idx) {
       }
     }
     if (demura_allowed_) {
+      // Parse parsers for case: apply T0 config without reboot
+      std::shared_ptr<DemuraTnValidatorIntf> validator_intf =
+          pf_factory_->CreateDemuraTnValidatorIntf();
+      if (!validator_intf) {
+        DLOGW("Failed to get DemuraTnValidatorIntf");
+        return kErrorUndefined;
+      }
+      int ret = validator_intf->Init();
+      if (ret) {
+        DLOGW("Failed to init DemuraTnValidatorIntf, ret %d", ret);
+        return kErrorResources;
+      }
+
+      // Config demura double buffer codebook flags
+      GenericPayload flags_pl;
+      bool *flags_ptr = nullptr;
+      ret = flags_pl.CreatePayload<bool>(flags_ptr);
+      if (ret) {
+        DLOGE("Failed to create the payload for flags_ptr. Error:%d", ret);
+        return kErrorResources;
+      }
+      *flags_ptr = double_buffer_codebook_supported_;
+      ret = validator_intf->SetParameter(kDemuraTnValidatorDoubleBufferCodebookFlags, flags_pl);
+      if (ret) {
+        DLOGE("Failed to Set double buffer codebook flags, ret %d", ret);
+        return kErrorResources;
+      }
+
+      GenericPayload input_payload;
+      ret = validator_intf->SetParameter(kDemuraTnValidatorCleanupFiles, input_payload);
+      if (ret) {
+        DLOGW("Failed to Set DemuraTnValidatorCleanupFiles, ret %d", ret);
+        return kErrorResources;
+      }
+
       error = SendPanelIdToParserManager();
       if (error) {
         DLOGE("Failed to setup parser manager, error %d", error);
