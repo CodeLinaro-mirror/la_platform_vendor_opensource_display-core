@@ -2317,7 +2317,11 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
     usleep(UINT32((elapse_timestamp - current_time) / 1000));
   }
 
+#ifdef __ANDROID__
+  int ret = drm_atomic_intf_->Commit(sync_commit, false /* retain_planes*/, NULL);
+#else
   int ret = drm_atomic_intf_->Commit(sync_commit, false /* retain_planes*/, pflip_user_data_);
+#endif
   shared_ptr<Fence> release_fence = Fence::Create(INT(release_fence_fd), "release");
   shared_ptr<Fence> retire_fence = Fence::Create(INT(retire_fence_fd), "retire");
   if (ret) {

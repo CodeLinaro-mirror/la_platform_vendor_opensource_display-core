@@ -1759,6 +1759,19 @@ DisplayError SDMServices::QdcmCMDHandler(SDMParcel *input_parcel,
             }
           }
         }
+        for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_EXTERNAL_2)) {
+          uint32_t id = UINT32(map_info.client_id);
+          if (id < kNumDisplays && cb_->GetDisplayFromClientId(id)) {
+            auto result = kErrorNone;
+            resp_payload.DestroyPayload();
+            result = cb_->GetDisplayFromClientId(id)->ColorSVCRequestRoute(
+                req_payload, &resp_payload, &pending_action);
+            if (result) {
+              DLOGW("Failed to dispatch action to disp %d ret %d", id, result);
+              ret = result;
+            }
+          }
+        }
         break;
       case kMultiDispGetId:
         ret = resp_payload.CreatePayloadBytes(kNumDisplays, &disp_id);
