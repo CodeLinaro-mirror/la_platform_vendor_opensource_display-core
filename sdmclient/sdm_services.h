@@ -113,6 +113,7 @@ enum {
   SDM_SERVICE_GET_PANEL_RESOLUTION = 65,      // Get panel resolution
   SDM_SERVICE_SET_STANDBY_MODE = 66,          // Set standby mode
   SDM_SERVICE_SET_PRIVACY_REGIONS = 67,       // Set PrivacyRegions on given layers in frame
+  SDM_SERVICE_GET_PANEL_FEATURE_CONFIG = 68,  // Get panel feature configuration
   SDM_SERVICE_COMMAND_LIST_END = 400,
 };
 
@@ -320,6 +321,7 @@ private:
                                            SDMParcel *output_parcel);
   DisplayError GetDisplayPortId(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError SetPanelFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
+  DisplayError GetPanelFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError GetPanelResolution(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError SetStandbyMode(SDMParcel *input_parcel);
   DisplayError SetPrivacyRegions(SDMParcel *input_parcel);
@@ -391,6 +393,7 @@ private:
       {SDM_SERVICE_GET_DISPLAY_PORT_ID, &SDMServices::GetDisplayPortId},
       {SDM_SERVICE_SET_PANEL_FEATURE_CONFIG, &SDMServices::SetPanelFeatureConfig},
       {SDM_SERVICE_GET_PANEL_RESOLUTION, &SDMServices::GetPanelResolution},
+      {SDM_SERVICE_GET_PANEL_FEATURE_CONFIG, &SDMServices::GetPanelFeatureConfig},
   };
 
   int bw_mode_release_fd_ = -1;

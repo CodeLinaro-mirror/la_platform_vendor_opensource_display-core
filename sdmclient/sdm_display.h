@@ -534,6 +534,9 @@ public:
   virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data) {
     return kErrorNotSupported;
   }
+  virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t input_size) {
+    return kErrorNotSupported;
+  }
   DisplayError GetCachedActiveConfig(bool get_real_config, Config *config);
   virtual void TimeoutOnBuiltins(){};
   virtual void IdleTimeout(){};
