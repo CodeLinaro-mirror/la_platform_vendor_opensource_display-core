@@ -423,6 +423,8 @@ enum PanelFeatureVendorServiceType {
   kTypeDemuraTnAgingSurfTransfer = 11,
   /* Setter: None */
   kTypeSwitchToDAC = 12,
+  /* Getter: char* */
+  kTypeGetDemuraTnAgingValue = 13,
   PanelFeatureVendorServiceTypeMax,
 };
 
@@ -1550,6 +1552,16 @@ class DisplayInterface {
    @return \link DisplayError \endlink
   */
   virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data) = 0;
+
+  /*! @brief Method to get DemuraTn aging value for R, G, B components
+
+   @param[in] type : operation type
+   @param[in] data : pointer to the data
+   @param[in] data_size : size of data
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size) = 0;
 
   /*! @brief Method to enable/disable COPR feature.
 

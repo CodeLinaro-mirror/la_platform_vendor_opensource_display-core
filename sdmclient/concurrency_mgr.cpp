@@ -2756,6 +2756,11 @@ DisplayError ConcurrencyMgr::SetPanelFeatureConfig(Display display, int32_t type
   return CallDisplayFunction(display, &SDMDisplay::SetPanelFeatureConfig, type, data);
 }
 
+DisplayError ConcurrencyMgr::GetPanelFeatureConfig(Display display, int32_t type, void *data,
+                                                   uint32_t data_size) {
+  return CallDisplayFunction(display, &SDMDisplay::GetPanelFeatureConfig, type, data, data_size);
+}
+
 DisplayError ConcurrencyMgr::ClearBuffersMappedToLayer(uint64_t display, LayerId layer_id,
                                                        const SnapHandle *layerBuffer) {
   return CallDisplayFunction(display, &SDMDisplay::ClearBuffersMappedToLayer, layer_id,

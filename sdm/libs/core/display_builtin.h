@@ -266,6 +266,8 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetABCMode(const string &mode_name) override;
   DisplayError SetAIScalerMode(uint32_t mode_id) override;
   DisplayError SetPanelFeatureConfig(int32_t type, void *data) override;
+  DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size) override;
+  DisplayError GetDemuraTnAgingValue(void *data, uint32_t size);
   DisplayError StartTvmServices();
   DisplayError StartService(TvmDispServiceManagerParams service);
   DisplayError ExportDemuraFiles();
