@@ -3941,7 +3941,8 @@ bool HWDeviceDRM::SetupConcurrentWriteback(const HWLayersInfo &hw_layer_info, bo
       // Tear down the Concurrent Writeback topology.
       DeconfigureDNSCfromCwb();
       drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, cwb_config_[core_id_].token.conn_id, 0);
-      DLOGI("Tear down the Concurrent Writeback topology");
+      DLOGI("Tear down the Concurrent Writeback topology on display %d-%d.", display_id_,
+            disp_type_);
     }
   }
 
@@ -4029,6 +4030,8 @@ void HWDeviceDRM::ConfigureConcurrentWriteback(const HWLayersInfo &hw_layer_info
 
   sde_drm::DRMRect cwb_dst = full_frame;
   LayerRect cwb_roi = cwb_config->cwb_roi;
+  bool is_full_frame_update = IsFullFrameUpdate(hw_layer_info);
+
   if (ConfigureDNSCforCwb(const_cast<HWLayersInfo *>(&hw_layer_info))) {
 #ifdef FEATURE_DNSC_BLUR
     auto &dnsc_cfg = cwb_config_[core_id_].dnsc_cfg;
@@ -4054,13 +4057,21 @@ void HWDeviceDRM::ConfigureConcurrentWriteback(const HWLayersInfo &hw_layer_info
     cwb_dst.right = cwb_dst.left + dnsc_cfg.dst_width;
     cwb_dst.bottom = cwb_dst.top + dnsc_cfg.dst_height;
 #endif
-    DLOGV_IF(kTagDriverConfig, "CWB downscale Dest_Rect(%d, %d, %d, %d) for Source WxH (%d, %d)",
+    if (has_cwb_crop_ && is_full_frame_update) {
+      // CWB downscale doesn't support partial update
+      drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_ROI, vitual_conn_id, 0, nullptr);
+    } else {
+      DLOGW("CWB downscale needs full frame update for display %d-%d", display_id_, disp_type_);
+    }
+
+    DLOGV_IF(kTagDriverConfig,
+             "CWB downscale Dest_Rect(%d, %d, %d, %d) for Source WxH (%d, %d)"
+             " on display %d-%d.",
              cwb_dst.left, cwb_dst.top, cwb_dst.right, cwb_dst.bottom, full_frame.right,
-             full_frame.bottom);
+             full_frame.bottom, display_id_, disp_type_);
   } else if (has_cwb_crop_) {  // If CWB ROI feature is supported, then set WB connector's roi_v1
     // property to PU ROI and DST_* properties to CWB ROI. Else, set DST_* properties to full
     // frame ROI.
-    bool is_full_frame_update = IsFullFrameUpdate(hw_layer_info);
     // Set WB connector's roi_v1 property to PU_ROI.
     if (is_full_frame_update) {
       drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_ROI, vitual_conn_id, 0, nullptr);
@@ -4118,8 +4129,11 @@ void HWDeviceDRM::ConfigureConcurrentWriteback(const HWLayersInfo &hw_layer_info
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_OUTPUT_RECT, vitual_conn_id, cwb_dst);
   ConfigureCWBDither(cwb_config->dither_info, vitual_conn_id, capture_mode);
 
-  DLOGV_IF(kTagDriverConfig, "CWB Mode:%d roi.left:%u roi.top:%u roi.right:%u roi.bottom:%u",
-           capture_mode, cwb_dst.left, cwb_dst.top, cwb_dst.right, cwb_dst.bottom);
+  DLOGV_IF(kTagDriverConfig,
+           "CWB Mode:%d roi.left:%u roi.top:%u roi.right:%u roi.bottom:%u on "
+           "display %d-%d.",
+           capture_mode, cwb_dst.left, cwb_dst.top, cwb_dst.right, cwb_dst.bottom, display_id_,
+           disp_type_);
 }
 
 DisplayError HWDeviceDRM::TeardownConcurrentWriteback(void) {
