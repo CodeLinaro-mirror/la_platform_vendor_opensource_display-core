@@ -65,6 +65,8 @@ public:
  virtual DisplayError SetDetailEnhancerConfig(const DisplayDetailEnhancerData &de_data);
  virtual DisplayError NotifyDisplayCalibrationMode(bool in_calibration);
 
+ virtual DisplayError SetupVRRConfig();
+ virtual DisplayError SetQSyncMode(QSyncMode qsync_mode);
 private:
  SDMDisplayPluggable(CoreInterface *core_intf, BufferAllocator *buffer_allocator,
                      SDMCompositorCallbacks *callbacks, SDMDisplayEventHandler *event_handler,
