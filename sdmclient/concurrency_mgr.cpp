@@ -1875,7 +1875,7 @@ DisplayError ConcurrencyMgr::SetActiveConfigWithConstraints(
 }
 
 DisplayError ConcurrencyMgr::WaitForCommitDoneAsync(uint64_t display, int client_id) {
-  std::chrono::milliseconds span(2000);
+  std::chrono::milliseconds span(500);
   if (commit_done_future_[display].valid()) {
     std::future_status status =
         commit_done_future_[display].wait_for(std::chrono::milliseconds(0));
