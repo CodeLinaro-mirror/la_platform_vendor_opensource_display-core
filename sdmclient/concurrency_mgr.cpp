@@ -1306,8 +1306,6 @@ void ConcurrencyMgr::SendRefresh(Display display) {
 }
 
 void ConcurrencyMgr::Refresh(uint64_t display) {
-  SCOPE_LOCK(client_lock_);
-
   std::thread(&ConcurrencyMgr::SendRefresh, this, display).detach();
   client_pending_refresh_.set(UINT32(display));
 }
