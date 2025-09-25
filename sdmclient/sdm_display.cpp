@@ -4407,4 +4407,28 @@ void SDMDisplay::SetPrivacyRegionsData(uint32_t layer_id, float corner_radius,
   layer->SetLayerCornerRadius(radius);
 }
 
+DisplayError SDMDisplay::ClearBuffersMappedToLayer(LayerId layer_id,
+                                                   const SnapHandle *layerBuffer) {
+  // Get BufferID from SnapHandle
+  uint64_t buffer_id = 0;
+  if (layerBuffer == nullptr) {
+    DLOGW("Layer Buffer(SnapHandle) is NULL for layer_id %d on display : %d-%d", layer_id, sdm_id_,
+          type_);
+    return kErrorParameters;
+  }
+  GetMetadata(layerBuffer, MetadataType::BUFFER_ID, &buffer_id, snapmapper_);
+  for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
+    Layer *layer = sdm_layer->GetSDMLayer();
+    if (layer->layer_id == layer_id) {
+      auto it = layer->buffer_map->buffer_map.find(buffer_id);
+      if (it != layer->buffer_map->buffer_map.end()) {
+        DLOGV_IF(kTagClient, "Buffer_id %d exists in fbid buffermap of layer - %d.Erasing it.",
+                 buffer_id, layer_id);
+        layer->buffer_map->buffer_map.erase(it);
+      }
+    }
+  }
+  return kErrorNone;
+}
+
 }  // namespace sdm
