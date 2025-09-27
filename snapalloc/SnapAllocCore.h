@@ -35,6 +35,7 @@ class SnapAllocCore {
   Error FlushLockedBuffer(SnapHandle *hnd);
   Error RereadLockedBuffer(SnapHandle *hnd);
   Error IsSupported(BufferDescriptor desc, bool *is_supported);
+  bool IsFormatSupportedByGPU(BufferDescriptor desc);
   Error GetMetadata(SnapHandle *hnd, vendor_qti_hardware_display_common_MetadataType type,
                     void *out);
   Error SetMetadata(SnapHandle *hnd, vendor_qti_hardware_display_common_MetadataType type,
