@@ -1077,6 +1077,7 @@ struct DRMModeInfo {
   uint32_t avr_step_fps = 0;
   uint32_t early_ept_timeout;
   bool vhm_support = false;
+  uint32_t lm_mask = 0;
   bool is_virtual_config = false;
   int32_t parent_config_index = -1;
 };

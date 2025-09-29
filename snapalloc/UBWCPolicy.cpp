@@ -54,7 +54,8 @@ bool UBWCPolicy::IsUBWCAlloc(BufferDescriptor desc) {
   if (GetPixelFormatModifier(desc) ==
       static_cast<uint64_t>(vendor_qti_hardware_display_common_PixelFormatModifier::
                                 PIXEL_FORMAT_MODIFIER_EXPLICIT_UBWC)) {
-    DLOGI("%s - Explicit ubwc format %d passed by the clients", __FUNCTION__, desc.format);
+    DLOGD_IF(enable_logs, "%s - Explicit ubwc format %d passed by the clients", __FUNCTION__,
+             desc.format);
     return true;
   }
 

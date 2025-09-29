@@ -61,9 +61,9 @@ PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/display_id_4630
 #SDR Dimming config file for nt37802 video PSR VHM, display id is 4630946850534658451
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/display_id_4630946916234099603.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_4630946850534658451.xml
 
+PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/display_id_4630947249835489681.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_4630947249835489681.xml
+
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/sdm_display_resolution_extn.xml:$(TARGET_COPY_OUT_VENDOR)/etc/display/sdm_display_resolution_extn.xml
 
-ifneq ($(TARGET_HAS_LOW_RAM),true)
 #Multi-stc libraries config xml file
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/snapdragon_color_libs_config.xml:$(TARGET_COPY_OUT_VENDOR)/etc/snapdragon_color_libs_config.xml
-endif

@@ -786,7 +786,9 @@ void DisplayBase::ConfigureCwbParams(LayerStack *layer_stack) {
 
     uint32_t cwb_roi_supported = 0;  // Check whether CWB ROI is supported.
     IsSupportedOnDisplay(kCwbCrop, &cwb_roi_supported);
-    if (!cwb_roi_supported) {  // If CWB ROI isn't supported, then go for full frame update
+    // If either CWB ROI isn't supported or expected downscaled CWB output, then go for full
+    // frame update
+    if (!cwb_roi_supported || layer_stack->cwb_config->cwb_control_params.needs_downscale) {
       disable_pu_one_frame_ = true;
     }
   } else if (cwb_configured_) {  // CWB isn't requested in the current draw cycle.
@@ -4133,10 +4135,12 @@ PrimariesTransfer DisplayBase::GetBlendSpaceFromColorMode() {
     pt.primaries = GetColorPrimariesFromAttribute(color_gamut, allow_tonemap_native_);
     if (transfer == kHlg) {
       pt.transfer = QtiTransfer_HLG;
-    } else {
+    } else if (transfer == kSt2084) {
       pt.transfer = QtiTransfer_SMPTE_ST2084;
+    } else {
+      pt.transfer = QtiTransfer_sRGB;
     }
-  } else if (color_gamut == kDcip3) {
+  } else if (color_gamut == kDcip3 || color_gamut == kBt2020) {
     pt.primaries = GetColorPrimariesFromAttribute(color_gamut, allow_tonemap_native_);
     pt.transfer = QtiTransfer_sRGB;
   } else if (color_gamut == kNative && !allow_tonemap_native_) {

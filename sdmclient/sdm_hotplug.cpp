@@ -27,8 +27,8 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <sys/prctl.h>
@@ -165,6 +165,10 @@ void SDMHotPlug::ProcessEvent() {
 
   std::unique_lock<std::mutex> evt_lock(hpd_mutex_);
   while (1) {
+    if (hpd_thread_should_terminate_) {
+      break;
+    }
+
     hpd_cv_.wait(evt_lock);
 
     if (hpd_thread_should_terminate_) {

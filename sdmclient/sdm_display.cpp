@@ -458,6 +458,10 @@ void SDMColorModeMgr::PopulateColorModes() {
         color_mode_map_[SDMColorMode::COLOR_MODE_DISPLAY_P3][render_intent]
                        [kSdrType] = mode_string;
       }
+      if (color_gamut == kBt2020 && dynamic_range == kSdr) {
+        color_mode_map_[SDMColorMode::COLOR_MODE_DISPLAY_BT2020][render_intent][kSdrType] =
+            mode_string;
+      }
       if (color_gamut == kDcip3 && dynamic_range == kHdr) {
         if (display_intf_->IsSupportSsppTonemap()) {
           color_mode_map_[SDMColorMode::COLOR_MODE_DISPLAY_P3][render_intent]
@@ -1177,6 +1181,12 @@ DisplayError SDMDisplay::SetPowerMode(SDMPowerMode mode, bool teardown) {
   current_power_mode_ = mode;
 
   PostPowerMode();
+
+  if (scheduled_dynamic_dsi_clk_ && mode == SDMPowerMode::POWER_MODE_ON) {
+    uint64_t dsi_clk = scheduled_dynamic_dsi_clk_;
+    scheduled_dynamic_dsi_clk_ = 0;
+    ScheduleDynamicDSIClock(dsi_clk);
+  }
 
   return kErrorNone;
 }
@@ -2004,6 +2014,7 @@ DisplayError SDMDisplay::CommitOrPrepare(bool validate_only,
   *needs_commit = error == kErrorNeedsCommit;
 
   if (!(*needs_commit)) {
+    valid_commit_ = true;
     PostCommitLayerStack(out_retire_fence);
   }
 
@@ -2038,6 +2049,7 @@ DisplayError SDMDisplay::CommitLayerStack(void) {
     // A commit is successfully submitted, start flushing on failure now
     // onwards.
     flush_on_error_ = true;
+    valid_commit_ = true;
   } else {
     if (error == kErrorShutDown) {
       shutdown_pending_ = true;
@@ -3474,6 +3486,13 @@ DisplayError SDMDisplay::HandleSecureEvent(SecureEvent secure_event,
     DLOGI("Resume display %d-%d", sdm_id_, type_);
     display_paused_ = false;
     display_pause_pending_ = false;
+
+    if (scheduled_dynamic_dsi_clk_) {
+      uint64_t dsi_clk = scheduled_dynamic_dsi_clk_;
+      scheduled_dynamic_dsi_clk_ = 0;
+      ScheduleDynamicDSIClock(dsi_clk);
+    }
+
     if (*needs_refresh == false || secure_event == kTUITransitionUnPrepare) {
       secure_event_ = kSecureEventMax;
       return kErrorNone;
