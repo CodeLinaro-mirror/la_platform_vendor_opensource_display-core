@@ -27,10 +27,10 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
+ * Changes from Qualcomm Technologies, Inc. are provided under the
  * following license:
  *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <stdarg.h>
@@ -58,6 +58,9 @@ static SDMColorMode GetColorModeFromBlendSpace(const ColorPrimaries &gamut,
   }
   if (gamut == ColorPrimaries_DCIP3 && transfer == Transfer_sRGB) {
     return SDMColorMode::COLOR_MODE_DISPLAY_P3;
+  }
+  if (gamut == ColorPrimaries_BT2020 && transfer == Transfer_sRGB) {
+    return SDMColorMode::COLOR_MODE_DISPLAY_BT2020;
   }
   if (gamut == ColorPrimaries_BT2020 && transfer == Transfer_SMPTE_ST2084) {
     return SDMColorMode::COLOR_MODE_BT2100_PQ;
