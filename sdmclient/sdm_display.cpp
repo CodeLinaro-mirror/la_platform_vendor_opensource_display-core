@@ -1771,7 +1771,10 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
   layer_stack_.client_incompatible = false;
   validate_done_ = true;
 
-  return (layer_changes_.size() || display_luts_.size()) ? kErrorNeedsCommit : kErrorNone;
+  return ((layer_requests_.size() && has_client_composition_) || layer_changes_.size() ||
+          display_luts_.size())
+             ? kErrorNeedsCommit
+             : kErrorNone;
 }
 
 DisplayError SDMDisplay::AcceptDisplayChanges() {
