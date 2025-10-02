@@ -82,7 +82,7 @@ public:
  virtual DisplayError GetFrameCaptureStatus() { return frame_capture_status_; }
  virtual DisplayError SetDetailEnhancerConfig(const DisplayDetailEnhancerData &de_data);
  virtual DisplayError SetHWDetailedEnhancerConfig(void *params);
- virtual DisplayError ControlPartialUpdate(bool enable, uint32_t *pending);
+ virtual DisplayError ControlPartialUpdate(bool enable);
  virtual DisplayError SetBppMode(uint32_t bpp);
  virtual DisplayError SetQSyncMode(QSyncMode qsync_mode);
  virtual DisplayError ControlIdlePowerCollapse(bool enable, bool synchronous);
