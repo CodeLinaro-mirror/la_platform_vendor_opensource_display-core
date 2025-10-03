@@ -1662,7 +1662,7 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::EMSYNC_FPS),
                                avr_step_fps);
       DRM_LOGD("Connector %d: Setting Avr Step Fps = %d", obj_id, avr_step_fps);
-    }
+    } break;
 
     case DRMOps::CONNECTOR_SET_PRIVACY_REGIONS: {
 #ifdef MAX_PRIVACY_LAYERS
