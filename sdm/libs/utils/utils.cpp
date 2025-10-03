@@ -28,8 +28,8 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -232,6 +232,7 @@ const char* GetSocName() {
     case kCanoeSocId3:
     case kCanoeSocId4:
     case kCanoeSocId5:
+    case kCanoeSocId6:
     case kCanoeSSocId:
     case kCanoeSSocId1:
       return kCanoeSocName;
