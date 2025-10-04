@@ -627,7 +627,7 @@ int SDMDisplayBuilder::HandlePluggableDisplays(bool delay_hotplug) {
 
       if (active_builtin_disp_id < kNumDisplays) {
         if (delay_hotplug) {
-          cb_->WaitForCommitDone(active_builtin_disp_id, kClientTrustedUI);
+          cb_->WaitForCommitDoneAsync(active_builtin_disp_id, kClientTrustedUI);
         } else {
           callbacks_->OnRefresh(active_builtin_disp_id);
         }
@@ -649,7 +649,7 @@ int SDMDisplayBuilder::HandlePluggableDisplays(bool delay_hotplug) {
 
   pending_hotplug_event_ = kHotPlugNone;
   if (active_builtin_disp_id < kNumDisplays && delay_hotplug) {
-    cb_->WaitForCommitDone(active_builtin_disp_id, kClientTrustedUI);
+    cb_->WaitForCommitDoneAsync(active_builtin_disp_id, kClientTrustedUI);
   }
 
   DLOGI("Handling hotplug... Done.");
