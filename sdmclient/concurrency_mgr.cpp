@@ -260,6 +260,10 @@ void ConcurrencyMgr::PostInit() {
 
 DisplayError ConcurrencyMgr::Deinit() {
   DLOGI("Destroying and cleaning up concurrency manager");
+
+  // Terminate async thread to process CWB status
+  cwb_->TerminateCwbStatusThread();
+
   if (hpd_) {
     hpd_->Deinit();
     delete hpd_;

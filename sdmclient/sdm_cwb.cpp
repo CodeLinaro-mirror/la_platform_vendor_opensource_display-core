@@ -26,11 +26,13 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #include <utils/debug.h>
 
 #include "sdm_cwb.h"
@@ -76,11 +78,11 @@ DisplayError SDMConcurrentWriteBack::PostBuffer(const CwbConfig &cwb_config,
         }
       }
 
-      // Ensure that async task runs only until all queued CWB requests have
-      // been fulfilled. If cwb queue is empty, async task has not either
-      // started or async task has finished processing previously queued cwb
-      // requests. Start new async task on such a case as currently running
-      // async task will automatically desolve without processing more requests.
+      // Async task runs only on receiving 1st cwb request and processes all queued CWB requests.
+      // If cwb queue is empty, async task has not either started or async task has finished
+      // processing previously queued cwb requests. If async task is already running but the
+      // queue is empty then, thread waits till the session map queue has new request.
+      // Wake up async task thread if queue was empty before current cwb request.
       if (error == kErrorNone) {
         session_map.queue.push_back(node);
       }
@@ -101,6 +103,11 @@ DisplayError SDMConcurrentWriteBack::PostBuffer(const CwbConfig &cwb_config,
   if (error == kErrorNone) {
     DLOGV_IF(kTagCwb, "Successfully configured CWB buffer(handle id: %" PRIu64 ").",
              node_handle_id);
+    std::unique_lock<std::mutex> lock(session_map.lock);
+    if (session_map.async_thread_running == true && session_map.queue.size() == 1) {
+      // Queue is no longer empty, Wake up thread to process cwb status
+      session_map.cv.notify_one();
+    }
   } else {
     std::unique_lock<std::mutex> lock(session_map.lock);
     // If current node is pushed in the queue, then need to remove it again on
@@ -114,13 +121,10 @@ DisplayError SDMConcurrentWriteBack::PostBuffer(const CwbConfig &cwb_config,
   std::unique_lock<std::mutex> lock(session_map.lock);
   if (!session_map.async_thread_running && !session_map.queue.empty()) {
     session_map.async_thread_running = true;
-    // No need to do future.get() here for previously running async task. Async
-    // method will guarantee to exit after cwb for all queued requests is indeed
-    // complete i.e. the respective fences have signaled and client is notified
-    // through registered callbacks. This will make sure that the new async task
-    // does not concurrently work with previous task. Let async running thread
-    // dissolve on its own. Check, If thread is not running, then need to
-    // re-execute the async thread.
+    // Async thread creation happens only for the 1st CWB request, and
+    // destroyed as part of Concurrency Manager DeInit sequence.
+    // Thread is suspended in case there are no requests to handle.
+    // Wakeup thread again on receiving new request node in queue.
     session_map.future = std::async(
         SDMConcurrentWriteBack::AsyncTaskToProcessCWBStatus, this, dpy_index);
   }
@@ -179,10 +183,13 @@ void SDMConcurrentWriteBack::ProcessCWBStatus(int dpy_index) {
     std::shared_ptr<QueueNode> cwb_node = nullptr;
     {
       std::unique_lock<std::mutex> lock(session_map.lock);
-      // Exit thread in case of no pending CWB request in queue.
+      // Suspend thread in case there are no pending CWB request in queue.
+      // Thread will wakup when new node is available to process in queue.
       if (session_map.queue.empty()) {
-        // Update thread exiting status.
-        session_map.async_thread_running = false;
+        session_map.cv.wait(lock);
+      }
+      if (session_map.async_thread_running == false) {
+        // Terminate async thread
         break;
       }
 
@@ -215,6 +222,15 @@ void SDMConcurrentWriteBack::ProcessCWBStatus(int dpy_index) {
     cb_->NotifyCWBStatus(cwb_node->notified_status, cwb_node->buffer);
   }
   DLOGI("CWB queue is empty. Display: %d", dpy_index);
+}
+
+void SDMConcurrentWriteBack::TerminateCwbStatusThread() {
+  for (auto &itr : display_cwb_session_map_) {
+    auto &session_map = display_cwb_session_map_[itr.first];
+    std::unique_lock<std::mutex> lock(session_map.lock);
+    itr.second.async_thread_running = false;
+    session_map.cv.notify_one();
+  }
 }
 
 } // namespace sdm
