@@ -1306,7 +1306,7 @@ DisplayError SDMServices::SetFrameDumpConfig(SDMParcel *input_parcel) {
     output_format = input_parcel->readInt32();
   }
 
-  LayerBufferFormat sdm_format = buffer_allocator_->GetSDMFormat(output_format, 0, 0);
+  LayerBufferFormat sdm_format = buffer_allocator_->GetSDMFormat(output_format, 0, 0, 0);
   if (sdm_format == kFormatInvalid) {
     DLOGW("Format %d is not supported by SDM", output_format);
     return kErrorNotSupported;

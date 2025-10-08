@@ -1,8 +1,6 @@
 /*
 * Copyright (c) 2015 - 2018, 2021 The Linux Foundation. All rights reserved.
 *
-* Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
-*
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are
 * met:
@@ -28,6 +26,11 @@
 * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries. 
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 /*! @file buffer_allocator.h
   @brief Interface file for platform specific buffer allocator.
@@ -205,12 +208,14 @@ class BufferAllocator {
     return -ENOTSUP; }
 
   // callbacks from sdmclient
-  virtual int SetBufferInfo(LayerBufferFormat format, int *target, uint64_t *flags) = 0;
+  virtual int SetBufferInfo(LayerBufferFormat format, int *target, uint64_t *flags,
+                            uint64_t *pixel_format_modifier) = 0;
   virtual int GetAlignedWidthAndHeight(int width, int height, int format, uint32_t alloc_type,
                                         int *aligned_width, int *aligned_height) = 0;
   virtual bool GetSDMColorSpace(const int int_dataspace, QtiDataspace *dataspace) = 0;
   virtual LayerBufferFormat GetSDMFormat(const int32_t &source, const int32_t flags,
-                                         const int64_t compression_type) = 0;
+                                         const int64_t compression_type,
+                                         uint64_t pixel_format_modifier) = 0;
   virtual DisplayError ColorMetadataToDataspace(Dataspace ds, uint32_t *int_dataspace) = 0;
   virtual int32_t TranslateFromLegacyDataspace(const int32_t &legacy_ds) = 0;
 

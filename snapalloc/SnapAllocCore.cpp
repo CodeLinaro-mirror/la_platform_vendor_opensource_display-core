@@ -100,7 +100,8 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
     uint64_t id = ++next_id_;
     uint64_t pixel_format_modifier = GetPixelFormatModifier(out_desc);
     constraint_mgr_->ConvertAlignedWidthFromBytesToPixels(
-        out_desc.format, layout.aligned_width_in_bytes, &aligned_width_in_pixels);
+        out_desc.format, layout.aligned_width_in_bytes, pixel_format_modifier,
+        &aligned_width_in_pixels);
     unsigned custom_content_md_size =
         metadata_mgr_->GetCustomContentMetadataSize(out_desc.format, out_desc.usage);
 
@@ -445,8 +446,10 @@ Error SnapAllocCore::ValidateBufferSize(SnapHandle *hnd, BufferDescriptor desc) 
   int out_priv_flags = 0;
   int ret = constraint_mgr_->GetAllocationData(desc, &ad, &layout, &out_desc, &out_priv_flags);
   int aligned_width_in_pixels = 0;
+  uint64_t pixel_format_modifier = GetPixelFormatModifier(out_desc);
   constraint_mgr_->ConvertAlignedWidthFromBytesToPixels(
-      out_desc.format, layout.aligned_width_in_bytes, &aligned_width_in_pixels);
+      out_desc.format, layout.aligned_width_in_bytes, pixel_format_modifier,
+      &aligned_width_in_pixels);
 
   if (OVERFLOW_MUL(aligned_width_in_pixels, layout.aligned_height)) {
     DLOGE("%s: Allocatiom size overflow", __FUNCTION__);
