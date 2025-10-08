@@ -384,18 +384,16 @@ DisplayError SDMServices::ControlPartialUpdate(int disp_id, bool enable) {
       return kErrorNotSupported;
     }
 
-    uint32_t pending = 0;
-    DisplayError sdm_error =
-        sdm_display->ControlPartialUpdate(enable, &pending);
-    if (sdm_error == kErrorNone) {
-      if (!pending) {
-        return kErrorNone;
-      }
-    } else if (sdm_error == kErrorNotSupported) {
+    DisplayError sdm_error = sdm_display->ControlPartialUpdate(enable);
+    if (sdm_error == kErrorNotSupported) {
       return kErrorNone;
-    } else {
+    } else if (sdm_error != kErrorNone) {
       return kErrorNotSupported;
     }
+  }
+
+  if (!enable) {
+    cb_->Refresh(disp_idx);
   }
 
   return kErrorNone;
