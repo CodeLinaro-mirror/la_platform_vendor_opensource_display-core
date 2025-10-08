@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapMapper.h"
@@ -50,11 +50,15 @@ Error SnapMapper::Lock(const SnapHandle &in_handle,
                        vendor_qti_hardware_display_common_Address *base_addr) {
   auto err = Error::NONE;
   if (::snapalloc::isSnapHandleEmpty(const_cast<SnapHandle *>(&in_handle))) {
+    if (in_fence.fence_fd >= 0) {
+      close(in_fence.fence_fd);
+    }
     return Error::BAD_BUFFER;
   }
 
-  if (in_fence.fence_fd > 0) {
+  if (in_fence.fence_fd >= 0) {
     WaitFenceFd(in_fence.fence_fd);
+    close(in_fence.fence_fd);
   }
   uint64_t address;
   err = snap_alloc_core_->Lock(const_cast<SnapHandle *>(&in_handle), in_usage, access_region,
