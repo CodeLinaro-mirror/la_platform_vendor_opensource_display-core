@@ -1108,4 +1108,73 @@ void SDMLayer::ResetGeometryChanges() {
   layer_->geometry_changes = GeometryChanges::kNone;
 }
 
+DisplayError SDMLayer::SetLayerPrivacyRegions(const std::vector<PrivacyRegion> &privacy_regions) {
+  DTRACE_SCOPED();
+  bool updated = false;
+  if (privacy_regions.size() != layer_->privacy_regions.size()) {
+    DLOGV_IF(kTagClient, "Layer's %d: privacy regions updated (cur %u new %u)", id_,
+             layer_->privacy_regions.size(), privacy_regions.size());
+    updated = true;
+  }
+
+  if (!updated) {
+    for (size_t i = 0; i < privacy_regions.size(); i++) {
+      PrivacyRegion cur_region = layer_->privacy_regions.at(i);
+      PrivacyRegion new_region = privacy_regions[i];
+
+      if (cur_region != new_region) {
+        DLOGV_IF(kTagClient, "Layer's %d: privacy regions updated - index %d", id_, i);
+        updated = true;
+        break;
+      }
+    }
+  }
+
+  if (updated) {
+    privacy_region_state_ = kRegionUpdate;
+    layer_->privacy_regions.clear();
+    LayerRect layer_rect = {};
+    for (auto region : privacy_regions) {
+      SetRect(region.rect, &layer_rect);
+      if (Contains(dst_rect_, layer_rect)) {
+        layer_->privacy_regions.push_back(region);
+      } else {
+        DLOGV_IF(kTagClient, "Layer %d: region %f %f %f %f is not within %f %f %f %f", id_,
+                 layer_rect.left, layer_rect.top, layer_rect.right, layer_rect.bottom,
+                 dst_rect_.left, dst_rect_.top, dst_rect_.right, dst_rect_.bottom);
+      }
+    }
+  } else {
+    privacy_region_state_ = kRegionActive;
+  }
+
+  return kErrorNone;
+}
+
+DisplayError SDMLayer::SetLayerCornerRadius(CornerRadius corner_radius) {
+  DTRACE_SCOPED();
+  layer_->corner_radius = corner_radius;
+  return kErrorNone;
+}
+
+bool SDMLayer::IsPrivacyRegionUpdated() {
+  DTRACE_SCOPED();
+  if (privacy_region_state_ == kRegionUpdate) {
+    return true;
+  }
+
+  if (privacy_region_state_ != kRegionActive && layer_->privacy_regions.size() > 0) {
+    DLOGV_IF(kTagClient, "Reset layer's %d privacy regions", id_);
+    privacy_region_state_ = kRegionUpdate;
+    layer_->privacy_regions.clear();
+    return true;
+  }
+
+  return false;
+}
+
+bool SDMLayer::HasPrivacyRegions() {
+  return (layer_->privacy_regions.size() > 0);
+}
+
 } // namespace sdm

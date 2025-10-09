@@ -538,6 +538,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool is_mirror_mode_active_ = false;
   uint32_t active_config_index_ = 0;
   int rgba_split_enable_ = false;
+  bool mixer_resolution_updated_ = false;
 
  private:
   // Max tolerable power-state-change wait-times in milliseconds.
