@@ -259,12 +259,12 @@ int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCo
     if (IsRgb(snap_format) && IsAstc(snap_format)) {
       plane_layout.stride.horizontal_stride = desc.width;
       plane_layout.scanline.scanline = desc.height;
-      /* TODO: gralloc does not use the returned values - uncomment when base gralloc issue resolved
+      int bytes_per_block = 0;
       // This returns aligned width and height in blocks
-      AlignCompressedRGB(desc.width, desc.height, format, &aligned_w, &aligned_h);
-      plane_layout.stride.horizontal_stride =
-          static_cast<uint64_t>(aligned_w) * (format_data.bits_per_pixel / 8.0f);
-      plane_layout.scanline.scanline = static_cast<uint64_t>(aligned_h);*/
+      AlignCompressedRGB(desc.width, desc.height, format, &aligned_w, &aligned_h, &bytes_per_block);
+      // stride in bytes
+      plane_layout.stride.horizontal_stride = static_cast<uint64_t>(aligned_w) * bytes_per_block;
+      plane_layout.scanline.scanline = static_cast<uint64_t>(aligned_h);
     } else if (IsRgb(snap_format) && !IsAstc(snap_format)) {
       aligned_h = 0;
       aligned_w = 0;
@@ -460,18 +460,19 @@ void GraphicsConstraintProvider::AlignUnCompressedRGB(int width, int height, int
 
 void GraphicsConstraintProvider::AlignCompressedRGB(int width, int height, int format,
                                                     unsigned int *aligned_w,
-                                                    unsigned int *aligned_h) {
+                                                    unsigned int *aligned_h, int *bytes_per_block) {
   if (LINK_adreno_compute_compressedfmt_aligned_width_and_height) {
-    int bytesPerPixel = 0;
     surface_rastermode_t raster_mode = SURFACE_RASTER_MODE_UNKNOWN;  // Adreno unknown raster mode.
     int padding_threshold = 512;  // Threshold for padding surfaces.
 
     LINK_adreno_compute_compressedfmt_aligned_width_and_height(
         width, height,
-        GetGpuPixelFormat(static_cast<vendor_qti_hardware_display_common_PixelFormat>(format),
-        vendor_qti_hardware_display_common_PixelFormatModifier::PIXEL_FORMAT_MODIFIER_NONE),
+        GetGpuPixelFormat(
+            static_cast<vendor_qti_hardware_display_common_PixelFormat>(format),
+            vendor_qti_hardware_display_common_PixelFormatModifier::PIXEL_FORMAT_MODIFIER_NONE),
         SURFACE_TILE_MODE_DISABLE, raster_mode, padding_threshold,
-        reinterpret_cast<int *>(aligned_w), reinterpret_cast<int *>(aligned_h), &bytesPerPixel);
+        reinterpret_cast<int *>(aligned_w), reinterpret_cast<int *>(aligned_h),
+        reinterpret_cast<int *>(bytes_per_block));
   } else {
     *aligned_w = (unsigned int)ALIGN(width, 32);
     *aligned_h = (unsigned int)ALIGN(height, 32);
