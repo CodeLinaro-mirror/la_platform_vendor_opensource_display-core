@@ -464,6 +464,10 @@ DisplayError DisplayBuiltIn::Init() {
   // TODO(user): Enable privacy filter for dual dpu, then update this check
   if (value == 1 && core_count_ == 1) {
     uint32_t max_privacy_regions = hw_intf_->GetMaxPrivacyRegionsSupported();
+
+    if (max_privacy_regions > 0) {
+      privacy_region_mgr_ = new PrivacyRegionManager(max_privacy_regions);
+    }
   }
 
   NoiseInit();
@@ -1577,6 +1581,8 @@ DisplayError DisplayBuiltIn::SetUpCommit(LayerStack *layer_stack) {
     // Need to disable vsync while POMS in progress as it can't be processed by driver.
     SetVsyncStatus(false /*Disable vsync events.*/);
   }
+
+  SetPrivacyRegions();
   return DisplayBase::SetUpCommit(layer_stack);
 }
 
@@ -5511,4 +5517,22 @@ DisplayError DisplayBuiltIn::DisableDemuraForHandOff() {
 
   return kErrorNone;
 }
+
+void DisplayBuiltIn::SetPrivacyRegions() {
+  if (!privacy_region_mgr_) {
+    return;
+  }
+
+  std::vector<PrivacyRegion> regions = {};
+  DisplayError ret = privacy_region_mgr_->ConfigurePrivacyRegions(
+      disp_layer_stack_, client_ctx_, mixer_resolution_updated_, &regions);
+  if (ret == kErrorNeedsCommit) {
+    disp_layer_stack_->stack_info.common_info.updates_mask.set(kUpdatePrivacyRegions);
+    for (int i = 0; i < hw_resource_info_.size(); i++) {
+      uint32_t core_id = hw_resource_info_[i].core_id;
+      disp_layer_stack_->info.at(core_id).privacy_regions_ = regions;
+    }
+  }
+}
+
 }  // namespace sdm
