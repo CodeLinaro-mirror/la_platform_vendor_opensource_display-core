@@ -1206,4 +1206,15 @@ bool CompManager::IsGPUHWAvailable() {
   return false;
 }
 
+DisplayError CompManager::SetClientTargetCapability(Handle display_ctx,
+                              const std::bitset<kClientCapabilityMax> &client_capabilities) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+
+  DisplayCompositionContext *display_comp_ctx =
+                             reinterpret_cast<DisplayCompositionContext *>(display_ctx);
+
+  return display_comp_ctx->strategy->SetClientTargetCapability(client_capabilities);
+
+}
+
 }  // namespace sdm

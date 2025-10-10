@@ -196,6 +196,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(DumpDemuraSurface(const char *dir_path, uint32_t frame_index))
   MAKE_NO_OP(setDriverCommitPath(const int path))
   MAKE_NO_OP(SetRGBASplit(int enable));
+  MAKE_NO_OP(SetClientTargetCapability(const std::bitset<kClientCapabilityMax> &));
 
  protected:
   DisplayConfigVariableInfo default_variable_config_ = {};

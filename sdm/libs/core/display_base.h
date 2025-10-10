@@ -319,7 +319,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   }
   DisplayError SetRGBASplit(int32_t split_enable);
   virtual bool IsDpuDmaModeEnabled();
-
+  virtual DisplayError SetClientTargetCapability(
+                              const std::bitset<kClientCapabilityMax> &client_capabilities);
  protected:
   struct DisplayMutex {
     std::recursive_mutex client_mutex;

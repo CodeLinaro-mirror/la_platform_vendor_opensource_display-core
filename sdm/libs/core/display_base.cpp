@@ -5494,4 +5494,12 @@ bool DisplayBase::IsDpuDmaModeEnabled() {
   return client_ctx_.hw_panel_info.dpu_dma_enabled;
 }
 
+DisplayError DisplayBase::SetClientTargetCapability(
+                                  const std::bitset<kClientCapabilityMax> &client_capabilities) {
+  ClientLock lock(disp_mutex_);
+
+  return comp_manager_->SetClientTargetCapability(display_comp_ctx_, client_capabilities);
+
+}
+
 }  // namespace sdm
