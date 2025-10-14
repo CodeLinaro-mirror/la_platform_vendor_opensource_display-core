@@ -289,11 +289,13 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
   // TODO: Remove hard-coding
   int alignment = 4096;
   int height = desc.height;
+  int interlaced = 0;
   // Divide input height by 2 for interlaced case
   for (auto &type : desc.additionalOptions) {
     if (std::strcmp(type.key, "interlaced") == 0) {
       if (type.value == 1) {
         height = (height + 1) >> 1;
+        interlaced = 1;
         ;
       }
     }
@@ -427,9 +429,8 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
     vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
         static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
             GetPixelFormatModifier(desc));
-    if (graphics_provider_->IsUBWCSupportedByGPU(desc.format, pixel_format_modifier)) {
+    if (graphics_provider_ && graphics_provider_->IsUBWCSupportedByGPU(desc.format, pixel_format_modifier)) {
       int size = 0;
-      if (graphics_provider_ != nullptr) {
         vendor_qti_hardware_display_common_GraphicsMetadata graphics_metadata;
 
         int ret = graphics_provider_->GetInitialMetadata(desc, &graphics_metadata, true);
@@ -438,7 +439,6 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
           if (size > 0)
             out_ad->size = size;
         }
-      }
 
       // Plane layout
       BufferConstraints data;
@@ -483,6 +483,24 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc, UBWCCapabilities caps, All
       return Error::UNSUPPORTED;
     }
   }
+
+  if (interlaced) {
+    vendor_qti_hardware_display_common_BufferLayout temp_layout = *out_layout;
+    if (IsYuv(desc.format)) {
+      // In interlaced & compressed case plane count is 8 then plane_info[0], plane_info[1],
+      // plane_info[4] & plane_info[5] will contain info about Y_plane, UV_plane, Y_plane
+      // & UV_plane. Remaining plane will contain info about the meta planes. Calculate the
+      // offset values accordingly
+      out_layout->plane_count = temp_layout.plane_count * 2;
+      int field_base = temp_layout.planes[1].offset_in_bytes + temp_layout.planes[1].size_in_bytes;
+      for (int plane_count = 0; plane_count < temp_layout.plane_count; plane_count++) {
+        out_layout->planes[plane_count] = temp_layout.planes[plane_count];
+        out_layout->planes[plane_count + temp_layout.plane_count] = temp_layout.planes[plane_count];
+        out_layout->planes[plane_count + temp_layout.plane_count].offset_in_bytes += field_base;
+      }
+    }
+  }
+
   return Error::NONE;
 #endif
 
