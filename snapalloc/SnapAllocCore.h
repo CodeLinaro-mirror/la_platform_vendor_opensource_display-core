@@ -35,6 +35,7 @@ class SnapAllocCore {
   Error FlushLockedBuffer(SnapHandle *hnd);
   Error RereadLockedBuffer(SnapHandle *hnd);
   Error IsSupported(BufferDescriptor desc, bool *is_supported);
+  bool IsFormatSupportedByGPU(BufferDescriptor desc);
   Error GetMetadata(SnapHandle *hnd, vendor_qti_hardware_display_common_MetadataType type,
                     void *out);
   Error SetMetadata(SnapHandle *hnd, vendor_qti_hardware_display_common_MetadataType type,
@@ -70,6 +71,13 @@ class SnapAllocCore {
   std::atomic<uint64_t> next_id_;
   std::mutex handles_map_lock_;
   std::unordered_map<SnapHandle *, SnapHandleInternal *> handles_map_ = {};
+  uint64_t allocated_ = 0;
+  uint64_t kAllocThreshold = (uint64_t)1 * 1024 * 1024 * 1024;
+  static const uint64_t kMemoryOffset = 50 * 1024 * 1024;
+  struct {
+    const char *kDumpFile = "/data/misc/wmtrace/bufferdump.txt";
+    uint64_t position = 0;
+  } file_dump_;
 };
 
 }  // namespace snapalloc

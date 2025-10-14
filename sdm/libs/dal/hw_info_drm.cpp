@@ -299,7 +299,7 @@ DisplayError HWInfoDRM::GetHWResourceInfo(HWResourceInfo *hw_resource) {
     disable_dest_scalar = (value == 1);
   }
   DynLib extension_lib;
-  if (!extension_lib.Open("libsdmextension.so") || disable_dest_scalar || enable_ai_scaler) {
+  if (!extension_lib.Open("libsdmextension.so") || disable_dest_scalar) {
     hw_resource->hw_dest_scalar_info.count = 0;
   }
 
@@ -1130,6 +1130,17 @@ DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
     hw_info.is_wb_ubwc_supported = iter.second.is_wb_ubwc_supported;
     hw_info.is_reserved = iter.second.is_reserved;
     hw_info.max_linewidth = iter.second.max_linewidth;
+
+    if (iter.second.type == DRM_MODE_CONNECTOR_DSI) {
+      uint32_t mode_index = 0;
+      for (uint32_t index = 0; index < iter.second.modes.size(); index++) {
+        if (iter.second.modes[index].mode.type & DRM_MODE_TYPE_PREFERRED) {
+          mode_index = index;
+          break;
+        }
+      }
+      hw_info.lm_mask = iter.second.modes[mode_index].lm_mask;
+    }
 
     if (iter.second.type == DRM_MODE_CONNECTOR_VIRTUAL) {
       if (!max_cwb_) {

@@ -31,7 +31,7 @@ void GraphicsConstraintProvider::Init(
   lib_ = ::dlopen("libadreno_utils.so", RTLD_NOW);
   parser_ = SnapConstraintParser::GetInstance();
   if (lib_) {
-    DLOGI("Graphics lib is available");
+    DLOGD_IF(enable_logs, "Graphics lib is available");
     *reinterpret_cast<void **>(&LINK_adreno_compute_aligned_width_and_height) =
         ::dlsym(lib_, "compute_aligned_width_and_height");
     *reinterpret_cast<void **>(&LINK_adreno_compute_fmt_aligned_width_and_height) =
@@ -50,6 +50,8 @@ void GraphicsConstraintProvider::Init(
         ::dlsym(lib_, "adreno_init_memory_layout");
     *reinterpret_cast<void **>(&LINK_adreno_get_aligned_gpu_buffer_size) =
         ::dlsym(lib_, "adreno_get_aligned_gpu_buffer_size");
+    *reinterpret_cast<void **>(&LINK_adreno_isFormatSupportedByGPU) =
+        ::dlsym(lib_, "isFormatSupportedByGPU");
   } else {
     DLOGW_IF(enable_logs, "Graphics lib is not available - read json file");
     // change to shared pointer
@@ -341,7 +343,7 @@ int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCo
 int GraphicsConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConstraints *out) {
 #ifdef __ANDROID__
   if (lib_ != nullptr && AdrenoSizeAPIAvaliable()) {
-    DLOGI("Using graphics libs for alignment calculations");
+    DLOGD_IF(enable_logs, "Using graphics libs for alignment calculations");
     BufferConstraints data;
     int status = 0;
     status = BuildConstraints(desc, &data, false);
@@ -383,6 +385,19 @@ bool GraphicsConstraintProvider::IsUBWCSupportedByGPU(
   }
 
   return false;
+}
+
+bool GraphicsConstraintProvider::IsFormatSupportedByGPU(BufferDescriptor desc) {
+  if (LINK_adreno_isFormatSupportedByGPU) {
+    uint64_t pixel_format_modifier = GetPixelFormatModifier(desc);
+    ADRENOPIXELFORMAT gpu_format = GetGpuPixelFormat(
+        static_cast<vendor_qti_hardware_display_common_PixelFormat>(desc.format),
+        static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(pixel_format_modifier));
+    char* desc_name = desc.name;
+    return LINK_adreno_isFormatSupportedByGPU(gpu_format, desc.usage, desc_name);
+  }
+
+  return true;
 }
 
 void GraphicsConstraintProvider::AlignUnCompressedRGB(int width, int height, int format,

@@ -741,11 +741,10 @@ class DisplayInterface {
   /*! @brief Method to control partial update feature for each display.
 
     @param[in] enable partial update feature control flag
-    @param[out] pending whether the operation is completed or pending for completion
 
     @return \link DisplayError \endlink
   */
-  virtual DisplayError ControlPartialUpdate(bool enable, uint32_t *pending) = 0;
+  virtual DisplayError ControlPartialUpdate(bool enable) = 0;
 
   /*! @brief Method to disable partial update for at least 1 frame.
     @return \link DisplayError \endlink

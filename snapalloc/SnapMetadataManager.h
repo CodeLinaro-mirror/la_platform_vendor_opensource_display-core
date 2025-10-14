@@ -47,6 +47,7 @@ class SnapMetadataManager {
   uint32_t GetCustomContentMetadataSize(vendor_qti_hardware_display_common_PixelFormat format,
                                         vendor_qti_hardware_display_common_BufferUsage usage);
   Error GetMetadataState(SnapHandleInternal *hnd, vendor_qti_hardware_display_common_MetadataType type, bool *out);
+  bool IsFormatSupportedByGPU(BufferDescriptor desc);
   typedef Error (SnapMetadataManager::*MetadataHelper)(SnapMetadata *metadata,
                                                        SnapHandleInternal *handle, void *in_set,
                                                        void *out_get, BufferDescriptor *buf_des);

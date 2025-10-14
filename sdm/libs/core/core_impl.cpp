@@ -105,6 +105,10 @@ DisplayError CoreImpl::Init() {
   enable_null_display_ = (value == 1);
   DLOGI("property: enable_null_display_ = %d", enable_null_display_);
   if (enable_null_display_) {
+    DisplayError err = HandleNullDisplay();
+    if (err != kErrorNone) {
+      goto CleanupOnError;
+    }
     hw_info_intf_[0] = new HWInfoDefault();
     return kErrorNone;
   }
@@ -421,7 +425,8 @@ DisplayError CoreImpl::HandleNullDisplay() {
     return error;
   }
   DLOGI("comp manager successfully initialized with default hw resources");
-  enable_null_display_ = (!comp_mgr_.IsDisplayHWAvailable() || drm_node_unavailable_);
+  enable_null_display_ =
+      (!comp_mgr_.IsDisplayHWAvailable() || drm_node_unavailable_ || enable_null_display_);
   return kErrorNone;
 }
 
@@ -670,14 +675,27 @@ DisplayError CoreImpl::ReserveDemuraResources(
     }
     if (req_cnt != 0 && cnt == 0) {
       DLOGI("[%u] Needs Demura resources %u", req.first, req_cnt);
-      // Reserving demura resources requires knowledge of which rect to reserve when the req_cnt
-      // is 1. As the HW pipeline for any display is not known yet, we shall assume primary display
-      // takes 0 and non-primary takes 1. When req_cnt == 2 (Dual LM topology usecase), pass in -1
-      // For rest of the topology return error as they are not supported for demura.
+      // When req_cnt == 2 (Dual LM topology usecase), pass in -1.
+      // When req_cnt == 1 (Single LM topology usecase), pass rect number
+      // based on the index of demura instance.
       int8_t preferred_rect = -1;
       if (req_cnt == 1) {
+        int8_t demura_instance_index = -1;
         HWDisplayInfo &info = hw_displays_info_[req.first];
-        preferred_rect = info.is_primary ? 0 : 1;
+        for (int i = 0; i < hw_resource_[0].demura_count; ++i) {
+          if (info.lm_mask & BIT(i)) {
+            demura_instance_index = i;
+            break;
+          }
+        }
+        if (demura_instance_index < 0) {
+          DLOGI("[%u] is invalid demura block index %d, lm mask = %d", req.first,
+                demura_instance_index, info.lm_mask);
+          return kErrorResources;
+        }
+
+        // Set preferred_rect based on whether the index is even or odd
+        preferred_rect = (demura_instance_index % 2 == 0) ? 0 : 1;
         DLOGI("[%u] is single LM. Requesting Demura rect %d", req.first, preferred_rect);
       } else if (req_cnt == 2) {
         preferred_rect = -1;

@@ -19,6 +19,8 @@ enum DemuraTnValidatorParams {
   kDemuraTnValidatorDeleteFiles,
   /* Double buffer codebook flags, input: bool */
   kDemuraTnValidatorDoubleBufferCodebookFlags,
+  /* Getter: Query all parsers, out: std::map<uint64_t, std::shared_ptr<DemuraParserIntf>> */
+  kDemuraTnValidatorQueryAllParsers,
   kDemuraTnValidatorParamsMax = 0xff,
 };
 

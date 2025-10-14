@@ -786,7 +786,9 @@ void DisplayBase::ConfigureCwbParams(LayerStack *layer_stack) {
 
     uint32_t cwb_roi_supported = 0;  // Check whether CWB ROI is supported.
     IsSupportedOnDisplay(kCwbCrop, &cwb_roi_supported);
-    if (!cwb_roi_supported) {  // If CWB ROI isn't supported, then go for full frame update
+    // If either CWB ROI isn't supported or expected downscaled CWB output, then go for full
+    // frame update
+    if (!cwb_roi_supported || layer_stack->cwb_config->cwb_control_params.needs_downscale) {
       disable_pu_one_frame_ = true;
     }
   } else if (cwb_configured_) {  // CWB isn't requested in the current draw cycle.
@@ -4133,10 +4135,12 @@ PrimariesTransfer DisplayBase::GetBlendSpaceFromColorMode() {
     pt.primaries = GetColorPrimariesFromAttribute(color_gamut, allow_tonemap_native_);
     if (transfer == kHlg) {
       pt.transfer = QtiTransfer_HLG;
-    } else {
+    } else if (transfer == kSt2084) {
       pt.transfer = QtiTransfer_SMPTE_ST2084;
+    } else {
+      pt.transfer = QtiTransfer_sRGB;
     }
-  } else if (color_gamut == kDcip3) {
+  } else if (color_gamut == kDcip3 || color_gamut == kBt2020) {
     pt.primaries = GetColorPrimariesFromAttribute(color_gamut, allow_tonemap_native_);
     pt.transfer = QtiTransfer_sRGB;
   } else if (color_gamut == kNative && !allow_tonemap_native_) {
@@ -5300,9 +5304,10 @@ void DisplayBase::RefreshOnIdleTimeoutForCwb(bool is_cwb_requested) {
     idle_time_ms = IDLE_TIMEOUT_DEFAULT_MS;
   }
 
+  bool qsync_enabled = qsync_mode_ != kQSyncModeNone;
   if (state_ == kStateOn && !enable_client_control_cwb_refresh_ && !force_refresh_to_process_cwb_ &&
       (mirror_src_display_id_ == -1 || comp_manager_->IsActiveDisplay(mirror_src_display_id_)) &&
-      (handle_idle_timeout_ || idle_hint_set_ || idle_time_ms <= 0) &&
+      (handle_idle_timeout_ || idle_hint_set_ || idle_time_ms <= 0) && !qsync_enabled &&
       (is_cwb_requested || comp_manager_->HasPendingCwbRequest(display_comp_ctx_))) {
     event_handler_->Refresh();
   }
