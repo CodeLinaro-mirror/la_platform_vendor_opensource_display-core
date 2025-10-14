@@ -141,6 +141,7 @@ class HWEventHandler {
   virtual void GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) = 0;
   virtual bool IsPrimaryDisplay() = 0;
   virtual DisplayError GetPanelBrightnessBasePath(std::string *base_path) = 0;
+  virtual void HandleSSREvent(SSREventType ssr_event) = 0;
 
  protected:
   virtual ~HWEventHandler() { }
@@ -230,6 +231,7 @@ class HWInterface {
   virtual DisplayError SetDisplayDeviceConfig(SDMDisplayDeviceConfig sdm_display_device_config) = 0;
   virtual DisplayError SetReprojectionConfig(
       const struct ReprojectionConfig &reprojection_config) = 0;
+  virtual void SetSSRState(bool active) = 0;
 
  protected:
   virtual ~HWInterface() { }

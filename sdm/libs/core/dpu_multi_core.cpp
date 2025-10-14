@@ -1043,4 +1043,10 @@ DisplayError DPUMultiCore::GetFbConfig(uint32_t width, uint32_t height,
   return error;
 }
 
+void DPUMultiCore::SetSSRState(bool active) {
+  for (auto hw_intf : hw_intf_) {
+    hw_intf.second->SetSSRState(active);
+  }
+}
+
 }  // namespace sdm

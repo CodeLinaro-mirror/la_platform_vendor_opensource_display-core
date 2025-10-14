@@ -376,4 +376,8 @@ DisplayError DPUSingleCore::GetFbConfig(uint32_t width, uint32_t height,
   return error;
 }
 
+void DPUSingleCore::SetSSRState(bool active) {
+  hw_intf_->SetSSRState(active);
+}
+
 }  // namespace sdm

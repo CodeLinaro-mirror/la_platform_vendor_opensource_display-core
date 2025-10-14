@@ -254,7 +254,8 @@ DisplayError DisplayBuiltIn::Init() {
             HWEvent::POWER_EVENT,
             HWEvent::MMRM,
             HWEvent::VM_RELEASE_EVENT,
-            HWEvent::VM_RECLAIM_EVENT};
+            HWEvent::VM_RECLAIM_EVENT,
+            HWEvent::SSR};
   if (client_ctx_.hw_panel_info.mode == kModeCommand) {
     events.push_back(HWEvent::IDLE_POWER_COLLAPSE);
   }
@@ -3647,6 +3648,32 @@ void DisplayBuiltIn::HandleVmReleaseEvent() {
 void DisplayBuiltIn::HandleVmReclaimEvent() {
   if (event_handler_)
     event_handler_->HandleEvent(kVmReclaimDone);
+}
+
+void DisplayBuiltIn::HandleSSREvent(SSREventType ssr_event) {
+  DTRACE_SCOPED();
+
+  DisplayEvent event = (ssr_event == SSREventType::kSSRStart) ? kSsrStart : kSsrEnd;
+  DLOGI("Handle %s event", (event == kSsrStart) ? "SSR Start" : "SSR End");
+  is_ssr_active_ = (event == kSsrStart);
+  dpu_core_mux_->SetSSRState(is_ssr_active_);
+
+  if (!event_handler_) {
+    DLOGW("Event handler is null");
+    return;
+  }
+
+  event_handler_->HandleEvent(event);
+
+  {
+    ClientLock lock(disp_mutex_);
+    reset_panel_ = true;
+    validated_ = false;
+  }
+
+  if (event == kSsrEnd) {
+    event_handler_->Refresh();
+  }
 }
 
 DisplayError DisplayBuiltIn::GetQsyncFps(uint32_t *qsync_fps) {

@@ -83,6 +83,7 @@ class DPUSingleCore : public DPUCoreMux {
   DisplayError SetPPConfig(void *payload, size_t size);
   DisplayError GetFbConfig(uint32_t width, uint32_t height, DisplayDeviceContext *device_ctx,
                            DisplayClientContext *client_ctx);
+  void SetSSRState(bool active);
   ~DPUSingleCore() {}
 
  private:

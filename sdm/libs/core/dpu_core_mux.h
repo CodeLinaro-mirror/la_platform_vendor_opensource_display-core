@@ -106,6 +106,7 @@ class DPUCoreMux {
   virtual DisplayError GetFbConfig(uint32_t width, uint32_t height,
                                    DisplayDeviceContext *device_ctx,
                                    DisplayClientContext *client_ctx) = 0;
+  virtual void SetSSRState(bool active) = 0;
 };
 
 }  // namespace sdm
