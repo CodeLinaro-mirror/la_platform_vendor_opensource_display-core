@@ -224,6 +224,11 @@ DisplayError DisplayBuiltIn::Init() {
     color_mgr_->ColorMgrGetStcModes(&stc_color_modes_);
   }
 
+  pu_subject_ = std::make_unique<PuSubjectIntfImpl>(this);
+  if (!pu_subject_) {
+    DLOGE("Unable to create partial update subject on Display %d-%d", display_id_, display_type_);
+  }
+
   if (client_ctx_.hw_panel_info.mode == kModeCommand && Debug::IsVideoModeEnabled()) {
     error = dpu_core_mux_->SetDisplayMode(kModeVideo);
     if (error != kErrorNone) {
@@ -798,13 +803,13 @@ DisplayError DisplayBuiltIn::setColorSamplingState(SamplingState state) {
     histogramCtrl.value = sde_drm::HistModes::kHistEnabled;
     histogramIRQ.value = sde_drm::HistModes::kHistEnabled;
     if (client_ctx_.hw_panel_info.mode == kModeCommand) {
-      ControlPartialUpdate(false /* enable */);
+      ControlPartialUpdate(false /* enable */, kPuSamplingClient);
     }
   } else {
     histogramCtrl.value = sde_drm::HistModes::kHistDisabled;
     histogramIRQ.value = sde_drm::HistModes::kHistDisabled;
     if (client_ctx_.hw_panel_info.mode == kModeCommand) {
-      ControlPartialUpdate(true /* enable */);
+      ControlPartialUpdate(true /* enable */, kPuSamplingClient);
     }
   }
 
@@ -1632,15 +1637,15 @@ DisplayError DisplayBuiltIn::PostCommit() {
 
   if (switch_to_cmd_) {
     switch_to_cmd_ = false;
-    ControlPartialUpdateLocked(true /* enable */);
+    ControlPartialUpdateLocked(true /* enable */, kPuPanelClient);
   }
 
   if (last_panel_mode_ != client_ctx_.hw_panel_info.mode) {
     UpdateDisplayModeParams();
   }
 
-  if (dpps_pu_nofiy_pending_) {
-    dpps_pu_nofiy_pending_ = false;
+  if (dpps_pu_notify_pending_) {
+    dpps_pu_notify_pending_ = false;
     dpps_pu_lock_.Broadcast();
   }
   dpps_info_.Init(this, client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
@@ -1705,7 +1710,7 @@ void DisplayBuiltIn::HandleQsyncPostCommit() {
 
 void DisplayBuiltIn::UpdateDisplayModeParams() {
   if (client_ctx_.hw_panel_info.mode == kModeVideo) {
-    ControlPartialUpdateLocked(false /* enable */);
+    ControlPartialUpdateLocked(false /* enable */, kPuPanelClient);
   } else if (client_ctx_.hw_panel_info.mode == kModeCommand) {
     // Flush idle timeout value currently set.
     comp_manager_->SetIdleTimeoutMs(display_comp_ctx_, 0, 0);
@@ -1838,7 +1843,7 @@ DisplayError DisplayBuiltIn::SetDisplayMode(uint32_t mode) {
     DisplayBase::ReconfigureDisplay();
 
     if (mode == kModeVideo) {
-      ControlPartialUpdateLocked(false /* enable */);
+      ControlPartialUpdateLocked(false /* enable */, kPuPanelClient);
       uint32_t active_ms = 0;
       uint32_t inactive_ms = 0;
       Debug::GetIdleTimeoutMs(&active_ms, &inactive_ms);
@@ -2220,24 +2225,29 @@ DisplayError DisplayBuiltIn::GetPanelMaxBrightness(uint32_t *max_brightness_leve
   return kErrorNone;
 }
 
-DisplayError DisplayBuiltIn::ControlPartialUpdate(bool enable) {
+DisplayError DisplayBuiltIn::ControlPartialUpdate(bool enable, std::string &observer) {
   ClientLock lock(disp_mutex_);
-  return ControlPartialUpdateLocked(enable);
+  return ControlPartialUpdateLocked(enable, observer);
 }
 
-DisplayError DisplayBuiltIn::ControlPartialUpdateLocked(bool enable) {
-  if (dpps_info_.disable_pu_ && enable) {
-    // Nothing to be done.
-    DLOGI("partial update is disabled by DPPS for display %d-%d", display_id_, display_type_);
-    return kErrorNotSupported;
+DisplayError DisplayBuiltIn::ControlPartialUpdateLocked(bool enable, std::string &observer) {
+  if (!pu_subject_) {
+    DLOGE("Invalid pu subject pointer is null");
+    return kErrorUndefined;
   }
 
-  if (enable == partial_update_control_) {
-    DLOGI("Same state transition is requested.");
-    return kErrorNone;
+  if (enable) {
+    pu_subject_->DeRegister(observer);
+  } else {
+    pu_subject_->Register(observer, nullptr);
   }
-  validated_ = false;
+
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetPartialUpdateControl(bool enable) {
   partial_update_control_ = enable;
+  validated_ = false;
 
   return kErrorNone;
 }
@@ -2294,12 +2304,12 @@ DisplayError DisplayBuiltIn::DppsProcessOps(enum DppsOps op, void *payload, size
       }
       enable = *(reinterpret_cast<bool *>(payload));
       dpps_info_.disable_pu_ = !enable;
-      ControlPartialUpdate(enable);
+      ControlPartialUpdate(enable, kPuDppsClient);
       event_handler_->Refresh();
       {
         ClientLock lock(disp_mutex_);
         validated_ = false;
-        dpps_pu_nofiy_pending_ = true;
+        dpps_pu_notify_pending_ = true;
       }
       ret = dpps_pu_lock_.WaitFinite(kPuTimeOutMs);
       if (ret) {

@@ -115,7 +115,9 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   }
   virtual DisplayError SetNoisePlugInOverride(bool override_en, int32_t attn, int32_t noise_zpos);
   virtual DisplayError SetMaxMixerStages(uint32_t max_mixer_stages);
-  virtual DisplayError ControlPartialUpdate(bool enable) { return kErrorNotSupported; }
+  virtual DisplayError ControlPartialUpdate(bool enable, std::string &observer) {
+    return kErrorNotSupported;
+  }
   virtual DisplayError DisablePartialUpdateOneFrame() {
     return kErrorNotSupported;
   }

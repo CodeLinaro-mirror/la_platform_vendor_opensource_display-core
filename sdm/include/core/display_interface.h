@@ -740,11 +740,12 @@ class DisplayInterface {
 
   /*! @brief Method to control partial update feature for each display.
 
-    @param[in] enable partial update feature control flag
+    @param[in] enable partial update feature control
+    @param[in] observer partial update observer
 
     @return \link DisplayError \endlink
   */
-  virtual DisplayError ControlPartialUpdate(bool enable) = 0;
+  virtual DisplayError ControlPartialUpdate(bool enable, std::string &observer) = 0;
 
   /*! @brief Method to disable partial update for at least 1 frame.
     @return \link DisplayError \endlink

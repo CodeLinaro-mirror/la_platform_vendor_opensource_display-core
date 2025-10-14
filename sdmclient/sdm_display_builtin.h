@@ -240,6 +240,8 @@ private:
 
  // Whether the DPU DMA mode is enabled.
  bool dpu_dma_enabled_ = false;
+
+ std::string kPuSdmClient = "sdm_client";
 };
 
 } // namespace sdm
