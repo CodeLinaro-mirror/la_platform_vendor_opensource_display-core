@@ -42,10 +42,13 @@ using std::vector;
 
 typedef std::chrono::steady_clock SteadyClock;
 
-class HWTVDRM : public HWDeviceDRM {
+class HWTVDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
  public:
   explicit HWTVDRM(int32_t display_id, BufferAllocator *buffer_allocator,
                    HWInfoInterface *hw_info_intf);
+  virtual PanelFeaturePropertyIntf *GetPanelFeaturePropertyIntf() { return this; }
+  virtual int GetPanelFeature(PanelFeaturePropertyInfo *feature_info);
+  virtual int SetPanelFeature(const PanelFeaturePropertyInfo &feature_info);
 
  protected:
   virtual DisplayError Init();
@@ -92,6 +95,7 @@ class HWTVDRM : public HWDeviceDRM {
   std::chrono::time_point<SteadyClock> hdr_reset_end_;
   bool reset_hdr_flag_ = false;
   bool in_multiset_ = false;
+  std::map<PanelFeaturePropertyID, sde_drm::DRMPanelFeatureID> panel_feature_property_map_ {};
 };
 
 }  // namespace sdm

@@ -41,7 +41,6 @@
 #include "display_base.h"
 
 namespace sdm {
-
 class DisplayPluggable : public DisplayBase, HWEventHandler {
  public:
   DisplayPluggable(DisplayEventHandler *event_handler,
@@ -51,6 +50,7 @@ class DisplayPluggable : public DisplayBase, HWEventHandler {
                    sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> hw_info_intf,
                    BufferAllocator *buffer_allocator, CompManager *comp_manager);
   DisplayError Init() override;
+  DisplayError Deinit() override;
   DisplayError Prepare(LayerStack *layer_stack) override;
   DisplayError GetRefreshRateRange(uint32_t *min_refresh_rate,
                                    uint32_t *max_refresh_rate) override;
@@ -89,6 +89,11 @@ class DisplayPluggable : public DisplayBase, HWEventHandler {
 
   void UpdateColorModes();
   void InitializeColorModesFromColorspace();
+  DisplayError NotifyDisplayCalibrationMode(bool in_calibration) override;
+  DisplayError SetPaHistCollection(
+    const std::string &client_name, bool enable,
+    SdmDisplayCbInterface<PaHistCollectionPayload> *cb_intf);
+  DisplayError GetPaHistBins(std::array<uint32_t, HIST_BIN_SIZE> *buf);
 
  private:
   PrimariesTransfer GetBlendSpaceFromStcColorMode(
@@ -104,6 +109,7 @@ class DisplayPluggable : public DisplayBase, HWEventHandler {
   uint32_t current_refresh_rate_ = 0;
   snapdragoncolor::ColorMode current_stc_color_mode_ = {};
   snapdragoncolor::ColorModeList stc_color_modes_ = {};
+  EventProxyInfo event_proxy_info_ = {};
 };
 
 }  // namespace sdm

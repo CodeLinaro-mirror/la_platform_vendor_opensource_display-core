@@ -114,26 +114,6 @@ class DppsInfo {
   void Deinit_nolock();
 };
 
-class EventProxyInfo {
-public:
- DisplayError Init(const std::string &panel_name, DisplayInterface *intf, DynLib &extension_lib,
-                   PanelFeaturePropertyIntf *prop_intf);
- DisplayError Deinit();
- DisplayError PanelOprInfo(const std::string &client_name, bool enable,
-                           SdmDisplayCbInterface<PanelOprPayload> *cb_intf);
- DisplayError EnableCopr(const std::string &client_name, bool enable,
-                         SdmDisplayCbInterface<CoprEventPayload> *cb_intf);
- DisplayError SetPaHistCollection(const std::string &client_name, bool enable,
-                                  SdmDisplayCbInterface<PaHistCollectionPayload> *cb_intf);
- DisplayError GetPaHistBins(std::array<uint32_t, HIST_BIN_SIZE> *buf);
- DisplayError PanelBacklightInfo(const std::string &client_name, bool enable,
-                                 SdmDisplayCbInterface<PanelBacklightPayload> *cb_intf);
-
-private:
- std::mutex lock_;
- std::shared_ptr<DisplayEventProxyIntf> event_proxy_intf_ = nullptr;
-};
-
 class CoprInfo : public SdmDisplayCbInterface<CoprEventPayload> {
  public:
   DisplayError GetStats(std::vector<int32_t> *stats);

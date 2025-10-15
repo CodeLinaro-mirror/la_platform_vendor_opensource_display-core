@@ -1604,7 +1604,7 @@ DisplayError SDMServices::QdcmCMDDispatch(
   }
 
   if (!is_physical_display) {
-    for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_EXTERNAL_2)) {
+    for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_EXTERNAL)) {
       if (map_info.client_id == display_id) {
         is_physical_display = true;
         break;
@@ -1759,7 +1759,7 @@ DisplayError SDMServices::QdcmCMDHandler(SDMParcel *input_parcel,
             }
           }
         }
-        for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_EXTERNAL_2)) {
+        for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_EXTERNAL)) {
           uint32_t id = UINT32(map_info.client_id);
           if (id < kNumDisplays && cb_->GetDisplayFromClientId(id)) {
             auto result = kErrorNone;
@@ -1790,7 +1790,7 @@ DisplayError SDMServices::QdcmCMDHandler(SDMParcel *input_parcel,
               disp_id[id] = (uint8_t)id;
             }
           }
-          for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_EXTERNAL_2)) {
+          for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_EXTERNAL)) {
             uint64_t id = map_info.client_id;
             if (id < kNumDisplays && cb_->GetDisplayFromClientId(id)) {
               disp_id[id] = (uint8_t)id;

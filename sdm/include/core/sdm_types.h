@@ -264,7 +264,7 @@ typedef int64_t LayerId;
 typedef int64_t nsecs_t;
 
 static const int kNumBuiltIn = 4;
-static const int kNumPluggable = 4;
+static const int kNumPluggable = 10;
 static const int kNumVirtual = 4;
 // Add 1 primary display which can be either a builtin or pluggable.
 // Async powermode update requires dummy displays.
@@ -585,6 +585,13 @@ enum qdutilsDisplayType {
   DISPLAY_BUILTIN_2 = 3,
   DISPLAY_EXTERNAL_2 = 4,
   DISPLAY_VIRTUAL_2 = 5,
+
+  DISPLAY_EXTERNAL_3 = 6,
+  DISPLAY_EXTERNAL_4 = 7,
+  DISPLAY_EXTERNAL_5 = 8,
+  DISPLAY_EXTERNAL_6 = 9,
+  DISPLAY_EXTERNAL_7 = 10,
+  DISPLAY_EXTERNAL_8 = 11,
 };
 
 enum MetadataOps {
