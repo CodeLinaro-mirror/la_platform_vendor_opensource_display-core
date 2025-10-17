@@ -80,6 +80,26 @@ typedef DemuraTnCoreUvmFactoryIntf* (*GetDemuraTnFactory)();
 typedef FeatureLicenseFactoryIntf* (*GetFeatureLicenseFactory)();
 typedef aiqe::ABCFeatureFactIntf *(*GetABCFactory)();
 
+class EventProxyInfo {
+public:
+ DisplayError Init(const std::string &panel_name, DisplayInterface *intf, DynLib &extension_lib,
+                   PanelFeaturePropertyIntf *prop_intf);
+ DisplayError Deinit();
+ DisplayError PanelOprInfo(const std::string &client_name, bool enable,
+                           SdmDisplayCbInterface<PanelOprPayload> *cb_intf);
+ DisplayError EnableCopr(const std::string &client_name, bool enable,
+                         SdmDisplayCbInterface<CoprEventPayload> *cb_intf);
+ DisplayError SetPaHistCollection(const std::string &client_name, bool enable,
+                                  SdmDisplayCbInterface<PaHistCollectionPayload> *cb_intf);
+ DisplayError GetPaHistBins(std::array<uint32_t, HIST_BIN_SIZE> *buf);
+ DisplayError PanelBacklightInfo(const std::string &client_name, bool enable,
+                                 SdmDisplayCbInterface<PanelBacklightPayload> *cb_intf);
+
+private:
+ std::mutex lock_;
+ std::shared_ptr<DisplayEventProxyIntf> event_proxy_intf_ = nullptr;
+};
+
 class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
  public:
   DisplayBase(SDMDisplayType display_type, DisplayEventHandler *event_handler,

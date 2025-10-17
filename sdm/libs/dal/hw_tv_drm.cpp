@@ -77,6 +77,7 @@
 #include <drm_lib_loader.h>
 #include <drm_master.h>
 #include <drm_res_mgr.h>
+
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -686,6 +687,105 @@ DisplayError HWTVDRM::PowerOn(const HWQosData &qos_data, SyncPoints *sync_points
   }
 
   return HWDeviceDRM::PowerOn(qos_data, sync_points);
+}
+
+int HWTVDRM::GetPanelFeature(PanelFeaturePropertyInfo *feature_info) {
+  int ret = 0;
+  sde_drm::DRMPanelFeatureInfo drm_feature = {};
+
+  if (!feature_info) {
+    DLOGE("Invalid object pointer of PanelFeaturePropertyInfo");
+    return -EINVAL;
+  }
+
+  auto it = panel_feature_property_map_.find(feature_info->prop_id);
+  if (it ==  panel_feature_property_map_.end()) {
+    DLOGE("Failed to find prop-map entry for id %d", feature_info->prop_id);
+    return -EINVAL;
+  }
+
+  drm_feature.prop_id = panel_feature_property_map_[feature_info->prop_id];
+  drm_feature.prop_ptr = feature_info->prop_ptr;
+  drm_feature.prop_size = feature_info->prop_size;
+
+  switch (feature_info->prop_id) {
+    case kPanelFeatureSPRInitCfg:
+    case kPanelFeatureDemuraInitCfg:
+    case kPanelFeatureDsppIndex:
+    case kPanelFeatureDsppSPRInfo:
+    case kPanelFeatureDsppDemuraInfo:
+    case kPanelFeatureDsppRCInfo:
+    case kPanelFeatureRCInitCfg:
+    case kPanelFeatureSPRUDCCfg:
+    case kPanelFeatureDemuraCfg0Param2:
+    case kPanelFeatureAiqeSsrcConfig:
+    case kPanelFeatureAiqeSsrcData:
+    case kPanelFeatureAiqeMdnie:
+    case kPanelFeatureAiqeMdnieArt:
+    case kPanelFeatureAiqeCopr:
+    case kPanelFeatureABCCfg:
+    case kPanelFeatureDemuraBacklight:
+      drm_feature.obj_type = DRM_MODE_OBJECT_CRTC;
+      drm_feature.obj_id = token_.crtc_id;
+      break;
+    case kPanelFeatureSPRPackType:
+    case kPanelFeatureSPRPackTypeMode:
+    case kPanelFeatureDemuraPanelId:
+      drm_feature.obj_type = DRM_MODE_OBJECT_CONNECTOR;
+      drm_feature.obj_id =token_.conn_id;
+      break;
+    default:
+      DLOGE("obj id population for property %d not implemented", feature_info->prop_id);
+      return -EINVAL;
+  }
+
+  drm_mgr_intf_->GetPanelFeature(&drm_feature);
+
+  feature_info->version = drm_feature.version;
+  feature_info->prop_size = drm_feature.prop_size;
+
+  return ret;
+}
+
+int HWTVDRM::SetPanelFeature(const PanelFeaturePropertyInfo &feature_info) {
+  int ret = 0;
+  sde_drm::DRMPanelFeatureInfo drm_feature = {};
+  drm_feature.prop_id = panel_feature_property_map_[feature_info.prop_id];
+  drm_feature.prop_ptr = feature_info.prop_ptr;
+  drm_feature.version = feature_info.version;
+  drm_feature.prop_size = feature_info.prop_size;
+
+  switch (feature_info.prop_id) {
+    case kPanelFeatureSPRInitCfg:
+    case kPanelFeatureRCInitCfg:
+    case kPanelFeatureDemuraInitCfg:
+    case kPanelFeatureSPRUDCCfg:
+    case kPanelFeatureDemuraCfg0Param2:
+    case kPanelFeatureAiqeSsrcConfig:
+    case kPanelFeatureAiqeSsrcData:
+    case kPanelFeatureAIScalerCfg:
+    case kPanelFeatureAiqeMdnie:
+    case kPanelFeatureAiqeMdnieArt:
+    case kPanelFeatureAiqeCopr:
+    case kPanelFeatureABCCfg:
+    case kPanelFeatureDemuraBacklight:
+      drm_feature.obj_type = DRM_MODE_OBJECT_CRTC;
+      drm_feature.obj_id = token_.crtc_id;
+      break;
+    case kPanelFeatureSPRPackType:
+    case kPanelFeatureSPRPackTypeMode:
+      drm_feature.obj_type = DRM_MODE_OBJECT_CONNECTOR;
+      drm_feature.obj_id =token_.conn_id;
+      break;
+    default:
+      DLOGE("Set Panel feature property %d not implemented", feature_info.prop_id);
+      return -EINVAL;
+  }
+
+  DLOGI("Set Panel feature property %d", feature_info.prop_id);
+  drm_mgr_intf_->SetPanelFeature(drm_feature);
+
+  return ret;
 }
 
 }  // namespace sdm

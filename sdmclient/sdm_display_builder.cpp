@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <utils/debug.h>
@@ -31,6 +31,24 @@ int SDMDisplayBuilder::GetDisplayIndex(int dpy) {
       break;
     case qdutilsDisplayType::DISPLAY_EXTERNAL_2:
       map_info = (map_info_pluggable_.size() > 1) ? &map_info_pluggable_[1] : nullptr;
+      break;
+    case qdutilsDisplayType::DISPLAY_EXTERNAL_3:
+      map_info = (map_info_pluggable_.size() > 2) ? &map_info_pluggable_[2] : nullptr;
+      break;
+    case qdutilsDisplayType::DISPLAY_EXTERNAL_4:
+      map_info = (map_info_pluggable_.size() > 3) ? &map_info_pluggable_[3] : nullptr;
+      break;
+    case qdutilsDisplayType::DISPLAY_EXTERNAL_5:
+      map_info = (map_info_pluggable_.size() > 4) ? &map_info_pluggable_[4] : nullptr;
+      break;
+    case qdutilsDisplayType::DISPLAY_EXTERNAL_6:
+      map_info = (map_info_pluggable_.size() > 5) ? &map_info_pluggable_[5] : nullptr;
+      break;
+    case qdutilsDisplayType::DISPLAY_EXTERNAL_7:
+      map_info = (map_info_pluggable_.size() > 6) ? &map_info_pluggable_[6] : nullptr;
+      break;
+    case qdutilsDisplayType::DISPLAY_EXTERNAL_8:
+      map_info = (map_info_pluggable_.size() > 7) ? &map_info_pluggable_[7] : nullptr;
       break;
     case qdutilsDisplayType::DISPLAY_VIRTUAL:
       map_info = map_info_virtual_.size() ? &map_info_virtual_[0] : nullptr;
@@ -72,6 +90,12 @@ SDMDisplayBuilder::GetDisplayMapInfo(int display_id) {
 
     case qdutilsDisplayType::DISPLAY_EXTERNAL:
     case qdutilsDisplayType::DISPLAY_EXTERNAL_2:
+    case qdutilsDisplayType::DISPLAY_EXTERNAL_3:
+    case qdutilsDisplayType::DISPLAY_EXTERNAL_4:
+    case qdutilsDisplayType::DISPLAY_EXTERNAL_5:
+    case qdutilsDisplayType::DISPLAY_EXTERNAL_6:
+    case qdutilsDisplayType::DISPLAY_EXTERNAL_7:
+    case qdutilsDisplayType::DISPLAY_EXTERNAL_8:
       return map_info_pluggable_;
 
     case qdutilsDisplayType::DISPLAY_VIRTUAL:
@@ -1072,6 +1096,15 @@ DisplayError SDMDisplayBuilder::GetDisplayHwId(uint64_t disp_id,
   }
 
   for (auto &info : GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_BUILTIN_2)) {
+    if (disp_id == info.client_id) {
+      if (info.sdm_id >= 0) {
+        *disp_hw_id = static_cast<uint32_t>(info.sdm_id);
+        return kErrorNone;
+      }
+    }
+  }
+
+  for (auto &info : GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_EXTERNAL)) {
     if (disp_id == info.client_id) {
       if (info.sdm_id >= 0) {
         *disp_hw_id = static_cast<uint32_t>(info.sdm_id);
