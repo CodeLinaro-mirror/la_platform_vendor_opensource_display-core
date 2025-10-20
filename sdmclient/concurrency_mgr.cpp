@@ -2747,4 +2747,9 @@ DisplayError ConcurrencyMgr::SetPanelFeatureConfig(Display display, int32_t type
   return CallDisplayFunction(display, &SDMDisplay::SetPanelFeatureConfig, type, data);
 }
 
+DisplayError ConcurrencyMgr::ClearBuffersMappedToLayer(uint64_t display, LayerId layer_id,
+                                                       const SnapHandle *layerBuffer) {
+  return CallDisplayFunction(display, &SDMDisplay::ClearBuffersMappedToLayer, layer_id,
+                             layerBuffer);
+}
 }  // namespace sdm

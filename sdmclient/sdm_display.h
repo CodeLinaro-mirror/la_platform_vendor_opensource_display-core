@@ -540,6 +540,7 @@ public:
   virtual bool IsDmaModeIncompatible(LayerComposition composition) { return false; }
   virtual void SetPrivacyRegionsData(uint32_t layer_id, float corner_radius,
                                      const std::vector<PrivacyRegion> &regions);
+  virtual DisplayError ClearBuffersMappedToLayer(LayerId layer_id, const SnapHandle *layerBuffer);
 
  protected:
   static uint32_t throttling_refresh_rate_;
