@@ -47,7 +47,7 @@
 #include <private/display_event_proxy_intf.h>
 #include <private/tvm_service_manager_intf.h>
 #include <private/vm_file_xfer_intf.h>
-#include <private/cb_intf.h>
+#include <private/display_cb_intf.h>
 #include <private/vm_file_xfer_fact_intf_extn.h>
 #include <sys/stat.h>
 #include <sys/time.h>

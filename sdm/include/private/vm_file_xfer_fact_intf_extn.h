@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -7,7 +7,7 @@
 #define __VM_FILE_XFER_FACT_INTF_EXTN_H__
 
 #include <private/tvm_service_manager_intf.h>
-#include <private/cb_intf.h>
+#include <private/display_cb_intf.h>
 #include <private/vm_file_xfer_intf.h>
 #include <core/buffer_allocator.h>
 
