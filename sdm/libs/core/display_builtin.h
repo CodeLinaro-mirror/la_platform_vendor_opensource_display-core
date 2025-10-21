@@ -33,6 +33,7 @@
 
 #include <core/dpps_interface.h>
 #include <core/ipc_interface.h>
+#include <privacy_region_manager.h>
 #include <private/aiqe_ssrc_feature_interface.h>
 #include <private/abc_feature_fact_intf.h>
 #include <private/demuratn_core_uvm_fact_intf.h>
@@ -373,6 +374,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError DisableDemuraForHandOff();
   DisplayError ValidateDemuraLicense();
   DisplayError SetAvrStepFpsState(uint32_t index, bool enable);
+  void SetPrivacyRegions();
 
   const uint32_t kPuTimeOutMs = 1000;
   std::map<uint32_t, std::vector<HWEvent>> event_list_;
@@ -466,6 +468,7 @@ class DisplayBuiltIn : public DisplayBase,
   bool hfi_path_supported_ = false;
   bool double_buffer_codebook_supported_ = false;
   bool previous_frame_default_strategy_ = false;
+  PrivacyRegionManager *privacy_region_mgr_ = nullptr;
 };
 
 }  // namespace sdm
