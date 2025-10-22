@@ -84,10 +84,8 @@ Error SetCSC(const SnapHandle *handle, ColorMetadata *color_metadata, std::share
   return Error::NONE;
 }
 
-bool IsHdr(const QtiColorPrimaries &color_primary,
-           const QtiGammaTransfer &gamma_transfer) {
-  return (color_primary == QtiColorPrimaries::QtiColorPrimaries_BT2020) &&
-         ((gamma_transfer == QtiGammaTransfer::QtiTransfer_SMPTE_ST2084) ||
+bool IsHdr(const QtiGammaTransfer &gamma_transfer) {
+  return ((gamma_transfer == QtiGammaTransfer::QtiTransfer_SMPTE_ST2084) ||
           (gamma_transfer == QtiGammaTransfer::QtiTransfer_HLG));
 }
 
@@ -836,8 +834,7 @@ DisplayError SDMLayer::SetMetaData(const SnapHandle *handle, Layer *layer) {
     }
   }
 
-  if (!ignore_sdr_histogram_md_ || IsHdr(layer_buffer->dataspace.colorPrimaries,
-                                         layer_buffer->dataspace.transfer)) {
+  if (!ignore_sdr_histogram_md_ || IsHdr(layer_buffer->dataspace.transfer)) {
     VideoHistogramMetadata histogram = {};
     if (layer_->update_mask.test(kContentMetadata) == false &&
         GetMetadata(handle, MetadataType::VIDEO_HISTOGRAM_STATS, &histogram,
