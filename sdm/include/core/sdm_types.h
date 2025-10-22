@@ -697,15 +697,24 @@ enum {
   SYSTEM_TIME_BOOTTIME = 4,   // same as SYSTEM_TIME_MONOTONIC, but including CPU suspend time
 };
 
+enum PrivacyRegionMode {
+  PR_NONE = 0,
+  LAYER = 1,
+  AREA = 2,
+};
+
 struct PrivacyRegion {
   float corner_radius;
   SDMRect rect;
+  int index;
+
   bool operator !=(const PrivacyRegion &privacy_region) {
     return ((corner_radius != privacy_region.corner_radius) ||
             (rect.left != privacy_region.rect.left) ||
             (rect.top != privacy_region.rect.top) ||
             (rect.right != privacy_region.rect.right) ||
-            (rect.bottom != privacy_region.rect.bottom));
+            (rect.bottom != privacy_region.rect.bottom) ||
+            (index != privacy_region.index));
   }
   bool operator ==(const PrivacyRegion &privacy_region) {
     return !(operator !=(privacy_region));

@@ -1954,6 +1954,21 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
 #endif
     } break;
 
+    case DRMOps::CONNECTOR_SET_PRIVACY_REGIONS_V2: {
+#if defined(MAX_PRIVACY_LAYERS) && defined(PRIVACY_LAYERS_AREA_MODE)
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::PRIVACY_REGIONS_V2)) {
+        return;
+      }
+      uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::PRIVACY_REGIONS_V2);
+      sde_drm_privacy_layer_v2 *privacy_layers = va_arg(args, sde_drm_privacy_layer_v2 *);
+      int ret = drmModeAtomicAddProperty(req, obj_id, prop_id,
+                                         reinterpret_cast<uint64_t>(privacy_layers));
+      if (ret < 0) {
+        DLOGW("Failed to configure privacy layer to DRM");
+      }
+#endif
+    } break;
+
     default:
       DRM_LOGE("Invalid opcode %d to set on connector %d", code, obj_id);
       break;

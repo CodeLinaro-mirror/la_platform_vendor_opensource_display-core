@@ -757,6 +757,14 @@ enum struct DRMOps {
    *      PrivacyRegions - Consolidated privacy regions
    */
   CONNECTOR_SET_PRIVACY_REGIONS,
+
+  /*
+   * Op: Sets the privacy regions v2 on the connector
+   * Arg: uint32_t - Connector ID
+   *      PrivacyRegions - Consolidated privacy regions
+   */
+  CONNECTOR_SET_PRIVACY_REGIONS_V2,
+
   /*
    * Op: Sets LSR frame buffer ID for writeback connector.
    * Arg: uint32_t - Connector ID

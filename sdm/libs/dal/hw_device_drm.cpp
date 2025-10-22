@@ -2405,7 +2405,7 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
   }
 
   if (privacy_regions_update) {
-    SetPrivacyRegionsData(&hw_layers_info->privacy_regions_);
+    SetPrivacyRegionsData(&hw_layers_info->privacy_regions, hw_layers_info->privacy_region_mode);
   }
 }
 
@@ -4427,12 +4427,37 @@ void HWDeviceDRM::DisplayEarlyWakeUp() {
   }
 }
 
-void HWDeviceDRM::SetPrivacyRegionsData(std::vector<PrivacyRegion> *privacy_regions) {
+void HWDeviceDRM::SetPrivacyRegionsData(std::vector<PrivacyRegion> *privacy_regions,
+                                        PrivacyRegionMode mode) {
+  DLOGI_IF(kTagDriverConfig, "Send %u privacy regions to drm (mode %d)", privacy_regions->size(),
+           mode);
+
 #ifdef MAX_PRIVACY_LAYERS
-  DLOGI_IF(kTagDriverConfig, "Send %u privacy regions to drm", privacy_regions->size());
-  sde_privacy privacy_list[privacy_regions->size()];
+#ifdef PRIVACY_LAYERS_AREA_MODE
+  // For Privacy Regions V2 which supports both layer and area mode.
+  sde_privacy_v2 privacy_list[privacy_regions->size()];
+
   for (size_t i = 0; i < privacy_regions->size(); i++) {
-    PrivacyRegion region = privacy_regions->at(i);
+    const PrivacyRegion region = privacy_regions->at(i);
+    privacy_list[i].corner_radius = INT(region.corner_radius);
+    privacy_list[i].left = region.rect.left;
+    privacy_list[i].top = region.rect.top;
+    privacy_list[i].right = region.rect.right;
+    privacy_list[i].bottom = region.rect.bottom;
+    privacy_list[i].index = (mode == PrivacyRegionMode::LAYER) ? 0 : (region.index - 1);
+  }
+
+  privacy_layer_data_.no_of_layers = privacy_regions->size();
+  privacy_layer_data_.mode = mode;
+  memcpy(privacy_layer_data_.privacy_list, privacy_list, sizeof(privacy_list));
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_PRIVACY_REGIONS_V2, token_.conn_id,
+                            &privacy_layer_data_);
+#else
+  // For Privacy Regions V1 which only supports layer mode.
+  sde_privacy privacy_list[privacy_regions->size()];
+
+  for (size_t i = 0; i < privacy_regions->size(); i++) {
+    const PrivacyRegion region = privacy_regions->at(i);
     privacy_list[i].corner_radius = INT(region.corner_radius);
     privacy_list[i].left = region.rect.left;
     privacy_list[i].top = region.rect.top;
@@ -4444,6 +4469,7 @@ void HWDeviceDRM::SetPrivacyRegionsData(std::vector<PrivacyRegion> *privacy_regi
   memcpy(privacy_layer_data_.privacy_list, privacy_list, sizeof(privacy_list));
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_PRIVACY_REGIONS, token_.conn_id,
                             &privacy_layer_data_);
+#endif
 #endif
 }
 

@@ -2093,7 +2093,8 @@ DisplayError SDMServices::SetPrivacyRegions(SDMParcel *input_parcel) {
       int right = input_parcel->readInt32();
       int bottom = input_parcel->readInt32();
       float radius = input_parcel->readFloat();
-      if ((left < 0) || (top < 0) || (right < 0) || (bottom < 0) || (radius < 0)) {
+      int index = input_parcel->readInt32();
+      if ((left < 0) || (top < 0) || (right < 0) || (bottom < 0) || (radius < 0) || (index < 0)) {
         DLOGW("Invalid PrivacyRegion[%d] on Layer[%d]!", j, i);
         return kErrorNotSupported;
       }
@@ -2103,6 +2104,7 @@ DisplayError SDMServices::SetPrivacyRegions(SDMParcel *input_parcel) {
       privacy_region.rect.right = right;
       privacy_region.rect.bottom = bottom;
       privacy_region.corner_radius = radius;
+      privacy_region.index = index;
       privacy_regions.push_back(privacy_region);
     }
 

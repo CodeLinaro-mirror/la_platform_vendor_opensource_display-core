@@ -1180,7 +1180,8 @@ struct HWLayersInfo {
   HWDNSCInfo dnsc_cfg = {};
   SelfRefreshState self_refresh_state = kSelfRefreshNone;
   BufferInfo dummy_loopback_cac_info = {};
-  std::vector<PrivacyRegion> privacy_regions_ = {};
+  std::vector<PrivacyRegion> privacy_regions = {};
+  PrivacyRegionMode privacy_region_mode = PrivacyRegionMode::PR_NONE;
 };
 
 struct DispLayerStack {
