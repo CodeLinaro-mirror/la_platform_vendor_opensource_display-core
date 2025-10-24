@@ -221,7 +221,7 @@ DisplayError SDMLayer::SetLayerBuffer(const SnapHandle *handle,
   int64_t compression_type = 0;
   snapmapper_->GetMetadata(*handle, MetadataType::COMPRESSION, &compression_type);
 
-  LayerBufferFormat format = buffer_allocator_->GetSDMFormat(fmt, flag, compression_type);
+  LayerBufferFormat format = buffer_allocator_->GetSDMFormat(fmt, flag, compression_type, 0);
   if ((format != layer_buffer->format) || (UINT32(aligned_width) != layer_buffer->width) ||
       (UINT32(aligned_height) != layer_buffer->height)) {
     // Layer buffer geometry has changed.
@@ -769,8 +769,7 @@ DisplayError SDMLayer::SetMetaData(const SnapHandle *handle, Layer *layer) {
   uint32_t linear_format = 0;
   if (GetMetadata(handle, MetadataType::LINEAR_FORMAT, &linear_format,
                   snapmapper_) == Error::NONE) {
-    layer_buffer->format =
-        buffer_allocator_->GetSDMFormat(INT32(linear_format), 0, 0);
+    layer_buffer->format = buffer_allocator_->GetSDMFormat(INT32(linear_format), 0, 0, 0);
   }
 
   if ((interlace != layer_buffer->flags.interlace) ||

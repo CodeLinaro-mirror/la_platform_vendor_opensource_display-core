@@ -662,8 +662,9 @@ Error SnapMetadataManager::AlignedWidthInPixelsHelper(SnapMetadata *metadata,
       return err;
     }
     int width = 0;
-    constraint_mgr_->ConvertAlignedWidthFromBytesToPixels(buf_des->format,
-                                                          layout.aligned_width_in_bytes, &width);
+    uint64_t pixel_format_modifier = GetPixelFormatModifier(*buf_des);
+    constraint_mgr_->ConvertAlignedWidthFromBytesToPixels(
+        buf_des->format, layout.aligned_width_in_bytes, pixel_format_modifier, &width);
     *static_cast<uint32_t *>(out_get) = width;
     return Error::NONE;
   } else if (out_get != nullptr) {

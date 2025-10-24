@@ -128,6 +128,7 @@ bool CpuCanAccess(SnapUsage usage) {
     {{SnapPixelFormat::NV12_MIPMAP}, {false, true, false, false, false, true, false, false}},
     {{SnapPixelFormat::TP10_UBWC_MIPMAP}, {false, true, false, false, false, true, false, false}},
     {{SnapPixelFormat::P010_MIPMAP}, {false, true, false, false, false, true, false, false}},
+    {{SnapPixelFormat::C_8}, {false, true, false, false, false, false, false, false}},
 };
 
 bool IsUbwcSupported(SnapPixelFormat format) {

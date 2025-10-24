@@ -1130,7 +1130,7 @@ struct DRMConnectorInfo {
   bool is_wb_repro = false;
   DMSType dms_type = DMSType::DMS_VID_DISABLED;
   bool fsc_panel = false;
-  uint32_t num_fsc_fields = 0;
+  uint32_t num_fsc_fields = 3;
   bool dpu_dma_enabled = false;
   bool emsync_switch_enabled = false;
   bool is_privacy_layers_supported = false;

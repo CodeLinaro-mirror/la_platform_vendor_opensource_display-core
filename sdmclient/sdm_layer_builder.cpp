@@ -62,7 +62,7 @@ DisplayError SDMLayerBuilder::DeInit(uint64_t display_id) {
 
 LayerBufferFormat SDMLayerBuilder::GetSDMFormat(const int32_t &source, const int32_t flags,
                                                 const int64_t compression_type) {
-  return buffer_allocator_->GetSDMFormat(source, flags, compression_type);
+  return buffer_allocator_->GetSDMFormat(source, flags, compression_type, 0);
 }
 
 bool SDMLayerBuilder::CheckLayerBufferBinding(uint64_t display_id, int64_t layer_id,

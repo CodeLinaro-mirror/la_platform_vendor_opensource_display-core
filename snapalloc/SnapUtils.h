@@ -238,6 +238,16 @@ class MmmColorFormatMapper {
         return mmm_color_fmts::MMM_COLOR_FMT_P210;
       }
 #endif
+      case SnapPixelFormat::C_8: {
+        if (ubwc_enabled) {
+          if (usage & SnapUsage::QTI_ALLOC_UBWC_4R) {
+            return mmm_color_fmts::MMM_COLOR_FMT_NV124R_UBWC;
+          } else {
+            return mmm_color_fmts::MMM_COLOR_FMT_NV12_UBWC;
+          }
+        }
+        return mmm_color_fmts::MMM_COLOR_FMT_NV12;
+      }
       default:
         return -1;
     }

@@ -45,7 +45,8 @@ class SnapConstraintManager {
 
   // TODO: move this to FormatUtils class
   Error ConvertAlignedWidthFromBytesToPixels(vendor_qti_hardware_display_common_PixelFormat format,
-                                             int width_in_bytes, int *width_in_pixels);
+                                             int width_in_bytes, uint64_t pixel_format_modifier,
+                                             int *width_in_pixels);
 
  private:
   ~SnapConstraintManager();
