@@ -26,7 +26,6 @@ WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
 OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
 /*
  * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
@@ -87,6 +86,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   virtual uint32_t GetAVRStep(uint32_t config_index);
   virtual bool IsVRRSupported();
   virtual DisplayError setDriverCommitPath(DriverCommitPath path);
+  virtual uint32_t GetMaxPrivacyRegionsSupported();
 
  private:
   void InitDestScaler();

@@ -459,6 +459,17 @@ DisplayError DisplayBuiltIn::Init() {
   DebugHandler::Get()->GetProperty(FORCE_LM_TO_FB_CONFIG, &value);
   force_lm_to_fb_config_ = (value == 1);
 
+  value = 0;
+  Debug::Get()->GetProperty(ENABLE_PRIVACY_LAYERS, &value);
+  // TODO(user): Enable privacy filter for dual dpu, then update this check
+  if (value == 1 && core_count_ == 1) {
+    uint32_t max_privacy_regions = hw_intf_->GetMaxPrivacyRegionsSupported();
+
+    if (max_privacy_regions > 0) {
+      privacy_region_mgr_ = new PrivacyRegionManager(max_privacy_regions);
+    }
+  }
+
   NoiseInit();
   InitCWBBuffer();
 #ifndef TARGET_INCLUDES_NEO
@@ -569,6 +580,7 @@ DisplayError DisplayBuiltIn::PrePrepare(LayerStack *layer_stack) {
 
   if (NeedsMixerReconfiguration(layer_stack, &new_mixer_width, &new_mixer_height)) {
     error = ReconfigureMixer(new_mixer_width, new_mixer_height);
+    mixer_resolution_updated_ = (error == kErrorNone);
     if (error != kErrorNone) {
       ReconfigureMixer(display_width, display_height);
     }
@@ -1570,6 +1582,7 @@ DisplayError DisplayBuiltIn::SetUpCommit(LayerStack *layer_stack) {
     SetVsyncStatus(false /*Disable vsync events.*/);
   }
 
+  SetPrivacyRegions();
   return DisplayBase::SetUpCommit(layer_stack);
 }
 
@@ -5503,6 +5516,23 @@ DisplayError DisplayBuiltIn::DisableDemuraForHandOff() {
   }
 
   return kErrorNone;
+}
+
+void DisplayBuiltIn::SetPrivacyRegions() {
+  if (!privacy_region_mgr_) {
+    return;
+  }
+
+  std::vector<PrivacyRegion> regions = {};
+  DisplayError ret = privacy_region_mgr_->ConfigurePrivacyRegions(
+      disp_layer_stack_, client_ctx_, mixer_resolution_updated_, &regions);
+  if (ret == kErrorNeedsCommit) {
+    disp_layer_stack_->stack_info.common_info.updates_mask.set(kUpdatePrivacyRegions);
+    for (int i = 0; i < hw_resource_info_.size(); i++) {
+      uint32_t core_id = hw_resource_info_[i].core_id;
+      disp_layer_stack_->info.at(core_id).privacy_regions_ = regions;
+    }
+  }
 }
 
 }  // namespace sdm

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -8,7 +8,7 @@
 
 #include <array>
 #include <memory>
-#include <private/cb_intf.h>
+#include <private/display_cb_intf.h>
 #include <private/generic_intf.h>
 #include <private/generic_payload.h>
 #include <private/panel_feature_property_intf.h>

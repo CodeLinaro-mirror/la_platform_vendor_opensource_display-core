@@ -443,9 +443,8 @@ bool IsFP16ExtendedRange(LayerBuffer buffer) {
 }
 
 bool IsHDRLayer(LayerBuffer buffer) {
-  if (buffer.dataspace.colorPrimaries == QtiColorPrimaries_BT2020 &&
-      (buffer.dataspace.transfer == QtiTransfer_SMPTE_ST2084 ||
-       buffer.dataspace.transfer == QtiTransfer_HLG)) {
+  if (buffer.dataspace.transfer == QtiTransfer_SMPTE_ST2084 ||
+      buffer.dataspace.transfer == QtiTransfer_HLG) {
     return true;
   } else if (IsFP16ExtendedRange(buffer)) {
     // Treat input format FP16 with extended range as HDR layer

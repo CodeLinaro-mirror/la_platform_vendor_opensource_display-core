@@ -1010,6 +1010,7 @@ void SDMDisplay::BuildLayerStack() {
       layer->input_buffer.flags.mask_layer = true;
     }
     layer_stack_.flags.mask_present |= layer->input_buffer.flags.mask_layer;
+    layer_stack_.flags.privacy_regions_updated |= sdm_layer->IsPrivacyRegionUpdated();
 
     layer->flags.compatible = sdm_layer->IsLayerCompatible();
 
@@ -1053,6 +1054,11 @@ void SDMDisplay::BuildLayerStack() {
   if (layer_stack_.flags.front_buffer_layer_present) {
     DLOGV_IF(kTagClient, "front buffer layer present");
   }
+
+  layer_stack_.flags.privacy_regions_updated |=
+      (first_cycle_ || pending_privregions_update_ || sdm_layer_stack_->privacy_regions_updated_);
+
+  pending_privregions_update_ = layer_stack_.flags.privacy_regions_updated;
 
   SDMDebugHandler::ATRACE_INT("HDRPresent ", layer_stack_.flags.hdr_present ? 1 : 0);
 }
@@ -2018,6 +2024,7 @@ DisplayError SDMDisplay::CommitOrPrepare(bool validate_only,
     PostCommitLayerStack(out_retire_fence);
   }
 
+  pending_privregions_update_ = false;
   return PostPrepareLayerStack(out_num_types, out_num_requests);
 }
 
@@ -2050,6 +2057,7 @@ DisplayError SDMDisplay::CommitLayerStack(void) {
     // onwards.
     flush_on_error_ = true;
     valid_commit_ = true;
+    pending_privregions_update_ = false;
   } else {
     if (error == kErrorShutDown) {
       shutdown_pending_ = true;
@@ -2093,6 +2101,7 @@ SDMDisplay::PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence) {
 
   layer_stack_.flags.geometry_changed = false;
   sdm_layer_stack_->geometry_changes_ = GeometryChanges::kNone;
+  sdm_layer_stack_->privacy_regions_updated_ = false;
   geometry_changes_ = GeometryChanges::kNone;
 
   flush_ = false;
@@ -4379,6 +4388,47 @@ DisplayError SDMDisplay::SetRGBASplit(int32_t split_enable) {
         sdm_id_, type_);
 
   return error;
+}
+
+// Set Privacy Regions and Corner Radius on the given layer.
+void SDMDisplay::SetPrivacyRegionsData(uint32_t layer_id, float corner_radius,
+                                       const std::vector<PrivacyRegion> &privacy_regions) {
+  const auto map_layer = sdm_layer_stack_->layer_map_.find(layer_id);
+  if (map_layer == sdm_layer_stack_->layer_map_.end()) {
+    DLOGW("Display [%" PRIu64 "]-[%" PRIu64 "] SetPrivacyRegions: Failed to find layer %d!", id_,
+          type_, layer_id);
+    return;
+  }
+
+  CornerRadius radius = {corner_radius, corner_radius};
+  const auto layer = map_layer->second;
+  DLOGI("Set PrivacyRegions data on Layer %d", layer_id);
+  layer->SetLayerPrivacyRegions(privacy_regions);
+  layer->SetLayerCornerRadius(radius);
+}
+
+DisplayError SDMDisplay::ClearBuffersMappedToLayer(LayerId layer_id,
+                                                   const SnapHandle *layerBuffer) {
+  // Get BufferID from SnapHandle
+  uint64_t buffer_id = 0;
+  if (layerBuffer == nullptr) {
+    DLOGW("Layer Buffer(SnapHandle) is NULL for layer_id %d on display : %d-%d", layer_id, sdm_id_,
+          type_);
+    return kErrorParameters;
+  }
+  GetMetadata(layerBuffer, MetadataType::BUFFER_ID, &buffer_id, snapmapper_);
+  for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
+    Layer *layer = sdm_layer->GetSDMLayer();
+    if (layer->layer_id == layer_id) {
+      auto it = layer->buffer_map->buffer_map.find(buffer_id);
+      if (it != layer->buffer_map->buffer_map.end()) {
+        DLOGV_IF(kTagClient, "Buffer_id %d exists in fbid buffermap of layer - %d.Erasing it.",
+                 buffer_id, layer_id);
+        layer->buffer_map->buffer_map.erase(it);
+      }
+    }
+  }
+  return kErrorNone;
 }
 
 }  // namespace sdm

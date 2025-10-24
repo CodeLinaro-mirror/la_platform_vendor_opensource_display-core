@@ -158,7 +158,10 @@ class SDMLayer {
   int32_t GetLayerDataspace() { return dataspace_; }
   uint32_t GetGeometryChanges() { return geometry_changes_; }
   void ResetGeometryChanges();
-  void ResetValidation() { layer_->update_mask.reset(); }
+  void ResetValidation() {
+    layer_->update_mask.reset();
+    privacy_region_state_ = kRegionReset;
+  }
   bool NeedsValidation() {
     return (geometry_changes_ || layer_->update_mask.any());
   }
@@ -183,6 +186,10 @@ class SDMLayer {
   static bool IsLayerIdExisting(LayerId id) { return id_mgr_.IsIdExisting(id); }
   static void SetAutoLayerIdCreation(bool flag) { auto_create_layer_id_ = flag; }
   DisplayError TranslateToNV12Y(LayerBuffer *layer_buffer);
+  DisplayError SetLayerPrivacyRegions(const std::vector<PrivacyRegion> &privacy_regions);
+  DisplayError SetLayerCornerRadius(CornerRadius corner_radius);
+  bool IsPrivacyRegionUpdated();
+  bool HasPrivacyRegions();
 
  private:
   std::shared_ptr<ISnapMapper> snapmapper_;
@@ -210,6 +217,7 @@ class SDMLayer {
   bool secure_ = false;
   bool compatible_ = false;
   bool ignore_sdr_histogram_md_ = false;
+  PrivacyRegionState privacy_region_state_ = kRegionReset;
 
   // SDMCompositionType requested by client(SF) Original
   SDMCompositionType client_requested_orig_ = SDMCompositionType::COMP_DEVICE;

@@ -39,7 +39,7 @@
 #ifndef __DISPLAY_INTERFACE_H__
 #define __DISPLAY_INTERFACE_H__
 
-#include <private/cb_intf.h>
+#include <private/display_cb_intf.h>
 #include <private/display_event_proxy_intf.h>
 #include <private/snapdragon_color_intf.h>
 #include <stdint.h>
