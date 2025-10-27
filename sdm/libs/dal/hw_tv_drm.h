@@ -42,10 +42,14 @@ using std::vector;
 
 typedef std::chrono::steady_clock SteadyClock;
 
-class HWTVDRM : public HWDeviceDRM {
+class HWTVDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
  public:
   explicit HWTVDRM(int32_t display_id, BufferAllocator *buffer_allocator,
                    HWInfoInterface *hw_info_intf);
+  virtual PanelFeaturePropertyIntf *GetPanelFeaturePropertyIntf() { return this; }
+  virtual int GetPanelFeature(PanelFeaturePropertyInfo *feature_info);
+  virtual int SetPanelFeature(const PanelFeaturePropertyInfo &feature_info);
+  virtual DisplayError GetQsyncFps(uint32_t *qsync_fps);
 
  protected:
   virtual DisplayError Init();
@@ -62,6 +66,8 @@ class HWTVDRM : public HWDeviceDRM {
   virtual DisplayError Deinit();
   virtual DisplayError Flush(HWLayersInfo *hw_layers_info);
   void SetDestScalarData(const HWLayersInfo &hw_layer_info);
+  virtual uint32_t GetAVRStep(uint32_t config_index);
+  virtual bool IsVRRSupported();
 
  private:
   void InitDestScaler();
@@ -77,6 +83,11 @@ class HWTVDRM : public HWDeviceDRM {
     SDEScaler scalar_data = {};
     uint32_t flags = {};
   };
+  void SetSelfRefreshState();
+  void SetIdlePCState() {
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_IDLE_PC_STATE, token_.crtc_id,
+                              idle_pc_state_);
+  }
 
   sde_drm_dest_scaler_data sde_dest_scalar_data_ = {};
   std::vector<SDEScaler> scalar_data_ = {};
@@ -92,6 +103,10 @@ class HWTVDRM : public HWDeviceDRM {
   std::chrono::time_point<SteadyClock> hdr_reset_end_;
   bool reset_hdr_flag_ = false;
   bool in_multiset_ = false;
+  std::map<PanelFeaturePropertyID, sde_drm::DRMPanelFeatureID> panel_feature_property_map_ {};
+  sde_drm::DRMIdlePCState idle_pc_state_ = sde_drm::DRMIdlePCState::NONE;
+  bool idle_pc_enabled_ = true;
+  SelfRefreshState self_refresh_state_ = kSelfRefreshNone;
 };
 
 }  // namespace sdm

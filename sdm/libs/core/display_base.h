@@ -31,6 +31,7 @@
 #ifndef __DISPLAY_BASE_H__
 #define __DISPLAY_BASE_H__
 
+#include <core/dpps_interface.h>
 #include <core/display_interface.h>
 #include <private/abc_feature_fact_intf.h>
 #include <private/color_interface.h>
@@ -69,6 +70,67 @@ using aiqe::GetABCFeatureFactIntf;
 
 namespace sdm {
 
+class DppsInfo {
+ public:
+  void Init(DppsPropIntf *intf, const std::string &panel_name, DisplayInterface *display_intf,
+            PanelFeaturePropertyIntf *prop_intf);
+  void Deinit();
+  void DppsNotifyOps(enum DppsNotifyOps op, void *payload, size_t size);
+  bool disable_pu_ = false;
+
+ private:
+  const char *kDppsLib_ = "libdpps.so";
+  DynLib dpps_impl_lib_;
+  static DppsInterface *dpps_intf_;
+  static std::vector<int32_t> display_id_;
+  std::mutex lock_;
+  DppsInterface *(*GetDppsInterface)() = NULL;
+
+  void Deinit_nolock();
+};
+
+struct DeferFpsConfig {
+  uint32_t frame_count = 0;
+  uint32_t frames_to_defer = 0;
+  uint32_t fps = 0;
+  uint32_t vsync_period_ns = 0;
+  uint32_t transfer_time_us = 0;
+  bool dirty = false;
+  bool apply = false;
+
+  void Init(uint32_t refresh_rate, uint32_t vsync_period, uint32_t transfer_time) {
+    fps = refresh_rate;
+    vsync_period_ns = vsync_period;
+    transfer_time_us = transfer_time;
+    frames_to_defer = frame_count;
+    dirty = false;
+    apply = false;
+  }
+
+  bool IsDeferredState() { return (frames_to_defer != 0); }
+
+  bool CanApplyDeferredState() { return apply; }
+
+  bool IsDirty() { return dirty; }
+
+  void MarkDirty() { dirty = IsDeferredState(); }
+
+  void UpdateDeferCount() {
+    if (frames_to_defer > 0) {
+      frames_to_defer--;
+      apply = (frames_to_defer == 0);
+    }
+  }
+
+  void Clear() {
+    frames_to_defer = 0;
+    dirty = false;
+    apply = false;
+  }
+};
+
+
+
 #define NOISE_PLUGIN_VERSION_MAJOR (1)  // Noise Plugin major version number
 #define NOISE_PLUGIN_VERSION_MINOR (0)  // Noise Plugin minor version number
 
@@ -79,6 +141,26 @@ typedef PanelFeatureFactoryIntf* (*GetPanelFeatureFactory)();
 typedef DemuraTnCoreUvmFactoryIntf* (*GetDemuraTnFactory)();
 typedef FeatureLicenseFactoryIntf* (*GetFeatureLicenseFactory)();
 typedef aiqe::ABCFeatureFactIntf *(*GetABCFactory)();
+
+class EventProxyInfo {
+public:
+ DisplayError Init(const std::string &panel_name, DisplayInterface *intf, DynLib &extension_lib,
+                   PanelFeaturePropertyIntf *prop_intf);
+ DisplayError Deinit();
+ DisplayError PanelOprInfo(const std::string &client_name, bool enable,
+                           SdmDisplayCbInterface<PanelOprPayload> *cb_intf);
+ DisplayError EnableCopr(const std::string &client_name, bool enable,
+                         SdmDisplayCbInterface<CoprEventPayload> *cb_intf);
+ DisplayError SetPaHistCollection(const std::string &client_name, bool enable,
+                                  SdmDisplayCbInterface<PaHistCollectionPayload> *cb_intf);
+ DisplayError GetPaHistBins(std::array<uint32_t, HIST_BIN_SIZE> *buf);
+ DisplayError PanelBacklightInfo(const std::string &client_name, bool enable,
+                                 SdmDisplayCbInterface<PanelBacklightPayload> *cb_intf);
+
+private:
+ std::mutex lock_;
+ std::shared_ptr<DisplayEventProxyIntf> event_proxy_intf_ = nullptr;
+};
 
 class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
  public:

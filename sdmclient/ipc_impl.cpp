@@ -27,10 +27,9 @@
  *IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
+ * Changes from Qualcomm Technologies, Inc. are provided under the
  * following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <cstring>
@@ -108,7 +107,7 @@ int IPCImpl::Init() {
   }
   int err = GetMemBuf(&mem_buf_);
   if (err != 0) {
-    DLOGE("GetMemBuf failed!! %d", err);
+    DLOGW("GetMemBuf failed!! %d", err);
     goto cleanup;
   }
 
