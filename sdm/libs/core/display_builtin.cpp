@@ -1795,6 +1795,10 @@ DisplayError DisplayBuiltIn::SetDisplayState(DisplayState state, bool teardown,
   return kErrorNone;
 }
 
+DisplayError DisplayBuiltIn::SetOffloadMode(bool enable) {
+  return hw_intf_->SetOffloadMode(enable);
+}
+
 void DisplayBuiltIn::SetIdleTimeoutMs(uint32_t active_ms, uint32_t inactive_ms) {
   ClientLock lock(disp_mutex_);
   comp_manager_->SetIdleTimeoutMs(display_comp_ctx_, active_ms, inactive_ms);

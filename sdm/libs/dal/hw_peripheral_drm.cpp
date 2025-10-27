@@ -232,6 +232,28 @@ DisplayError HWPeripheralDRM::SetDisplayMode(const HWDisplayMode hw_display_mode
   return kErrorNone;
 }
 
+DisplayError HWPeripheralDRM::SetOffloadMode(bool enable) {
+  /* Note:
+  * On NullCommit (after setting the offload property), kernel deregisters HFI/Hardware
+  * events and sends retire/release fences.
+  * For offload entry, offload property is updated here with following NullCommit.
+  * For offload exit, we should not send NullCommit from here as it can cause fence
+  * mismatch issue in kernel.
+  *
+  * Commit for offload exit is handled as part of PowerOn/Doze call.
+  */
+
+  sde_drm::DRMOffloadMode mode =
+      enable ? sde_drm::DRMOffloadMode::ON : sde_drm::DRMOffloadMode::OFF;
+  drm_atomic_intf_->Perform(DRMOps::CRTC_SET_OFFLOAD_MODE, token_.crtc_id, mode);
+
+  if (enable) {
+    return NullCommit(false, false);
+  }
+
+  return kErrorNone;
+}
+
 DisplayError HWPeripheralDRM::SetBppMode(uint32_t bpp) {
 
   if (bpp != static_cast<uint32_t>(kBppMode24) && bpp != static_cast<uint32_t>(kBppMode30)) {

@@ -4338,6 +4338,13 @@ DisplayError SDMDisplay::SetStandbyMode(bool enable, bool is_twm) {
     }
 
     if (!null_display_active_) {
+      // notify DRM
+      error = display_intf_->SetOffloadMode(true);
+      if (kErrorNone != error) {
+        DLOGE("Failed to set offload mode. Error = %d", error);
+        return error;
+      }
+
       stored_display_intf_ = display_intf_;
       display_intf_ = display_null_intf_;
       shared_ptr<Fence> release_fence = nullptr;
@@ -4370,6 +4377,14 @@ DisplayError SDMDisplay::SetStandbyMode(bool enable, bool is_twm) {
         DLOGE("Unexpected event. Display state may be inconsistent.");
         return kErrorNotSupported;
       }
+
+      // notify DRM
+      error = stored_display_intf_->SetOffloadMode(false);
+      if (kErrorNone != error) {
+        DLOGE("Failed to set offload mode. Error = %d", error);
+        return error;
+      }
+
       display_intf_ = stored_display_intf_;
       null_display_active_ = false;
       DLOGD("Null Display is disconnected successfully");
