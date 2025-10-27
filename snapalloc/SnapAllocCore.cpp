@@ -107,13 +107,24 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
 
     AllocateBuffer(&ad, &m_data, custom_content_md_size, &desc, &out_desc, test_alloc);
 
-    if (desc.usage & QTI_PRIVATE_MULTI_VIEW_INFO) {
+    if ((desc.usage & QTI_PRIVATE_MULTI_VIEW_INFO) ||
+        (desc.usage & QTI_PRIVATE_CLONED_MULTI_VIEW_INFO)) {
       AllocData ad_2;
       AllocData m_data_2;
       ad_2 = ad;
       m_data_2 = m_data;
-
-      AllocateBuffer(&ad_2, &m_data_2, custom_content_md_size, &desc, &out_desc, test_alloc);
+      if (desc.usage & QTI_PRIVATE_CLONED_MULTI_VIEW_INFO) {
+        ad_2.fd = dup(ad.fd);
+        err = mem_alloc_intf_->AllocateMem(
+            &m_data_2, static_cast<vendor_qti_hardware_display_common_BufferUsage>(0),
+            static_cast<vendor_qti_hardware_display_common_PixelFormat>(0));
+        if (err != Error::NONE) {
+          DLOGE("Failed to allocate metadata memory for cloned view");
+          return err;
+        }
+      } else {
+        AllocateBuffer(&ad_2, &m_data_2, custom_content_md_size, &desc, &out_desc, test_alloc);
+      }
       hnd = SnapHandleInternal::createMultiviewHandle(
           ad.fd, m_data.fd, ad_2.fd, m_data_2.fd, out_priv_flags, layout.aligned_width_in_bytes,
           aligned_width_in_pixels, layout.aligned_height, desc.width, desc.height, out_desc.format,
