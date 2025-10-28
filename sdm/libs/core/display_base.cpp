@@ -354,6 +354,19 @@ DisplayError DisplayBase::Init() {
   if (Debug::Get()->GetProperty(ENABLE_ASYNC_POWER_OFF_WAIT, &prop) == kErrorNone) {
     enable_async_power_off_wait_ = (prop == 1);
   }
+  prop = 0;
+  if (Debug::Get()->GetProperty(DISABLE_PUNCHHOLE_LAYERS, &prop) == kErrorNone) {
+    std::bitset<kClientCapabilityMax> client_capabilities =
+        std::bitset<kClientCapabilityMax>().set();
+
+    if (prop)
+      client_capabilities.reset(kPunchholeSupported);
+
+    error = SetClientTargetCapability(client_capabilities);
+    if (error != kErrorNone) {
+      DLOGW("Failed to populate client capabilities");
+    }
+  }
 
   Debug::GetIdleTimeoutMs(&idle_active_ms_, &inactive_ms);
 
@@ -5495,6 +5508,13 @@ DisplayError DisplayBase::SetRGBASplit(int enable) {
 
 bool DisplayBase::IsDpuDmaModeEnabled() {
   return client_ctx_.hw_panel_info.dpu_dma_enabled;
+}
+
+DisplayError DisplayBase::SetClientTargetCapability(
+    const std::bitset<kClientCapabilityMax> &client_capabilities) {
+  ClientLock lock(disp_mutex_);
+
+  return comp_manager_->SetClientTargetCapability(display_comp_ctx_, client_capabilities);
 }
 
 }  // namespace sdm

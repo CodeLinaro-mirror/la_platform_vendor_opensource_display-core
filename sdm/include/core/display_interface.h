@@ -424,6 +424,12 @@ enum PanelFeatureVendorServiceType {
   PanelFeatureVendorServiceTypeMax,
 };
 
+enum ClientCapability {
+  kPunchholeSupported,
+  kHDRSupported,
+  kClientCapabilityMax,
+};
+
 /*! @brief Display device event handler implemented by the client.
 
   @details This class declares prototype for display device event handler methods which must be
@@ -1605,6 +1611,15 @@ class DisplayInterface {
     @return \link bool \endlink
   */
   virtual bool IsDpuDmaModeEnabled() = 0;
+
+  /*! @brief Method to disable features based on client capability.
+
+    @param[in] client_capabilities
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetClientTargetCapability(
+      const std::bitset<kClientCapabilityMax> &client_capabilities) = 0;
 
  protected:
   virtual ~DisplayInterface() { }
