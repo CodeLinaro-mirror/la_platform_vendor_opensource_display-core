@@ -422,10 +422,19 @@ void ConcurrencyMgr::Dump(uint32_t *out_size, char *out_buffer) {
 }
 
 uint32_t ConcurrencyMgr::GetMaxVirtualDisplayCount() {
+  int max_virtual_count = 0;
+  DisplayError error =
+      core_intf_->GetMaxDisplaysSupported(kVirtual, &max_virtual_count);
+  if (error != kErrorNone) {
+    DLOGE("Could not find maximum virtual displays supported. Error = %d",
+          error);
+    return 0;
+  }
   // Limit max virtual display reported to SF as one. Even though
   // HW may support multiple virtual displays, allow only one
   // to be used by SF for now.
-  return 1;
+  max_virtual_count = std::min(max_virtual_count, 1);
+  return max_virtual_count;
 }
 
 DisplayError ConcurrencyMgr::AcceptDisplayChanges(Display display) {
