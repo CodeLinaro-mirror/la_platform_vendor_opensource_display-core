@@ -1170,7 +1170,7 @@ DisplayError DisplayBase::Prepare(LayerStack *layer_stack) {
     }
 
     // Trigger validate only if needed.
-    if (disp_layer_stack_->stack_info.do_hw_validate) {
+    if (draw_method_ == kDrawDefault) {
       error = dpu_core_mux_->Validate(disp_layer_stack_->info);
     }
 
