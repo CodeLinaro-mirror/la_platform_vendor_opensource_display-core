@@ -156,6 +156,10 @@ Error SnapMapper::GetMetadataState(const SnapHandle &in_handle, vendor_qti_hardw
   return err;
 }
 
+Error SnapMapper::GetBaseView(const SnapHandle &in_handle, uint32_t *view) {
+    return Error::UNSUPPORTED;
+}
+
 extern "C" {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wreturn-type-c-linkage"
