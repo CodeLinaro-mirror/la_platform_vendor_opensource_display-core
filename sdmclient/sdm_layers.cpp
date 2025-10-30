@@ -552,6 +552,42 @@ DisplayError SDMLayer::SetLayerFlag(SDMLayerFlag flag) {
   return kErrorNone;
 }
 
+DisplayError SDMLayer::SetRenderLayerReferenceSpaceType(
+    SDMRenderLayerReferenceSpaceType reference_layer_space_type) {
+  layer_->reference_space_type = reference_layer_space_type;
+  return kErrorNone;
+}
+
+DisplayError SDMLayer::SetCompositionLayerType(SDMCompositionLayerType comp_layer_type) {
+  layer_->comp_layer_type = comp_layer_type;
+  return kErrorNone;
+}
+
+DisplayError SDMLayer::SetLayerPose(SDMLayerPose layer_pose) {
+  layer_->layer_pose = layer_pose;
+  return kErrorNone;
+}
+
+DisplayError SDMLayer::SetLayerQuadSize(SDMLayerQuadSize layer_quad_size) {
+  layer_->layer_quad_size = layer_quad_size;
+  return kErrorNone;
+}
+
+DisplayError SDMLayer::SetLayerFrustum(SDMLayerFrustum layer_frustum) {
+  layer_->layer_frustum = layer_frustum;
+  return kErrorNone;
+}
+
+DisplayError SDMLayer::SetLayerPlaneEquation(SDMLayerPlaneEquation plane_equation) {
+  layer_->plane_equation = plane_equation;
+  return kErrorNone;
+}
+
+DisplayError SDMLayer::SetLayerVisibilityType(SDMLayerVisibilityType layer_visibility_type) {
+  layer_->layer_visibility_type = layer_visibility_type;
+  return kErrorNone;
+}
+
 DisplayError SDMLayer::SetLayerColorTransform(const float *matrix) {
   if (std::memcmp(matrix, layer_->color_transform_matrix,
                   sizeof(layer_->color_transform_matrix))) {

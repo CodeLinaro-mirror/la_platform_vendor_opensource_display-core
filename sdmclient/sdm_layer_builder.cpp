@@ -316,6 +316,43 @@ DisplayError SDMLayerBuilder::SetLayerFlag(uint64_t display, int64_t layer,
   return CallLayerFunction(display, layer, &SDMLayer::SetLayerFlag, flag);
 }
 
+DisplayError SDMLayerBuilder::SetRenderLayerReferenceSpaceType(
+    uint64_t display, int64_t layer, SDMRenderLayerReferenceSpaceType reference_layer_space_type) {
+  return CallLayerFunction(display, layer, &SDMLayer::SetRenderLayerReferenceSpaceType,
+                           reference_layer_space_type);
+}
+
+DisplayError SDMLayerBuilder::SetCompositionLayerType(uint64_t display, int64_t layer,
+                                                      SDMCompositionLayerType comp_layer_type) {
+  return CallLayerFunction(display, layer, &SDMLayer::SetCompositionLayerType, comp_layer_type);
+}
+
+DisplayError SDMLayerBuilder::SetLayerPose(uint64_t display, int64_t layer,
+                                           SDMLayerPose layer_pose) {
+  return CallLayerFunction(display, layer, &SDMLayer::SetLayerPose, layer_pose);
+}
+
+DisplayError SDMLayerBuilder::SetLayerQuadSize(uint64_t display, int64_t layer,
+                                               SDMLayerQuadSize layer_quad_size) {
+  return CallLayerFunction(display, layer, &SDMLayer::SetLayerQuadSize, layer_quad_size);
+}
+
+DisplayError SDMLayerBuilder::SetLayerFrustum(uint64_t display, int64_t layer,
+                                              SDMLayerFrustum layer_frustum) {
+  return CallLayerFunction(display, layer, &SDMLayer::SetLayerFrustum, layer_frustum);
+}
+
+DisplayError SDMLayerBuilder::SetLayerPlaneEquation(uint64_t display, int64_t layer,
+                                                    SDMLayerPlaneEquation plane_equation) {
+  return CallLayerFunction(display, layer, &SDMLayer::SetLayerPlaneEquation, plane_equation);
+}
+
+DisplayError SDMLayerBuilder::SetLayerVisibilityType(uint64_t display, int64_t layer,
+                                                     SDMLayerVisibilityType layer_visibility_type) {
+  return CallLayerFunction(display, layer, &SDMLayer::SetLayerVisibilityType,
+                           layer_visibility_type);
+}
+
 DisplayError SDMLayerBuilder::SetLayerSurfaceDamage(uint64_t display,
                                                     int64_t layer_id,
                                                     SDMRegion damage) {

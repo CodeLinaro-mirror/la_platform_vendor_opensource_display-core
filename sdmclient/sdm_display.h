@@ -455,6 +455,7 @@ public:
       SDMVsyncPeriodChangeTimeline *out_timeline);
 
   DisplayError SetDisplayElapseTime(uint64_t time);
+  DisplayError SetDisplayDeviceConfig(SDMDisplayDeviceConfig sdm_display_device_config);
   virtual bool IsDisplayIdle() { return false; };
   virtual bool HasReadBackBufferSupport() { return false; }
   virtual DisplayError NotifyDisplayCalibrationMode(bool in_calibration) {
@@ -764,6 +765,7 @@ public:
   uint32_t frame_interval_ns_ = 0;  // FrameInterval for current frame
   bool is_poms_mode_ = false;
   bool pending_privregions_update_ = false;
+  SDMDisplayDeviceConfig display_device_config_;
 };
 
 inline DisplayError SDMDisplay::Perform(uint32_t operation, ...) {

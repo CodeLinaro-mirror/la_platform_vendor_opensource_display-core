@@ -1026,6 +1026,12 @@ DisplayError ConcurrencyMgr::SetDisplayElapseTime(Display display,
   return CallDisplayFunction(display, &SDMDisplay::SetDisplayElapseTime, time);
 }
 
+DisplayError ConcurrencyMgr::SetDisplayDeviceConfig(
+    Display display, sdm::SDMDisplayDeviceConfig sdm_display_device_config) {
+  return CallDisplayFunction(display, &SDMDisplay::SetDisplayDeviceConfig,
+                             sdm_display_device_config);
+}
+
 DisplayError
 ConcurrencyMgr::SetOutputBuffer(uint64_t display, const SnapHandle *buffer,
                                 const shared_ptr<Fence> &release_fence) {

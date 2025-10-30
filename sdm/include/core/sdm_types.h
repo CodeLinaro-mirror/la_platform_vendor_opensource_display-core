@@ -380,6 +380,75 @@ enum SDMLayerFlag {
   LAYER_FLAG_COMPATIBLE,
 };
 
+enum SDMRenderLayerReferenceSpaceType {
+  RENDER_LAYER_REFERENCE_SPACE_NONE = 0,
+  RENDER_LAYER_REFERENCE_SPACE_WORLD = 1,
+  RENDER_LAYER_REFERENCE_SPACE_HEAD = 2,
+  RENDER_LAYER_REFERENCE_SPACE_SPHERE = 3
+};
+
+enum SDMCompositionLayerType {
+  COMPOSITION_LAYER_NONE = 0,
+  COMPOSITION_LAYER_PROJECTION = 1,
+  COMPOSITION_LAYER_QUAD = 2
+};
+
+struct SDMLayerPosition {
+  float x = 0;
+  float y = 0;
+  float z = 0;
+};
+
+struct SDMLayerOrientation {
+  float x = 1;
+  float y = 0;
+  float z = 0;
+  float w = 0;
+};
+
+struct SDMLayerPose {
+    SDMLayerPosition pos;
+    SDMLayerOrientation orientation;
+};
+
+struct SDMLayerQuadSize {
+  float width = 0;
+  float height = 0;
+};
+
+// TODO: Fill default values
+struct SDMLayerFrustum {
+  float angleLeft = 0;
+  float angleRight = 0;
+  float angleUp = 0;
+  float angleDown = 0;
+};
+
+struct SDMLayerPlaneEquation {
+    float a = 0;
+    float b = 0;
+    float c = 0;
+    float d = 0.000001;
+};
+
+struct SDMDisplayProjectionMatrix {
+    float prjMatrix[4][4];
+};
+
+struct SDMDisplayDeviceConfig {
+  SDMDisplayProjectionMatrix projectionMatrix[2];
+  float gamma[256];
+  SDMLayerOrientation rotation[2];
+  char calibrationFileStr[512];
+};
+
+enum SDMLayerVisibilityType {
+    LAYER_VISIBILITY_NONE = 0,
+    LAYER_VISIBILITY_LEFT_EYE = 1,
+    LAYER_VISIBILITY_RIGHT_EYE = 2,
+    LAYER_VISIBILITY_BOTH_EYES = 3
+};
+
 enum SDMColorMode {
   COLOR_MODE_NATIVE                        = 0,
   COLOR_MODE_STANDARD_BT601_625            = 1,

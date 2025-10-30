@@ -2971,6 +2971,11 @@ DisplayError SDMDisplay::SetDisplayElapseTime(uint64_t time) {
   return kErrorNone;
 }
 
+DisplayError SDMDisplay::SetDisplayDeviceConfig(SDMDisplayDeviceConfig sdm_display_device_config) {
+  display_device_config_ = sdm_display_device_config;
+  return kErrorNone;
+}
+
 bool SDMDisplay::IsDisplayCommandMode() { return is_cmd_mode_; }
 
 DisplayError

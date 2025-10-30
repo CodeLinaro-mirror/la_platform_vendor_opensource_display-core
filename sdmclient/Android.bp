@@ -29,6 +29,7 @@ cc_library_shared {
         "-std=c++11",
         "-Werror",
         "-fno-operator-names",
+        "-DLSR_API",
     ],
 
     srcs: ["*.cpp"],
