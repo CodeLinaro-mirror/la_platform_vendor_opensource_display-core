@@ -41,6 +41,7 @@ enum DemuraParserManagerParams {
   kDemuraParserManagerParamPanelIds,
   kDemuraParserManagerParamReleaseParsers,
   kDemuraParserManagerReparseDemuraFiles,
+  kDemuraParserManagerReleaseMultiCfgParsers,
   kDemuraParserManagerParamMax = 0x80,
   kDemuraParserManagerPrivParamStart,
   kDemuraParserManagerPrivParamEnd = 0xff,
