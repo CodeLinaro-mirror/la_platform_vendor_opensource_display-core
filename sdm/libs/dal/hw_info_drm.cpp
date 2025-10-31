@@ -1142,7 +1142,9 @@ DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
           break;
         }
       }
-      hw_info.lm_mask = iter.second.modes[mode_index].lm_mask;
+      if (iter.second.modes.size() != 0) {
+        hw_info.lm_mask = iter.second.modes[mode_index].lm_mask;
+      }
     }
 
     if (iter.second.type == DRM_MODE_CONNECTOR_VIRTUAL) {
