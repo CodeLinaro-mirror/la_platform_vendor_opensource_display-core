@@ -1,4 +1,6 @@
 // Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Changes from Qualcomm Technologies, Inc. are provided under the following license:
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include "SnapUtils.h"
@@ -260,7 +262,7 @@ bool CheckHeightConstraints(
     vendor_qti_hardware_display_common_PixelFormat format, int height) {
   auto format_traits = format_traits_map.find(format);
   if (format_traits != format_traits_map.end()) {
-    if (format_traits->second.width_even) {
+    if (format_traits->second.height_even) {
       if (height & 1) {
         DLOGE("Height is odd for format %lu", static_cast<uint64_t>(format));
         return false;
