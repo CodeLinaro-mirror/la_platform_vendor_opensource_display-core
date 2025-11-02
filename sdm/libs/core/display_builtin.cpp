@@ -5729,4 +5729,8 @@ DisplayError DisplayBuiltIn::SetDisplayDeviceConfig(
   return comp_manager_->SetDisplayDeviceConfig(display_comp_ctx_, display_device_config);
 }
 
+DisplayError DisplayBuiltIn::SetPoseConfig(const LayerBuffer &buffer) {
+  return comp_manager_->SetPoseConfig(display_comp_ctx_, buffer);
+}
+
 }  // namespace sdm

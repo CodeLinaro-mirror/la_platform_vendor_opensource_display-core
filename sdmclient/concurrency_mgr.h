@@ -137,6 +137,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
 
   DisplayError PostBuffer(const CwbConfig &cwb_config, void *buffer,
                           int32_t display_type);
+  DisplayError SetPoseConfig(uint64_t disp_id, void *buffer);
 
   template <typename... Args>
   DisplayError CallDisplayFunction(Display display,

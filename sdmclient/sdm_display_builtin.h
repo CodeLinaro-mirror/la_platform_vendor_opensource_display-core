@@ -151,6 +151,7 @@ public:
  virtual DisplayError SetDpuDmaMode();
  virtual bool IsDmaModeIncompatible(LayerComposition composition);
  virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size);
+ virtual DisplayError SetPoseConfig(void *buffer) override;
 
 private:
  SDMDisplayBuiltIn(CoreInterface *core_intf, BufferAllocator *buffer_allocator,
@@ -182,6 +183,7 @@ private:
  void ReqPerfHintRelease();
  void InitializePerfHints();
  void HandlePowerModeHint(SDMPowerMode mode);
+ DisplayError PopulateLayerBuffer(void *buffer_hnd, LayerBuffer *output_buffer);
 
  // SyncTask methods.
  void OnTask(const LayerStitchTaskCode &task_code,

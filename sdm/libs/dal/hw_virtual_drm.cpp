@@ -237,6 +237,7 @@ DisplayError HWVirtualDRM::Commit(HWLayersInfo *hw_layers_info) {
   }
 
   ConfigureWbConnectorFbId(output_buf_fb_id, lsr_out_fb_ids);
+  ConfigurePoseBuffer(hw_layers_info->pose_buffer);
   ConfigureDNSC(hw_layers_info);
   ConfigureWbConnectorDestRect(hw_layers_info->iwe_enabled);
   SetWbCSC();
@@ -330,6 +331,7 @@ DisplayError HWVirtualDRM::Validate(HWLayersInfo *hw_layers_info) {
   }
 
   ConfigureWbConnectorFbId(output_buf_fb_id, lsr_out_fb_ids);
+  ConfigurePoseBuffer(hw_layers_info->pose_buffer);
   ConfigureWbConnectorDestRect();
   SetWbCSC();
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_SYNC_TO, token_.conn_id, primary_disp_conn_id_);
@@ -585,6 +587,47 @@ void HWVirtualDRM::ProgramDisplayDeviceConfig() {
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_DISPLAY_GAMMA, token_.conn_id, &display_gamma_);
 
   set_display_device_config_ = false;
+}
+
+DisplayError HWVirtualDRM::ConfigurePoseBuffer(std::shared_ptr<LayerBuffer> pose_buffer) {
+  if (!pose_buffer) {
+    return kErrorUndefined;
+  }
+
+  if (pose_buffer->planes[0].fd < 0) {
+    DLOGE("Invalid Pose Buffer fd");
+    return kErrorUndefined;
+  }
+
+  uint64_t handle_id = pose_buffer->handle_id;
+  bool secure_present = (pose_buffer->flags.secure || pose_buffer->flags.secure_display ||
+                         pose_buffer->flags.secure_camera);
+  bool need_fb_id_creation = true;
+  if (!handle_id || (handle_id != previous_pose_handle_)) {
+    pose_fb_obj_ = nullptr;
+  } else if (pose_fb_obj_ && pose_fb_obj_.get()->IsEqual(pose_buffer->format, pose_buffer->width,
+                                                         pose_buffer->height, secure_present)) {
+    need_fb_id_creation = false;
+  }
+
+  if (need_fb_id_creation) {
+    std::vector<uint32_t> fb_id(1);
+    int ret = registry_.CreateFbId(*pose_buffer, &fb_id);
+    if (ret >= 0) {
+      pose_fb_obj_ = std::make_shared<FrameBufferObject>(
+          fb_id[kColorNone], core_id_, pose_buffer->format, pose_buffer->width, pose_buffer->height,
+          false /* shallow */, secure_present);
+    }
+  }
+
+  uint32_t pose_fb_id = pose_fb_obj_->GetFbId();
+  if (!pose_fb_id) {
+    DLOGE("Invalid pose fbid");
+    return kErrorUndefined;
+  }
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_POSE_FB_ID, token_.conn_id, pose_fb_id);
+
+  return kErrorNone;
 }
 
 }  // namespace sdm

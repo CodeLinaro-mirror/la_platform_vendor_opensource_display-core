@@ -123,6 +123,7 @@ class HWVirtualDRM : public HWDeviceDRM {
   void ProgramDisplayDeviceConfig();
   DisplayError InvertMatrix(float mat[REPROJ_MATRIX_ROWS][REPROJ_MATRIX_COLS],
                             float invert_mat[REPROJ_MATRIX_ROWS][REPROJ_MATRIX_COLS]);
+  DisplayError ConfigurePoseBuffer(std::shared_ptr<LayerBuffer> pose_buffer);
 #ifdef FEATURE_DNSC_BLUR
   struct sde_drm_dnsc_blur_cfg dnsc_cfg_ = {};
 #endif
@@ -133,6 +134,8 @@ class HWVirtualDRM : public HWDeviceDRM {
   struct drm_msm_opaque_config display_gamma_ = {};
   struct sde_drm_reproj_matrix_list drm_repro_matrix_ = {};
   bool set_display_device_config_ = false;
+  uint64_t previous_pose_handle_ = 0;
+  std::shared_ptr<FrameBufferObject> pose_fb_obj_ = nullptr;
 };
 
 }  // namespace sdm

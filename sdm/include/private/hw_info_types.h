@@ -1155,6 +1155,9 @@ struct HWLayersInfo {
                                        //!< Pointer to the buffer where composed buffer would be
                                        //!< rendered for virtual displays.
                                        //!< NOTE: This field applies to a virtual display only.
+  std::shared_ptr<LayerBuffer> pose_buffer = nullptr;
+                                     //!< Pointer to the buffer containing pose buffer info.
+                                     //!< NOTE: This field applies to a reprojection display only.
   vector<std::shared_ptr<LayerBuffer>> reprojection_output_buffers = {};
                                        //!< array of the buffer where LSR composed buffer
                                        //!< would be rendered. Which will be later used in

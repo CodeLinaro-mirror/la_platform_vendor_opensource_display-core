@@ -331,6 +331,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config) {
     return kErrorNotSupported;
   }
+  virtual DisplayError SetPoseConfig(const LayerBuffer &buffer) { return kErrorNotSupported; }
 
  protected:
   struct DisplayMutex {

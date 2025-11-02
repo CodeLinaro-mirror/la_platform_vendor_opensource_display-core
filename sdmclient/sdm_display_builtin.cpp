@@ -2023,4 +2023,105 @@ bool SDMDisplayBuiltIn::IsDmaModeIncompatible(LayerComposition composition) {
   return (composition == kCompositionGPU && dpu_dma_enabled_);
 }
 
+DisplayError SDMDisplayBuiltIn::PopulateLayerBuffer(void *buffer_hnd, LayerBuffer *output_buffer) {
+  if (!buffer_hnd || !output_buffer) {
+    DLOGE("Invalid input: buffer_hnd or output_buffer is null.");
+    return kErrorParameters;
+  }
+
+  SnapHandle *hdl = static_cast<SnapHandle *>(buffer_hnd);
+  if (!hdl) {
+    DLOGE("Bad parameter: SnapHandle is null.");
+    return kErrorNotSupported;
+  }
+
+  auto err = GetMetadata(hdl, MetadataType::STRIDE, &output_buffer->width, snapmapper_);
+  if (err) {
+    DLOGE("Failed to retrieve aligned width");
+  }
+  output_buffer->planes[0].stride = output_buffer->width;
+
+  err =
+      GetMetadata(hdl, MetadataType::ALIGNED_HEIGHT_IN_PIXELS, &output_buffer->height, snapmapper_);
+  if (err) {
+    DLOGE("Failed to retrieve aligned height");
+  }
+
+  uint64_t tmp_width, tmp_height;
+  err = GetMetadata(hdl, MetadataType::WIDTH, &tmp_width, snapmapper_);
+  if (err) {
+    DLOGE("Failed to retrieve unaligned width");
+  } else {
+    output_buffer->unaligned_width = static_cast<uint32_t>(tmp_width);
+  }
+
+  err = GetMetadata(hdl, MetadataType::HEIGHT, &tmp_height, snapmapper_);
+  if (err) {
+    DLOGE("Failed to retrieve unaligned height");
+  } else {
+    output_buffer->unaligned_height = static_cast<uint32_t>(tmp_height);
+  }
+
+  int format;
+  err = GetMetadata(hdl, MetadataType::PIXEL_FORMAT_ALLOCATED, &format, snapmapper_);
+  if (err) {
+    DLOGE("Failed to retrieve format");
+  }
+
+  BufferUsage usage_flag;
+  err = GetMetadata(hdl, MetadataType::USAGE, &usage_flag, snapmapper_);
+  if (err) {
+    DLOGE("Failed to retrieve flag");
+  }
+  output_buffer->usage = static_cast<uint64_t>(usage_flag);
+
+  int64_t compression_type;
+  err = GetMetadata(hdl, MetadataType::COMPRESSION, &compression_type, snapmapper_);
+  if (err) {
+    DLOGE("Failed to retrieve compression type");
+  }
+
+  int64_t is_ubwc = 0, flag = 0;
+  err = snapmapper_->GetMetadata(*hdl, MetadataType::IS_UBWC, &is_ubwc);
+  if (err) {
+    DLOGE("Failed to retrieve is_ubwc");
+    return kErrorNotSupported;
+  }
+  flag = is_ubwc ? INT32(MetadataType::IS_UBWC) : 0;
+
+  uint64_t pixel_format_modifier = 0;
+  snapmapper_->GetMetadata(*hdl, MetadataType::FORMAT_MODIFIER, &pixel_format_modifier);
+  output_buffer->format =
+      buffer_allocator_->GetSDMFormat(format, flag, compression_type, pixel_format_modifier);
+
+  err = GetMetadata(hdl, MetadataType::FD, &output_buffer->planes[0].fd, snapmapper_);
+  if (err) {
+    DLOGE("Failed to retrieve file descriptor");
+    return kErrorNotSupported;
+  }
+
+  err = GetMetadata(hdl, MetadataType::BUFFER_ID, &output_buffer->handle_id, snapmapper_);
+  if (err) {
+    DLOGE("Failed to retrieve buffer id");
+  }
+
+  return kErrorNone;
+}
+
+DisplayError SDMDisplayBuiltIn::SetPoseConfig(void *buffer_hnd) {
+  LayerBuffer pose_buffer = {};
+  DisplayError error = PopulateLayerBuffer(buffer_hnd, &pose_buffer);
+  if (error != kErrorNone) {
+    DLOGE("Failed to populate LayerBuffer for pose config. Error = %d", error);
+    return error;
+  }
+
+  error = display_intf_->SetPoseConfig(pose_buffer);
+  if (error != kErrorNone) {
+    DLOGE("Failed to set pose config. Error = %d", error);
+    return error;
+  }
+  return kErrorNone;
+}
+
 } // namespace sdm

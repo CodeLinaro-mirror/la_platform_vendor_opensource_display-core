@@ -1229,4 +1229,15 @@ DisplayError CompManager::SetDisplayDeviceConfig(
   return kErrorNone;
 }
 
+DisplayError CompManager::SetPoseConfig(Handle display_ctx, const LayerBuffer &buffer) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+  if (resource_intf_) {
+    DisplayCompositionContext *display_comp_ctx =
+        reinterpret_cast<DisplayCompositionContext *>(display_ctx);
+    return resource_intf_->SetPoseConfig(display_comp_ctx->display_resource_ctx, buffer);
+  }
+
+  return kErrorNone;
+}
+
 }  // namespace sdm
