@@ -556,6 +556,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError GetPanelFeatureConfig(Display display, int32_t type, void *data, uint32_t data_size);
   DisplayError ClearBuffersMappedToLayer(uint64_t display, LayerId layer_id,
                                          const SnapHandle *layerBuffer);
+  DisplayError SetRgbHistObserverConfig(Display display, bool state, void *data);
 
   static const int locker_count_ = pluggable_lock_index_ + 1;
   static Locker locker_[locker_count_];

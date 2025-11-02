@@ -400,15 +400,17 @@ struct PanelFeatureInfo {
   uint32_t fps = 0;
 };
 
-/*! @brief This struct stores the disp info
+/*! @brief This struct stores the rgb hist feature info
 
-  @sa DisplayInterface::RgbHistFeatureInitInfo
+  @sa DisplayInterface::RgbHistConfigWrapper
 */
-struct RgbHistFeatureInitInfo {
-  DisplayInterface *disp_intf = nullptr;
-  uint32_t display_type = 0;
-  int32_t display_id = -1;
-  bool is_primary = false;
+struct RgbHistConfigWrapper {
+  bool enable = false;
+  uint32_t disp_width = 0;
+  uint32_t disp_height = 0;
+  void *payload = nullptr;
+  void *observer = nullptr;
+  std::string observer_id;
 };
 
 /*! @brief This enum represents the panel feature cmd types supported by the vendService cmd.
@@ -441,6 +443,7 @@ enum PanelFeatureVendorServiceType {
   kTypeSwitchToDAC = 12,
   /* Getter: char* */
   kTypeGetDemuraTnAgingValue = 13,
+  kTypeRgbHistConfig = 14,
   PanelFeatureVendorServiceTypeMax,
 };
 
@@ -1702,6 +1705,14 @@ class DisplayInterface {
     @return \link bool \endlink
   */
   virtual bool IsLSRSupported() = 0;
+
+  /*! @brief Method to set rgb hist observer configurations
+   @param[in] state: Enable/Disable
+   @param[in] data : Configuration or operation data
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetRgbHistObserverConfig(bool state, void *data) = 0;
 
  protected:
   virtual ~DisplayInterface() { }

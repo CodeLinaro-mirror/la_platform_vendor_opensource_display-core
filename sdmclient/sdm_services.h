@@ -115,6 +115,7 @@ enum {
   SDM_SERVICE_SET_PRIVACY_REGIONS = 67,       // Set PrivacyRegions on given layers in frame
   SDM_SERVICE_GET_PANEL_FEATURE_CONFIG = 68,  // Get panel feature configuration
   SDM_SERVICE_SET_FRAME_DUMP_STREAMING_CONFIG = 69,  // Set continuous frame dump streaming config
+  SDM_SERVICE_SET_RGB_HISTOGRAM_CONFIG = 70,         // Set rgb histogram config
   SDM_SERVICE_COMMAND_LIST_END = 400,
 };
 
@@ -329,6 +330,7 @@ private:
   DisplayError GetPanelResolution(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError SetStandbyMode(SDMParcel *input_parcel);
   DisplayError SetPrivacyRegions(SDMParcel *input_parcel);
+  DisplayError SetRgbHistObserverConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
 
   typedef DisplayError (SDMServices::*VndCmdSetHandler)(
       SDMParcel *input_parcel);
@@ -399,6 +401,7 @@ private:
       {SDM_SERVICE_SET_PANEL_FEATURE_CONFIG, &SDMServices::SetPanelFeatureConfig},
       {SDM_SERVICE_GET_PANEL_RESOLUTION, &SDMServices::GetPanelResolution},
       {SDM_SERVICE_GET_PANEL_FEATURE_CONFIG, &SDMServices::GetPanelFeatureConfig},
+      {SDM_SERVICE_SET_RGB_HISTOGRAM_CONFIG, &SDMServices::SetRgbHistObserverConfig},
   };
 
   int bw_mode_release_fd_ = -1;

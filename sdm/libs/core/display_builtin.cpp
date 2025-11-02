@@ -54,6 +54,7 @@
 #include "drm_interface.h"
 #include "drm_master.h"
 #include "rgb_hist_data_dumper.h"
+#include "rgb_hist_feature_intf_impl.h"
 
 #define __CLASS__ "DisplayBuiltIn"
 
@@ -565,6 +566,10 @@ DisplayError DisplayBuiltIn::Deinit() {
     }
 
     if (rgb_hist_manager_intf_) {
+      // Deregister observer
+      rgb_histogram::ObserverConfig config;
+      SetRgbHistObserverConfig(false, &config);
+
       rgb_hist_manager_intf_.reset();
       rgb_hist_manager_intf_ = nullptr;
     }
@@ -6011,7 +6016,7 @@ DisplayError DisplayBuiltIn::SetPixelShiftData() {
 
 DisplayError DisplayBuiltIn::SetupRgbHistogram() {
   // Necessary init information
-  RgbHistFeatureInitInfo info = {};
+  rgb_histogram::RgbHistFeatureInitInfo info = {};
   info.disp_intf = this;
   info.display_type = display_type_;
   info.display_id = display_id_;
@@ -6042,6 +6047,59 @@ int DisplayBuiltIn::Notify(const HistData &data) {
   rgb_histogram::RgbHistDataDumper Dumper;
   Dumper.DumpHistData(data);
   return 0;
+}
+
+DisplayError DisplayBuiltIn::SetRgbHistObserverConfig(bool state, void *data) {
+  int ret = 0;
+  DisplayState disp_state = kStateOff;
+  GenericPayload payload = {};
+  RgbHistConfigWrapper *wrapper = nullptr;
+
+  if (!rgb_histogram_enable_) {
+    DLOGE("RGB histogram enable %d", rgb_histogram_enable_);
+    return kErrorUndefined;
+  }
+
+  if (!data || !rgb_hist_manager_intf_) {
+    DLOGE("Invalid data %pK manager intf %pK", data, rgb_hist_manager_intf_.get());
+    return kErrorUndefined;
+  }
+
+  // RGB histogram can only be configured when the display state is ON.
+  DisplayError err = GetDisplayState(&disp_state);
+  if (err != kErrorNone) {
+    DLOGE("Failed to get disp state, err %d", err);
+    return err;
+  }
+  if (disp_state != kStateOn) {
+    DLOGW("Skip rgb hist config: disp state=%d (not ON).", disp_state);
+    return kErrorNone;
+  }
+
+  // Allocate payload for configuration wrapper
+  ret = payload.CreatePayload<RgbHistConfigWrapper>(wrapper);
+  if (ret) {
+    DLOGE("Failed to create payload, ret %d", ret);
+    return kErrorUndefined;
+  }
+
+  // Fill in observer configuration
+  wrapper->enable = state;
+  wrapper->disp_width = client_ctx_.display_attributes.x_pixels;
+  wrapper->disp_height = client_ctx_.display_attributes.y_pixels;
+  wrapper->payload = reinterpret_cast<rgb_histogram::ObserverConfig *>(data);
+  wrapper->observer = static_cast<rgb_histogram::NotifyInterface<HistData> *>(this);
+  wrapper->observer_id = kRgbHistogramClient_;
+
+  // Apply configuration to manager interface
+  ret = rgb_hist_manager_intf_->SetParameter(rgb_histogram::kRgbHistManagerParamsConfig, payload);
+  if (ret) {
+    DLOGE("Failed to set config, state %d, ret %d", state, ret);
+    return kErrorUndefined;
+  }
+
+  DLOGI("RGB histogram observer configuration updated, state=%d", state);
+  return kErrorNone;
 }
 
 }  // namespace sdm
