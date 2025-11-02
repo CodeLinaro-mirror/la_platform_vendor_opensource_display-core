@@ -5073,7 +5073,7 @@ DisplayError DisplayBuiltIn::ExportABCFiles() {
 }
 
 DisplayError DisplayBuiltIn::StartTvmServices() {
-  if (!abc_prop_ && !demura_enable_) {
+  if (!abc_tvm_enabled_ && !demura_enable_) {
     return kErrorNone;
   }
 
@@ -5197,6 +5197,7 @@ int DisplayBuiltIn::StartVmFileServiceAndExportFiles() {
   ret = vm_file_xfer_intf_->Init();
   if (ret) {
     DLOGE("Failed to init VmFileXferClient ret %d", ret);
+    vm_file_xfer_intf_->Deinit();
     vm_file_xfer_intf_.reset();
     vm_file_xfer_intf_ = nullptr;
     return ret;
