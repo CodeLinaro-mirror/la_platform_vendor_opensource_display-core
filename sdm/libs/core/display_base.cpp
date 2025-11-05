@@ -786,7 +786,9 @@ void DisplayBase::ConfigureCwbParams(LayerStack *layer_stack) {
 
     uint32_t cwb_roi_supported = 0;  // Check whether CWB ROI is supported.
     IsSupportedOnDisplay(kCwbCrop, &cwb_roi_supported);
-    if (!cwb_roi_supported) {  // If CWB ROI isn't supported, then go for full frame update
+    // If either CWB ROI isn't supported or expected downscaled CWB output, then go for full
+    // frame update
+    if (!cwb_roi_supported || layer_stack->cwb_config->cwb_control_params.needs_downscale) {
       disable_pu_one_frame_ = true;
     }
   } else if (cwb_configured_) {  // CWB isn't requested in the current draw cycle.
@@ -1976,6 +1978,7 @@ DisplayError DisplayBase::PostCommit() {
     clearstack_.store(false);
   }
 
+  mixer_resolution_updated_ = false;
   return error;
 }
 
@@ -3304,6 +3307,7 @@ DisplayError DisplayBase::SetMixerResolution(uint32_t width, uint32_t height) {
   req_mixer_width_ = width;
   req_mixer_height_ = height;
 
+  mixer_resolution_updated_ = true;
   return kErrorNone;
 }
 
@@ -5302,9 +5306,10 @@ void DisplayBase::RefreshOnIdleTimeoutForCwb(bool is_cwb_requested) {
     idle_time_ms = IDLE_TIMEOUT_DEFAULT_MS;
   }
 
+  bool qsync_enabled = qsync_mode_ != kQSyncModeNone;
   if (state_ == kStateOn && !enable_client_control_cwb_refresh_ && !force_refresh_to_process_cwb_ &&
       (mirror_src_display_id_ == -1 || comp_manager_->IsActiveDisplay(mirror_src_display_id_)) &&
-      (handle_idle_timeout_ || idle_hint_set_ || idle_time_ms <= 0) &&
+      (handle_idle_timeout_ || idle_hint_set_ || idle_time_ms <= 0) && !qsync_enabled &&
       (is_cwb_requested || comp_manager_->HasPendingCwbRequest(display_comp_ctx_))) {
     event_handler_->Refresh();
   }
@@ -5341,6 +5346,7 @@ DisplayError DisplayBase::DisableDestinationScalar() {
   comp_manager_->GetDSConfig(display_comp_ctx_, &hw_layers_info);
   hw_intf_->SetDestScalarData(hw_layers_info);
 
+  mixer_resolution_updated_ = true;
   return kErrorNone;
 }
 

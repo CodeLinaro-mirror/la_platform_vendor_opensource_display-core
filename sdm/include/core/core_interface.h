@@ -123,6 +123,7 @@ struct HWDisplayInfo {
   uint32_t max_cwb = 0;                        //!< Maximum CWB instances supported concurrently,
                                                //!< and it is valid only for virtual display.
   bool has_disp_in_other_core = false;         //!< check if display is also present in other core
+  uint32_t lm_mask = 0;                        //!< the mask of layer mixer id
 };
 
 /*! @brief Information on all displays as a map with display_id as key.

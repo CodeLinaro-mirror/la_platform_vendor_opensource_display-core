@@ -289,6 +289,7 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "buffer_mode") { return DRMProperty::BUFFER_MODE; }
   if (name == "color_mask_override") { return DRMProperty::COLOR_MASK_OVERRIDE; }
   if (name == "emsync_fps") { return DRMProperty::EMSYNC_FPS; }
+  if (name == "privacy_layers_v1") { return DRMProperty::PRIVACY_REGIONS; }
 
   return DRMProperty::INVALID;
 }
