@@ -182,14 +182,6 @@ enum HWMixerSplit {
   kQuadSplit,
 };
 
-enum HwHdrEotf {
-  kHdrEOTFInvalid = 0,
-  kHdrEOTFSDR = 0x1,
-  kHdrEOTFHdrLumRange = 0x2,
-  kHdrEOTFHDR10 = 0x4,
-  kHdrEOTFHLG = 0x8,
-};
-
 enum HwColorspace {
   kColorspaceXvycc601     = (1 << 0),
   kColorspaceXvycc709     = (1 << 1),
