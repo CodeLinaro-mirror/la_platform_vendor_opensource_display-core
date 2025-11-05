@@ -266,8 +266,9 @@ DisplayError DisplayBuiltIn::Init() {
       primary_core_id_ = i;
       master_core = false;
     } else {
-      // register panel dead for all the cores
+      // register panel dead and display event thread exit event for all the cores
       std::vector<HWEvent> core_event_list = {HWEvent::PANEL_DEAD};
+      core_event_list.push_back(HWEvent::EXIT);
       event_list_[i] = core_event_list;
     }
   }
