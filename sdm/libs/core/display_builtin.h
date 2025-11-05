@@ -198,6 +198,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError DisablePartialUpdateOneFrameInternal() override;
   DisplayError SetDisplayState(DisplayState state, bool teardown,
                                shared_ptr<Fence> *release_fence) override;
+  DisplayError SetOffloadMode(bool enable) override;
   void SetIdleTimeoutMs(uint32_t active_ms, uint32_t inactive_ms) override;
   DisplayError SetDisplayMode(uint32_t mode) override;
   DisplayError GetRefreshRateRange(uint32_t *min_refresh_rate,
@@ -368,6 +369,8 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetDemuraTnBatchId(void *data);
   DisplayError SetDemuraTnAodHandlerCtrl(void *data);
   DisplayError SetDemuraTnAgingSurfTransfer(void *data);
+  DisplayError SwitchToDAC(void *data);
+  void ClearDemuraMultiCfgParsers();
   int StartVmFileServiceAndExportFiles();
   int CreateServiceManager();
   int HandleTvmServiceEvent(const TvmServiceCbEvent &event);
@@ -426,6 +429,7 @@ class DisplayBuiltIn : public DisplayBase,
   const std::string kDemuraTnUserCtrlFile = "/mnt/vendor/persist/display/demuratn_user_ctrl";
   std::shared_ptr<DemuraTnCleanupIntf> demuratn_cleanup_intf_;
   bool demuratn_user_disabled_ = false;
+  DemuraFeatureType demuratn_override_feature_ = kFeatureMax;
   bool abc_enabled_ = false;
   bool abc_tvm_enabled_ = false;
   bool abc_prop_ = false;

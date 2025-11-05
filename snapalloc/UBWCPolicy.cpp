@@ -67,7 +67,8 @@ bool UBWCPolicy::IsUBWCAlloc(BufferDescriptor desc) {
   // Explicit UBWC formats will have UBWC flags set - check for these first
   bool enable = false;
   if (desc.usage & vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC ||
-      desc.usage & vendor_qti_hardware_display_common_BufferUsage::QTI_PRIVATE_ALLOC_UBWC_PI) {
+      desc.usage & vendor_qti_hardware_display_common_BufferUsage::QTI_PRIVATE_ALLOC_UBWC_PI ||
+      desc.usage & vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC_4R) {
     enable = true;
   }
 
@@ -303,6 +304,8 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc,
     }
   }
 
+  bool requires_extended_y_buffer =
+      (GetPixelFormatModifier(desc) == static_cast<uint64_t>(PIXEL_FORMAT_MODIFIER_4Y_COMPONENT));
   MmmColorFormatMapper mapper = MmmColorFormatMapper();
   int mmm_color_format = 0;
   vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
@@ -325,7 +328,21 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc,
       DLOGD_IF(enable_logs, "Overflow check skipped for format %d", static_cast<int>(desc.format));
     }
 
-    out_ad->size = mapper.GetBufferSize(mmm_color_format, desc.width, height);
+    if (desc.format == SnapPixelFormat::C_8) {
+      auto aligned_w = MMM_COLOR_FMT_Y_STRIDE(mmm_color_format, desc.width);
+      auto aligned_h = MMM_COLOR_FMT_Y_SCANLINES(mmm_color_format, desc.height);
+      auto data_plane_size = MMM_COLOR_FMT_ALIGN((aligned_w * aligned_h), 4096);
+      auto y_meta_stride = MMM_COLOR_FMT_Y_META_STRIDE(mmm_color_format, desc.width);
+      auto y_meta_scanlines = MMM_COLOR_FMT_Y_META_SCANLINES(mmm_color_format, desc.height);
+      auto metadata_plane_size = MMM_COLOR_FMT_ALIGN(y_meta_stride * y_meta_scanlines, 4096);
+      if (requires_extended_y_buffer) {
+        data_plane_size *= 4;
+        metadata_plane_size *= 4;
+      }
+      out_ad->size = data_plane_size + metadata_plane_size;
+    } else {
+      out_ad->size = mapper.GetBufferSize(mmm_color_format, desc.width, height);
+    }
     if ((pixel_format_modifier == PIXEL_FORMAT_MODIFIER_UBWC_FLEX) ||
         (pixel_format_modifier == PIXEL_FORMAT_MODIFIER_UBWC_FLEX_2_BATCH) ||
         (pixel_format_modifier == PIXEL_FORMAT_MODIFIER_UBWC_FLEX_4_BATCH) ||
@@ -375,6 +392,11 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc,
               mapper.GetYMetaStride(mmm_color_format, desc.width);
           out_layout->planes[meta_plane_index].scanlines =
               mapper.GetYMetaScanlines(mmm_color_format, height);
+          if ((desc.format == SnapPixelFormat::C_8) && requires_extended_y_buffer) {
+            out_layout->planes[meta_plane_index].horizontal_stride_in_bytes *= 4;
+            out_layout->planes[data_plane_index].horizontal_stride_in_bytes *= 4;
+            out_layout->bpp *= 4;
+          }
           break;
         case PLANE_LAYOUT_COMPONENT_TYPE_R:
         case PLANE_LAYOUT_COMPONENT_TYPE_G:

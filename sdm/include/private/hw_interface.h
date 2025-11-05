@@ -148,6 +148,7 @@ class HWInterface {
   virtual DisplayError GetPPFeaturesVersion(PPFeatureVersion *vers) = 0;
   virtual DisplayError SetPPFeature(PPFeatureInfo *feature) = 0;
   virtual DisplayError SetVSyncState(bool enable) = 0;
+  virtual DisplayError SetOffloadMode(bool enable) = 0;
   virtual void SetIdleTimeoutMs(uint32_t timeout_ms) = 0;
   virtual DisplayError SetDisplayMode(const HWDisplayMode hw_display_mode) = 0;
   virtual DisplayError SetBppMode(uint32_t bpp) = 0;

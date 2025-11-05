@@ -1317,6 +1317,29 @@
                 ]
             },
             {
+                "format": "C_8",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 1,
+                            "planes": [
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 128,
+                                    "scanline_align": 32,
+                                    "size_align_bytes": 1
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
                 "format": "R_8",
                 "variants": [
                     {

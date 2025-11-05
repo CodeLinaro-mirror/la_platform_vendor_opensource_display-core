@@ -45,6 +45,32 @@
                 ]
             },
             {
+                "format": "C_8",
+                "variants": [
+                    {
+                        "modifier": 0,
+                        "constraints": {
+                            "size_align_bytes": 4096,
+                            "planes": [
+                                {
+                                    "components": [
+                                        {
+                                            "component_type": "Y"
+                                        }
+                                    ],
+                                    "horiz_stride_align_bytes": 128,
+                                    "scanline_align": 32,
+                                    "meta_planes": {
+                                        "horiz_stride_align_bytes": 64,
+                                        "scanline_align": 16
+                                    }
+                                },
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
                 "format": "TP10",
                 "variants": [
                     {

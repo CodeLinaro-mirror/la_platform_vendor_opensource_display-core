@@ -43,6 +43,7 @@
 #include <utils/formats.h>
 #include <utils/rect.h>
 #include <utils/utils.h>
+#include <PixelFormatModifier.h>
 
 #include <algorithm>
 #include <iomanip>
@@ -1537,8 +1538,7 @@ DisplayError SDMDisplay::SetFrameDumpConfig(uint32_t count,
       output_buffer_info_.buffer_config.height,
       UINT32(tap_point) ? (UINT32(tap_point) == 1) ? "DSPP" : "DEMURA" : "LM");
 
-  output_buffer_info_.buffer_config.format =
-      buffer_allocator_->GetSDMFormat(format, 0, 0);
+  output_buffer_info_.buffer_config.format = buffer_allocator_->GetSDMFormat(format, 0, 0, 0);
   output_buffer_info_.buffer_config.buffer_count = 1;
   if (buffer_allocator_->AllocateBuffer(&output_buffer_info_) != 0) {
     DLOGE("Buffer allocation failed");
@@ -2476,8 +2476,7 @@ DisplayError SDMDisplay::SetFrameBufferResolution(uint32_t x_pixels,
   // TODO(user): How does the dirty region get set on the client target? File
   // bug on Google
   client_target_layer->composition = kCompositionGPUTarget;
-  client_target_layer->input_buffer.format =
-      buffer_allocator_->GetSDMFormat(format, flags, 0);
+  client_target_layer->input_buffer.format = buffer_allocator_->GetSDMFormat(format, flags, 0, 0);
   client_target_layer->input_buffer.width = UINT32(aligned_width);
   client_target_layer->input_buffer.height = UINT32(aligned_height);
   client_target_layer->input_buffer.unaligned_width = x_pixels;
@@ -3742,7 +3741,10 @@ DisplayError SDMDisplay::SetReadbackBuffer(void *buffer,
   }
   flag = is_ubwc ? INT32(MetadataType::IS_UBWC) : 0;
 
-  output_buffer.format = buffer_allocator_->GetSDMFormat(format, flag, compression_type);
+  uint64_t pixel_format_modifier = 0;
+  snapmapper_->GetMetadata(*hdl, MetadataType::FORMAT_MODIFIER, &pixel_format_modifier);
+  output_buffer.format =
+      buffer_allocator_->GetSDMFormat(format, flag, compression_type, pixel_format_modifier);
   err = GetMetadata(hdl, MetadataType::FD, &output_buffer.planes[0].fd,
                     snapmapper_);
   if (err) {
@@ -4077,8 +4079,9 @@ DisplayError SDMDisplay::GetClientTargetProperty(
   }
   int32_t format = 0;
   uint64_t flags = 0;
-  auto err = buffer_allocator_->SetBufferInfo(client_layer->request.format,
-                                              &format, &flags);
+  uint64_t pixel_format_modifier = 0;
+  auto err = buffer_allocator_->SetBufferInfo(client_layer->request.format, &format, &flags,
+                                              &pixel_format_modifier);
   if (err) {
     DLOGE("Invalid format: %s requested",
           GetFormatString(client_layer->request.format));
@@ -4335,6 +4338,13 @@ DisplayError SDMDisplay::SetStandbyMode(bool enable, bool is_twm) {
     }
 
     if (!null_display_active_) {
+      // notify DRM
+      error = display_intf_->SetOffloadMode(true);
+      if (kErrorNone != error) {
+        DLOGE("Failed to set offload mode. Error = %d", error);
+        return error;
+      }
+
       stored_display_intf_ = display_intf_;
       display_intf_ = display_null_intf_;
       shared_ptr<Fence> release_fence = nullptr;
@@ -4367,6 +4377,14 @@ DisplayError SDMDisplay::SetStandbyMode(bool enable, bool is_twm) {
         DLOGE("Unexpected event. Display state may be inconsistent.");
         return kErrorNotSupported;
       }
+
+      // notify DRM
+      error = stored_display_intf_->SetOffloadMode(false);
+      if (kErrorNone != error) {
+        DLOGE("Failed to set offload mode. Error = %d", error);
+        return error;
+      }
+
       display_intf_ = stored_display_intf_;
       null_display_active_ = false;
       DLOGD("Null Display is disconnected successfully");

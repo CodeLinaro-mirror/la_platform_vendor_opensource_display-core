@@ -123,6 +123,8 @@ enum LayerBufferFormat {
   kFormatRGBA8888UbwcLossy8To5,  //!< UBWC aligned RGBA8888 format with lossy 8:5 compression
   kFormatC8Ubwc,                 // UBWC aligned C8 format. Y-plane only, No UV-Plane.
   kFormatC8,                     // C8 format. Y-plane only, No UV-Plane.
+  kFormatC84RUbwc,               // UBWC aligned C8 format. Y-plane only of NV124R, No UV-Plane.
+  kFormatC84R4YUbwc,             // UBWC aligned C84R format for the 4 Y fields.
 
   /* All YUV-Planar formats, Any new format will be added towards end of this group to maintain
      backward compatibility.

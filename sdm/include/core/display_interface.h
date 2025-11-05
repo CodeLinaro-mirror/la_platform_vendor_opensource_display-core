@@ -421,7 +421,15 @@ enum PanelFeatureVendorServiceType {
   kTypeDemuraTnAodHandlerCtrl = 10,
   /* Setter: None */
   kTypeDemuraTnAgingSurfTransfer = 11,
+  /* Setter: None */
+  kTypeSwitchToDAC = 12,
   PanelFeatureVendorServiceTypeMax,
+};
+
+enum ClientCapability {
+  kPunchholeSupported,
+  kHDRSupported,
+  kClientCapabilityMax,
 };
 
 /*! @brief Display device event handler implemented by the client.
@@ -685,6 +693,14 @@ class DisplayInterface {
   */
   virtual DisplayError SetDisplayState(DisplayState state, bool teardown,
                                        shared_ptr<Fence> *release_fence) = 0;
+
+  /*! @brief Method to set offload mode (offload to co-processor).
+
+    @param[in] enable
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetOffloadMode(bool enable) = 0;
 
   /*! @brief Method to set active configuration for variable properties of the display device.
 
@@ -1597,6 +1613,15 @@ class DisplayInterface {
     @return \link bool \endlink
   */
   virtual bool IsDpuDmaModeEnabled() = 0;
+
+  /*! @brief Method to disable features based on client capability.
+
+    @param[in] client_capabilities
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetClientTargetCapability(
+      const std::bitset<kClientCapabilityMax> &client_capabilities) = 0;
 
  protected:
   virtual ~DisplayInterface() { }

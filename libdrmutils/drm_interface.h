@@ -472,6 +472,12 @@ enum struct DRMOps {
    */
   CRTC_SET_FLUSH_SYNC_EN,
   /*
+   * Op: Sets CRTC to offload mode (offload to co-processor)
+   * Arg: uint32_t - CRTC ID
+   *      uint32_t - offload mode ON or Off
+  */
+  CRTC_SET_OFFLOAD_MODE,
+  /*
    * Op: Returns retire fence for this commit. Should be called after Commit()
    * on DRMAtomicReqInterface. Arg: uint32_t - Connector ID int * - Pointer to
    * an integer that will hold the returned fence
@@ -729,6 +735,11 @@ enum struct DRMPowerMode {
   DOZE,
   DOZE_SUSPEND,
   OFF,
+};
+
+enum struct DRMOffloadMode {
+  OFF,
+  ON,
 };
 
 enum struct DRMBlendType {
@@ -1130,7 +1141,7 @@ struct DRMConnectorInfo {
   bool is_wb_repro = false;
   DMSType dms_type = DMSType::DMS_VID_DISABLED;
   bool fsc_panel = false;
-  uint32_t num_fsc_fields = 0;
+  uint32_t num_fsc_fields = 3;
   bool dpu_dma_enabled = false;
   bool emsync_switch_enabled = false;
   bool is_privacy_layers_supported = false;

@@ -1017,6 +1017,7 @@ DisplayError SDMServices::SetDemuraState(SDMParcel *input_parcel,
 
   auto ret = cb_->SetDemuraState(disp_id, state, demura_idx);
   if (ret != kErrorNone) {
+    output_parcel->writeInt32(ret);
     return ret;
   }
 
@@ -1031,6 +1032,7 @@ DisplayError SDMServices::SetDemuraConfig(SDMParcel *input_parcel,
   int config = input_parcel->readInt32();
   auto ret = cb_->SetDemuraConfig(disp_id, config);
   if (ret != kErrorNone) {
+    output_parcel->writeInt32(ret);
     return ret;
   }
 
@@ -1306,7 +1308,7 @@ DisplayError SDMServices::SetFrameDumpConfig(SDMParcel *input_parcel) {
     output_format = input_parcel->readInt32();
   }
 
-  LayerBufferFormat sdm_format = buffer_allocator_->GetSDMFormat(output_format, 0, 0);
+  LayerBufferFormat sdm_format = buffer_allocator_->GetSDMFormat(output_format, 0, 0, 0);
   if (sdm_format == kFormatInvalid) {
     DLOGW("Format %d is not supported by SDM", output_format);
     return kErrorNotSupported;
