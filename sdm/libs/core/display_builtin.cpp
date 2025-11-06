@@ -1769,6 +1769,10 @@ DisplayError DisplayBuiltIn::SetDisplayState(DisplayState state, bool teardown,
     DLOGW("Failed to update driver path when transitioning to state %d", state);
   }
 
+  if (state == kStateOn) {
+    primary_commit_needed_ = true;
+  }
+
   error = DisplayBase::SetDisplayState(state, teardown, release_fence);
   if (error != kErrorNone) {
     return error;

@@ -1801,6 +1801,12 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
 
 DisplayError DisplayBase::PerformCommit(std::map<uint32_t, HWLayersInfo> &hw_layers_info) {
   DTRACE_SCOPED();
+  if (!primary_commit_needed_) {
+    DLOGV("Skipping primary display commit");
+    SetSelfRefreshRefCount(0);
+    commit_phase_ = false;
+    return kErrorNone;
+  }
   DisplayError error = dpu_core_mux_->Commit(hw_layers_info);
   if (error != kErrorNone) {
     DLOGE("COMMIT failed: %d ", error);
@@ -1868,7 +1874,17 @@ DisplayError DisplayBase::CommitLocked(LayerStack *layer_stack) {
     return error;
   }
 
+  if ((disp_layer_stack_->stack_info.iwe_repro_left_index == -1) &&
+      (disp_layer_stack_->stack_info.iwe_repro_right_index == -1)) {
+    primary_commit_needed_ = true;
+  }
+
   error = PerformHwCommit(disp_layer_stack_->info);
+
+  if ((disp_layer_stack_->stack_info.iwe_repro_left_index != -1) ||
+      (disp_layer_stack_->stack_info.iwe_repro_right_index != -1)) {
+    primary_commit_needed_ = false;
+  }
 
   if (error != kErrorNone) {
     DLOGE("HwCommit failed %d", error);
