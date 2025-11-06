@@ -1032,7 +1032,7 @@ DisplayError SDMDisplayBuiltIn::ControlPartialUpdate(bool enable) {
   DisplayError error = kErrorNone;
 
   if (display_intf_) {
-    error = display_intf_->ControlPartialUpdate(enable);
+    error = display_intf_->ControlPartialUpdate(enable, kPuSdmClient);
   }
 
   return error;

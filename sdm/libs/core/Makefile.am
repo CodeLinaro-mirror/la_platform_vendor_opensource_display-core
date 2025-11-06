@@ -16,7 +16,8 @@ c_sources = core_interface.cpp \
             dpu_core_factory.cpp \
             dpu_multi_core.cpp \
             dpu_single_core.cpp \
-            privacy_region_manager.cpp
+            privacy_region_manager.cpp \
+            pu_subject_intf_impl.cpp
 
 core_h_sources = $(HEADER_PATH)/core/*.h
 
