@@ -3704,12 +3704,16 @@ void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
         display_type_, info.second.index.at(i), i);
       }
 
-      hw_layer.input_buffer.planes[0].fd = Sys::dup_(sdm_layer->input_buffer.planes[0].fd);
+      bool reprojection_buffer = (hw_layer.composition == kCompositionIWERepro);
+      auto layer = reprojection_buffer ? &hw_layer : sdm_layer;
+      hw_layer.input_buffer.planes[0].fd = Sys::dup_(layer->input_buffer.planes[0].fd);
       hw_layer.input_buffer.planes[0].offset = sdm_layer->input_buffer.planes[0].offset;
       hw_layer.input_buffer.planes[0].stride = sdm_layer->input_buffer.planes[0].stride;
       hw_layer.input_buffer.size = sdm_layer->input_buffer.size;
       hw_layer.input_buffer.acquire_fence = sdm_layer->input_buffer.acquire_fence;
-      hw_layer.input_buffer.handle_id = sdm_layer->input_buffer.handle_id;
+      hw_layer.input_buffer.handle_id = reprojection_buffer
+                                            ? hw_layer.input_buffer.planes[0].handle_id
+                                            : sdm_layer->input_buffer.handle_id;
       // All app buffer handles are set prior to prepare.
       // TODO(user): Other FBT layer attributes like surface damage, dataspace, secure camera and
       // secure display flags are also updated during SetClientTarget() called between validate and
