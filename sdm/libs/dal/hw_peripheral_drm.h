@@ -94,6 +94,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   void SetDestScalarData(const DestScaleInfoMap dest_scale_info_map);
   void SetAIScalerData(const AIScalerInfoMap ai_scale_info_map);
   void ResetDestScalarCache();
+  void ResetAIScalarCache();
   void ResetDestScalarData();
   void CreatePanelFeaturePropertyMap();
   void SetIdlePCState() {
