@@ -5662,4 +5662,9 @@ void DisplayBuiltIn::SetPrivacyRegions() {
   }
 }
 
+DisplayError DisplayBuiltIn::SetDisplayDeviceConfig(
+    const SDMDisplayDeviceConfig &display_device_config) {
+  return comp_manager_->SetDisplayDeviceConfig(display_comp_ctx_, display_device_config);
+}
+
 }  // namespace sdm

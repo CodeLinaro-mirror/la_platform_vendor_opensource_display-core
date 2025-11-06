@@ -485,6 +485,8 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
       uint64_t *numFrames, int32_t samples_size[NUM_HISTOGRAM_COLOR_COMPONENTS],
       uint64_t *samples[NUM_HISTOGRAM_COLOR_COMPONENTS]);
   DisplayError SetDisplayElapseTime(Display display, uint64_t time);
+  DisplayError SetDisplayDeviceConfig(Display display,
+                                      SDMDisplayDeviceConfig sdm_display_device_config);
 
   DisplayError SetCameraSmoothInfo(SDMCameraSmoothOp op, int32_t fps) override;
   DisplayError NotifyTUIDone(int ret, int disp_id,

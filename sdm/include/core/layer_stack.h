@@ -541,6 +541,13 @@ struct Layer {
 
   std::vector<PrivacyRegion> privacy_regions = {}; //!< Privacy regions of the layer
   CornerRadius corner_radius = {};                 //!< Corner radius of the layer
+  SDMRenderLayerReferenceSpaceType reference_space_type = RENDER_LAYER_REFERENCE_SPACE_WORLD;
+  SDMCompositionLayerType comp_layer_type = COMPOSITION_LAYER_QUAD;
+  SDMLayerPose layer_pose = {};
+  SDMLayerQuadSize layer_quad_size = {};
+  SDMLayerFrustum layer_frustum = {};
+  SDMLayerPlaneEquation plane_equation = {};
+  SDMLayerVisibilityType layer_visibility_type = LAYER_VISIBILITY_NONE;
 };
 
 /*! @brief This structure defines the color space + transfer of a given layer.

@@ -135,6 +135,10 @@ class ResourceDefault : public ResourceInterface {
     return kErrorNone;
   }
   virtual bool IsGPUHWAvailable() { return true; }
+  virtual DisplayError SetDisplayDeviceConfig(Handle display_ctx,
+                                              const SDMDisplayDeviceConfig &display_device_config) {
+    return kErrorNone;
+  }
 
  private:
   enum PipeOwner {
