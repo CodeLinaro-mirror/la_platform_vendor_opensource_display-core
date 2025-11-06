@@ -178,7 +178,9 @@ int DRMAtomicReq::Perform(DRMOps opcode, uint32_t obj_id, ...) {
     case DRMOps::CONNECTOR_SET_FRAME_INTERVAL:
     case DRMOps::CONNECTOR_SET_USECASE_IDX:
     case DRMOps::CONNECTOR_SET_EMSYNC_FPS:
-    case DRMOps::CONNECTOR_SET_PRIVACY_REGIONS: {
+    case DRMOps::CONNECTOR_SET_PRIVACY_REGIONS:
+    case DRMOps::CONNECTOR_SET_LSR_OUTPUT_FB_ID:
+    case DRMOps::CONNECTOR_SET_SYNC_TO: {
       drm_mgr_->GetConnectorMgr()->Perform(opcode, obj_id, drm_atomic_req_, args);
     } break;
     case DRMOps::DPPS_CACHE_FEATURE: {

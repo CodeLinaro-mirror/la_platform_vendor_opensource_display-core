@@ -291,6 +291,8 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "offload_mode") { return DRMProperty::OFFLOAD_MODE; }
   if (name == "emsync_fps") { return DRMProperty::EMSYNC_FPS; }
   if (name == "privacy_layers_v1") { return DRMProperty::PRIVACY_REGIONS; }
+  if (name == "fb_id_list") { return DRMProperty::FB_ID_LIST; }
+  if (name == "sync_to") { return DRMProperty::SYNC_TO; }
 
   return DRMProperty::INVALID;
 }

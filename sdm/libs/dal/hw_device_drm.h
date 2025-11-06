@@ -59,6 +59,7 @@
 #define UI_FBID_LIMIT 4
 #define VIDEO_FBID_LIMIT 32
 #define OFFLINE_ROTATOR_FBID_LIMIT 2
+#define REPROJECTION_FBID_LIMIT 13
 
 using drm_utils::DRMBuffer;
 using sde_drm::DRMPowerMode;
@@ -310,15 +311,17 @@ class HWDeviceDRM : public HWInterface {
     void GetFbId(Layer *layer, uint64_t handle_id, std::vector<uint32_t> *fb_id);
     // Find fb_id for given handle_id in output buffer map.
     uint32_t GetOutputFbId(uint64_t handle_id);
+    void SetOutputFbIdCacheLimit(uint8_t limit) { output_fbid_cache_limit_ = limit; }
 
    private:
-    void GetBufInfoForTunnelPipe(HWCacColorComponent color, BufferInfo *loopback_cac_info,
+    void GetBufInfoForTunnelPipe(ColorComponent color, BufferInfo *loopback_cac_info,
                                  AllocatedBufferInfo *buf_info, DRMBuffer *layout);
     bool disable_fbid_cache_ = false;
     std::unordered_map<uint64_t, std::unordered_map<uint32_t, std::shared_ptr<LayerBufferObject>>>
                                                               output_buffer_map_;
     BufferAllocator *buffer_allocator_ = {};
     uint8_t fbid_cache_limit_ = UI_FBID_LIMIT;
+    uint8_t output_fbid_cache_limit_ = UI_FBID_LIMIT;
     Handle master_ = nullptr;
     CacVersion cac_version_ = kCacVersionNone;
     uint32_t core_id_;

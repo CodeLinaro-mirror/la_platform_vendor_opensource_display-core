@@ -287,6 +287,8 @@ enum struct DRMProperty {
   OFFLOAD_MODE,
   EMSYNC_FPS,
   PRIVACY_REGIONS,
+  FB_ID_LIST,
+  SYNC_TO,
 
   // Insert above
   MAX

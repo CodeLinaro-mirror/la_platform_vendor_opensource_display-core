@@ -92,6 +92,7 @@ class HWVirtualDRM : public HWDeviceDRM {
   virtual DisplayError Deinit();
 
  protected:
+  virtual DisplayError Init();
   virtual DisplayError Validate(HWLayersInfo *hw_layers_info);
   virtual DisplayError Commit(HWLayersInfo *hw_layers_info);
   virtual DisplayError Flush(HWLayersInfo *hw_layers_info);
@@ -107,7 +108,9 @@ class HWVirtualDRM : public HWDeviceDRM {
                                                     uint8_t *out_data);
 
  private:
-  void ConfigureWbConnectorFbId(uint32_t fb_id);
+  void ConfigureWbConnectorFbId(uint32_t fb_id, vector<uint32_t> lsr_fb_ids);
+  DisplayError GetOutputBufferFBIds(HWLayersInfo *hw_layers_info, uint32_t *output_fb_id,
+                                    vector<uint32_t> *lsr_out_fb_ids);
   void ConfigureWbConnectorDestRect(bool reset = false);
   void ConfigureWbConnectorSecureMode(bool secure);
   void SetWbCSC();
@@ -118,6 +121,9 @@ class HWVirtualDRM : public HWDeviceDRM {
 #ifdef FEATURE_DNSC_BLUR
   struct sde_drm_dnsc_blur_cfg dnsc_cfg_ = {};
 #endif
+  static const int kMaxCSCOutputBuffer = 2;
+  struct sde_drm_fb_id_list lsr_fb_id_config_ = {};
+  int32_t primary_disp_conn_id_ = -1;
 };
 
 }  // namespace sdm

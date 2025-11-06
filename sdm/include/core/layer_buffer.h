@@ -216,6 +216,14 @@ enum LayerBufferFormat {
   kFormatInvalid = 0xFFFFFFFF,
 };
 
+enum ColorComponent {
+  kColorNone,
+  kColorRed,
+  kColorGreen,
+  kColorBlue,
+  kColorMax,
+};
+
 /*! @brief This structure defines a color sample plane belonging to a buffer format. RGB buffer
   formats have 1 plane whereas YUV buffer formats may have upto 4 planes.
 
@@ -225,6 +233,7 @@ struct LayerBufferPlane {
   int fd = -1;           //!< File descriptor referring to the buffer associated with this plane.
   uint32_t offset = 0;   //!< Offset of the plane in bytes from beginning of the buffer.
   uint32_t stride = 0;   //!< Stride in bytes i.e. length of a scanline including padding.
+  ColorComponent color = kColorNone;  //!< Indicate if buffer content only one field
 };
 
 /*! @brief This structure defines flags associated with a layer buffer. The 1-bit flag can be set

@@ -1633,6 +1633,34 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
                                avr_step_fps);
       DRM_LOGD("Connector %d: Setting Avr Step Fps = %d", obj_id, avr_step_fps);
     } break;
+    case DRMOps::CONNECTOR_SET_LSR_OUTPUT_FB_ID: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::FB_ID_LIST)) {
+        return;
+      }
+
+      uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::FB_ID_LIST);
+      sde_drm_fb_id_list *fb_id_config = va_arg(args, sde_drm_fb_id_list *);
+      int ret =
+          drmModeAtomicAddProperty(req, obj_id, prop_id, reinterpret_cast<uint64_t>(fb_id_config));
+      if (ret < 0) {
+        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, ret %d", obj_id, prop_id, ret);
+      } else {
+        DRM_LOGD("Connector %d: lsr_fb_id_config_ set successfuly", obj_id);
+      }
+    } break;
+
+    case DRMOps::CONNECTOR_SET_SYNC_TO: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::SYNC_TO)) {
+        return;
+      }
+
+      uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::SYNC_TO);
+      uint32_t primary_conn_id = va_arg(args, uint32_t);
+      int ret = drmModeAtomicAddProperty(req, obj_id, prop_id, primary_conn_id);
+      if (ret < 0) {
+        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, ret %d", obj_id, prop_id, ret);
+      }
+    } break;
 
     case DRMOps::CONNECTOR_SET_PRIVACY_REGIONS: {
 #ifdef MAX_PRIVACY_LAYERS

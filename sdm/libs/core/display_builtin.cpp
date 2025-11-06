@@ -2606,9 +2606,17 @@ std::string DisplayBuiltIn::Dump() {
 
     AppendRCMaskData(os);
 
-    const char *header  = "\n| Idx |   Comp Type   |   Split   | Pipe |    W x H    |          Format          |  Src Rect (L T R B) |  Dst Rect (L T R B) |  Z | Pipe Flags | Deci(HxV) | CS | Rng | Tr |";  //NOLINT
-    const char *newline = "\n|-----|---------------|-----------|------|-------------|--------------------------|---------------------|---------------------|----|------------|-----------|----|-----|----|";  //NOLINT
-    const char *format  = "\n| %3s | %13s | %9s | %4d | %4d x %4d | %24s | %4d %4d %4d %4d | %4d %4d %4d %4d | %2s | %10s | %9s | %2s | %3s | %2s |";  //NOLINT
+    const char *header =
+        "\n| Idx |   Comp Type   |     Split    | Pipe |    W x H    |          Format         "
+        " |  Src Rect (L T R B) |  Dst Rect (L T R B) |  Z | Pipe Flags | Deci(HxV) | CS | Rng "
+        "| Tr |";  //NOLINT
+    const char *newline =
+        "\n|-----|---------------|--------------|------|-------------|-------------------------"
+        "-|---------------------|---------------------|----|------------|-----------|----|-----"
+        "|----|";  //NOLINT
+    const char *format =
+        "\n| %3s | %13s | %12s | %4d | %4d x %4d | %24s | %4d %4d %4d %4d | %4d %4d %4d %4d | %2s "
+        "| %10s | %9s | %2s | %3s | %2s |";  //NOLINT
 
     os << "\n";
     os << newline;
@@ -2997,7 +3005,11 @@ bool DisplayBuiltIn::CanSkipDisplayPrepare(LayerStack *layer_stack) {
     return false;
   }
 
-  if (disp_layer_stack_->stack_info.iwe_target_index != -1) {
+  if ((disp_layer_stack_->stack_info.iwe_target_index != -1) ||
+      (disp_layer_stack_->stack_info.iwe_csc_left_index != -1) ||
+      (disp_layer_stack_->stack_info.iwe_csc_right_index != -1) ||
+      (disp_layer_stack_->stack_info.iwe_repro_left_index != -1) ||
+      (disp_layer_stack_->stack_info.iwe_repro_right_index != -1)) {
     return false;
   }
 

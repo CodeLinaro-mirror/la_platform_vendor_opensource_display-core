@@ -75,6 +75,8 @@ enum LayerBlending {
 
   kBlendingSkip,            //!< Used only to denote layer should not be staged for blending, but
                             //!< still requires fetch resources for a different HW block
+
+  kBlendingNone,            //!< Used to indicate undefined blending
 };
 
 /*! @brief This enum represents display layer composition types.
@@ -130,6 +132,8 @@ enum LayerComposition {
   kCompositionCWBTarget,     //!< This layer will hold result of composition for layers marked for
                              //!< CWB composition in case of Idle fallback.
   kCompositionIWE,           //!< This layer will hold the result of first pass composition.
+  kCompositionIWECSC,        //!< This layer will hold the result of CSC composition.
+  kCompositionIWERepro,      //!< This layer will hold the result of Reprojection composition.
 };
 
 enum LayerUpdate {
@@ -257,6 +261,8 @@ struct LayerFlags {
       uint32_t front_buffer : 1;
                               //!< This flag shall be set by client to indicate that the layer
                               //!< is used for front-buffer rendering
+      uint32_t buffer_flipped : 1;
+                              //!< This flag shall be set to indicate that the buffer is flipped
     };
 
     uint32_t flags = 0;       //!< For initialization purpose only.
@@ -598,6 +604,11 @@ struct LayerStack {
                                        //!< Pointer to the buffer where composed buffer would be
                                        //!< rendered for virtual displays.
                                        //!< NOTE: This field applies to a virtual display only.
+
+  std::vector<std::shared_ptr<LayerBuffer>> reprojection_output_buffers = {};
+                                       //!< array of buffers to be used by LSR hardware
+                                       //!< or reprojection.
+                                       //!< NOTE: This field applies to LSR display only.
 
   LayerStackFlags flags;               //!< Flags associated with this layer set.
 
