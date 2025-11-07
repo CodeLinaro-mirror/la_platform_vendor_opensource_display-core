@@ -2429,8 +2429,10 @@ DisplayError DisplayBase::PostSetDisplayState(DisplayState state, bool active,
       if (state == kStateOn) {
         HandlePendingVSyncEnable(nullptr /* retire fence */);
       }
+      comp_manager_->SetDisplayState(display_comp_ctx_, state, sync_points);
+    } else if (first_cycle_) {
+      comp_manager_->SetDisplayState(display_comp_ctx_, state, sync_points);
     }
-    comp_manager_->SetDisplayState(display_comp_ctx_, state, sync_points);
     DLOGI("active %d-%d state %d-%d pending_power_state_ %d", active, active_, state, state_,
           pending_power_state_);
   }
@@ -4241,6 +4243,10 @@ DisplayError DisplayBase::ResetPendingPowerState(const shared_ptr<Fence> &retire
 
     state_ = pending_state;
     active_ = true;
+
+    if (!first_cycle_) {
+      comp_manager_->SetDisplayState(display_comp_ctx_, pending_state, sync_points);
+    }
 
     pending_power_state_ = kPowerStateNone;
   }
