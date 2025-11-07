@@ -1391,9 +1391,12 @@ class DisplayInterface {
 
     @param[in] config \link CwbConfig \endlink
 
+    @param[in] client \link CWBClient \endlink
+
     @return \link DisplayError \endlink
   */
-  virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config) = 0;
+  virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config,
+                                  const CWBClient &client) = 0;
 
   /*! @brief Method to handle CWB teardown on the display
 

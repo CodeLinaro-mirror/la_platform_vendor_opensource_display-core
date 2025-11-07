@@ -1240,4 +1240,12 @@ DisplayError CompManager::SetPoseConfig(Handle display_ctx, const LayerBuffer &b
   return kErrorNone;
 }
 
+DisplayError CompManager::CanTakeDPUScreenshot(Handle display_ctx) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+  DisplayCompositionContext *display_comp_ctx =
+      reinterpret_cast<DisplayCompositionContext *>(display_ctx);
+
+  return resource_intf_->CanTakeDPUScreenshot(display_comp_ctx->display_id.GetDisplayId());
+}
+
 }  // namespace sdm

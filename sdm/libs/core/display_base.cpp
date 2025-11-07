@@ -5323,8 +5323,16 @@ DisplayError DisplayBase::OnCwbValidation(const LayerBuffer &output_buffer, CwbC
   return kErrorNone;
 }
 
-DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config) {
+DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config,
+                                     const CWBClient &client) {
   ClientLock lock(disp_mutex_);
+
+  if (client == kCWBClientComposer) {
+    auto error = comp_manager_->CanTakeDPUScreenshot(display_comp_ctx_);
+    if (error == kErrorResources) {
+      return error;
+    }
+  }
 
   auto error = comp_manager_->CaptureCwb(display_comp_ctx_, output_buffer, config);
   if (error != kErrorNone) {
