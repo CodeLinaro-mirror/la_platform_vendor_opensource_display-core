@@ -195,7 +195,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
                                                       CwbConfig &cwb_config);
   virtual bool ValidateCwbConfigForDownscale(const LayerBuffer &output_buffer,
                                              CwbConfig &cwb_config);
-  virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config);
+  virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config,
+                                  const CWBClient &client);
   virtual DisplayError PostHandleSecureEvent(SecureEvent secure_event) {
     return kErrorNotSupported;
   }
