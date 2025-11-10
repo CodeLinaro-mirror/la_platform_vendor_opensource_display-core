@@ -65,6 +65,7 @@ HWPeripheralDRM::HWPeripheralDRM(int32_t display_id, BufferAllocator *buffer_all
   device_name_ = "Peripheral";
   display_id_ = display_id;
   core_id_ = hw_info_intf->GetCoreId();
+  offload_path_ = "/sys/class/drm/sde-conn-0-DSI-1/offload_enable";
 }
 
 DisplayError HWPeripheralDRM::Init() {
@@ -245,23 +246,50 @@ DisplayError HWPeripheralDRM::SetDisplayMode(const HWDisplayMode hw_display_mode
 }
 
 DisplayError HWPeripheralDRM::SetOffloadMode(bool enable) {
-  /* Note:
-  * On NullCommit (after setting the offload property), kernel deregisters HFI/Hardware
-  * events and sends retire/release fences.
-  * For offload entry, offload property is updated here with following NullCommit.
-  * For offload exit, we should not send NullCommit from here as it can cause fence
-  * mismatch issue in kernel.
-  *
-  * Commit for offload exit is handled as part of PowerOn/Doze call.
-  */
+  int fd = Sys::open_(offload_path_.c_str(), O_RDWR);
+  if (fd < 0) {
+    DLOGE("Failed to open node = %s, error = %s", offload_path_.c_str(), strerror(errno));
+    return kErrorFileDescriptor;
+  }
 
-  sde_drm::DRMOffloadMode mode =
-      enable ? sde_drm::DRMOffloadMode::ON : sde_drm::DRMOffloadMode::OFF;
-  drm_atomic_intf_->Perform(DRMOps::CRTC_SET_OFFLOAD_MODE, token_.crtc_id, mode);
+  std::string previous_state = "";
+  previous_state.resize(kMaxStringLength);
+
+  ssize_t bytes_read = Sys::pread_(fd, &previous_state[0], previous_state.size() - 1, 0);
+  if (bytes_read <= 0) {
+    DLOGE("Failed to read offload state from %s", offload_path_.c_str());
+    Sys::close_(fd);
+    return kErrorHardware;
+  }
+
+  int previous_level = std::stoi(previous_state);
+
+  // Write "1\n" to enable, "0\n" to disable the offload mode
+  int level = enable ? 1 : 0;
+  std::string buffer = std::to_string(level) + "\n";
+  ssize_t ret = -1;
+
+  if (previous_level == level) {
+    DLOGI("Offload mode is same as requested. Skipping update!");
+    Sys::close_(fd);
+    return kErrorNone;
+  }
 
   if (enable) {
-    return NullCommit(false, false);
+    DLOGI("Enabling the offload mode");
+    ret = Sys::pwrite_(fd, buffer.c_str(), buffer.size(), 0);
+  } else {
+    DLOGI("Disabling the offload mode");
+    ret = Sys::pwrite_(fd, buffer.c_str(), buffer.size(), 0);
   }
+
+  if (ret < 0) {
+    DLOGE("Failed to write to node = %s, error = %s", offload_path_.c_str(), strerror(errno));
+    Sys::close_(fd);
+    return kErrorHardware;
+  }
+
+  Sys::close_(fd);
 
   return kErrorNone;
 }

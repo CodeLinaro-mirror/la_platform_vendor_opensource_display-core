@@ -1839,6 +1839,7 @@ DisplayError DisplayBuiltIn::SetDisplayState(DisplayState state, bool teardown,
 }
 
 DisplayError DisplayBuiltIn::SetOffloadMode(bool enable) {
+  Fence::Wait(retire_fence_);
   return hw_intf_->SetOffloadMode(enable);
 }
 
