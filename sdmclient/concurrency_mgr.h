@@ -549,6 +549,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError SetABCMode(uint64_t display_id, string mode_name);
   DisplayError SetAIScalerMode(uint64_t display_id, uint32_t mode_id);
   DisplayError SetPanelFeatureConfig(Display display, int32_t type, void *data);
+  DisplayError GetPanelFeatureConfig(Display display, int32_t type, void *data, uint32_t data_size);
   DisplayError ClearBuffersMappedToLayer(uint64_t display, LayerId layer_id,
                                          const SnapHandle *layerBuffer);
 

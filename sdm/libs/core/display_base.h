@@ -309,6 +309,10 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
     return kErrorNotSupported;
   }
 
+  virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size) {
+    return kErrorNotSupported;
+  }
+
   virtual DisplayError PanelBacklightInfo(const std::string &client_name, bool enable,
                                           SdmDisplayCbInterface<PanelBacklightPayload> *cb_intf) {
     return kErrorNotSupported;

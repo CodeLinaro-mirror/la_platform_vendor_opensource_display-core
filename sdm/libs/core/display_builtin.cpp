@@ -4940,6 +4940,56 @@ DisplayError DisplayBuiltIn::SetPanelFeatureConfig(int32_t type, void *data) {
   return ret;
 }
 
+DisplayError DisplayBuiltIn::GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size) {
+  DisplayError ret = kErrorNone;
+
+  if (!data || !data_size) {
+    DLOGE("Invalid input data %pK, data size %d", data, data_size);
+    return kErrorParameters;
+  }
+
+  switch (type) {
+    case kTypeGetDemuraTnAgingValue:
+      ret = GetDemuraTnAgingValue(data, data_size);
+      break;
+    default:
+      DLOGE("Invalid type %d", type);
+      ret = kErrorParameters;
+      break;
+  }
+
+  return ret;
+}
+
+DisplayError DisplayBuiltIn::GetDemuraTnAgingValue(void *data, uint32_t data_size) {
+  int ret = 0;
+  GenericPayload payload = {};
+  DemuraTnAgingValues *aging_values = nullptr;
+
+  if (!demuratn_ || !data) {
+    DLOGE("Invalid demuratn_ %pK, data %pK", demuratn_.get(), data);
+    return kErrorUndefined;
+  }
+
+  ret = payload.CreatePayload<DemuraTnAgingValues>(aging_values);
+  if (ret || aging_values == nullptr) {
+    DLOGE("Failed to create the payload, ret %d", ret);
+    return kErrorUndefined;
+  }
+
+  ret = demuratn_->GetParameter(kDemuraTnCoreUvmParamAgingValues, &payload);
+  if (ret) {
+    DLOGE("Get aging values failed ret %d", ret);
+    return kErrorUndefined;
+  }
+
+  char *output = reinterpret_cast<char *>(data);
+  snprintf(output, data_size, "%.2f %.2f %.2f", aging_values->value[0], aging_values->value[1],
+           aging_values->value[2]);
+  DLOGI("Query aging values: %s", output);
+  return kErrorNone;
+}
+
 DisplayError DisplayBuiltIn::SetDemuraTnCWBSamplingPeriod(void *data) {
   int ret = 0;
   int *period_ptr = nullptr;
