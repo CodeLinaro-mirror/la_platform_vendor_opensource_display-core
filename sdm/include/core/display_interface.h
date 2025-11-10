@@ -241,6 +241,7 @@ struct DisplayConfigFixedInfo {
   bool partial_update = false;          //!< If display supports Partial Update.
   bool readback_supported = false;      //!< If display supports buffer readback.
   bool supports_unified_draw = false;   //!< If display support unified drawing methods.
+  bool vhm_support = false;             //!< If display supports vhm mode.
 };
 
 /*! @brief This structure defines configuration for variable properties of a display device.

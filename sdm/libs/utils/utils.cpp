@@ -218,6 +218,10 @@ const char* GetSocName() {
     case kTunaSocId3:
     case kKeraSocId1:
     case kKeraSocId2:
+    case kKeraSocId3:
+    case kKeraSocId4:
+    case kKeraSocId5:
+    case kKeraSocId6:
       return kSunSocName;
     case kNiobeSocId1:
     case kNiobeSocId2:

@@ -2090,6 +2090,7 @@ DisplayError DisplayBase::GetConfig(uint32_t index, DisplayConfigVariableInfo *v
 DisplayError DisplayBase::GetConfig(DisplayConfigFixedInfo *fixed_info) {
   ClientLock lock(disp_mutex_);
   fixed_info->is_cmdmode = (client_ctx_.hw_panel_info.mode == kModeCommand);
+  fixed_info->vhm_support = client_ctx_.hw_panel_info.vhm_support;
   bool hdr_supported = true;
   bool has_concurrent_writeback = true;
 
@@ -2189,6 +2190,11 @@ DisplayError DisplayBase::SetDrawMethod(DisplayDrawMethod draw_method) {
 DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
                                           shared_ptr<Fence> *release_fence) {
   ClientLock lock(disp_mutex_);
+  if (state == kStateOn && enable_async_power_off_wait_ && need_async_poweroff_wait_) {
+    // WaitForCompletionAsync not executed yet on async thread. Calling it synchronously.
+    WaitForCompletionAsync(retire_fence_, cached_sync_points_);
+  }
+
   DisplayError error = kErrorNone;
   bool active = false;
 
@@ -2326,11 +2332,11 @@ DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
       return kErrorParameters;
   }
 
-  bool performing_async_poweroff_wait = false;
   if ((pending_power_state_ == kPowerStateNone) && !first_cycle_) {
     CacheRetireFence();
     if (enable_async_power_off_wait_ && state == kStateOff) {
-      performing_async_poweroff_wait = true;
+      need_async_poweroff_wait_ = true;
+      cached_sync_points_ = sync_points;
       std::thread(&DisplayBase::WaitForCompletionAsync, this, retire_fence_, sync_points).detach();
     } else {
       SyncPoints sync = {};
@@ -2339,7 +2345,7 @@ DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
     }
   }
 
-  if (!performing_async_poweroff_wait) {
+  if (!need_async_poweroff_wait_) {
     error = PostSetDisplayState(state, active, sync_points);
     if (error != kErrorNone) {
       return error;
@@ -4472,10 +4478,16 @@ void DisplayBase::MMRMEvent(uint32_t clk) {
 void DisplayBase::WaitForCompletionAsync(shared_ptr<Fence> retire_fence, SyncPoints sync_points) {
   ClientLock lock(disp_mutex_);
   DTRACE_SCOPED();
+  if (!need_async_poweroff_wait_) {
+    DLOGI("WaitForCompletionAsync already done. Returning...");
+    return;
+  }
   SyncPoints sync = {};
   sync.retire_fence = retire_fence;
   WaitForCompletion(&sync);
   PostSetDisplayState(DisplayState::kStateOff, false, sync_points);
+  need_async_poweroff_wait_ = false;
+  cached_sync_points_.clear();
 }
 
 void DisplayBase::WaitForCompletion(SyncPoints *sync_points) {

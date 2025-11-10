@@ -1596,7 +1596,7 @@ DisplayError SDMDisplay::HandleEvent(DisplayEvent event) {
     // most likely result in a failure since ESD/HWR has been requested during
     // this time period.
     if (event_handler_) {
-      event_handler_->DisplayPowerReset();
+      event_handler_->DisplayPowerReset(id_);
     } else {
       DLOGW("Cannot execute DisplayPowerReset (client_id = %" PRId64
             "), event_handler_ is null",

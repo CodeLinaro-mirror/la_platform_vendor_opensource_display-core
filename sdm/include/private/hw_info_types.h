@@ -380,6 +380,10 @@ struct HWDestScalarInfo {
 struct SyncPoints {
   shared_ptr<Fence> release_fence = nullptr;
   shared_ptr<Fence> retire_fence = nullptr;
+  void clear() {
+    release_fence = nullptr;
+    retire_fence = nullptr;
+  }
 };
 
 enum SmartDMARevision {

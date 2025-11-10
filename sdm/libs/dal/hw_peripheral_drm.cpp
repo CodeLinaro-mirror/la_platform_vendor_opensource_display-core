@@ -601,6 +601,7 @@ void HWPeripheralDRM::SetSelfRefreshState() {
 }
 
 DisplayError HWPeripheralDRM::Flush(HWLayersInfo *hw_layers_info) {
+  ResetDestScalarData();
   DisplayError err = HWDeviceDRM::Flush(hw_layers_info);
   if (err != kErrorNone) {
     return err;

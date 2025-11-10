@@ -23,9 +23,8 @@
 */
 
 /*
- * ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- *
- * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -106,11 +105,16 @@ DisplayError CoreImpl::Init() {
   enable_null_display_ = (value == 1);
   DLOGI("property: enable_null_display_ = %d", enable_null_display_);
   if (enable_null_display_) {
+    DisplayError err = HandleNullDisplay();
+    if (err != kErrorNone) {
+      goto CleanupOnError;
+    }
     hw_info_intf_[0] = new HWInfoDefault();
     return kErrorNone;
   }
 
   error = HWInfoInterface::Create(&hw_info_intf_, core_ids_);
+  drm_node_unavailable_ = (error == kErrorCriticalResource);
   if (error != kErrorNone) {
     DisplayError err = HandleNullDisplay();
     if ((err != kErrorNone) || !enable_null_display_) {
@@ -431,7 +435,8 @@ DisplayError CoreImpl::HandleNullDisplay() {
     return error;
   }
   DLOGI("comp manager successfully initialized with default hw resources");
-  enable_null_display_ = !comp_mgr_.IsDisplayHWAvailable();
+  enable_null_display_ =
+      (!comp_mgr_.IsDisplayHWAvailable() || drm_node_unavailable_ || enable_null_display_);
   return kErrorNone;
 }
 

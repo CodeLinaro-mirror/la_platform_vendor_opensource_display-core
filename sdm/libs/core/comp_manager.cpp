@@ -430,6 +430,18 @@ DisplayError CompManager::PrePrepare(Handle display_ctx, DispLayerStack *disp_la
   return error;
 }
 
+bool CompManager::IsFeedbackEmpty(LayerFeedback *feedback) {
+  if (feedback->contention_count_ > 0) {
+    return false;
+  }
+
+  for (int i = 0; i < feedback->unsupported_list_.size(); i++) {
+    if (feedback->unsupported_list_[i] == true)
+      return false;
+  }
+  return true;
+}
+
 DisplayError CompManager::Prepare(Handle display_ctx, DispLayerStack *disp_layer_stack) {
   std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
 
@@ -462,7 +474,8 @@ DisplayError CompManager::Prepare(Handle display_ctx, DispLayerStack *disp_layer
       error = resource_intf_->Prepare(display_resource_ctx, disp_layer_stack, &updated_feedback);
       // Exit if successfully prepared resource, else try next strategy.
       exit = (error == kErrorNone);
-      display_comp_ctx->constraints.feedback = updated_feedback;
+      if (!IsFeedbackEmpty(&updated_feedback))
+        display_comp_ctx->constraints.feedback = updated_feedback;
     }
   }
 

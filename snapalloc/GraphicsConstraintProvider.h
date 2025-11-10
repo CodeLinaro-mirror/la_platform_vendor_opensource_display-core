@@ -127,6 +127,7 @@ class GraphicsConstraintProvider : public SnapConstraintProvider {
   bool IsUBWCSupportedByGPU(vendor_qti_hardware_display_common_PixelFormat format,
                             vendor_qti_hardware_display_common_PixelFormatModifier modifier);
   int BuildConstraints(BufferDescriptor desc, BufferConstraints *data);
+  bool IsFormatSupportedByGPU(BufferDescriptor desc);
 
  private:
   GraphicsConstraintProvider(){};
@@ -181,6 +182,8 @@ class GraphicsConstraintProvider : public SnapConstraintProvider {
                                         uint32_t num_planes) = NULL;
   uint64_t (*LINK_adreno_get_aligned_gpu_buffer_size)(void *metadata_blob) = NULL;
   int (*LINK_adreno_isPISupportedByGpu)(int format, uint64_t usage) = NULL;
+  int (*LINK_adreno_isFormatSupportedByGPU) (ADRENOPIXELFORMAT format, uint64_t usage,
+                                             char* desc_name) = NULL;
 
   int AdrenoInitMemoryLayout(void *metadata_blob, int width, int height, int depth,
                              ADRENOPIXELFORMAT format, int num_samples, int isUBWC, uint64_t usage,

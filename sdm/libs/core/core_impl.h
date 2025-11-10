@@ -23,9 +23,8 @@
 */
 
 /*
- * ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- *
- * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -151,6 +150,7 @@ class CoreImpl : public CoreInterface {
   bool enable_null_display_ = false;
   std::bitset<8> core_ids_ = std::bitset<8>(0xFF);
   std::shared_ptr<DemuraTnValidatorIntf> demuratn_validator_intf_;
+  bool drm_node_unavailable_ = false;
 };
 
 }  // namespace sdm

@@ -239,7 +239,10 @@ class CameraConstraintProvider : public SnapConstraintProvider {
            CAMERA_PIXEL_FORMAT_RAW14},
           {{.format = vendor_qti_hardware_display_common_PixelFormat::RAW8,
             .modifier = PIXEL_FORMAT_MODIFIER_NONE},
-           CAMERA_PIXEL_FORMAT_RAW8}};
+           CAMERA_PIXEL_FORMAT_RAW8},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCbCr_420_SP,
+            .modifier = PIXEL_FORMAT_MODIFIER_VENUS},
+           CAMERA_PIXEL_FORMAT_NV12_VENUS}};
 };
 }  // namespace snapalloc
 

@@ -105,6 +105,7 @@ const std::string kDemuraFeatureParamDispEventState = "DispEventState";
 // ABC specific params for supporting TVM
 const std::string kDemuraFeatureParamExportFiles = "ExportFiles";
 const std::string kDemuraFeatureParamGetMode = "GetMode";
+const std::string kDemuraFeatureParamUpdateBrightness = "UpdateBrightness";
 
 using DemuraIntf = GenericIntf<const std::string&, const std::string&, GenericPayload>;
 }  // namespace sdm

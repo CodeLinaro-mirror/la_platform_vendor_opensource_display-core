@@ -28,7 +28,7 @@
  */
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #ifndef __DISPLAY_EVENT_HANDLER_H__
@@ -40,17 +40,15 @@ namespace sdm {
 
 class SDMDisplayEventHandler {
 public:
-  virtual void DisplayPowerReset() = 0;
-  virtual void PerformQsyncCallback(Display display, bool qsync_enabled,
-                                    uint32_t refresh_rate,
-                                    uint32_t qsync_refresh_rate) = 0;
-  virtual void VmReleaseDone(Display display) = 0;
-  virtual void VmReclaimDone(Display display) = 0;
-  virtual DisplayError NotifyCwbDone(int dpy_index, int32_t status,
-                                     uint64_t handle_id) = 0;
-  virtual Display GetVsyncSource() = 0;
-  virtual bool VsyncCallbackRegistered() = 0;
-  virtual int NotifyIdleStatus(bool idle_status) = 0;
+ virtual void DisplayPowerReset(int32_t display) = 0;
+ virtual void PerformQsyncCallback(Display display, bool qsync_enabled, uint32_t refresh_rate,
+                                   uint32_t qsync_refresh_rate) = 0;
+ virtual void VmReleaseDone(Display display) = 0;
+ virtual void VmReclaimDone(Display display) = 0;
+ virtual DisplayError NotifyCwbDone(int dpy_index, int32_t status, uint64_t handle_id) = 0;
+ virtual Display GetVsyncSource() = 0;
+ virtual bool VsyncCallbackRegistered() = 0;
+ virtual int NotifyIdleStatus(bool idle_status) = 0;
 
 protected:
   virtual ~SDMDisplayEventHandler() {}

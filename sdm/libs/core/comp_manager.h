@@ -156,6 +156,7 @@ class CompManager : public CwbCallback {
   static const int kSafeModeThreshold = 4;
 
   void PrepareStrategyConstraints(Handle display_ctx, DispLayerStack *disp_layer_stack);
+  bool IsFeedbackEmpty(LayerFeedback *feedback);
   void UpdateStrategyConstraints(bool is_primary, bool disabled);
   DisplayError HandleQosValidation(Handle display_ctx,
                                    DispLayerStack *disp_layer_stack, DisplayError error);

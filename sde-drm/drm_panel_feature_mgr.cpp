@@ -659,6 +659,7 @@ void DRMPanelFeatureMgr::ResetPanelFeatures(drmModeAtomicReq *req,
 // LCOV_EXCL_STOP
 
 void DRMPanelFeatureMgr::MarkForNullCommit(const DRMDisplayToken &token, const DRMPanelFeatureID &id) {
+  lock_guard<mutex> lock(lock_);
   DRMPanelFeatureInfo &info = feature_info_tbl_[id];
   uint32_t obj_id = 0;
   switch (info.obj_type) {

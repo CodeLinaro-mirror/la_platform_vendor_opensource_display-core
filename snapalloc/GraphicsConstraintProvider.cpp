@@ -51,6 +51,8 @@ void GraphicsConstraintProvider::Init(
         ::dlsym(lib_, "adreno_init_memory_layout");
     *reinterpret_cast<void **>(&LINK_adreno_get_aligned_gpu_buffer_size) =
         ::dlsym(lib_, "adreno_get_aligned_gpu_buffer_size");
+    *reinterpret_cast<void **>(&LINK_adreno_isFormatSupportedByGPU) =
+        ::dlsym(lib_, "isFormatSupportedByGPU");
   } else {
     DLOGW("Graphics lib is not available - read json file");
     // change to shared pointer
@@ -381,6 +383,19 @@ bool GraphicsConstraintProvider::IsUBWCSupportedByGPU(
   }
 
   return false;
+}
+
+bool GraphicsConstraintProvider::IsFormatSupportedByGPU(BufferDescriptor desc) {
+  if (LINK_adreno_isFormatSupportedByGPU) {
+    uint64_t pixel_format_modifier = GetPixelFormatModifier(desc);
+    ADRENOPIXELFORMAT gpu_format = GetGpuPixelFormat(
+        static_cast<vendor_qti_hardware_display_common_PixelFormat>(desc.format),
+        static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(pixel_format_modifier));
+    char* desc_name = desc.name;
+    return LINK_adreno_isFormatSupportedByGPU(gpu_format, desc.usage, desc_name);
+  }
+
+  return true;
 }
 
 void GraphicsConstraintProvider::AlignUnCompressedRGB(int width, int height, int format,
