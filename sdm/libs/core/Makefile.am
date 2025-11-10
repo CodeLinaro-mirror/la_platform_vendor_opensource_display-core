@@ -1,4 +1,5 @@
 HEADER_PATH := ${WORKSPACE}/display/vendor/qcom/opensource/display-core/sdm/include
+AM_CPPFLAGS += "-I${WORKSPACE}/display/vendor/qcom/proprietary/display/utils/tinyxml2/"
 
 c_sources = core_interface.cpp \
             core_impl.cpp \
