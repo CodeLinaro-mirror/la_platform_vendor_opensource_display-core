@@ -1652,6 +1652,15 @@ struct DRMFp16Config {
   drm_msm_fp16_gc gc_config = {.flags = 0, .mode = FP16_GC_MODE_INVALID};
 };
 
+struct DRMRgbHistBuffers {
+  uint32_t num_of_buffers;
+  uint32_t buffer_size;
+  int ion_buffer_fd[RGB_HISTOGRAM_BUFFER_SIZE][RGB_COMPONENT_SIZE];
+  int drm_fb_id[RGB_HISTOGRAM_BUFFER_SIZE][RGB_COMPONENT_SIZE];
+  void *uva[RGB_HISTOGRAM_BUFFER_SIZE][RGB_COMPONENT_SIZE];
+  int status = -1;
+};
+
 enum struct DRMCacheWBState {
   DISABLED = 0,
   ENABLED,
