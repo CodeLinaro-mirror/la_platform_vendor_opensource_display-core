@@ -320,6 +320,9 @@
 
 #define FORCE_LSR_RENDER_MODE             DISPLAY_PROP("force_lsr_render_mode")
 
+// Enable RGB Histogram
+#define ENABLE_RGB_HISTOGRAM              DISPLAY_PROP("enable_rgb_histogram")
+
 // Add all other.properties above
 // End of property
 // clang-format on
