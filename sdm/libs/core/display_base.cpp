@@ -1613,6 +1613,7 @@ DisplayError DisplayBase::CommitOrPrepare(LayerStack *layer_stack) {
     // Copy layer stack attributes needed for commit.
     error = SetUpCommit(layer_stack);
     if (error != kErrorNone) {
+      CleanupOnError();
       return error;
     }
 
@@ -1628,7 +1629,11 @@ DisplayError DisplayBase::CommitOrPrepare(LayerStack *layer_stack) {
 void DisplayBase::HandleAsyncCommit() {
   // Do not acquire mutexes here.
   // Perform hw commit here.
-  PerformHwCommit(disp_layer_stack_->info);
+  DisplayError error = PerformHwCommit(disp_layer_stack_->info);
+  if (error != kErrorNone) {
+    DLOGW("HwCommit failed %d", error);
+    CleanupOnError();
+  }
 }
 
 void DisplayBase::CommitThread() {
@@ -1836,6 +1841,7 @@ DisplayError DisplayBase::Commit(LayerStack *layer_stack) {
   // Copy layer stack attributes needed for commit.
   DisplayError error = SetUpCommit(layer_stack);
   if (error != kErrorNone) {
+    CleanupOnError();
     return error;
   }
 
@@ -1852,6 +1858,7 @@ DisplayError DisplayBase::CommitLocked(LayerStack *layer_stack) {
   DisplayError error = SetUpCommit(layer_stack);
   if (error != kErrorNone) {
     DLOGW("SetUpCommit failed %d", error);
+    CleanupOnError();
     return error;
   }
 
@@ -1859,6 +1866,7 @@ DisplayError DisplayBase::CommitLocked(LayerStack *layer_stack) {
 
   if (error != kErrorNone) {
     DLOGE("HwCommit failed %d", error);
+    CleanupOnError();
   }
 
   return error;
