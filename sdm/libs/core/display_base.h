@@ -60,6 +60,7 @@
 #include "color_manager.h"
 #include "dpu_core_factory.h"
 #include "dpu_core_mux.h"
+#include "refresh_rate_manager.h"
 
 using aiqe::GetABCFeatureFactIntf;
 
@@ -572,6 +573,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool is_ssr_active_ = false;
   bool is_lsr_ssr_active_ = false;
   bool lsr_first_commit_ = true;
+  RefreshRateManager *refresh_rate_mgr_ = nullptr;
 
  private:
   // Max tolerable power-state-change wait-times in milliseconds.
