@@ -387,8 +387,15 @@ void ConcurrencyMgr::GetCapabilities(uint32_t *outCount,
   }
   count += disable_llcbc_support ? 0 : 1;
 
+  bool is_ept_supported = true;
+  if (!IsEPTSupported()) {
+    is_ept_supported = false;
+  }
+  count += is_ept_supported ? 0 : 1;
+
   if (outCapabilities != nullptr && (*outCount >= count)) {
     int index = 0;
+
     if (!disable_skip_validate) {
       outCapabilities[index++] = INT32(SDMCapability::kSkipValidate);
     }
@@ -396,8 +403,21 @@ void ConcurrencyMgr::GetCapabilities(uint32_t *outCount,
     if (!disable_llcbc_support) {
       outCapabilities[index++] = INT32(SDMCapability::kLayerLifeCycleBatchCommand);
     }
+
+    if (!is_ept_supported) {
+      outCapabilities[index++] = INT32(SDMCapability::kPresentFenceIsNotReliable);
+    }
   }
   *outCount = count;
+}
+
+bool ConcurrencyMgr::IsEPTSupported() {
+  SCOPE_LOCK(locker_[SDM_DISPLAY_PRIMARY]);
+  if (!sdm_display_[SDM_DISPLAY_PRIMARY]) {
+    return false;  // Safe default value
+  }
+
+  return sdm_display_[SDM_DISPLAY_PRIMARY]->IsEPTSupported();
 }
 
 void ConcurrencyMgr::Dump(uint32_t *out_size, char *out_buffer) {

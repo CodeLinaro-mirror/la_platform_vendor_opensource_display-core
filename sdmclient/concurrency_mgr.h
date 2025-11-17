@@ -651,6 +651,7 @@ private:
   DisplayError HandleTUITransition(int disp_id, int event);
   DisplayError TUIEventHandler(uint64_t disp_id, SDMTUIEventType event_type);
   void GetPendingHotplug(vector<Display> &pending_hotplugs);
+  bool IsEPTSupported();
 
   CoreInterface *core_intf_ = nullptr;
   SDMCompositorCallbacks callbacks_{};

@@ -95,6 +95,7 @@ class DisplayNull : public DisplayInterface {
     return kErrorNotSupported;
   }
   virtual bool IsDpuDmaModeEnabled() { return false; }
+  virtual bool IsEPTSupported() { return false; }
 
   MAKE_NO_OP(CommitOrPrepare(LayerStack *))
   MAKE_NO_OP(PrePrepare(LayerStack *))

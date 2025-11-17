@@ -5587,4 +5587,8 @@ DisplayError DisplayBase::HandleCommitDuringSSR() {
   return error;
 }
 
+bool DisplayBase::IsEPTSupported() {
+  return dpu_core_mux_->IsEPTSupported();
+}
+
 }  // namespace sdm
