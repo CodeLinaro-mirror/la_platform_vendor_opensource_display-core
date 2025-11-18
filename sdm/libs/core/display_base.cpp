@@ -1642,10 +1642,21 @@ DisplayError DisplayBase::CommitOrPrepare(LayerStack *layer_stack) {
 void DisplayBase::HandleAsyncCommit() {
   // Do not acquire mutexes here.
   // Perform hw commit here.
+
+  if ((disp_layer_stack_->stack_info.iwe_repro_left_index == -1) &&
+      (disp_layer_stack_->stack_info.iwe_repro_right_index == -1)) {
+    primary_commit_needed_ = true;
+  }
+
   DisplayError error = PerformHwCommit(disp_layer_stack_->info);
   if (error != kErrorNone) {
     DLOGW("HwCommit failed %d", error);
     CleanupOnError();
+  }
+
+  if ((disp_layer_stack_->stack_info.iwe_repro_left_index != -1) ||
+      (disp_layer_stack_->stack_info.iwe_repro_right_index != -1)) {
+    primary_commit_needed_ = false;
   }
 }
 
