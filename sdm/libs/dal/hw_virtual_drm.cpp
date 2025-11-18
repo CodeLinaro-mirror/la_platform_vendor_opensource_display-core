@@ -210,6 +210,9 @@ DisplayError HWVirtualDRM::SetWbConfigs(const HWDisplayAttributes &display_attri
 }
 
 void HWVirtualDRM::ConfigureDNSC(HWLayersInfo *hw_layers_info) {
+  if (hw_layers_info->lsr_commit) {
+    return;
+  }
 #ifdef FEATURE_DNSC_BLUR
   sde_drm::DRMFrameTriggerMode trigger_mode = sde_drm::DRMFrameTriggerMode::FRAME_DONE_WAIT_DEFAULT;
   sde_drm::DRMWBUsageType usage_mode = sde_drm::DRMWBUsageType::WB_USAGE_WFD;
