@@ -540,6 +540,8 @@ public:
   DisplayError SetStandbyMode(bool enable, bool is_twm);
   DisplayError SetRGBASplit(int32_t split_enable);
   virtual bool IsDmaModeIncompatible(LayerComposition composition) { return false; }
+  virtual void SetPrivacyRegionsData(uint32_t layer_id, float corner_radius,
+                                     const std::vector<PrivacyRegion> &regions);
 
  protected:
   static uint32_t throttling_refresh_rate_;
@@ -760,6 +762,7 @@ public:
   int idle_active_ms_ = 0;
   uint32_t frame_interval_ns_ = 0;  // FrameInterval for current frame
   bool is_poms_mode_ = false;
+  bool pending_privregions_update_ = false;
 };
 
 inline DisplayError SDMDisplay::Perform(uint32_t operation, ...) {

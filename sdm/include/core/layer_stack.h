@@ -398,6 +398,8 @@ struct LayerStackFlags {
       uint32_t only_video_updating : 1;  //!< This flag indicates only video layers are updating
       uint32_t system_cache : 1;  //!< This flag shall be used to indicate that
                                   //!< all app buffers are rendered on system cache
+      uint32_t privacy_regions_updated : 1; //!< This flag indicates that the privacy regions of a
+                                            //!< layer in the stack has been updated.
     };
 
     uint32_t flags = 0;               //!< For initialization purpose only.
@@ -530,6 +532,9 @@ struct Layer {
                                                    //!< along width.
   uint32_t demura_decimate_h = 1;                  //!< If demura layer, stores the decimation
                                                    //!< along height.
+
+  std::vector<PrivacyRegion> privacy_regions = {}; //!< Privacy regions of the layer
+  CornerRadius corner_radius = {};                 //!< Corner radius of the layer
 };
 
 /*! @brief This structure defines the color space + transfer of a given layer.
@@ -621,6 +626,12 @@ struct LayerStack {
   uint64_t expected_present_time = 0;  //!< Expected Present timestamp for current frame.
 
   uint32_t frame_interval_ns = 0;  //!< Frame Interval for current frame.
+};
+
+enum PrivacyRegionState {
+  kRegionReset,
+  kRegionActive,
+  kRegionUpdate,
 };
 
 // clang-format on
