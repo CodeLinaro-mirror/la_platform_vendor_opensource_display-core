@@ -1808,7 +1808,8 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
   }
 
   for (auto& info : disp_layer_stack_->info) {
-    info.second.retire_fence_offset = retire_fence_offset_;
+    info.second.retire_fence_offset =
+        (disp_layer_stack_->stack_info.iwe_repro_left_index == -1) ? retire_fence_offset_ : 0;
   }
   // Regiser for power events on first cycle in unified draw.
   if (first_cycle_ && display_type_ == kBuiltIn) {
