@@ -29,6 +29,11 @@ PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data
 #QDCM calibration json file for RaonTech panel
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_RaonTech_Non-FSC_mode_video_1440x1440@60_mode_dsi_panel.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_RaonTech_Non-FSC_mode_video_1440x1440@60_mode_dsi_panel.json
 
+#QDCM calibration json file for generic panel on Hamoa target
+ifeq ($(TARGET_BOARD_PLATFORM),hamoa)
+	PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_generic_panel.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_generic_panel.json
+endif
+
 #Backlight calibration xml file for nt37801 amoled panels
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/backlight_calib_nt37801_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY.xml:$(TARGET_COPY_OUT_VENDOR)/etc/display/backlight_calib_nt37801_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY.xml
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/backlight_calib_nt37801_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY.xml:$(TARGET_COPY_OUT_VENDOR)/etc/display/backlight_calib_nt37801_amoled_video_mode_dsi_csot_panel_with_DSC_CPHY.xml
