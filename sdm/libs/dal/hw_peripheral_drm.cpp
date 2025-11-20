@@ -452,6 +452,15 @@ DisplayError HWPeripheralDRM::Commit(HWLayersInfo *hw_layers_info) {
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_USECASE_IDX, token_.conn_id,
                             hw_layers_info->common_info->flags.only_video_updating);
 
+  if (hw_layers_info->lsr_commit && (lsr_cache_state_ == sde_drm::DRMCacheState::DISABLED)) {
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_CACHE_STATE, token_.crtc_id,
+                              sde_drm::DRMCacheState::ENABLED);
+    lsr_cache_state_ = sde_drm::DRMCacheState::ENABLED;
+  } else if (!hw_layers_info->lsr_commit && (lsr_cache_state_ == sde_drm::DRMCacheState::ENABLED)) {
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_CACHE_STATE, token_.crtc_id,
+                              sde_drm::DRMCacheState::DISABLED);
+    lsr_cache_state_ = sde_drm::DRMCacheState::DISABLED;
+  }
   drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_LSR_MODE, token_.crtc_id,
                             hw_layers_info->lsr_commit);
 
