@@ -27,10 +27,8 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * ​​​​​Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <stdarg.h>
@@ -65,7 +63,9 @@ DisplayError SDMDisplayVirtual::Init() {
   return kErrorNone;
 }
 
-DisplayError SDMDisplayVirtual::Deinit() { return SDMDisplay::Deinit(); }
+DisplayError SDMDisplayVirtual::Deinit(bool deinit_layer_builder) {
+  return SDMDisplay::Deinit();
+}
 
 bool SDMDisplayVirtual::NeedsGPUBypass() {
   return display_paused_ || active_secure_sessions_.any() ||
@@ -105,18 +105,20 @@ DisplayError SDMDisplayVirtual::DumpVDSBuffer() {
       uint32_t width, height, alloc_size = 0;
       int32_t format = 0, flag = 0;
       int64_t compression_type, is_ubwc;
+      uint64_t format_modifier = 0;
       snapmapper_->GetMetadata(*output_handle, MetadataType::STRIDE, &width);
       snapmapper_->GetMetadata(*output_handle, MetadataType::ALIGNED_HEIGHT_IN_PIXELS, &height);
       snapmapper_->GetMetadata(*output_handle, MetadataType::PIXEL_FORMAT_ALLOCATED, &format);
       snapmapper_->GetMetadata(*output_handle, MetadataType::ALLOCATION_SIZE, &alloc_size);
       snapmapper_->GetMetadata(*output_handle, MetadataType::COMPRESSION, &compression_type);
       snapmapper_->GetMetadata(*output_handle, MetadataType::IS_UBWC, &is_ubwc);
+      snapmapper_->GetMetadata(*output_handle, MetadataType::FORMAT_MODIFIER, &format_modifier);
 
       buffer_info.buffer_config.width = width;
       buffer_info.buffer_config.height = height;
       flag = INT32(is_ubwc ? MetadataType::IS_UBWC : 0);
       buffer_info.buffer_config.format =
-          buffer_allocator_->GetSDMFormat(format, flag, compression_type);
+          buffer_allocator_->GetSDMFormat(format, flag, compression_type, format_modifier);
       buffer_info.alloc_buffer_info.aligned_width = width;
       buffer_info.alloc_buffer_info.aligned_height = height;
       buffer_info.alloc_buffer_info.size = alloc_size;
@@ -147,9 +149,11 @@ SDMDisplayVirtual::SetOutputBuffer(const SnapHandle *output_handle,
                                    shared_ptr<Fence> release_fence) {
   int output_handle_format = 0;
   int64_t output_compression_type, output_ubwc_flag;
+  uint64_t out_format_modifier = 0;
   snapmapper_->GetMetadata(*output_handle, MetadataType::IS_UBWC, &output_ubwc_flag);
   snapmapper_->GetMetadata(*output_handle, MetadataType::PIXEL_FORMAT_ALLOCATED, &output_handle_format);
   snapmapper_->GetMetadata(*output_handle, MetadataType::COMPRESSION, &output_compression_type);
+  snapmapper_->GetMetadata(*output_handle, MetadataType::FORMAT_MODIFIER, &out_format_modifier);
   ColorMetadata color_metadata = {};
   int ubwc_flag = output_ubwc_flag ? INT32(MetadataType::IS_UBWC) : 0;
 
@@ -159,8 +163,8 @@ SDMDisplayVirtual::SetOutputBuffer(const SnapHandle *output_handle,
         static_cast<int>(SDMPixelFormat::PIXEL_FORMAT_RGBX_8888);
   }
 
-  LayerBufferFormat new_sdm_format =
-      buffer_allocator_->GetSDMFormat(output_handle_format, ubwc_flag, output_compression_type);
+  LayerBufferFormat new_sdm_format = buffer_allocator_->GetSDMFormat(
+      output_handle_format, ubwc_flag, output_compression_type, out_format_modifier);
   if (new_sdm_format == kFormatInvalid) {
     return kErrorParameters;
   }

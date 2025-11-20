@@ -28,15 +28,8 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
-
-/*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- *
- * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -101,7 +94,13 @@ int DRMAtomicReq::Perform(DRMOps opcode, uint32_t obj_id, ...) {
     case DRMOps::PLANE_SET_SRC_RECT_EXT:
     case DRMOps::PLANE_SET_DST_RECT_EXT:
     case DRMOps::PLANE_SET_BG_ALPHA:
-    case DRMOps::PLANE_SET_IMG_SIZE_RECT: {
+    case DRMOps::PLANE_SET_IMG_SIZE_RECT:
+    case DRMOps::PLANE_SET_REFERENCE_SPACE_TYPE:
+    case DRMOps::PLANE_SET_RENDER_TYPE:
+    case DRMOps::PLANE_SET_RENDER_POSE:
+    case DRMOps::PLANE_SET_RENDER_FRUSTUM:
+    case DRMOps::PLANE_SET_PLANE_EQUATION:
+    case DRMOps::PLANE_SET_LAYER_GAMMA: {
       drm_mgr_->GetPlaneMgr()->Perform(opcode, obj_id, drm_atomic_req_, args);
     } break;
     case DRMOps::PLANE_SET_FP16_CSC_CONFIG:
@@ -147,6 +146,7 @@ int DRMAtomicReq::Perform(DRMOps opcode, uint32_t obj_id, ...) {
     case DRMOps::CRTC_SET_NOISELAYER_CONFIG:
     case DRMOps::CRTC_SET_UBWC_CLK:
     case DRMOps::CRTC_SET_FLUSH_SYNC_EN:
+    case DRMOps::CRTC_SET_OFFLOAD_MODE:
     case DRMOps::CRTC_SET_COMMIT_PATH: {
       drm_mgr_->GetCrtcMgr()->Perform(opcode, obj_id, drm_atomic_req_, args);
     } break;
@@ -183,7 +183,25 @@ int DRMAtomicReq::Perform(DRMOps opcode, uint32_t obj_id, ...) {
     case DRMOps::CONNECTOR_SET_AVR_STEP_STATE:
     case DRMOps::CONNECTOR_SET_FRAME_INTERVAL:
     case DRMOps::CONNECTOR_SET_USECASE_IDX:
-    case DRMOps::CONNECTOR_SET_EMSYNC_FPS: {
+    case DRMOps::CONNECTOR_SET_EMSYNC_FPS:
+    case DRMOps::CONNECTOR_SET_PRIVACY_REGIONS:
+    case DRMOps::CONNECTOR_SET_LSR_OUTPUT_FB_ID:
+    case DRMOps::CONNECTOR_SET_SYNC_TO:
+    case DRMOps::CONNECTOR_SET_CONFIG_MATRIX:
+    case DRMOps::CONNECTOR_SET_DISPLAY_GAMMA:
+    case DRMOps::CONNECTOR_SET_REPRO_SESSION_CONFIG:
+    case DRMOps::CONNECTOR_SET_REPRO_SESSION_CONFIG_DATA:
+    case DRMOps::CONNECTOR_SET_REPROJ_SPARSE_GRID:
+    case DRMOps::CONNECTOR_SET_REPROJ_RADIAL_DIS_GRID:
+    case DRMOps::CONNECTOR_SET_REPROJ_RADIAL_DIS_RESOLUTION:
+    case DRMOps::CONNECTOR_SET_REPROJ_OPTICAL_AXIS_OFFSET:
+    case DRMOps::CONNECTOR_SET_REPROJ_GRID_SIZE:
+    case DRMOps::CONNECTOR_SET_REPROJ_R_MAX:
+    case DRMOps::CONNECTOR_SET_REPROJ_TO_LRGB:
+    case DRMOps::CONNECTOR_SET_REPROJ_ERROR_TO_L:
+    case DRMOps::CONNECTOR_SET_REPROJ_DISP_IM_SIZE:
+    case DRMOps::CONNECTOR_SET_REPROJ_TILE_SIZE:
+    case DRMOps::CONNECTOR_SET_REPROJ_MODE: {
       drm_mgr_->GetConnectorMgr()->Perform(opcode, obj_id, drm_atomic_req_, args);
     } break;
     case DRMOps::DPPS_CACHE_FEATURE: {

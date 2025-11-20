@@ -24,6 +24,7 @@ cc_library_shared {
         "libdrmutils",
         "libsdedrm",
         "libsdmdal",
+        "libtinyxml2",
     ],
 
     srcs: [
@@ -43,6 +44,8 @@ cc_library_shared {
         "dpu_core_factory.cpp",
         "dpu_single_core.cpp",
         "dpu_multi_core.cpp",
+        "privacy_region_manager.cpp",
+        "pu_subject_intf_impl.cpp",
     ],
 
 }

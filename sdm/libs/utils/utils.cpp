@@ -178,6 +178,7 @@ uint32_t GetCwbRequestedMixerCount(CwbConfig *config, uint32_t num_split, uint32
   return roi_block_end - roi_block_beg + roi_block_add;
 }
 
+// clang-format off
 const char *GetCompositionName(const LayerComposition &composition) {
   switch (composition) {
   case kCompositionGPU:           return "GPU";
@@ -189,13 +190,23 @@ const char *GetCompositionName(const LayerComposition &composition) {
   case kCompositionDemura:        return "DEMURA";
   case kCompositionCWBTarget:     return "CWB_TARGET";
   case kCompositionIWE:           return "IWE";
+  case kCompositionIWECSC:        return "IWE_CSC";
+  case kCompositionIWERepro:      return "IWE_REPRO";
   default:                        return "UNKNOWN";
   }
 }
+// clang-format on
 
 const char* GetSocName() {
   string soc_id;
-  std::ifstream in("/sys/devices/soc0/soc_id");
+  std::ifstream in;
+
+  if (access("/sys/devices/soc1/soc_id", F_OK) == 0) {
+    in.open("/sys/devices/soc1/soc_id");
+  } else {
+    in.open("/sys/devices/soc0/soc_id");
+  }
+
   if (!in.is_open()) {
     DLOGW("Cannot open soc id file.");
     return "";

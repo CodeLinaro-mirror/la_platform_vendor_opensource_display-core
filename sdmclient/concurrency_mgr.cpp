@@ -260,6 +260,10 @@ void ConcurrencyMgr::PostInit() {
 
 DisplayError ConcurrencyMgr::Deinit() {
   DLOGI("Destroying and cleaning up concurrency manager");
+
+  // Terminate async thread to process CWB status
+  cwb_->TerminateCwbStatusThread();
+
   if (hpd_) {
     hpd_->Deinit();
     delete hpd_;
@@ -422,10 +426,19 @@ void ConcurrencyMgr::Dump(uint32_t *out_size, char *out_buffer) {
 }
 
 uint32_t ConcurrencyMgr::GetMaxVirtualDisplayCount() {
+  int max_virtual_count = 0;
+  DisplayError error =
+      core_intf_->GetMaxDisplaysSupported(kVirtual, &max_virtual_count);
+  if (error != kErrorNone) {
+    DLOGE("Could not find maximum virtual displays supported. Error = %d",
+          error);
+    return 0;
+  }
   // Limit max virtual display reported to SF as one. Even though
   // HW may support multiple virtual displays, allow only one
   // to be used by SF for now.
-  return 1;
+  max_virtual_count = std::min(max_virtual_count, 1);
+  return max_virtual_count;
 }
 
 DisplayError ConcurrencyMgr::AcceptDisplayChanges(Display display) {
@@ -1015,6 +1028,12 @@ DisplayError ConcurrencyMgr::SetCursorPosition(Display display, LayerId layer,
 DisplayError ConcurrencyMgr::SetDisplayElapseTime(Display display,
                                                   uint64_t time) {
   return CallDisplayFunction(display, &SDMDisplay::SetDisplayElapseTime, time);
+}
+
+DisplayError ConcurrencyMgr::SetDisplayDeviceConfig(
+    Display display, SDMDisplayDeviceConfig sdm_display_device_config) {
+  return CallDisplayFunction(display, &SDMDisplay::SetDisplayDeviceConfig,
+                             sdm_display_device_config);
 }
 
 DisplayError
@@ -2747,4 +2766,14 @@ DisplayError ConcurrencyMgr::SetPanelFeatureConfig(Display display, int32_t type
   return CallDisplayFunction(display, &SDMDisplay::SetPanelFeatureConfig, type, data);
 }
 
+DisplayError ConcurrencyMgr::GetPanelFeatureConfig(Display display, int32_t type, void *data,
+                                                   uint32_t data_size) {
+  return CallDisplayFunction(display, &SDMDisplay::GetPanelFeatureConfig, type, data, data_size);
+}
+
+DisplayError ConcurrencyMgr::ClearBuffersMappedToLayer(uint64_t display, LayerId layer_id,
+                                                       const SnapHandle *layerBuffer) {
+  return CallDisplayFunction(display, &SDMDisplay::ClearBuffersMappedToLayer, layer_id,
+                             layerBuffer);
+}
 }  // namespace sdm

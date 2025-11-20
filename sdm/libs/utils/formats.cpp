@@ -28,8 +28,8 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries. 
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -56,6 +56,8 @@ bool IsUBWCFormat(LayerBufferFormat format) {
   case kFormatRGBA8888UbwcLossy8To5:
   case kFormatYCbCr422P210Ubwc:
   case kFormatC8Ubwc:
+  case kFormatC84RUbwc:
+  case kFormatC84R4YUbwc:
     return true;
   default:
     return false;
@@ -152,6 +154,8 @@ const char *GetFormatString(const LayerBufferFormat &format) {
   case kFormatRGBX8888Ubwc:             return "RGBX_8888_UBWC";
   case kFormatBGR565Ubwc:               return "BGR_565_UBWC";
   case kFormatC8Ubwc:                   return "C8_UBWC";
+  case kFormatC84RUbwc:                 return "C8_4R_UBWC";
+  case kFormatC84R4YUbwc:               return "C8_4R_4Y_UBWC";
   case kFormatC8:                       return "C8";
   case kFormatYCbCr420Planar:           return "Y_CB_CR_420";
   case kFormatYCrCb420Planar:           return "Y_CR_CB_420";
@@ -237,6 +241,7 @@ float GetBufferFormatBpp(LayerBufferFormat format) {
     case kFormatRGBA8888UbwcLossy8To5:
     case kFormatYCbCr422P210:
     case kFormatYCbCr422P210Ubwc:
+    case kFormatC84R4YUbwc:
       return 4.0f;
     case kFormatRGB888:
     case kFormatBGR888:
@@ -273,6 +278,7 @@ float GetBufferFormatBpp(LayerBufferFormat format) {
     case kFormatC8:
     case kFormatC8Ubwc:
     case kFormatNV12Y:
+    case kFormatC84RUbwc:
       return 1.0f;
     default:
       return 0.0f;
@@ -443,9 +449,8 @@ bool IsFP16ExtendedRange(LayerBuffer buffer) {
 }
 
 bool IsHDRLayer(LayerBuffer buffer) {
-  if (buffer.dataspace.colorPrimaries == QtiColorPrimaries_BT2020 &&
-      (buffer.dataspace.transfer == QtiTransfer_SMPTE_ST2084 ||
-       buffer.dataspace.transfer == QtiTransfer_HLG)) {
+  if (buffer.dataspace.transfer == QtiTransfer_SMPTE_ST2084 ||
+      buffer.dataspace.transfer == QtiTransfer_HLG) {
     return true;
   } else if (IsFP16ExtendedRange(buffer)) {
     // Treat input format FP16 with extended range as HDR layer

@@ -173,7 +173,7 @@ public:
   virtual ~SDMDisplay() {}
 
   virtual DisplayError Init();
-  virtual DisplayError Deinit();
+  virtual DisplayError Deinit(bool deinit_layer_builder = true);
 
   virtual DisplayError GetFixedConfig(DisplayConfigFixedInfo *info);
 
@@ -187,9 +187,7 @@ public:
                                           int32_t format,
                                           CwbConfig &cwb_config);
   virtual DisplayError SetMaxMixerStages(uint32_t max_mixer_stages);
-  virtual DisplayError ControlPartialUpdate(bool enable, uint32_t *pending) {
-    return kErrorNotSupported;
-  }
+  virtual DisplayError ControlPartialUpdate(bool enable) { return kErrorNotSupported; }
   virtual SDMPowerMode GetCurrentPowerMode();
   virtual DisplayError SetFrameBufferResolution(uint32_t x_pixels,
                                                 uint32_t y_pixels);
@@ -457,6 +455,7 @@ public:
       SDMVsyncPeriodChangeTimeline *out_timeline);
 
   DisplayError SetDisplayElapseTime(uint64_t time);
+  DisplayError SetDisplayDeviceConfig(SDMDisplayDeviceConfig sdm_display_device_config);
   virtual bool IsDisplayIdle() { return false; };
   virtual bool HasReadBackBufferSupport() { return false; }
   virtual DisplayError NotifyDisplayCalibrationMode(bool in_calibration) {
@@ -534,12 +533,18 @@ public:
   virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data) {
     return kErrorNotSupported;
   }
+  virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t input_size) {
+    return kErrorNotSupported;
+  }
   DisplayError GetCachedActiveConfig(bool get_real_config, Config *config);
   virtual void TimeoutOnBuiltins(){};
   virtual void IdleTimeout(){};
   DisplayError SetStandbyMode(bool enable, bool is_twm);
   DisplayError SetRGBASplit(int32_t split_enable);
   virtual bool IsDmaModeIncompatible(LayerComposition composition) { return false; }
+  virtual void SetPrivacyRegionsData(uint32_t layer_id, float corner_radius,
+                                     const std::vector<PrivacyRegion> &regions);
+  virtual DisplayError ClearBuffersMappedToLayer(LayerId layer_id, const SnapHandle *layerBuffer);
 
  protected:
   static uint32_t throttling_refresh_rate_;
@@ -608,6 +613,8 @@ public:
   void UpdateRefreshRate();
   void UpdateActiveConfig();
   void DumpInputBuffers(void);
+  void DumpToFile(SnapHandle *handle, std::string dump_dir_path, int32_t layer_index,
+                  int plane = 0);
   void RetrieveFences(shared_ptr<Fence> *out_retire_fence);
   void SetDrawMethod();
   void ClearRequestMaps();
@@ -760,6 +767,7 @@ public:
   int idle_active_ms_ = 0;
   uint32_t frame_interval_ns_ = 0;  // FrameInterval for current frame
   bool is_poms_mode_ = false;
+  bool pending_privregions_update_ = false;
 };
 
 inline DisplayError SDMDisplay::Perform(uint32_t operation, ...) {

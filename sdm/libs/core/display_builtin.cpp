@@ -224,6 +224,11 @@ DisplayError DisplayBuiltIn::Init() {
     color_mgr_->ColorMgrGetStcModes(&stc_color_modes_);
   }
 
+  pu_subject_ = std::make_unique<PuSubjectIntfImpl>(this);
+  if (!pu_subject_) {
+    DLOGE("Unable to create partial update subject on Display %d-%d", display_id_, display_type_);
+  }
+
   if (client_ctx_.hw_panel_info.mode == kModeCommand && Debug::IsVideoModeEnabled()) {
     error = dpu_core_mux_->SetDisplayMode(kModeVideo);
     if (error != kErrorNone) {
@@ -266,8 +271,9 @@ DisplayError DisplayBuiltIn::Init() {
       primary_core_id_ = i;
       master_core = false;
     } else {
-      // register panel dead for all the cores
+      // register panel dead and display event thread exit event for all the cores
       std::vector<HWEvent> core_event_list = {HWEvent::PANEL_DEAD};
+      core_event_list.push_back(HWEvent::EXIT);
       event_list_[i] = core_event_list;
     }
   }
@@ -459,6 +465,17 @@ DisplayError DisplayBuiltIn::Init() {
   DebugHandler::Get()->GetProperty(FORCE_LM_TO_FB_CONFIG, &value);
   force_lm_to_fb_config_ = (value == 1);
 
+  value = 0;
+  Debug::Get()->GetProperty(ENABLE_PRIVACY_LAYERS, &value);
+  // TODO(user): Enable privacy filter for dual dpu, then update this check
+  if (value == 1 && core_count_ == 1) {
+    uint32_t max_privacy_regions = hw_intf_->GetMaxPrivacyRegionsSupported();
+
+    if (max_privacy_regions > 0) {
+      privacy_region_mgr_ = new PrivacyRegionManager(max_privacy_regions);
+    }
+  }
+
   NoiseInit();
   InitCWBBuffer();
 #ifndef TARGET_INCLUDES_NEO
@@ -488,6 +505,7 @@ DisplayError DisplayBuiltIn::Deinit() {
       if (demuratn_->Deinit() != 0) {
         DLOGE("Unable to DeInit DemuraTn on Display %d", display_id_);
       }
+      demuratn_override_feature_ = kFeatureMax;
     }
     if (demuratn_cleanup_intf_) {
       if (demuratn_cleanup_intf_->Deinit() != 0) {
@@ -569,6 +587,7 @@ DisplayError DisplayBuiltIn::PrePrepare(LayerStack *layer_stack) {
 
   if (NeedsMixerReconfiguration(layer_stack, &new_mixer_width, &new_mixer_height)) {
     error = ReconfigureMixer(new_mixer_width, new_mixer_height);
+    mixer_resolution_updated_ = (error == kErrorNone);
     if (error != kErrorNone) {
       ReconfigureMixer(display_width, display_height);
     }
@@ -786,15 +805,13 @@ DisplayError DisplayBuiltIn::setColorSamplingState(SamplingState state) {
     histogramCtrl.value = sde_drm::HistModes::kHistEnabled;
     histogramIRQ.value = sde_drm::HistModes::kHistEnabled;
     if (client_ctx_.hw_panel_info.mode == kModeCommand) {
-      uint32_t pending;
-      ControlPartialUpdate(false /* enable */, &pending);
+      ControlPartialUpdate(false /* enable */, kPuSamplingClient);
     }
   } else {
     histogramCtrl.value = sde_drm::HistModes::kHistDisabled;
     histogramIRQ.value = sde_drm::HistModes::kHistDisabled;
     if (client_ctx_.hw_panel_info.mode == kModeCommand) {
-      uint32_t pending;
-      ControlPartialUpdate(true /* enable */, &pending);
+      ControlPartialUpdate(true /* enable */, kPuSamplingClient);
     }
   }
 
@@ -1456,6 +1473,29 @@ DisplayError DisplayBuiltIn::SetupDemuraTn() {
     return kErrorUndefined;
   }
 
+  // Query the override feature from demuratn_
+  GenericPayload payload;
+  DemuraFeatureType *override_feature = nullptr;
+  ret = payload.CreatePayload<DemuraFeatureType>(override_feature);
+  if (ret || !override_feature) {
+    DLOGE("Failed to create the payload, ret %d", ret);
+    return kErrorUndefined;
+  }
+
+  ret = demuratn_->GetParameter(kDemuraTnCoreUvmParamOverrideFeature, &payload);
+  if (ret) {
+    DLOGW("Failed to get override feature, ret %d", ret);
+  } else {
+    demuratn_override_feature_ = *override_feature;
+    DLOGI("DemuraTn override feature type: %s",
+          DemuraFeatureTypeToString(demuratn_override_feature_));
+  }
+
+  if (demuratn_override_feature_ == kFeatureDAC) {
+    // Clear the DUC multi-config parsers, only keep the T0 base config parser
+    ClearDemuraMultiCfgParsers();
+  }
+
   return kErrorNone;
 }
 
@@ -1572,6 +1612,7 @@ DisplayError DisplayBuiltIn::SetUpCommit(LayerStack *layer_stack) {
     SetVsyncStatus(false /*Disable vsync events.*/);
   }
 
+  SetPrivacyRegions();
   return DisplayBase::SetUpCommit(layer_stack);
 }
 
@@ -1620,17 +1661,16 @@ DisplayError DisplayBuiltIn::PostCommit() {
   }
 
   if (switch_to_cmd_) {
-    uint32_t pending;
     switch_to_cmd_ = false;
-    ControlPartialUpdateLocked(true /* enable */, &pending);
+    ControlPartialUpdateLocked(true /* enable */, kPuPanelClient);
   }
 
   if (last_panel_mode_ != client_ctx_.hw_panel_info.mode) {
     UpdateDisplayModeParams();
   }
 
-  if (dpps_pu_nofiy_pending_) {
-    dpps_pu_nofiy_pending_ = false;
+  if (dpps_pu_notify_pending_) {
+    dpps_pu_notify_pending_ = false;
     dpps_pu_lock_.Broadcast();
   }
   dpps_info_.Init(this, client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
@@ -1695,8 +1735,7 @@ void DisplayBuiltIn::HandleQsyncPostCommit() {
 
 void DisplayBuiltIn::UpdateDisplayModeParams() {
   if (client_ctx_.hw_panel_info.mode == kModeVideo) {
-    uint32_t pending = 0;
-    ControlPartialUpdateLocked(false /* enable */, &pending);
+    ControlPartialUpdateLocked(false /* enable */, kPuPanelClient);
   } else if (client_ctx_.hw_panel_info.mode == kModeCommand) {
     // Flush idle timeout value currently set.
     comp_manager_->SetIdleTimeoutMs(display_comp_ctx_, 0, 0);
@@ -1734,6 +1773,10 @@ DisplayError DisplayBuiltIn::SetDisplayState(DisplayState state, bool teardown,
 
   if (error) {
     DLOGW("Failed to update driver path when transitioning to state %d", state);
+  }
+
+  if (state == kStateOn) {
+    primary_commit_needed_ = true;
   }
 
   error = DisplayBase::SetDisplayState(state, teardown, release_fence);
@@ -1786,6 +1829,10 @@ DisplayError DisplayBuiltIn::SetDisplayState(DisplayState state, bool teardown,
   return kErrorNone;
 }
 
+DisplayError DisplayBuiltIn::SetOffloadMode(bool enable) {
+  return hw_intf_->SetOffloadMode(enable);
+}
+
 void DisplayBuiltIn::SetIdleTimeoutMs(uint32_t active_ms, uint32_t inactive_ms) {
   ClientLock lock(disp_mutex_);
   comp_manager_->SetIdleTimeoutMs(display_comp_ctx_, active_ms, inactive_ms);
@@ -1800,7 +1847,6 @@ DisplayError DisplayBuiltIn::SetDisplayMode(uint32_t mode) {
   {
     ClientLock lock(disp_mutex_);
     HWDisplayMode hw_display_mode = static_cast<HWDisplayMode>(mode);
-    uint32_t pending = 0;
 
     if (!active_) {
       DLOGW("Invalid display state = %d. Panel must be on.", state_);
@@ -1830,7 +1876,7 @@ DisplayError DisplayBuiltIn::SetDisplayMode(uint32_t mode) {
     DisplayBase::ReconfigureDisplay();
 
     if (mode == kModeVideo) {
-      ControlPartialUpdateLocked(false /* enable */, &pending);
+      ControlPartialUpdateLocked(false /* enable */, kPuPanelClient);
       uint32_t active_ms = 0;
       uint32_t inactive_ms = 0;
       Debug::GetIdleTimeoutMs(&active_ms, &inactive_ms);
@@ -2212,35 +2258,29 @@ DisplayError DisplayBuiltIn::GetPanelMaxBrightness(uint32_t *max_brightness_leve
   return kErrorNone;
 }
 
-DisplayError DisplayBuiltIn::ControlPartialUpdate(bool enable, uint32_t *pending) {
+DisplayError DisplayBuiltIn::ControlPartialUpdate(bool enable, std::string &observer) {
   ClientLock lock(disp_mutex_);
-  return ControlPartialUpdateLocked(enable, pending);
+  return ControlPartialUpdateLocked(enable, observer);
 }
 
-DisplayError DisplayBuiltIn::ControlPartialUpdateLocked(bool enable, uint32_t *pending) {
-  if (!pending) {
-    return kErrorParameters;
+DisplayError DisplayBuiltIn::ControlPartialUpdateLocked(bool enable, std::string &observer) {
+  if (!pu_subject_) {
+    DLOGE("Invalid pu subject pointer is null");
+    return kErrorUndefined;
   }
 
-  if (dpps_info_.disable_pu_ && enable) {
-    // Nothing to be done.
-    DLOGI("partial update is disabled by DPPS for display %d-%d", display_id_, display_type_);
-    return kErrorNotSupported;
+  if (enable) {
+    pu_subject_->DeRegister(observer);
+  } else {
+    pu_subject_->Register(observer, nullptr);
   }
 
-  *pending = 0;
-  if (enable == partial_update_control_) {
-    DLOGI("Same state transition is requested.");
-    return kErrorNone;
-  }
-  validated_ = false;
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetPartialUpdateControl(bool enable) {
   partial_update_control_ = enable;
-
-  if (!enable) {
-    // If the request is to turn off feature, new draw call is required to have
-    // the new setting into effect.
-    *pending = 1;
-  }
+  validated_ = false;
 
   return kErrorNone;
 }
@@ -2262,7 +2302,6 @@ DisplayError DisplayBuiltIn::DisablePartialUpdateOneFrameInternal() {
 
 DisplayError DisplayBuiltIn::DppsProcessOps(enum DppsOps op, void *payload, size_t size) {
   DisplayError error = kErrorNone;
-  uint32_t pending;
   bool enable = false;
   DppsDisplayInfo *info;
 
@@ -2298,12 +2337,12 @@ DisplayError DisplayBuiltIn::DppsProcessOps(enum DppsOps op, void *payload, size
       }
       enable = *(reinterpret_cast<bool *>(payload));
       dpps_info_.disable_pu_ = !enable;
-      ControlPartialUpdate(enable, &pending);
+      ControlPartialUpdate(enable, kPuDppsClient);
       event_handler_->Refresh();
       {
         ClientLock lock(disp_mutex_);
         validated_ = false;
-        dpps_pu_nofiy_pending_ = true;
+        dpps_pu_notify_pending_ = true;
       }
       ret = dpps_pu_lock_.WaitFinite(kPuTimeOutMs);
       if (ret) {
@@ -2510,7 +2549,14 @@ std::string DisplayBuiltIn::Dump() {
   os << " TransferTime: " << hw_panel_info.transfer_time_us << "us";
   os << " Min TransferTime: " << hw_panel_info.transfer_time_us_min << "us";
   os << " Max TransferTime: " << hw_panel_info.transfer_time_us_max << "us";
-  os << " AllowedModeSwitch: " << hw_panel_info.allowed_mode_switch;
+  os << " AllowedModeSwitch:";
+  if (hw_panel_info.allowed_mode_switch.empty()) {
+    os << " 0";
+  } else {
+    for (size_t i = 0; i < hw_panel_info.allowed_mode_switch.size(); ++i) {
+      os << " " << hw_panel_info.allowed_mode_switch[i];
+    }
+  }
   os << " PanelModeCaps: ";
   snprintf(capabilities, sizeof(capabilities), "0x%x", hw_panel_info.panel_mode_caps);
   os << capabilities;
@@ -2582,9 +2628,17 @@ std::string DisplayBuiltIn::Dump() {
 
     AppendRCMaskData(os);
 
-    const char *header  = "\n| Idx |   Comp Type   |   Split   | Pipe |    W x H    |          Format          |  Src Rect (L T R B) |  Dst Rect (L T R B) |  Z | Pipe Flags | Deci(HxV) | CS | Rng | Tr |";  //NOLINT
-    const char *newline = "\n|-----|---------------|-----------|------|-------------|--------------------------|---------------------|---------------------|----|------------|-----------|----|-----|----|";  //NOLINT
-    const char *format  = "\n| %3s | %13s | %9s | %4d | %4d x %4d | %24s | %4d %4d %4d %4d | %4d %4d %4d %4d | %2s | %10s | %9s | %2s | %3s | %2s |";  //NOLINT
+    const char *header =
+        "\n| Idx |   Comp Type   |     Split    | Pipe |    W x H    |          Format         "
+        " |  Src Rect (L T R B) |  Dst Rect (L T R B) |  Z | Pipe Flags | Deci(HxV) | CS | Rng "
+        "| Tr |";  //NOLINT
+    const char *newline =
+        "\n|-----|---------------|--------------|------|-------------|-------------------------"
+        "-|---------------------|---------------------|----|------------|-----------|----|-----"
+        "|----|";  //NOLINT
+    const char *format =
+        "\n| %3s | %13s | %12s | %4d | %4d x %4d | %24s | %4d %4d %4d %4d | %4d %4d %4d %4d | %2s "
+        "| %10s | %9s | %2s | %3s | %2s |";  //NOLINT
 
     os << "\n";
     os << newline;
@@ -2973,7 +3027,11 @@ bool DisplayBuiltIn::CanSkipDisplayPrepare(LayerStack *layer_stack) {
     return false;
   }
 
-  if (disp_layer_stack_->stack_info.iwe_target_index != -1) {
+  if ((disp_layer_stack_->stack_info.iwe_target_index != -1) ||
+      (disp_layer_stack_->stack_info.iwe_csc_left_index != -1) ||
+      (disp_layer_stack_->stack_info.iwe_csc_right_index != -1) ||
+      (disp_layer_stack_->stack_info.iwe_repro_left_index != -1) ||
+      (disp_layer_stack_->stack_info.iwe_repro_right_index != -1)) {
     return false;
   }
 
@@ -4177,6 +4235,12 @@ DisplayError DisplayBuiltIn::SetDemuraConfig(int demura_idx) {
     return kErrorNone;
   }
 
+  // Check the override feature
+  if (demuratn_override_feature_ == kFeatureDAC) {
+    DLOGE("Cannot switch demura config when override feature is DAC");
+    return kErrorUndefined;
+  }
+
   // Update demura config
   if ((ret = pl.CreatePayload<uConfigIdx>(idx))) {
     DLOGE("Failed to create payload for enable, error = %d", ret);
@@ -4873,12 +4937,65 @@ DisplayError DisplayBuiltIn::SetPanelFeatureConfig(int32_t type, void *data) {
     case kTypeDemuraTnAgingSurfTransfer:
       ret = SetDemuraTnAgingSurfTransfer(data);
       break;
+    case kTypeSwitchToDAC:
+      ret = SwitchToDAC(data);
+      break;
     default:
       DLOGE("Invalid type %d", type);
       ret = kErrorParameters;
       break;
   }
   return ret;
+}
+
+DisplayError DisplayBuiltIn::GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size) {
+  DisplayError ret = kErrorNone;
+
+  if (!data || !data_size) {
+    DLOGE("Invalid input data %pK, data size %d", data, data_size);
+    return kErrorParameters;
+  }
+
+  switch (type) {
+    case kTypeGetDemuraTnAgingValue:
+      ret = GetDemuraTnAgingValue(data, data_size);
+      break;
+    default:
+      DLOGE("Invalid type %d", type);
+      ret = kErrorParameters;
+      break;
+  }
+
+  return ret;
+}
+
+DisplayError DisplayBuiltIn::GetDemuraTnAgingValue(void *data, uint32_t data_size) {
+  int ret = 0;
+  GenericPayload payload = {};
+  DemuraTnAgingValues *aging_values = nullptr;
+
+  if (!demuratn_ || !data) {
+    DLOGE("Invalid demuratn_ %pK, data %pK", demuratn_.get(), data);
+    return kErrorUndefined;
+  }
+
+  ret = payload.CreatePayload<DemuraTnAgingValues>(aging_values);
+  if (ret || aging_values == nullptr) {
+    DLOGE("Failed to create the payload, ret %d", ret);
+    return kErrorUndefined;
+  }
+
+  ret = demuratn_->GetParameter(kDemuraTnCoreUvmParamAgingValues, &payload);
+  if (ret) {
+    DLOGE("Get aging values failed ret %d", ret);
+    return kErrorUndefined;
+  }
+
+  char *output = reinterpret_cast<char *>(data);
+  snprintf(output, data_size, "%.2f %.2f %.2f", aging_values->value[0], aging_values->value[1],
+           aging_values->value[2]);
+  DLOGI("Query aging values: %s", output);
+  return kErrorNone;
 }
 
 DisplayError DisplayBuiltIn::SetDemuraTnCWBSamplingPeriod(void *data) {
@@ -4976,7 +5093,7 @@ DisplayError DisplayBuiltIn::ExportABCFiles() {
 }
 
 DisplayError DisplayBuiltIn::StartTvmServices() {
-  if (!abc_prop_ && !demura_enable_) {
+  if (!abc_tvm_enabled_ && !demura_enable_) {
     return kErrorNone;
   }
 
@@ -5100,6 +5217,7 @@ int DisplayBuiltIn::StartVmFileServiceAndExportFiles() {
   ret = vm_file_xfer_intf_->Init();
   if (ret) {
     DLOGE("Failed to init VmFileXferClient ret %d", ret);
+    vm_file_xfer_intf_->Deinit();
     vm_file_xfer_intf_.reset();
     vm_file_xfer_intf_ = nullptr;
     return ret;
@@ -5504,6 +5622,80 @@ int DisplayBuiltIn::Notify(const TvmServiceCbEvent &event) {
   return 0;
 }
 
+DisplayError DisplayBuiltIn::SwitchToDAC(void *data) {
+  int ret = 0;
+
+  (void)data;
+  if (!demuratn_) {
+    DLOGE("Invalid demuratn_ %pK", demuratn_.get());
+    return kErrorUndefined;
+  }
+
+  if (demuratn_override_feature_ == kFeatureDAC) {
+    DLOGI("Current feature is already DAC, nothing to do");
+    return kErrorNone;
+  }
+
+  // Demura: Switch to default config
+  if (demura_current_idx_ != kDemuraDefaultIdx) {
+    ret = SetDemuraConfig(kDemuraDefaultIdx);
+    if (ret) {
+      DLOGW("Failed to switch to Demura config %d, curr config %d", kDemuraDefaultIdx,
+            demura_current_idx_);
+    } else {
+      DLOGI("Switched to Demura default config %d from config %d", kDemuraDefaultIdx,
+            demura_current_idx_);
+      demura_current_idx_ = kDemuraDefaultIdx;
+    }
+  }
+
+  // DemuraTn: Switch to DAC: enable recalibration
+  GenericPayload payload;
+  DemuraFeatureType *feature = nullptr;
+  ret = payload.CreatePayload<DemuraFeatureType>(feature);
+  if (ret) {
+    DLOGE("Failed to create the payload, ret %d", ret);
+    return kErrorUndefined;
+  }
+  *feature = kFeatureDAC;
+  ret = demuratn_->SetParameter(kDemuraTnCoreUvmParamOverrideFeature, payload);
+  if (ret) {
+    DLOGE("Failed to set override feature to DAC, ret %d", ret);
+    return kErrorUndefined;
+  }
+
+  // Demura: clear multi-config parsers
+  ClearDemuraMultiCfgParsers();
+  demuratn_override_feature_ = kFeatureDAC;
+  DLOGI("Switch to DAC done");
+  return kErrorNone;
+}
+
+void DisplayBuiltIn::ClearDemuraMultiCfgParsers() {
+  int ret = 0;
+  PanelIdsInfo *panel_ids_info = nullptr;
+  GenericPayload in;
+
+  if (!pm_intf_ || !panel_id_) {
+    DLOGW("Invalid parser manager intf, panel id 0x%llx", panel_id_);
+    return;
+  }
+
+  ret = in.CreatePayload<PanelIdsInfo>(panel_ids_info);
+  if (ret || !panel_ids_info) {
+    DLOGW("Failed to create payload for panel id info, ret %d", ret);
+    return;
+  }
+
+  panel_ids_info->panel_ids.push_back(panel_id_);
+  ret = pm_intf_->SetParameter(kDemuraParserManagerReleaseMultiCfgParsers, in);
+  if (ret) {
+    DLOGW("Failed to release DUC multi-config parsers for base panel_id 0x%llx", panel_id_);
+  } else {
+    DLOGI("Released DUC multi-config parsers for base panel_id 0x%llx successfully", panel_id_);
+  }
+}
+
 DisplayError DisplayBuiltIn::DisableDemuraForHandOff() {
   if (!prop_intf_) {
     DLOGE("prop_intf_ is nullptr");
@@ -5520,6 +5712,28 @@ DisplayError DisplayBuiltIn::DisableDemuraForHandOff() {
   }
 
   return kErrorNone;
+}
+
+void DisplayBuiltIn::SetPrivacyRegions() {
+  if (!privacy_region_mgr_) {
+    return;
+  }
+
+  std::vector<PrivacyRegion> regions = {};
+  DisplayError ret = privacy_region_mgr_->ConfigurePrivacyRegions(
+      disp_layer_stack_, client_ctx_, mixer_resolution_updated_, &regions);
+  if (ret == kErrorNeedsCommit) {
+    disp_layer_stack_->stack_info.common_info.updates_mask.set(kUpdatePrivacyRegions);
+    for (int i = 0; i < hw_resource_info_.size(); i++) {
+      uint32_t core_id = hw_resource_info_[i].core_id;
+      disp_layer_stack_->info.at(core_id).privacy_regions_ = regions;
+    }
+  }
+}
+
+DisplayError DisplayBuiltIn::SetDisplayDeviceConfig(
+    const SDMDisplayDeviceConfig &display_device_config) {
+  return comp_manager_->SetDisplayDeviceConfig(display_comp_ctx_, display_device_config);
 }
 
 }  // namespace sdm

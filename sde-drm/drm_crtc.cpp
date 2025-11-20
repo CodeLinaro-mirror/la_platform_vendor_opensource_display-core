@@ -93,6 +93,10 @@ static uint8_t VM_REQ_STATE_ACQUIRE = 2;
 static uint8_t MSM_DISP_OP_HWIO = 0;
 static uint8_t MSM_DISP_OP_HFI = 1;
 
+// CRTC Offload states
+static uint8_t OFFLOAD_MODE_OFF = 0;
+static uint8_t OFFLOAD_MODE_ON = 1;
+
 static void PopulateDriverCommitPaths(drmModePropertyRes *prop) {
   static bool driver_commit_paths_populated = false;
   if (!driver_commit_paths_populated) {
@@ -190,6 +194,17 @@ static void PopulateVMRequestStates(drmModePropertyRes *prop) {
       }
     }
     idle_pc_state_populated = true;
+  }
+}
+
+static void PopulateOffloadMode(drmModePropertyRes *prop) {
+  for (auto i = 0; i < prop->count_enums; i++) {
+    string enum_name(prop->enums[i].name);
+    if (enum_name == "ON") {
+      OFFLOAD_MODE_ON = prop->enums[i].value;
+    } else if (enum_name == "OFF") {
+      OFFLOAD_MODE_OFF = prop->enums[i].value;
+    }
   }
 }
 
@@ -410,6 +425,10 @@ void DRMCrtc::ParseProperties() {
 
     if (prop_enum == DRMProperty::UBWC_CLK) {
       crtc_info_.has_cesta = true;
+    }
+
+    if (prop_enum == DRMProperty::OFFLOAD_MODE) {
+      PopulateOffloadMode(info);
     }
 
     prop_mgr_.SetPropertyId(prop_enum, info->prop_id);
@@ -940,6 +959,7 @@ void DRMCrtc::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       if (!prop_mgr_.IsPropertyAvailable(DRMProperty::VM_REQ_STATE)) {
         return;
       }
+#ifndef DISABLE_SET_VM_REQ_STATE
       int drm_vm_req_state = va_arg(args, int);
       uint32_t vm_req_state = VM_REQ_STATE_NONE;
       switch (drm_vm_req_state) {
@@ -956,6 +976,9 @@ void DRMCrtc::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       AddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::VM_REQ_STATE), vm_req_state,
                   true /* cache */, tmp_prop_val_map_);
       DRM_LOGD("CRTC %d: Set vm_req_state %d", obj_id, vm_req_state);
+#else
+      return;
+#endif
     }; break;
 
     case DRMOps::CRTC_RESET_CACHE: {
@@ -972,6 +995,15 @@ void DRMCrtc::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       AddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::UBWC_CLK),
                   ubwc_clk, true /* cache */, tmp_prop_val_map_);
     }; break;
+
+    case DRMOps::CRTC_SET_OFFLOAD_MODE: {
+      int enable = va_arg(args, int);
+      uint32_t offload_mode =
+          (enable == (int)DRMOffloadMode::OFF) ? OFFLOAD_MODE_OFF : OFFLOAD_MODE_ON;
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::OFFLOAD_MODE),
+                               offload_mode);
+      DRM_LOGD("CRTC %d: Setting OffloadMode %d", obj_id, offload_mode);
+    } break;
 
     case DRMOps::CRTC_SET_FLUSH_SYNC_EN: {
       if (!prop_mgr_.IsPropertyAvailable(DRMProperty::FLUSH_SYNC_EN)) {

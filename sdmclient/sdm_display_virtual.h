@@ -27,10 +27,8 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * ​​​​​Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #ifndef __SDM_DISPLAY_VIRTUAL_H__
@@ -45,7 +43,7 @@ class SDMDisplayVirtual : public SDMDisplay {
 public:
   static void Destroy(SDMDisplay *sdm_display);
   virtual DisplayError Init();
-  virtual DisplayError Deinit();
+  virtual DisplayError Deinit(bool deinit_layer_builder = true);
   virtual DisplayError Present(shared_ptr<Fence> *out_retire_fence);
   virtual DisplayError SetFrameDumpConfig(uint32_t count,
                                           uint32_t bit_mask_layer_type,

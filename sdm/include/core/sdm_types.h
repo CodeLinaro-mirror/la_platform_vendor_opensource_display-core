@@ -193,6 +193,9 @@ enum SDMDisplayType {
                         //!< instead of kHDMI.
   kVirtual,             //!< Contents would be rendered into the output buffer provided by the
                         //!< client e.g. wireless display.
+  kCSC,                 //!< Writeback display for CSC
+  kRepro,               //!< Writeback display for Reprojection
+
   kDisplayMax,
   kDisplayTypeMax = kDisplayMax
 };
@@ -375,6 +378,75 @@ enum SDMTransform {
 enum SDMLayerFlag {
   LAYER_FLAG_DEFAULT,
   LAYER_FLAG_COMPATIBLE,
+};
+
+enum SDMRenderLayerReferenceSpaceType {
+  RENDER_LAYER_REFERENCE_SPACE_NONE = 0,
+  RENDER_LAYER_REFERENCE_SPACE_WORLD = 1,
+  RENDER_LAYER_REFERENCE_SPACE_HEAD = 2,
+  RENDER_LAYER_REFERENCE_SPACE_SPHERE = 3
+};
+
+enum SDMCompositionLayerType {
+  COMPOSITION_LAYER_NONE = 0,
+  COMPOSITION_LAYER_PROJECTION = 1,
+  COMPOSITION_LAYER_QUAD = 2
+};
+
+struct SDMLayerPosition {
+  float x = 0;
+  float y = 0;
+  float z = 0;
+};
+
+struct SDMLayerOrientation {
+  float x = 1;
+  float y = 0;
+  float z = 0;
+  float w = 0;
+};
+
+struct SDMLayerPose {
+    SDMLayerPosition pos;
+    SDMLayerOrientation orientation;
+};
+
+struct SDMLayerQuadSize {
+  float width = 0;
+  float height = 0;
+};
+
+// TODO: Fill default values
+struct SDMLayerFrustum {
+  float angleLeft = 0;
+  float angleRight = 0;
+  float angleUp = 0;
+  float angleDown = 0;
+};
+
+struct SDMLayerPlaneEquation {
+    float a = 0;
+    float b = 0;
+    float c = 0;
+    float d = 0.000001;
+};
+
+struct SDMDisplayProjectionMatrix {
+    float prjMatrix[4][4];
+};
+
+struct SDMDisplayDeviceConfig {
+  SDMDisplayProjectionMatrix projectionMatrix[2];
+  float gamma[256];
+  SDMLayerOrientation rotation[2];
+  char calibrationFileStr[512];
+};
+
+enum SDMLayerVisibilityType {
+    LAYER_VISIBILITY_NONE = 0,
+    LAYER_VISIBILITY_LEFT_EYE = 1,
+    LAYER_VISIBILITY_RIGHT_EYE = 2,
+    LAYER_VISIBILITY_BOTH_EYES = 3
 };
 
 enum SDMColorMode {
@@ -623,6 +695,32 @@ enum {
   SYSTEM_TIME_PROCESS = 2,    // high-resolution per-process clock
   SYSTEM_TIME_THREAD = 3,     // high-resolution per-thread clock
   SYSTEM_TIME_BOOTTIME = 4,   // same as SYSTEM_TIME_MONOTONIC, but including CPU suspend time
+};
+
+struct PrivacyRegion {
+  float corner_radius;
+  SDMRect rect;
+  bool operator !=(const PrivacyRegion &privacy_region) {
+    return ((corner_radius != privacy_region.corner_radius) ||
+            (rect.left != privacy_region.rect.left) ||
+            (rect.top != privacy_region.rect.top) ||
+            (rect.right != privacy_region.rect.right) ||
+            (rect.bottom != privacy_region.rect.bottom));
+  }
+  bool operator ==(const PrivacyRegion &privacy_region) {
+    return !(operator !=(privacy_region));
+  }
+};
+
+struct CornerRadius {
+  float x;
+  float y;
+  bool operator !=(const CornerRadius &corner_radius) {
+    return ((x != corner_radius.x) || (y != corner_radius.y));
+  }
+  bool operator ==(const CornerRadius &corner_radius) {
+    return (operator !=(corner_radius));
+  }
 };
 
 }  // namespace sdm

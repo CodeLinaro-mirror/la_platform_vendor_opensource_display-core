@@ -6,7 +6,10 @@
 #include <unistd.h>
 #include <utils/CallStack.h>
 #include <iostream>
+#include <fstream>
+#include <iomanip>
 
+#include <inttypes.h>
 #include <dlfcn.h>
 #include "SnapAllocCore.h"
 #include "SnapHandleInternal.h"
@@ -97,19 +100,31 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
     uint64_t id = ++next_id_;
     uint64_t pixel_format_modifier = GetPixelFormatModifier(out_desc);
     constraint_mgr_->ConvertAlignedWidthFromBytesToPixels(
-        out_desc.format, layout.aligned_width_in_bytes, &aligned_width_in_pixels);
+        out_desc.format, layout.aligned_width_in_bytes, pixel_format_modifier,
+        &aligned_width_in_pixels);
     unsigned custom_content_md_size =
         metadata_mgr_->GetCustomContentMetadataSize(out_desc.format, out_desc.usage);
 
     AllocateBuffer(&ad, &m_data, custom_content_md_size, &desc, &out_desc, test_alloc);
 
-    if (desc.usage & QTI_PRIVATE_MULTI_VIEW_INFO) {
+    if ((desc.usage & QTI_PRIVATE_MULTI_VIEW_INFO) ||
+        (desc.usage & QTI_PRIVATE_CLONED_MULTI_VIEW_INFO)) {
       AllocData ad_2;
       AllocData m_data_2;
       ad_2 = ad;
       m_data_2 = m_data;
-
-      AllocateBuffer(&ad_2, &m_data_2, custom_content_md_size, &desc, &out_desc, test_alloc);
+      if (desc.usage & QTI_PRIVATE_CLONED_MULTI_VIEW_INFO) {
+        ad_2.fd = dup(ad.fd);
+        err = mem_alloc_intf_->AllocateMem(
+            &m_data_2, static_cast<vendor_qti_hardware_display_common_BufferUsage>(0),
+            static_cast<vendor_qti_hardware_display_common_PixelFormat>(0));
+        if (err != Error::NONE) {
+          DLOGE("Failed to allocate metadata memory for cloned view");
+          return err;
+        }
+      } else {
+        AllocateBuffer(&ad_2, &m_data_2, custom_content_md_size, &desc, &out_desc, test_alloc);
+      }
       hnd = SnapHandleInternal::createMultiviewHandle(
           ad.fd, m_data.fd, ad_2.fd, m_data_2.fd, out_priv_flags, layout.aligned_width_in_bytes,
           aligned_width_in_pixels, layout.aligned_height, desc.width, desc.height, out_desc.format,
@@ -298,10 +313,10 @@ Error SnapAllocCore::Release(SnapHandle *hnd) {
     DLOGD_IF(enable_logs, "line %d snap_hnd_cast id %lu ref count %d vs buf ref count %d", __LINE__,
              snap_hnd_cast->id(), snap_hnd_cast->GetRefCount(), buf->GetRefCount());
 
-    // TODO: buffer dump support
-    /*if (allocated_ >= hnd->size()) {
-      allocated_ -= hnd->size();
-    }*/
+    if (allocated_ >= snap_hnd_cast->size()) {
+      allocated_ -= snap_hnd_cast->size();
+    }
+
     if (FreeBuffer(buf) == Error::NONE) {
       std::lock_guard<std::mutex> lock(handles_map_lock_);
       handles_map_.erase(hnd);
@@ -442,8 +457,10 @@ Error SnapAllocCore::ValidateBufferSize(SnapHandle *hnd, BufferDescriptor desc) 
   int out_priv_flags = 0;
   int ret = constraint_mgr_->GetAllocationData(desc, &ad, &layout, &out_desc, &out_priv_flags);
   int aligned_width_in_pixels = 0;
+  uint64_t pixel_format_modifier = GetPixelFormatModifier(out_desc);
   constraint_mgr_->ConvertAlignedWidthFromBytesToPixels(
-      out_desc.format, layout.aligned_width_in_bytes, &aligned_width_in_pixels);
+      out_desc.format, layout.aligned_width_in_bytes, pixel_format_modifier,
+      &aligned_width_in_pixels);
 
   if (OVERFLOW_MUL(aligned_width_in_pixels, layout.aligned_height)) {
     DLOGE("%s: Allocatiom size overflow", __FUNCTION__);
@@ -543,12 +560,15 @@ Error SnapAllocCore::ImportHandleLocked(SnapHandle *hnd) {
   }
 
   RegisterHandleLocked(hnd, snap_hnd);
-  /* TODO - tracking allocated mem
-  allocated_ += hnd->size();
+
+  allocated_ += snap_hnd->size();
   if (allocated_ >= kAllocThreshold) {
+    DLOGW("Allocated Buffer crossed threshold %" PRIu64 "KiB Dumping the buffer info to %s",
+          kAllocThreshold / 1024, file_dump_.kDumpFile);
     kAllocThreshold += kMemoryOffset;
-    BuffersDump();
-  }*/
+    DumpBuffers();
+  }
+
   return Error::NONE;
 }
 
@@ -634,10 +654,46 @@ Error SnapAllocCore::DumpBuffer(SnapHandle *hnd) {
   return Error::UNSUPPORTED;
 }
 
-// This may need to call metadata_mgr_->DumpBuffer with each handle in the map
-// as metadata manager would not be aware of all the buffers
 Error SnapAllocCore::DumpBuffers() {
-  return Error::UNSUPPORTED;
+  char timeStamp[32];
+  char hms[32];
+  uint64_t millis;
+  struct timeval tv;
+  struct tm ptm;
+
+  gettimeofday(&tv, NULL);
+  localtime_r(&tv.tv_sec, &ptm);
+  strftime(hms, sizeof(hms), "%H:%M:%S", &ptm);
+  millis = tv.tv_usec / 1000;
+  snprintf(timeStamp, sizeof(timeStamp), "Timestamp: %s.%03" PRIu64, hms, millis);
+
+  std::fstream fs;
+  fs.open(file_dump_.kDumpFile, std::ios::app);
+  if (!fs) {
+    DLOGW("Not able to open bufferdump file");
+    return Error::UNSUPPORTED;
+  }
+  fs << "============================" << std::endl;
+  fs << timeStamp << std::endl;
+  fs << "Total layers = " << handles_map_.size() << std::endl;
+  uint64_t totalAllocationSize = 0;
+  for (auto it : handles_map_) {
+    SnapHandleInternal *internal_hnd = it.second;
+    SnapMetadata *metadata = reinterpret_cast<SnapMetadata *>(internal_hnd->base_metadata());
+    fs << std::setw(80) << "Client:" << (metadata ? metadata->name : "No name");
+    fs << std::setw(20) << "WxH:" << std::setw(4) << internal_hnd->aligned_width_in_pixels()
+       << " x " << std::setw(4) << internal_hnd->aligned_height();
+    fs << std::setw(20) << "Size: " << std::setw(9) << internal_hnd->size() << std::endl;
+    totalAllocationSize += internal_hnd->size();
+  }
+  fs << "Total allocation  = " << totalAllocationSize / 1024 << "KiB" << std::endl;
+  file_dump_.position = fs.tellp();
+  if (file_dump_.position > (20 * 1024 * 1024)) {
+    file_dump_.position = 0;
+  }
+  fs.close();
+
+  return Error::NONE;
 }
 
 Error SnapAllocCore::GetMetadataState(SnapHandle *hnd,

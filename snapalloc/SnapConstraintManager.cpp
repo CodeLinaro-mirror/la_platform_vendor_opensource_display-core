@@ -309,7 +309,7 @@ Error SnapConstraintManager::SetSnapPrivateFlags(
 
 Error SnapConstraintManager::ConvertAlignedWidthFromBytesToPixels(
     vendor_qti_hardware_display_common_PixelFormat format, int width_in_bytes,
-    int *width_in_pixels) {
+    uint64_t pixel_format_modifier, int *width_in_pixels) {
   if (IsAstc(format)) {
     *width_in_pixels = width_in_bytes;
     return Error::NONE;
@@ -319,7 +319,11 @@ Error SnapConstraintManager::ConvertAlignedWidthFromBytesToPixels(
     return Error::UNSUPPORTED;
   }
   auto format_data = format_data_map_.at(format);
-  *width_in_pixels = width_in_bytes / ((format_data.planes[0].sample_increment_bits) / 8);
+  uint32_t sample_increment_bits = format_data.planes[0].sample_increment_bits;
+  if (pixel_format_modifier == static_cast<uint64_t>(PIXEL_FORMAT_MODIFIER_4Y_COMPONENT)) {
+    sample_increment_bits *= 4;
+  }
+  *width_in_pixels = width_in_bytes / (sample_increment_bits / 8);
   if (format == vendor_qti_hardware_display_common_PixelFormat::TP10) {
     OVERFLOW_ERR_RETURN(*width_in_pixels, 3, OverflowType::MUL);
     *width_in_pixels = (*width_in_pixels) * 3;

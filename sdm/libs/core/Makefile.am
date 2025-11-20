@@ -15,7 +15,9 @@ c_sources = core_interface.cpp \
             color_manager.cpp \
             dpu_core_factory.cpp \
             dpu_multi_core.cpp \
-            dpu_single_core.cpp
+            dpu_single_core.cpp \
+            privacy_region_manager.cpp \
+            pu_subject_intf_impl.cpp
 
 core_h_sources = $(HEADER_PATH)/core/*.h
 
@@ -37,5 +39,5 @@ libsdmcore_la_CC = @CC@
 libsdmcore_la_SOURCES = $(c_sources)
 libsdmcore_la_CFLAGS = $(COMMON_CFLAGS) -DLOG_TAG=\"SDM\"
 libsdmcore_la_CPPFLAGS = $(AM_CPPFLAGS) -DPP_DRM_ENABLE
-libsdmcore_la_LIBADD = ../utils/libsdmutils.la ../dal/libsdmdal.la -ldl -ldisplaydebug
+libsdmcore_la_LIBADD = ../utils/libsdmutils.la ../dal/libsdmdal.la -ldl -ldisplaydebug -ltinyxml2
 libsdmcore_la_LDFLAGS = -shared -avoid-version

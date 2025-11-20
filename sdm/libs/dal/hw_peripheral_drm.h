@@ -26,7 +26,6 @@ WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
 OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
 /*
  * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
@@ -73,6 +72,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   virtual DisplayError GetDynamicDSIClock(uint64_t *bit_clk_rate);
   virtual DisplayError SetDisplayAttributes(uint32_t index);
   virtual DisplayError SetDisplayMode(const HWDisplayMode hw_display_mode);
+  virtual DisplayError SetOffloadMode(bool enable);
   virtual DisplayError SetBppMode(uint32_t bpp);
   virtual DisplayError SetRefreshRate(uint32_t refresh_rate);
   virtual DisplayError SetFrameTrigger(FrameTriggerMode mode);
@@ -87,6 +87,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   virtual uint32_t GetAVRStep(uint32_t config_index);
   virtual bool IsVRRSupported();
   virtual DisplayError setDriverCommitPath(DriverCommitPath path);
+  virtual uint32_t GetMaxPrivacyRegionsSupported();
 
  private:
   void InitDestScaler();

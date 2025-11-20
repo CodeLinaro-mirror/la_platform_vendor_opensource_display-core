@@ -101,6 +101,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(Commit(LayerStack *))
   MAKE_NO_OP(GetDisplayState(DisplayState *))
   MAKE_NO_OP(SetDisplayState(DisplayState, bool, shared_ptr<Fence> *))
+  MAKE_NO_OP(SetOffloadMode(bool))
   MAKE_NO_OP(SetFrameBufferConfig(const DisplayConfigVariableInfo &))
   MAKE_NO_OP(Flush(LayerStack *))
   MAKE_NO_OP(GetVSyncState(bool *))
@@ -109,7 +110,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(SetActiveConfig(uint32_t))
   MAKE_NO_OP(SetActiveConfig(DisplayConfigVariableInfo *))
   MAKE_NO_OP(SetMaxMixerStages(uint32_t))
-  MAKE_NO_OP(ControlPartialUpdate(bool, uint32_t *))
+  MAKE_NO_OP(ControlPartialUpdate(bool, std::string &))
   MAKE_NO_OP(DisablePartialUpdateOneFrame())
   MAKE_NO_OP(SetDisplayMode(uint32_t))
   MAKE_NO_OP(SetBppMode(uint32_t))
@@ -190,12 +191,15 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(PanelBacklightInfo(const std::string &client_name, bool enable,
                                 SdmDisplayCbInterface<PanelBacklightPayload> *cb_intf));
   MAKE_NO_OP(SetPanelFeatureConfig(int32_t, void *));
+  MAKE_NO_OP(GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size));
   MAKE_NO_OP(EnableCopr(bool en))
   MAKE_NO_OP(GetCoprStats(std::vector<int> *stats))
   MAKE_NO_OP(GetScalerCount(uint32_t *scaler_count));
   MAKE_NO_OP(DumpDemuraSurface(const char *dir_path, uint32_t frame_index))
   MAKE_NO_OP(setDriverCommitPath(const int path))
   MAKE_NO_OP(SetRGBASplit(int enable));
+  MAKE_NO_OP(SetClientTargetCapability(const std::bitset<kClientCapabilityMax> &));
+  MAKE_NO_OP(SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config))
 
  protected:
   DisplayConfigVariableInfo default_variable_config_ = {};

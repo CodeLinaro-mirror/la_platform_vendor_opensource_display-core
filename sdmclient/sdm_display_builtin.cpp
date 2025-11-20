@@ -94,8 +94,8 @@ DisplayError SDMDisplayBuiltIn::Create(CoreInterface *core_intf, BufferAllocator
   return status;
 }
 
-void SDMDisplayBuiltIn::Destroy(SDMDisplay *sdm_display) {
-  sdm_display->Deinit();
+void SDMDisplayBuiltIn::Destroy(SDMDisplay *sdm_display, bool deinit_layer_builder) {
+  sdm_display->Deinit(deinit_layer_builder);
   delete sdm_display;
 }
 
@@ -1028,12 +1028,11 @@ DisplayError SDMDisplayBuiltIn::SetHWDetailedEnhancerConfig(void *params) {
   return err;
 }
 
-DisplayError SDMDisplayBuiltIn::ControlPartialUpdate(bool enable,
-                                                     uint32_t *pending) {
+DisplayError SDMDisplayBuiltIn::ControlPartialUpdate(bool enable) {
   DisplayError error = kErrorNone;
 
   if (display_intf_) {
-    error = display_intf_->ControlPartialUpdate(enable, pending);
+    error = display_intf_->ControlPartialUpdate(enable, kPuSdmClient);
   }
 
   return error;
@@ -1338,13 +1337,13 @@ bool SDMDisplayBuiltIn::HasSmartPanelConfig(void) {
   return false;
 }
 
-DisplayError SDMDisplayBuiltIn::Deinit() {
+DisplayError SDMDisplayBuiltIn::Deinit(bool deinit_layer_builder) {
   // Destory color convert instance. This destroys thread and underlying GL
   // resources.
   callbacks_->DestroyLayerStitch(id_);
 
   callbacks_->StopHistogram(id_, true);
-  return SDMDisplay::Deinit();
+  return SDMDisplay::Deinit(deinit_layer_builder);
 }
 
 void SDMDisplayBuiltIn::OnTask(const LayerStitchTaskCode &task_code,
@@ -1928,6 +1927,11 @@ int SDMDisplayBuiltIn::GetNotifyEptConfig() {
 
 DisplayError SDMDisplayBuiltIn::SetPanelFeatureConfig(int32_t type, void *data) {
   return display_intf_->SetPanelFeatureConfig(type, data);
+}
+
+DisplayError SDMDisplayBuiltIn::GetPanelFeatureConfig(int32_t type, void *data,
+                                                      uint32_t data_size) {
+  return display_intf_->GetPanelFeatureConfig(type, data, data_size);
 }
 
 DisplayError SDMDisplayBuiltIn::EnableCopr(bool en) {

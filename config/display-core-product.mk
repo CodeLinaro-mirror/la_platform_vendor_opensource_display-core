@@ -29,6 +29,11 @@ PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data
 #QDCM calibration json file for RaonTech panel
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_RaonTech_Non-FSC_mode_video_1440x1440@60_mode_dsi_panel.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_RaonTech_Non-FSC_mode_video_1440x1440@60_mode_dsi_panel.json
 
+#QDCM calibration json file for generic panel on Hamoa target
+ifeq ($(TARGET_BOARD_PLATFORM),hamoa)
+	PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_generic_panel.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_generic_panel.json
+endif
+
 #Backlight calibration xml file for nt37801 amoled panels
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/backlight_calib_nt37801_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY.xml:$(TARGET_COPY_OUT_VENDOR)/etc/display/backlight_calib_nt37801_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY.xml
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/backlight_calib_nt37801_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY.xml:$(TARGET_COPY_OUT_VENDOR)/etc/display/backlight_calib_nt37801_amoled_video_mode_dsi_csot_panel_with_DSC_CPHY.xml
@@ -61,9 +66,12 @@ PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/display_id_4630
 #SDR Dimming config file for nt37802 video PSR VHM, display id is 4630946850534658451
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/display_id_4630946916234099603.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_4630946850534658451.xml
 
+PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/display_id_4630947249835489681.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_4630947249835489681.xml
+
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/sdm_display_resolution_extn.xml:$(TARGET_COPY_OUT_VENDOR)/etc/display/sdm_display_resolution_extn.xml
 
-ifneq ($(TARGET_HAS_LOW_RAM),true)
 #Multi-stc libraries config xml file
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/snapdragon_color_libs_config.xml:$(TARGET_COPY_OUT_VENDOR)/etc/snapdragon_color_libs_config.xml
-endif
+
+PRIVACY_REGIONS_OFFSETS_XML_PATH := vendor/qcom/opensource/display-core/config
+PRODUCT_COPY_FILES += $(PRIVACY_REGIONS_OFFSETS_XML_PATH)/privacy_regions_offsets.xml:$(TARGET_COPY_OUT_VENDOR)/etc/display/privacy_regions_offsets.xml

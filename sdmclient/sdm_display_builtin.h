@@ -59,7 +59,7 @@ public:
                             SDMCompositorCallbacks *callbacks,
                             SDMDisplayEventHandler *event_handler, Display id, int32_t sdm_id,
                             SDMDisplay **sdm_display);
- static void Destroy(SDMDisplay *sdm_display);
+ static void Destroy(SDMDisplay *sdm_display, bool deinit_layer_builder = true);
  virtual DisplayError Init();
  virtual DisplayError Present(shared_ptr<Fence> *out_retire_fence);
  virtual DisplayError CommitLayerStack();
@@ -82,7 +82,7 @@ public:
  virtual DisplayError GetFrameCaptureStatus() { return frame_capture_status_; }
  virtual DisplayError SetDetailEnhancerConfig(const DisplayDetailEnhancerData &de_data);
  virtual DisplayError SetHWDetailedEnhancerConfig(void *params);
- virtual DisplayError ControlPartialUpdate(bool enable, uint32_t *pending);
+ virtual DisplayError ControlPartialUpdate(bool enable);
  virtual DisplayError SetBppMode(uint32_t bpp);
  virtual DisplayError SetQSyncMode(QSyncMode qsync_mode);
  virtual DisplayError ControlIdlePowerCollapse(bool enable, bool synchronous);
@@ -105,7 +105,7 @@ public:
                                       float hdr_sdr_ratio);
  virtual bool IsSmartPanelConfig(uint32_t config_id);
  virtual bool HasSmartPanelConfig(void);
- virtual DisplayError Deinit();
+ virtual DisplayError Deinit(bool deinit_layer_builder = true);
  virtual DisplayError PostInit();
 
  virtual DisplayError SetDisplayedContentSamplingEnabledVndService(bool enabled);
@@ -150,6 +150,7 @@ public:
  virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data);
  virtual DisplayError SetDpuDmaMode();
  virtual bool IsDmaModeIncompatible(LayerComposition composition);
+ virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size);
 
 private:
  SDMDisplayBuiltIn(CoreInterface *core_intf, BufferAllocator *buffer_allocator,
@@ -240,6 +241,8 @@ private:
 
  // Whether the DPU DMA mode is enabled.
  bool dpu_dma_enabled_ = false;
+
+ std::string kPuSdmClient = "sdm_client";
 };
 
 } // namespace sdm

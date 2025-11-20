@@ -62,7 +62,7 @@ DisplayError SDMLayerBuilder::DeInit(uint64_t display_id) {
 
 LayerBufferFormat SDMLayerBuilder::GetSDMFormat(const int32_t &source, const int32_t flags,
                                                 const int64_t compression_type) {
-  return buffer_allocator_->GetSDMFormat(source, flags, compression_type);
+  return buffer_allocator_->GetSDMFormat(source, flags, compression_type, 0);
 }
 
 bool SDMLayerBuilder::CheckLayerBufferBinding(uint64_t display_id, int64_t layer_id,
@@ -188,6 +188,11 @@ DisplayError SDMLayerBuilder::DestroyLayerLocked(uint64_t display_id, int64_t la
   }
 
   const auto layer = layer_iter->second;
+  if (layer->HasPrivacyRegions()) {
+    DLOGV_IF(kTagClient, "Layer %" PRIu64 " removed, privacy regions updated", layer_id);
+    layer_stack.privacy_regions_updated_ = true;
+  }
+
   layer_map.erase(layer_iter);
 
   const auto z_range = layer_set.equal_range(layer);
@@ -311,6 +316,43 @@ DisplayError SDMLayerBuilder::SetLayerFlag(uint64_t display, int64_t layer,
   return CallLayerFunction(display, layer, &SDMLayer::SetLayerFlag, flag);
 }
 
+DisplayError SDMLayerBuilder::SetRenderLayerReferenceSpaceType(
+    uint64_t display, int64_t layer, SDMRenderLayerReferenceSpaceType reference_layer_space_type) {
+  return CallLayerFunction(display, layer, &SDMLayer::SetRenderLayerReferenceSpaceType,
+                           reference_layer_space_type);
+}
+
+DisplayError SDMLayerBuilder::SetCompositionLayerType(uint64_t display, int64_t layer,
+                                                      SDMCompositionLayerType comp_layer_type) {
+  return CallLayerFunction(display, layer, &SDMLayer::SetCompositionLayerType, comp_layer_type);
+}
+
+DisplayError SDMLayerBuilder::SetLayerPose(uint64_t display, int64_t layer,
+                                           SDMLayerPose layer_pose) {
+  return CallLayerFunction(display, layer, &SDMLayer::SetLayerPose, layer_pose);
+}
+
+DisplayError SDMLayerBuilder::SetLayerQuadSize(uint64_t display, int64_t layer,
+                                               SDMLayerQuadSize layer_quad_size) {
+  return CallLayerFunction(display, layer, &SDMLayer::SetLayerQuadSize, layer_quad_size);
+}
+
+DisplayError SDMLayerBuilder::SetLayerFrustum(uint64_t display, int64_t layer,
+                                              SDMLayerFrustum layer_frustum) {
+  return CallLayerFunction(display, layer, &SDMLayer::SetLayerFrustum, layer_frustum);
+}
+
+DisplayError SDMLayerBuilder::SetLayerPlaneEquation(uint64_t display, int64_t layer,
+                                                    SDMLayerPlaneEquation plane_equation) {
+  return CallLayerFunction(display, layer, &SDMLayer::SetLayerPlaneEquation, plane_equation);
+}
+
+DisplayError SDMLayerBuilder::SetLayerVisibilityType(uint64_t display, int64_t layer,
+                                                     SDMLayerVisibilityType layer_visibility_type) {
+  return CallLayerFunction(display, layer, &SDMLayer::SetLayerVisibilityType,
+                           layer_visibility_type);
+}
+
 DisplayError SDMLayerBuilder::SetLayerSurfaceDamage(uint64_t display,
                                                     int64_t layer_id,
                                                     SDMRegion damage) {
@@ -393,6 +435,20 @@ DisplayError SDMLayerBuilder::SetLayerBrightness(uint64_t display,
                                                  float brightness) {
   return CallLayerFunction(display, layer, &SDMLayer::SetLayerBrightness,
                            brightness);
+}
+
+DisplayError SDMLayerBuilder::SetLayerPrivacyRegions(
+    uint64_t display, int64_t layer, const std::vector<PrivacyRegion> &privacy_regions) {
+  auto sdm_layer = GetSDMLayer(display, layer);
+  if (!sdm_layer) {
+    return kErrorNotSupported;
+  }
+
+  return sdm_layer->SetLayerPrivacyRegions(privacy_regions);
+}
+DisplayError SDMLayerBuilder::SetLayerCornerRadius(uint64_t display, int64_t layer,
+                                                   CornerRadius corner_radius) {
+  return CallLayerFunction(display, layer, &SDMLayer::SetLayerCornerRadius, corner_radius);
 }
 
 } // namespace sdm

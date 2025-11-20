@@ -92,6 +92,7 @@ class HWVirtualDRM : public HWDeviceDRM {
   virtual DisplayError Deinit();
 
  protected:
+  virtual DisplayError Init();
   virtual DisplayError Validate(HWLayersInfo *hw_layers_info);
   virtual DisplayError Commit(HWLayersInfo *hw_layers_info);
   virtual DisplayError Flush(HWLayersInfo *hw_layers_info);
@@ -105,9 +106,13 @@ class HWVirtualDRM : public HWDeviceDRM {
   }
   virtual DisplayError GetDisplayIdentificationData(uint8_t *out_port, uint32_t *out_data_size,
                                                     uint8_t *out_data);
+  virtual DisplayError SetDisplayDeviceConfig(SDMDisplayDeviceConfig sdm_display_device_config);
+  virtual DisplayError SetReprojectionConfig(const struct ReprojectionConfig &reprojection_config);
 
  private:
-  void ConfigureWbConnectorFbId(uint32_t fb_id);
+  void ConfigureWbConnectorFbId(uint32_t fb_id, vector<uint32_t> lsr_fb_ids);
+  DisplayError GetOutputBufferFBIds(HWLayersInfo *hw_layers_info, uint32_t *output_fb_id,
+                                    vector<uint32_t> *lsr_out_fb_ids);
   void ConfigureWbConnectorDestRect(bool reset = false);
   void ConfigureWbConnectorSecureMode(bool secure);
   void SetWbCSC();
@@ -115,9 +120,19 @@ class HWVirtualDRM : public HWDeviceDRM {
   DisplayError SetWbConfigs(const HWDisplayAttributes &display_attributes);
   void GetModeIndex(const HWDisplayAttributes &display_attributes, int *mode_index);
   void ConfigureDNSC(HWLayersInfo *hw_layers_info);
+  void ProgramDisplayDeviceConfig();
+  DisplayError InvertMatrix(float mat[REPROJ_MATRIX_ROWS][REPROJ_MATRIX_COLS],
+                            float invert_mat[REPROJ_MATRIX_ROWS][REPROJ_MATRIX_COLS]);
 #ifdef FEATURE_DNSC_BLUR
   struct sde_drm_dnsc_blur_cfg dnsc_cfg_ = {};
 #endif
+  static const int kMaxCSCOutputBuffer = 2;
+  struct sde_drm_fb_id_list lsr_fb_id_config_ = {};
+  int32_t primary_disp_conn_id_ = -1;
+  SDMDisplayDeviceConfig display_device_config_;
+  struct drm_msm_opaque_config display_gamma_ = {};
+  struct sde_drm_reproj_matrix_list drm_repro_matrix_ = {};
+  bool set_display_device_config_ = false;
 };
 
 }  // namespace sdm

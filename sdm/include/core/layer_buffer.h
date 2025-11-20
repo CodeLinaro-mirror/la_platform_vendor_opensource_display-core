@@ -123,6 +123,8 @@ enum LayerBufferFormat {
   kFormatRGBA8888UbwcLossy8To5,  //!< UBWC aligned RGBA8888 format with lossy 8:5 compression
   kFormatC8Ubwc,                 // UBWC aligned C8 format. Y-plane only, No UV-Plane.
   kFormatC8,                     // C8 format. Y-plane only, No UV-Plane.
+  kFormatC84RUbwc,               // UBWC aligned C8 format. Y-plane only of NV124R, No UV-Plane.
+  kFormatC84R4YUbwc,             // UBWC aligned C84R format for the 4 Y fields.
 
   /* All YUV-Planar formats, Any new format will be added towards end of this group to maintain
      backward compatibility.
@@ -214,6 +216,14 @@ enum LayerBufferFormat {
   kFormatInvalid = 0xFFFFFFFF,
 };
 
+enum ColorComponent {
+  kColorNone,
+  kColorRed,
+  kColorGreen,
+  kColorBlue,
+  kColorMax,
+};
+
 /*! @brief This structure defines a color sample plane belonging to a buffer format. RGB buffer
   formats have 1 plane whereas YUV buffer formats may have upto 4 planes.
 
@@ -223,6 +233,9 @@ struct LayerBufferPlane {
   int fd = -1;           //!< File descriptor referring to the buffer associated with this plane.
   uint32_t offset = 0;   //!< Offset of the plane in bytes from beginning of the buffer.
   uint32_t stride = 0;   //!< Stride in bytes i.e. length of a scanline including padding.
+  ColorComponent color = kColorNone;  //!< Indicate if buffer content only one field
+  uint64_t buffer_id __attribute__((aligned(8))) = 0;  //!< buffer handle for multiple plane buffer
+  uint64_t handle_id = 0;  //!< This is the BufferInfo's ID for this plane
 };
 
 /*! @brief This structure defines flags associated with a layer buffer. The 1-bit flag can be set

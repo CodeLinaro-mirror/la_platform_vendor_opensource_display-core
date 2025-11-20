@@ -109,13 +109,14 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError SetDrawMethod(DisplayDrawMethod draw_method);
   virtual DisplayError SetDisplayState(DisplayState state, bool teardown,
                                        shared_ptr<Fence> *release_fence);
+  virtual DisplayError SetOffloadMode(bool enable) { return kErrorNotSupported; }
   virtual DisplayError SetActiveConfig(uint32_t index);
   virtual DisplayError SetActiveConfig(DisplayConfigVariableInfo *variable_info) {
     return kErrorNotSupported;
   }
   virtual DisplayError SetNoisePlugInOverride(bool override_en, int32_t attn, int32_t noise_zpos);
   virtual DisplayError SetMaxMixerStages(uint32_t max_mixer_stages);
-  virtual DisplayError ControlPartialUpdate(bool enable, uint32_t *pending) {
+  virtual DisplayError ControlPartialUpdate(bool enable, std::string &observer) {
     return kErrorNotSupported;
   }
   virtual DisplayError DisablePartialUpdateOneFrame() {
@@ -308,6 +309,10 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
     return kErrorNotSupported;
   }
 
+  virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size) {
+    return kErrorNotSupported;
+  }
+
   virtual DisplayError PanelBacklightInfo(const std::string &client_name, bool enable,
                                           SdmDisplayCbInterface<PanelBacklightPayload> *cb_intf) {
     return kErrorNotSupported;
@@ -321,6 +326,11 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   }
   DisplayError SetRGBASplit(int32_t split_enable);
   virtual bool IsDpuDmaModeEnabled();
+  virtual DisplayError SetClientTargetCapability(
+      const std::bitset<kClientCapabilityMax> &client_capabilities);
+  virtual DisplayError SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config) {
+    return kErrorNotSupported;
+  }
 
  protected:
   struct DisplayMutex {
@@ -540,6 +550,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool is_mirror_mode_active_ = false;
   uint32_t active_config_index_ = 0;
   int rgba_split_enable_ = false;
+  bool mixer_resolution_updated_ = false;
+  bool primary_commit_needed_ = true;
 
  private:
   // Max tolerable power-state-change wait-times in milliseconds.

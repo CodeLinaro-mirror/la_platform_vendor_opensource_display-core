@@ -82,6 +82,8 @@ enum HWDeviceType {
   kDevicePluggable,
   kDeviceVirtual,
   kDeviceRotator,
+  kDeviceCSC,
+  kDeviceRepro,
   kDeviceMax,
 };
 
@@ -91,6 +93,8 @@ enum HWBlockType {
   kHWWriteback0,
   kHWWriteback1,
   kHWWriteback2,
+  kHWWritebackCSC,
+  kHWWritebackRepro,
   kHWBlockMax
 };
 
@@ -308,14 +312,6 @@ enum HWPipeCacMode {
   kModeFetch,
   kModeLoopbackUnpack,
   kModeLoopbackFetch,
-};
-
-enum HWCacColorComponent {
-  kCacNone,
-  kCacRed,
-  kCacGreen,
-  kCacBlue,
-  kCacMax,
 };
 
 enum HWCacMode {
@@ -549,6 +545,8 @@ struct HWPanelInfo {
   uint32_t min_fps = 0;               // Min fps supported by panel
   uint32_t max_fps = 0;               // Max fps supported by panel
   bool is_primary_panel = false;      // Panel is primary display
+  bool is_lsr_display = false;        // Panel is used for reprojection
+  bool is_monocular_display = false;  // differentiate between monocular and binocular display
   bool is_pluggable = false;          // Panel is pluggable
   HWSplitInfo split_info;             // Panel split configuration
   char panel_name[256] = {0};         // Panel name
@@ -568,7 +566,7 @@ struct HWPanelInfo {
   uint32_t transfer_time_us = 0;      // transfer time in micro seconds to panel's active region
   uint32_t transfer_time_us_min = 0;  // min transfer time in micro seconds to panel's active region
   uint32_t transfer_time_us_max = 0;  // max transfer time in micro seconds to panel's active region
-  uint32_t allowed_mode_switch = 0;   // Allowed mode switch bit mask
+  std::vector<uint32_t> allowed_mode_switch;   // Bit i represents switch to mode i allowed or not
   uint32_t panel_mode_caps = 0;       // Video/Command mode capability bit mask
   bool qsync_support = false;         // Specifies panel supports qsync feature or not.
   bool dyn_bitclk_support = false;    // Bit clk can be updated to avoid RF interference.
@@ -911,7 +909,7 @@ struct HWPipeInfo {
   HWSrcTonemap tonemap = kSrcTonemapNone;
   LayerBufferFormat format = kFormatARGB8888;  // src format of the buffer
   bool is_solid_fill = false;
-  HWCacColorComponent cac_color = kCacNone;
+  ColorComponent cac_color = kColorNone;
 };
 
 struct HWSolidfillStage {
@@ -997,6 +995,7 @@ enum UpdateType {
   kUpdateFBObject,   // Indicates that the FrameBuffer Object has been updated.
   kChangeCwbConfig,  // Indicates either CWB buffer attached/detached to stack or size changed.
   kHalSelfRefresh,   // Indicates that it is HAL Self-Refresh Commit.
+  kUpdatePrivacyRegions, // Indicates that the privacy regions have been updated.
   kUpdateMax,
 };
 
@@ -1085,6 +1084,10 @@ struct LayerStackInfo {
   int32_t noise_layer_index = -1;    // Noise layer index. -1 if not present.
   int32_t cwb_target_index = -1;     // CWB target layer index. -1 if not present.
   int32_t iwe_target_index = -1;     // IWE target layer index. -1 if not present.
+  int32_t iwe_csc_left_index = -1;        // IWE CSC left eye layer index. -1 if not present.
+  int32_t iwe_csc_right_index = -1;       // IWE CSC right eye layer index. -1 if not present.
+  int32_t iwe_repro_left_index = -1;      // IWE Repro left eye layer index. -1 if not present.
+  int32_t iwe_repro_right_index = -1;     // IWE Repro right eye layer index. -1 if not present.
   std::vector<QtiColorPrimaries> wide_color_primaries = {};  // list of wide color primaries
   std::vector<LayerRect> left_frame_roi = {};   // Left ROI.
   std::vector<LayerRect> right_frame_roi = {};  // Right ROI.
@@ -1152,6 +1155,13 @@ struct HWLayersInfo {
                                        //!< Pointer to the buffer where composed buffer would be
                                        //!< rendered for virtual displays.
                                        //!< NOTE: This field applies to a virtual display only.
+  vector<std::shared_ptr<LayerBuffer>> reprojection_output_buffers = {};
+                                       //!< array of the buffer where LSR composed buffer
+                                       //!< would be rendered. Which will be later used in
+                                       //!< primary display.
+                                       //!< NOTE: This field applies to LSR display only.
+  vector<uint32_t> lsr_output_fb_ids = {};
+                                       //!< FB ID of the output buffers of lsr display
   uint32_t output_fb_id = 0;           //!< FB ID of the output buffer of virtual display
   CwbConfig *hw_cwb_config = NULL;     //!< Struct that contains CWB configuration passed to
                                        //!< driver by SDM.
@@ -1164,6 +1174,7 @@ struct HWLayersInfo {
   HWDNSCInfo dnsc_cfg = {};
   SelfRefreshState self_refresh_state = kSelfRefreshNone;
   BufferInfo dummy_loopback_cac_info = {};
+  std::vector<PrivacyRegion> privacy_regions_ = {};
 };
 
 struct DispLayerStack {
@@ -1243,6 +1254,18 @@ struct HWMixerAttributes {
 struct Resolution {
   uint32_t x_pixels;
   uint32_t y_pixels;
+
+  bool operator==(const Resolution &resolution) const {
+    return (x_pixels == resolution.x_pixels && y_pixels == resolution.y_pixels);
+  }
+};
+
+class ResolutionHash {
+ public:
+  size_t operator()(const Resolution & resolution) const {
+    return (std::hash<int>{}(resolution.x_pixels) ^
+            std::hash<int>{}(resolution.y_pixels));
+  }
 };
 
 class FrameBufferObject : public LayerBufferObject {

@@ -78,9 +78,6 @@
 #ifndef DRM_FORMAT_MOD_QCOM_LOSSY_2_1
 #define DRM_FORMAT_MOD_QCOM_LOSSY_2_1 fourcc_mod_code(QCOM, 0x200)
 #endif
-#ifndef DRM_FORMAT_MOD_QCOM_FSC_TILE
-#define DRM_FORMAT_MOD_QCOM_FSC_TILE fourcc_mod_code(QCOM, 0x20)
-#endif
 #ifndef DRM_FORMAT_MOD_QCOM_DMA
 #define DRM_FORMAT_MOD_QCOM_DMA fourcc_mod_code(QCOM, 0x400)
 #endif
@@ -547,8 +544,7 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
         }
         hw_resource->num_cursor_pipe++;
         break;
-      // TODO: populate for csc and repro pipe type
-      /* case DRMPlaneType::CSC:
+      case DRMPlaneType::CSC:
         name = "CSC";
         pipe_caps.type = kPipeTypeCSC;
         if (!hw_resource->num_csc_pipe ) {
@@ -563,7 +559,7 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
           PopulateSupportedFmts(kHWReproPipe, pipe_obj.second, hw_resource);
         }
         hw_resource->num_repro_pipe++;
-        break; */
+        break;
       default:
         continue;  // Not adding any other pipe type
     }
@@ -1052,9 +1048,15 @@ void HWInfoDRM::GetSDMFormat(uint32_t drm_format, uint64_t drm_format_modifier,
       }
       break;
     case DRM_FORMAT_C8:
-      if (drm_format_modifier == (DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_FSC_TILE)) {
-        fmts.push_back(kFormatC8Ubwc);
-      } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_FSC_TILE) {
+      if (drm_format_modifier & DRM_FORMAT_MOD_QCOM_COMPRESSED) {
+        if (drm_format_modifier & DRM_FORMAT_MOD_QCOM_FSC_TILE) {
+          fmts.push_back(kFormatC8Ubwc);
+        } else if (drm_format_modifier & DRM_FORMAT_MOD_QCOM_FSC_4R_TILE) {
+          fmts.push_back(kFormatC84RUbwc);
+        } else if (drm_format_modifier & DRM_FORMAT_MOD_QCOM_NV12_4R_4Y) {
+          fmts.push_back(kFormatC84R4YUbwc);
+        }
+      } else if (drm_format_modifier & DRM_FORMAT_MOD_QCOM_FSC_TILE) {
         fmts.push_back(kFormatC8);
       }
       break;
@@ -1139,7 +1141,9 @@ DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
           break;
         }
       }
-      hw_info.lm_mask = iter.second.modes[mode_index].lm_mask;
+      if (iter.second.modes.size() != 0) {
+        hw_info.lm_mask = iter.second.modes[mode_index].lm_mask;
+      }
     }
 
     if (iter.second.type == DRM_MODE_CONNECTOR_VIRTUAL) {
@@ -1162,6 +1166,104 @@ DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
   }
 
   log_once = kTagDisplay;
+
+  return kErrorNone;
+}
+
+DisplayError HWInfoDRM::GetVirtualDisplayStatus(VirtualDisplayType type, HWDisplayInfo *hw_info) {
+  if (!hw_info) {
+    DLOGE("No output parameter provided!");
+    return kErrorParameters;
+  }
+
+  if (!drm_mgr_intf_) {
+    DLOGE("DRM Driver not initialized!");
+    return kErrorCriticalResource;
+  }
+
+  sde_drm::DRMConnectorsInfo conns_info = {};
+  int drm_err = drm_mgr_intf_->GetConnectorsInfo(&conns_info);
+  if (drm_err == -ENODEV) {
+    DLOGW("DRM Driver error %d while getting displays' status!", drm_err);
+    return kErrorUndefined;
+  } else if (drm_err) {
+    DLOGE("DRM Driver error %d while getting displays' status!", drm_err);
+    return kErrorUndefined;
+  }
+
+  bool connector_found = false;
+  SDMDisplayType display_type = kVirtual;
+  for (auto &iter : conns_info) {
+    if (iter.second.type != DRM_MODE_CONNECTOR_VIRTUAL) {
+      continue;
+    }
+
+    switch (type) {
+      case VirtualDisplayType::LOOPBACK:
+        if (!iter.second.has_cac_loopback) {
+          continue;
+        }
+        connector_found = true;
+        break;
+
+      case VirtualDisplayType::REPRO:
+        if (!iter.second.is_wb_repro) {
+          continue;
+        }
+        connector_found = true;
+        display_type = kRepro;
+        break;
+
+      case VirtualDisplayType::CSC:
+        if (!iter.second.is_wb_csc) {
+          continue;
+        }
+        connector_found = true;
+        display_type = kCSC;
+        break;
+
+      case VirtualDisplayType::DPU:
+        if (iter.second.has_cac_loopback || iter.second.is_wb_repro || iter.second.is_wb_csc) {
+          continue;
+        }
+        connector_found = true;
+        break;
+
+      default:
+        continue;
+    }
+
+    if (!connector_found) {
+      return kErrorCriticalResource;
+    }
+
+    *hw_info = {};
+    hw_info->display_id = ((0 == iter.first) || (iter.first > INT32_MAX))
+                              ? -1
+                              : (int32_t)DisplayId(core_id_, iter.first).GetDisplayId();
+    hw_info->display_type = display_type;
+
+    hw_info->is_connected = iter.second.is_connected ? 1 : 0;
+    hw_info->is_primary = iter.second.is_primary ? 1 : 0;
+    hw_info->is_wb_ubwc_supported = iter.second.is_wb_ubwc_supported;
+    hw_info->is_reserved = iter.second.is_reserved;
+    hw_info->max_linewidth = iter.second.max_linewidth;
+
+    if (!hw_info->max_cwb) {
+      auto &conn_mode = iter.second.modes[0];
+      hw_info->max_cwb =
+          (conn_mode.max_cwb >= INT32_MAX || !conn_mode.max_cwb) ? 1 : conn_mode.max_cwb;
+    }
+
+    hw_info->has_disp_in_other_core = iter.second.has_disp_in_other_core;
+
+    DLOGI(
+        "Virtual display: %4d-%d, virtual display type: %d connected: %s, primary: %s, in "
+        "other core: %s IsRepro %d IsCSC %d isloopback %d",
+        hw_info->display_id, hw_info->display_type, type, hw_info->is_connected ? "true" : "false",
+        hw_info->is_primary ? "true" : "false", hw_info->has_disp_in_other_core ? "true" : "false",
+        iter.second.is_wb_repro, iter.second.is_wb_csc, iter.second.has_cac_loopback);
+  }
 
   return kErrorNone;
 }

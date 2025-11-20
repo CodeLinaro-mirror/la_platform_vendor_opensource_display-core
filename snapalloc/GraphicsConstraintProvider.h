@@ -150,7 +150,7 @@ class GraphicsConstraintProvider : public SnapConstraintProvider {
                             int pixel_format_modifier, unsigned int *aligned_w,
                             unsigned int *aligned_h);
   void AlignCompressedRGB(int width, int height, int format, unsigned int *aligned_w,
-                          unsigned int *aligned_h);
+                          unsigned int *aligned_h, int *bytes_per_block);
   void AlignGpuDepthStencilFormat(int width, int height, int format, int tile_enabled,
                                   int pixel_format_modifier, unsigned int *aligned_w,
                                   unsigned int *aligned_h);

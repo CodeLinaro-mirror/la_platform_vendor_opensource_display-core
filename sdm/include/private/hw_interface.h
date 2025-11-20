@@ -23,11 +23,10 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __HW_INTERFACE_H__
 #define __HW_INTERFACE_H__
@@ -68,6 +67,33 @@ struct HWScanInfo {
   bool operator == (const HWScanInfo& hw_scan_info) {
     return !(operator !=(hw_scan_info));
   }
+};
+
+struct ReprojectionConfig {
+  struct drm_msm_opaque_config
+      reproj_sparse_grid;  // reproj_reproj_sparse_grid data field is 2D array.
+  uint32_t reproj_grid_w;  // grid width
+  uint32_t reproj_grid_h;  // grid height
+  struct drm_msm_opaque_config
+      reproj_radial_dis_grid;   // reproj_radial_dis_grid data field is 2D array.
+  uint32_t distort_resolution;  // num column of reproj_radial_dis_grid data array
+  struct sde_drm_lsr_point reproj_optical_axis_offset;  // config to for optical_axis_offset
+  float reproj_r_max;
+  uint32_t reproj_error_to_l;
+  uint32_t reproj_disp_im_width;
+  uint32_t reproj_disp_im_height;
+  uint32_t reproj_tile_w;
+  uint32_t reproj_tile_h;
+  struct drm_msm_opaque_config repro_session_config;
+  struct drm_msm_opaque_config repro_session_data_config;
+  uint32_t reprojection_mode;
+  float reproj_to_lrgb_left;
+  float reproj_to_lrgb_right;
+  // TODO: Need revisit for below value / properties
+  // num_views
+  // reproj_min_bbox_w
+  // reproj_min_bbox_h
+  // bounding_box
 };
 
 enum HWFeature {
@@ -149,6 +175,7 @@ class HWInterface {
   virtual DisplayError GetPPFeaturesVersion(PPFeatureVersion *vers) = 0;
   virtual DisplayError SetPPFeature(PPFeatureInfo *feature) = 0;
   virtual DisplayError SetVSyncState(bool enable) = 0;
+  virtual DisplayError SetOffloadMode(bool enable) = 0;
   virtual void SetIdleTimeoutMs(uint32_t timeout_ms) = 0;
   virtual DisplayError SetDisplayMode(const HWDisplayMode hw_display_mode) = 0;
   virtual DisplayError SetBppMode(uint32_t bpp) = 0;
@@ -199,6 +226,10 @@ class HWInterface {
   virtual bool IsVRRSupported() = 0;
   virtual void DisplayEarlyWakeUp() = 0;
   virtual DisplayError setDriverCommitPath(DriverCommitPath path) = 0;
+  virtual uint32_t GetMaxPrivacyRegionsSupported() = 0;
+  virtual DisplayError SetDisplayDeviceConfig(SDMDisplayDeviceConfig sdm_display_device_config) = 0;
+  virtual DisplayError SetReprojectionConfig(
+      const struct ReprojectionConfig &reprojection_config) = 0;
 
  protected:
   virtual ~HWInterface() { }

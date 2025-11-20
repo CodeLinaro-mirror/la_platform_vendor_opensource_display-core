@@ -140,6 +140,14 @@ class SDMLayer {
   DisplayError SetLayerZOrder(uint32_t z);
   DisplayError SetLayerType(SDMLayerTypes type);
   DisplayError SetLayerFlag(SDMLayerFlag flag);
+  DisplayError SetRenderLayerReferenceSpaceType(
+      SDMRenderLayerReferenceSpaceType reference_layer_space_type);
+  DisplayError SetCompositionLayerType(SDMCompositionLayerType comp_layer_type);
+  DisplayError SetLayerPose(SDMLayerPose layer_pose);
+  DisplayError SetLayerQuadSize(SDMLayerQuadSize layer_quad_size);
+  DisplayError SetLayerFrustum(SDMLayerFrustum layer_frustum);
+  DisplayError SetLayerPlaneEquation(SDMLayerPlaneEquation plane_equation);
+  DisplayError SetLayerVisibilityType(SDMLayerVisibilityType layer_visibility_type);
   DisplayError SetLayerColorTransform(const float *matrix);
   DisplayError SetLayerBrightness(float brightness);
   void SetComposition(const LayerComposition &sdm_composition);
@@ -158,7 +166,10 @@ class SDMLayer {
   int32_t GetLayerDataspace() { return dataspace_; }
   uint32_t GetGeometryChanges() { return geometry_changes_; }
   void ResetGeometryChanges();
-  void ResetValidation() { layer_->update_mask.reset(); }
+  void ResetValidation() {
+    layer_->update_mask.reset();
+    privacy_region_state_ = kRegionReset;
+  }
   bool NeedsValidation() {
     return (geometry_changes_ || layer_->update_mask.any());
   }
@@ -183,6 +194,10 @@ class SDMLayer {
   static bool IsLayerIdExisting(LayerId id) { return id_mgr_.IsIdExisting(id); }
   static void SetAutoLayerIdCreation(bool flag) { auto_create_layer_id_ = flag; }
   DisplayError TranslateToNV12Y(LayerBuffer *layer_buffer);
+  DisplayError SetLayerPrivacyRegions(const std::vector<PrivacyRegion> &privacy_regions);
+  DisplayError SetLayerCornerRadius(CornerRadius corner_radius);
+  bool IsPrivacyRegionUpdated();
+  bool HasPrivacyRegions();
 
  private:
   std::shared_ptr<ISnapMapper> snapmapper_;
@@ -210,6 +225,7 @@ class SDMLayer {
   bool secure_ = false;
   bool compatible_ = false;
   bool ignore_sdr_histogram_md_ = false;
+  PrivacyRegionState privacy_region_state_ = kRegionReset;
 
   // SDMCompositionType requested by client(SF) Original
   SDMCompositionType client_requested_orig_ = SDMCompositionType::COMP_DEVICE;

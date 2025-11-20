@@ -354,6 +354,19 @@ DisplayError DisplayBase::Init() {
   if (Debug::Get()->GetProperty(ENABLE_ASYNC_POWER_OFF_WAIT, &prop) == kErrorNone) {
     enable_async_power_off_wait_ = (prop == 1);
   }
+  prop = 0;
+  if (Debug::Get()->GetProperty(DISABLE_PUNCHHOLE_LAYERS, &prop) == kErrorNone) {
+    std::bitset<kClientCapabilityMax> client_capabilities =
+        std::bitset<kClientCapabilityMax>().set();
+
+    if (prop)
+      client_capabilities.reset(kPunchholeSupported);
+
+    error = SetClientTargetCapability(client_capabilities);
+    if (error != kErrorNone) {
+      DLOGW("Failed to populate client capabilities");
+    }
+  }
 
   Debug::GetIdleTimeoutMs(&idle_active_ms_, &inactive_ms);
 
@@ -1170,7 +1183,7 @@ DisplayError DisplayBase::Prepare(LayerStack *layer_stack) {
     }
 
     // Trigger validate only if needed.
-    if (disp_layer_stack_->stack_info.do_hw_validate) {
+    if (draw_method_ == kDrawDefault) {
       error = dpu_core_mux_->Validate(disp_layer_stack_->info);
     }
 
@@ -1613,6 +1626,7 @@ DisplayError DisplayBase::CommitOrPrepare(LayerStack *layer_stack) {
     // Copy layer stack attributes needed for commit.
     error = SetUpCommit(layer_stack);
     if (error != kErrorNone) {
+      CleanupOnError();
       return error;
     }
 
@@ -1628,7 +1642,11 @@ DisplayError DisplayBase::CommitOrPrepare(LayerStack *layer_stack) {
 void DisplayBase::HandleAsyncCommit() {
   // Do not acquire mutexes here.
   // Perform hw commit here.
-  PerformHwCommit(disp_layer_stack_->info);
+  DisplayError error = PerformHwCommit(disp_layer_stack_->info);
+  if (error != kErrorNone) {
+    DLOGW("HwCommit failed %d", error);
+    CleanupOnError();
+  }
 }
 
 void DisplayBase::CommitThread() {
@@ -1788,6 +1806,12 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
 
 DisplayError DisplayBase::PerformCommit(std::map<uint32_t, HWLayersInfo> &hw_layers_info) {
   DTRACE_SCOPED();
+  if (!primary_commit_needed_) {
+    DLOGV("Skipping primary display commit");
+    SetSelfRefreshRefCount(0);
+    commit_phase_ = false;
+    return kErrorNone;
+  }
   DisplayError error = dpu_core_mux_->Commit(hw_layers_info);
   if (error != kErrorNone) {
     DLOGE("COMMIT failed: %d ", error);
@@ -1836,6 +1860,7 @@ DisplayError DisplayBase::Commit(LayerStack *layer_stack) {
   // Copy layer stack attributes needed for commit.
   DisplayError error = SetUpCommit(layer_stack);
   if (error != kErrorNone) {
+    CleanupOnError();
     return error;
   }
 
@@ -1852,13 +1877,25 @@ DisplayError DisplayBase::CommitLocked(LayerStack *layer_stack) {
   DisplayError error = SetUpCommit(layer_stack);
   if (error != kErrorNone) {
     DLOGW("SetUpCommit failed %d", error);
+    CleanupOnError();
     return error;
+  }
+
+  if ((disp_layer_stack_->stack_info.iwe_repro_left_index == -1) &&
+      (disp_layer_stack_->stack_info.iwe_repro_right_index == -1)) {
+    primary_commit_needed_ = true;
   }
 
   error = PerformHwCommit(disp_layer_stack_->info);
 
+  if ((disp_layer_stack_->stack_info.iwe_repro_left_index != -1) ||
+      (disp_layer_stack_->stack_info.iwe_repro_right_index != -1)) {
+    primary_commit_needed_ = false;
+  }
+
   if (error != kErrorNone) {
     DLOGE("HwCommit failed %d", error);
+    CleanupOnError();
   }
 
   return error;
@@ -1978,6 +2015,7 @@ DisplayError DisplayBase::PostCommit() {
     clearstack_.store(false);
   }
 
+  mixer_resolution_updated_ = false;
   return error;
 }
 
@@ -2575,15 +2613,16 @@ std::string DisplayBase::Dump() {
     AppendRCMaskData(os);
 
     const char *header =
-        "\n| Idx |   Comp Type   |   Split   | Pipe |    W x H    |          Format          |  "
+        "\n| Idx |   Comp Type   |     Split    | Pipe |    W x H    |          Format          |  "
         "Src Rect (L T R B) |  Dst Rect (L T R B) |  Z | Pipe Flags | Deci(HxV) | CS | Rng | Tr "
         "|";  //NOLINT
     const char *newline =
-        "\n|-----|---------------|-----------|------|-------------|--------------------------"
+        "\n|-----|---------------|--------------|------|-------------|--------------------------"
         "|---------------------|---------------------|----|------------|-----------|----|----"
         "-|----|";  //NOLINT
     const char *format =
-        "\n| %3s | %13s | %9s | %4d | %4d x %4d | %24s | %4d %4d %4d %4d | %4d %4d %4d %4d | %2s | "
+        "\n| %3s | %13s | %12s | %4d | %4d x %4d | %24s | %4d %4d %4d %4d | %4d %4d %4d %4d | %2s "
+        "| "
         "%10s | %9s | %2s | %3s | %2s |";  //NOLINT
 
     os << "\n";
@@ -3306,6 +3345,7 @@ DisplayError DisplayBase::SetMixerResolution(uint32_t width, uint32_t height) {
   req_mixer_width_ = width;
   req_mixer_height_ = height;
 
+  mixer_resolution_updated_ = true;
   return kErrorNone;
 }
 
@@ -3688,12 +3728,16 @@ void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
         display_type_, info.second.index.at(i), i);
       }
 
-      hw_layer.input_buffer.planes[0].fd = Sys::dup_(sdm_layer->input_buffer.planes[0].fd);
+      bool reprojection_buffer = (hw_layer.composition == kCompositionIWERepro);
+      auto layer = reprojection_buffer ? &hw_layer : sdm_layer;
+      hw_layer.input_buffer.planes[0].fd = Sys::dup_(layer->input_buffer.planes[0].fd);
       hw_layer.input_buffer.planes[0].offset = sdm_layer->input_buffer.planes[0].offset;
       hw_layer.input_buffer.planes[0].stride = sdm_layer->input_buffer.planes[0].stride;
       hw_layer.input_buffer.size = sdm_layer->input_buffer.size;
       hw_layer.input_buffer.acquire_fence = sdm_layer->input_buffer.acquire_fence;
-      hw_layer.input_buffer.handle_id = sdm_layer->input_buffer.handle_id;
+      hw_layer.input_buffer.handle_id = reprojection_buffer
+                                            ? hw_layer.input_buffer.planes[0].handle_id
+                                            : sdm_layer->input_buffer.handle_id;
       // All app buffer handles are set prior to prepare.
       // TODO(user): Other FBT layer attributes like surface damage, dataspace, secure camera and
       // secure display flags are also updated during SetClientTarget() called between validate and
@@ -5344,6 +5388,7 @@ DisplayError DisplayBase::DisableDestinationScalar() {
   comp_manager_->GetDSConfig(display_comp_ctx_, &hw_layers_info);
   hw_intf_->SetDestScalarData(hw_layers_info);
 
+  mixer_resolution_updated_ = true;
   return kErrorNone;
 }
 
@@ -5492,6 +5537,13 @@ DisplayError DisplayBase::SetRGBASplit(int enable) {
 
 bool DisplayBase::IsDpuDmaModeEnabled() {
   return client_ctx_.hw_panel_info.dpu_dma_enabled;
+}
+
+DisplayError DisplayBase::SetClientTargetCapability(
+    const std::bitset<kClientCapabilityMax> &client_capabilities) {
+  ClientLock lock(disp_mutex_);
+
+  return comp_manager_->SetClientTargetCapability(display_comp_ctx_, client_capabilities);
 }
 
 }  // namespace sdm

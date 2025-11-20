@@ -384,18 +384,16 @@ DisplayError SDMServices::ControlPartialUpdate(int disp_id, bool enable) {
       return kErrorNotSupported;
     }
 
-    uint32_t pending = 0;
-    DisplayError sdm_error =
-        sdm_display->ControlPartialUpdate(enable, &pending);
-    if (sdm_error == kErrorNone) {
-      if (!pending) {
-        return kErrorNone;
-      }
-    } else if (sdm_error == kErrorNotSupported) {
+    DisplayError sdm_error = sdm_display->ControlPartialUpdate(enable);
+    if (sdm_error == kErrorNotSupported) {
       return kErrorNone;
-    } else {
+    } else if (sdm_error != kErrorNone) {
       return kErrorNotSupported;
     }
+  }
+
+  if (!enable) {
+    cb_->Refresh(disp_idx);
   }
 
   return kErrorNone;
@@ -1019,6 +1017,7 @@ DisplayError SDMServices::SetDemuraState(SDMParcel *input_parcel,
 
   auto ret = cb_->SetDemuraState(disp_id, state, demura_idx);
   if (ret != kErrorNone) {
+    output_parcel->writeInt32(ret);
     return ret;
   }
 
@@ -1033,6 +1032,7 @@ DisplayError SDMServices::SetDemuraConfig(SDMParcel *input_parcel,
   int config = input_parcel->readInt32();
   auto ret = cb_->SetDemuraConfig(disp_id, config);
   if (ret != kErrorNone) {
+    output_parcel->writeInt32(ret);
     return ret;
   }
 
@@ -1308,7 +1308,7 @@ DisplayError SDMServices::SetFrameDumpConfig(SDMParcel *input_parcel) {
     output_format = input_parcel->readInt32();
   }
 
-  LayerBufferFormat sdm_format = buffer_allocator_->GetSDMFormat(output_format, 0, 0);
+  LayerBufferFormat sdm_format = buffer_allocator_->GetSDMFormat(output_format, 0, 0, 0);
   if (sdm_format == kFormatInvalid) {
     DLOGW("Format %d is not supported by SDM", output_format);
     return kErrorNotSupported;
@@ -2018,6 +2018,23 @@ DisplayError SDMServices::SetPanelFeatureConfig(SDMParcel *input_parcel, SDMParc
   return ret;
 }
 
+DisplayError SDMServices::GetPanelFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel) {
+  int disp_id = input_parcel->readInt32();
+  int type = input_parcel->readInt32();
+  const uint32_t data_size = 64;
+  char data[data_size];
+
+  auto ret = cb_->GetPanelFeatureConfig(disp_id, type, reinterpret_cast<void *>(data), data_size);
+  if (ret != kErrorNone) {
+    DLOGE("Failed, ret %d", ret);
+    output_parcel->write("FAILED", strlen("FAILED"));
+    return kErrorUndefined;
+  }
+
+  output_parcel->write(data, strlen(data));
+  return ret;
+}
+
 DisplayError SDMServices::GetPanelResolution(SDMParcel *input_parcel, SDMParcel *output_parcel) {
   SDMDisplay *display = cb_->GetDisplayFromClientId(SDM_DISPLAY_PRIMARY);
   if (!display) {
@@ -2044,4 +2061,71 @@ DisplayError SDMServices::SetStandbyMode(SDMParcel *input_parcel) {
   int is_twm = input_parcel->readInt32();
   return display->SetStandbyMode(enable, is_twm);
 }
+
+DisplayError SDMServices::SetPrivacyRegions(SDMParcel *input_parcel) {
+  int display_id = input_parcel->readInt32();
+  int num_privacy_layers = input_parcel->readInt32();
+  if ((display_id != SDM_DISPLAY_PRIMARY) || (num_privacy_layers <= 0)) {
+    DLOGW("Invalid input: %d, %d", display_id, num_privacy_layers);
+    return kErrorNotSupported;
+  }
+
+  std::map<uint32_t, std::vector<PrivacyRegion>> privacy_regions_map;
+  std::map<uint32_t, float> corner_radius_map;
+
+  // Read Privacy Regions data for given layers.
+  for (int i = 0; i < num_privacy_layers; i++) {
+    int id = input_parcel->readInt32();
+    float corner_radius = input_parcel->readFloat();
+    int num_privacy_regions = input_parcel->readInt32();
+    if ((id < 0) || (num_privacy_regions <= 0)) {
+      DLOGW("Invalid Layer[%d] data!", i);
+      return kErrorNotSupported;
+    }
+
+    uint32_t layer_id = static_cast<uint32_t>(id);
+    std::vector<PrivacyRegion> privacy_regions;
+    privacy_regions.reserve(num_privacy_regions);
+    for (int j = 0; j < num_privacy_regions; j++) {
+      PrivacyRegion privacy_region;
+      int left = input_parcel->readInt32();
+      int top = input_parcel->readInt32();
+      int right = input_parcel->readInt32();
+      int bottom = input_parcel->readInt32();
+      float radius = input_parcel->readFloat();
+      if ((left < 0) || (top < 0) || (right < 0) || (bottom < 0) || (radius < 0)) {
+        DLOGW("Invalid PrivacyRegion[%d] on Layer[%d]!", j, i);
+        return kErrorNotSupported;
+      }
+
+      privacy_region.rect.left = left;
+      privacy_region.rect.top = top;
+      privacy_region.rect.right = right;
+      privacy_region.rect.bottom = bottom;
+      privacy_region.corner_radius = radius;
+      privacy_regions.push_back(privacy_region);
+    }
+
+    privacy_regions_map[layer_id] = privacy_regions;
+    corner_radius_map[layer_id] = corner_radius;
+  }
+
+  DLOGI("PrivacyRegions Map size: %zu", privacy_regions_map.size());
+  SEQUENCE_WAIT_SCOPE_LOCK(locker_[display_id]);
+  auto sdm_display = cb_->GetDisplayFromClientId(display_id);
+  if (!sdm_display) {
+    DLOGW("Display %d is not connected!", display_id);
+    return kErrorNotSupported;
+  }
+
+  // Set Privacy Regions data on given layers.
+  for (auto &map_data : privacy_regions_map) {
+    uint32_t layer_id = map_data.first;
+    sdm_display->SetPrivacyRegionsData(layer_id, corner_radius_map[layer_id], map_data.second);
+  }
+
+  cb_->Refresh(display_id);
+  return kErrorNone;
+}
+
 } // namespace sdm

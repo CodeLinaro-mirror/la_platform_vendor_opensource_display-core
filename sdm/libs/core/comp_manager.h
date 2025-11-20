@@ -155,6 +155,10 @@ class CompManager : public CwbCallback {
   void LoadCwbHwDnscConfig(int32_t core_id, HWLayersInfo *info);
   bool IsActiveDisplay(int32_t display_id);
   bool IsGPUHWAvailable();
+  DisplayError SetClientTargetCapability(
+      Handle display_ctx, const std::bitset<kClientCapabilityMax> &client_capabilities);
+  DisplayError SetDisplayDeviceConfig(Handle display_ctx,
+                                      const SDMDisplayDeviceConfig &display_device_config);
 
  private:
   static const int kMaxThermalLevel = 3;

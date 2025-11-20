@@ -33,6 +33,7 @@
 
 #include <core/dpps_interface.h>
 #include <core/ipc_interface.h>
+#include <privacy_region_manager.h>
 #include <private/aiqe_ssrc_feature_interface.h>
 #include <private/abc_feature_fact_intf.h>
 #include <private/demuratn_core_uvm_fact_intf.h>
@@ -46,7 +47,7 @@
 #include <private/display_event_proxy_intf.h>
 #include <private/tvm_service_manager_intf.h>
 #include <private/vm_file_xfer_intf.h>
-#include <private/cb_intf.h>
+#include <private/display_cb_intf.h>
 #include <private/vm_file_xfer_fact_intf_extn.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -55,6 +56,7 @@
 
 #include "display_base.h"
 #include "drm_interface.h"
+#include "pu_subject_intf_impl.h"
 
 namespace sdm {
 
@@ -192,11 +194,12 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError Init() override;
   DisplayError Deinit() override;
   DisplayError Prepare(LayerStack *layer_stack) override;
-  DisplayError ControlPartialUpdate(bool enable, uint32_t *pending) override;
+  DisplayError ControlPartialUpdate(bool enable, std::string &observer) override;
   DisplayError DisablePartialUpdateOneFrame() override;
   DisplayError DisablePartialUpdateOneFrameInternal() override;
   DisplayError SetDisplayState(DisplayState state, bool teardown,
                                shared_ptr<Fence> *release_fence) override;
+  DisplayError SetOffloadMode(bool enable) override;
   void SetIdleTimeoutMs(uint32_t active_ms, uint32_t inactive_ms) override;
   DisplayError SetDisplayMode(uint32_t mode) override;
   DisplayError GetRefreshRateRange(uint32_t *min_refresh_rate,
@@ -264,6 +267,8 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetABCMode(const string &mode_name) override;
   DisplayError SetAIScalerMode(uint32_t mode_id) override;
   DisplayError SetPanelFeatureConfig(int32_t type, void *data) override;
+  DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size) override;
+  DisplayError GetDemuraTnAgingValue(void *data, uint32_t size);
   DisplayError StartTvmServices();
   DisplayError StartService(TvmDispServiceManagerParams service);
   DisplayError ExportDemuraFiles();
@@ -310,6 +315,8 @@ class DisplayBuiltIn : public DisplayBase,
   // Implement SdmDisplayCbInterface
   int Notify(const TvmServiceCbEvent &) override;
 
+  DisplayError SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config) override;
+
  private:
   bool CanCompareFrameROI(LayerStack *layer_stack);
   bool CanSkipDisplayPrepare(LayerStack *layer_stack);
@@ -342,7 +349,8 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError HandleSPR();
   void CacheFrameROI();
   void PreCommit(LayerStack *layer_stack);
-  DisplayError ControlPartialUpdateLocked(bool enable, uint32_t *pending);
+  DisplayError ControlPartialUpdateLocked(bool enable, std::string &observer);
+  DisplayError SetPartialUpdateControl(bool enable);
   DisplayError SetDppsFeatureLocked(void *payload, size_t size);
   DisplayError HandleDemuraLayer(LayerStack *layer_stack);
   void NotifyDppsHdrPresent(LayerStack *layer_stack);
@@ -367,12 +375,15 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetDemuraTnBatchId(void *data);
   DisplayError SetDemuraTnAodHandlerCtrl(void *data);
   DisplayError SetDemuraTnAgingSurfTransfer(void *data);
+  DisplayError SwitchToDAC(void *data);
+  void ClearDemuraMultiCfgParsers();
   int StartVmFileServiceAndExportFiles();
   int CreateServiceManager();
   int HandleTvmServiceEvent(const TvmServiceCbEvent &event);
   DisplayError DisableDemuraForHandOff();
   DisplayError ValidateDemuraLicense();
   DisplayError SetAvrStepFpsState(uint32_t index, bool enable);
+  void SetPrivacyRegions();
 
   const uint32_t kPuTimeOutMs = 1000;
   std::map<uint32_t, std::vector<HWEvent>> event_list_;
@@ -392,7 +403,7 @@ class DisplayBuiltIn : public DisplayBase,
   vector<LayerRect> left_frame_roi_ = {};
   vector<LayerRect> right_frame_roi_ = {};
   Locker dpps_pu_lock_;
-  bool dpps_pu_nofiy_pending_ = false;
+  bool dpps_pu_notify_pending_ = false;
   enum class SamplingState { Off, On } samplingState = SamplingState::Off;
   DisplayError setColorSamplingState(SamplingState state);
 
@@ -424,6 +435,7 @@ class DisplayBuiltIn : public DisplayBase,
   const std::string kDemuraTnUserCtrlFile = "/mnt/vendor/persist/display/demuratn_user_ctrl";
   std::shared_ptr<DemuraTnCleanupIntf> demuratn_cleanup_intf_;
   bool demuratn_user_disabled_ = false;
+  DemuraFeatureType demuratn_override_feature_ = kFeatureMax;
   bool abc_enabled_ = false;
   bool abc_tvm_enabled_ = false;
   bool abc_prop_ = false;
@@ -466,6 +478,13 @@ class DisplayBuiltIn : public DisplayBase,
   bool hfi_path_supported_ = false;
   bool double_buffer_codebook_supported_ = false;
   bool previous_frame_default_strategy_ = false;
+  PrivacyRegionManager *privacy_region_mgr_ = nullptr;
+
+  friend class PuSubjectIntfImpl;
+  std::unique_ptr<PuSubjectIntf> pu_subject_ = nullptr;
+  std::string kPuPanelClient = "panel_client";
+  std::string kPuSamplingClient = "sampling_client";
+  std::string kPuDppsClient = "dpps_client";
 };
 
 }  // namespace sdm

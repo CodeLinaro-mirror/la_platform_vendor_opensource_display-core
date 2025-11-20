@@ -75,6 +75,8 @@ enum LayerBlending {
 
   kBlendingSkip,            //!< Used only to denote layer should not be staged for blending, but
                             //!< still requires fetch resources for a different HW block
+
+  kBlendingNone,            //!< Used to indicate undefined blending
 };
 
 /*! @brief This enum represents display layer composition types.
@@ -130,6 +132,8 @@ enum LayerComposition {
   kCompositionCWBTarget,     //!< This layer will hold result of composition for layers marked for
                              //!< CWB composition in case of Idle fallback.
   kCompositionIWE,           //!< This layer will hold the result of first pass composition.
+  kCompositionIWECSC,        //!< This layer will hold the result of CSC composition.
+  kCompositionIWERepro,      //!< This layer will hold the result of Reprojection composition.
 };
 
 enum LayerUpdate {
@@ -257,6 +261,8 @@ struct LayerFlags {
       uint32_t front_buffer : 1;
                               //!< This flag shall be set by client to indicate that the layer
                               //!< is used for front-buffer rendering
+      uint32_t buffer_flipped : 1;
+                              //!< This flag shall be set to indicate that the buffer is flipped
     };
 
     uint32_t flags = 0;       //!< For initialization purpose only.
@@ -398,6 +404,8 @@ struct LayerStackFlags {
       uint32_t only_video_updating : 1;  //!< This flag indicates only video layers are updating
       uint32_t system_cache : 1;  //!< This flag shall be used to indicate that
                                   //!< all app buffers are rendered on system cache
+      uint32_t privacy_regions_updated : 1; //!< This flag indicates that the privacy regions of a
+                                            //!< layer in the stack has been updated.
     };
 
     uint32_t flags = 0;               //!< For initialization purpose only.
@@ -530,6 +538,16 @@ struct Layer {
                                                    //!< along width.
   uint32_t demura_decimate_h = 1;                  //!< If demura layer, stores the decimation
                                                    //!< along height.
+
+  std::vector<PrivacyRegion> privacy_regions = {}; //!< Privacy regions of the layer
+  CornerRadius corner_radius = {};                 //!< Corner radius of the layer
+  SDMRenderLayerReferenceSpaceType reference_space_type = RENDER_LAYER_REFERENCE_SPACE_WORLD;
+  SDMCompositionLayerType comp_layer_type = COMPOSITION_LAYER_QUAD;
+  SDMLayerPose layer_pose = {};
+  SDMLayerQuadSize layer_quad_size = {};
+  SDMLayerFrustum layer_frustum = {};
+  SDMLayerPlaneEquation plane_equation = {};
+  SDMLayerVisibilityType layer_visibility_type = LAYER_VISIBILITY_NONE;
 };
 
 /*! @brief This structure defines the color space + transfer of a given layer.
@@ -594,6 +612,11 @@ struct LayerStack {
                                        //!< rendered for virtual displays.
                                        //!< NOTE: This field applies to a virtual display only.
 
+  std::vector<std::shared_ptr<LayerBuffer>> reprojection_output_buffers = {};
+                                       //!< array of buffers to be used by LSR hardware
+                                       //!< or reprojection.
+                                       //!< NOTE: This field applies to LSR display only.
+
   LayerStackFlags flags;               //!< Flags associated with this layer set.
 
 
@@ -621,6 +644,12 @@ struct LayerStack {
   uint64_t expected_present_time = 0;  //!< Expected Present timestamp for current frame.
 
   uint32_t frame_interval_ns = 0;  //!< Frame Interval for current frame.
+};
+
+enum PrivacyRegionState {
+  kRegionReset,
+  kRegionActive,
+  kRegionUpdate,
 };
 
 // clang-format on

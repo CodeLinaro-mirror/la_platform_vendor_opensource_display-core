@@ -26,13 +26,13 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #ifndef __SDM_SERVICES_H__
 #define __SDM_SERVICES_H__
 
@@ -112,6 +112,8 @@ enum {
   SDM_SERVICE_SET_PANEL_FEATURE_CONFIG = 64,  // Common function, Set cfg for panel features
   SDM_SERVICE_GET_PANEL_RESOLUTION = 65,      // Get panel resolution
   SDM_SERVICE_SET_STANDBY_MODE = 66,          // Set standby mode
+  SDM_SERVICE_SET_PRIVACY_REGIONS = 67,       // Set PrivacyRegions on given layers in frame
+  SDM_SERVICE_GET_PANEL_FEATURE_CONFIG = 68,  // Get panel feature configuration
   SDM_SERVICE_COMMAND_LIST_END = 400,
 };
 
@@ -319,8 +321,10 @@ private:
                                            SDMParcel *output_parcel);
   DisplayError GetDisplayPortId(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError SetPanelFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
+  DisplayError GetPanelFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError GetPanelResolution(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError SetStandbyMode(SDMParcel *input_parcel);
+  DisplayError SetPrivacyRegions(SDMParcel *input_parcel);
 
   typedef DisplayError (SDMServices::*VndCmdSetHandler)(
       SDMParcel *input_parcel);
@@ -360,6 +364,7 @@ private:
       {SDM_SERVICE_PERFORM_CAC_CONFIG, &SDMServices::PerformCacConfig},
       {SDM_SERVICE_SET_BPP_MODE, &SDMServices::SetBppMode},
       {SDM_SERVICE_SET_STANDBY_MODE, &SDMServices::SetStandbyMode},
+      {SDM_SERVICE_SET_PRIVACY_REGIONS, &SDMServices::SetPrivacyRegions},
   };
 
   std::unordered_map<uint32_t, VndCmdGetHandler> vnd_handlers_get_ = {
@@ -388,6 +393,7 @@ private:
       {SDM_SERVICE_GET_DISPLAY_PORT_ID, &SDMServices::GetDisplayPortId},
       {SDM_SERVICE_SET_PANEL_FEATURE_CONFIG, &SDMServices::SetPanelFeatureConfig},
       {SDM_SERVICE_GET_PANEL_RESOLUTION, &SDMServices::GetPanelResolution},
+      {SDM_SERVICE_GET_PANEL_FEATURE_CONFIG, &SDMServices::GetPanelFeatureConfig},
   };
 
   int bw_mode_release_fd_ = -1;
