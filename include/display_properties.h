@@ -129,6 +129,10 @@
 #define DISABLE_ROTATOR_PRE_DOWNSCALER_PROP  DISPLAY_PROP("disable_pre_downscaler")
 #define DISABLE_INLINE_ROTATOR_UI_PROP       DISPLAY_PROP("disable_inline_rotator_ui")
 #define ENABLE_POMS_DURING_DOZE              DISPLAY_PROP("enable_poms_during_doze")
+//Disable virtual display
+#define DISABLE_VIRTUAL_DISPLAY              DISPLAY_PROP("disable_virtual_display")
+//Disable display brightness set
+#define DISABLE_SET_DISPLAY_BRIGHTNESS       DISPLAY_PROP("disable_set_display_brightness")
 // Disable 3D adaptive tone mapping support
 #define DISABLE_3D_ADAPTIVE_TM               DISPLAY_PROP("disable_3d_adaptive_tm")
 #define DISABLE_SDR_HISTOGRAM                DISPLAY_PROP("disable_sdr_histogram")

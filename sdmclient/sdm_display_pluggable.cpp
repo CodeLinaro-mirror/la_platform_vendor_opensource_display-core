@@ -541,4 +541,38 @@ SDMDisplayPluggable::NotifyDisplayCalibrationMode(bool in_calibration) {
   return status;
 }
 
+DisplayError SDMDisplayPluggable::SetupVRRConfig() {
+  // Enable Variable Refresh Rate state
+  DisplayError error = display_intf_->SetVRRState(true);
+  if (error != kErrorNone) {
+    return error;
+  }
+
+  for (auto &[config_id, config] : variable_config_map_) {
+    if (config.avr_step > 0) {
+      // Publish AVR Step period as the Vsync Period for an AVR Step enabled mode.
+      config.vsync_period_ns = (1000.f / static_cast<float>(config.avr_step)) * 1000000;
+    }
+  }
+
+  return error;
+}
+
+
+DisplayError SDMDisplayPluggable::SetQSyncMode(QSyncMode qsync_mode) {
+  // Client needs to ensure that config change and qsync mode change
+  // are not triggered in the same drawcycle.
+  if (pending_config_) {
+    DLOGE("Failed to set qsync mode. Pending active config transition");
+    return kErrorNotSupported;
+  }
+
+  auto err = display_intf_->SetQSyncMode(qsync_mode);
+  if (err != kErrorNone) {
+    return kErrorNotSupported;
+  }
+
+  return kErrorNone;
+}
+
 } // namespace sdm
