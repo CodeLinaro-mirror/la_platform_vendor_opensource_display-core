@@ -39,6 +39,12 @@ AC_ARG_ENABLE([sdmhaldrm],
         [enable_sdmhaldrm="${enableval}"],
         enable_sdmhaldrm=no)
 
+AC_ARG_ENABLE([rt-schedule],
+   [AS_HELP_STRING([--enable-rt-schedule],
+      [Enable real-time scheduling support])],
+   [RT_SCHEDULE="${enableval}"],
+   [RT_SCHEDULE=no])
+
 AM_CONDITIONAL([ENABLE_SDMHALDRM], [test "x${enable_sdmhaldrm}" = "xyes"])
 AM_CONDITIONAL([RT_SCHEDULE], [test "x${RT_SCHEDULE}" = "xyes"])
 

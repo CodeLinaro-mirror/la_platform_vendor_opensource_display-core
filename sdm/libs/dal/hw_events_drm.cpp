@@ -290,7 +290,8 @@ DisplayError HWEventsDRM::Init(DisplayId display_id, uint32_t core_id, SDMDispla
   CPUConfigResp_t cpuConfigResp = {0};
   std::string     procName      = "display";
   std::string     thread_name   = event_thread_name_;
-  CompResmgrRet_e ret;
+  CompResmgrRet_e ret           = COMPRESMGR_RET_SUCCESS;
+  int             pthread_ret   = 0;
   struct sched_param params;
 #endif
 
@@ -311,8 +312,7 @@ DisplayError HWEventsDRM::Init(DisplayId display_id, uint32_t core_id, SDMDispla
   poll_fds_.resize(event_list.size());
 
   DLOGI("poll_fd size %d", (int)poll_fds_.size());
-  event_thread_name_ += "-" + std::to_string(display_id.GetDisplayId()) + "-" +
-                        std::to_string(display_type);
+  event_thread_name_ += std::to_string(display_id.GetDisplayId());
 
   PopulateHWEventData(event_list);
 
@@ -331,13 +331,20 @@ DisplayError HWEventsDRM::Init(DisplayId display_id, uint32_t core_id, SDMDispla
     memset((char *)&params, 0x00, sizeof(struct sched_param));
     params.sched_priority = cpuConfigResp.priority;
 
-    if (0 != pthread_setname_np(event_thread_, event_thread_name_.c_str())) {
-      DLOGE("pthread_setname_np: %s failed", event_thread_name_.c_str());
-    } else if (0 != pthread_setschedparam(event_thread_, cpuConfigResp.schedPolicy, &params)) {
-      DLOGE("pthread_setschedparam: %s failed", event_thread_name_.c_str());
+    pthread_ret = pthread_setname_np(event_thread_, event_thread_name_.c_str());
+    if (0 != pthread_ret) {
+      DLOGE("pthread_setname_np: %s failed with ret = %d", event_thread_name_.c_str(), pthread_ret);
+    }
+
+    pthread_ret = pthread_setschedparam(event_thread_, cpuConfigResp.schedPolicy, &params);
+    if (0 != pthread_ret) {
+      DLOGE("pthread_setschedparam: %s failed with ret = %d", event_thread_name_.c_str(),
+            pthread_ret);
+    } else {
+      DLOGI("pthread setschedparam is successful for thread %s", event_thread_name_.c_str());
     }
   } else {
-    DLOGE("CompResmgrGetCPUConfig: %s failed", event_thread_name_.c_str());
+    DLOGE("CompResmgrGetCPUConfig: %s failed with ret = %d", event_thread_name_.c_str(), ret);
   }
 #endif
 
@@ -526,6 +533,7 @@ void *HWEventsDRM::DisplayEventThread(void *context) {
 void *HWEventsDRM::DisplayEventHandler() {
   char data[kMaxStringLength]{};
 
+#ifndef RT_SCHEDULE
   prctl(PR_SET_NAME, event_thread_name_.c_str(), 0, 0, 0);
   setpriority(PRIO_PROCESS, 0, kThreadPriorityUrgent);
 
@@ -533,6 +541,7 @@ void *HWEventsDRM::DisplayEventHandler() {
   struct sched_param param = {0};
   param.sched_priority = sched_get_priority_min(SCHED_FIFO);
   sched_setscheduler(0, SCHED_FIFO, &param);
+#endif
 
   while (!exit_threads_) {
     int error = Sys::poll_(poll_fds_.data(), UINT32(poll_fds_.size()), -1);

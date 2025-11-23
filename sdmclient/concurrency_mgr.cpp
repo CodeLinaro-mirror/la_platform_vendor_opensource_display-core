@@ -206,6 +206,16 @@ DisplayError ConcurrencyMgr::Init(BufferAllocator *buffer_allocator, SocketHandl
   DLOGI("disable_get_screen_decorator_support: %d",
         disable_get_screen_decorator_support_);
 
+  value = 0;
+  Debug::Get()->GetProperty(DISABLE_VIRTUAL_DISPLAY, &value);
+  disable_virtual_display_ = (value == 1);
+  DLOGI("disable_virtual_display: %d", disable_virtual_display_);
+
+  value = 0;
+  Debug::Get()->GetProperty(DISABLE_SET_DISPLAY_BRIGHTNESS, &value);
+  disable_set_display_brightness_ = (value == 1);
+  DLOGI("disable_set_display_brightness: %d", disable_set_display_brightness_);
+
   auto err = InitSubModules(debug);
   if (err != kErrorNone) {
     return err;
@@ -399,7 +409,11 @@ uint32_t ConcurrencyMgr::GetMaxVirtualDisplayCount() {
   // Limit max virtual display reported to SF as one. Even though
   // HW may support multiple virtual displays, allow only one
   // to be used by SF for now.
-  return 1;
+  if (disable_virtual_display_) {
+    return 0;
+  } else {
+    return 1;
+  }
 }
 
 DisplayError ConcurrencyMgr::AcceptDisplayChanges(Display display) {
@@ -991,7 +1005,7 @@ DisplayError ConcurrencyMgr::SetPowerMode(uint64_t display, int32_t int_mode) {
   bool is_power_off = false;
 
   // Treat ON_SUSPEND as ON to avoid VTS failure
-  // VTS groups both suspend modes for  testing purposes
+  // VTS groups both suspend modes for testing purposes
   // Although ON_SUSPEND (wearables mode) isn't supported by hardware, there is
   // no functional impact of treating it as ON for mobile devices
   mode = (mode == SDMPowerMode::POWER_MODE_ON_SUSPEND)
@@ -1685,8 +1699,13 @@ DisplayError ConcurrencyMgr::GetDisplayBrightnessSupport(Display display,
     DLOGE("Expected valid sdm_display");
     return kErrorParameters;
   }
-  *outSupport =
-      (sdm_display_[display]->GetDisplayClass() == DISPLAY_CLASS_BUILTIN);
+
+  if(disable_set_display_brightness_) {
+    *outSupport = false;
+  } else {
+    *outSupport =
+        (sdm_display_[display]->GetDisplayClass() == DISPLAY_CLASS_BUILTIN);
+  }
   return kErrorNone;
 }
 
