@@ -26,11 +26,13 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #ifndef __SDM_CWB_H__
 #define __SDM_CWB_H__
 
@@ -64,8 +66,9 @@ public:
   DisplayError PostBuffer(const CwbConfig &cwb_config, void *buffer,
                           int32_t display_type);
   DisplayError OnCWBDone(int dpy_index, int32_t status, uint64_t handle_id);
+  void TerminateCwbStatusThread();
 
-private:
+ private:
   enum CWBNotifiedStatus {
     kCwbNotifiedFailure = -1,
     kCwbNotifiedSuccess,

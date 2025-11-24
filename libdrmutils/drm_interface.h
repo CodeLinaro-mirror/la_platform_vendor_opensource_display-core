@@ -309,6 +309,42 @@ enum struct DRMOps {
    */
   PLANE_SET_COLOR_MASK_OVERRIDE,
   /*
+   * Op: Sets plane reference space type
+   * Arg: uint32_t - Plane ID
+   *      uint32_t - Reference Space Type
+   */
+  PLANE_SET_REFERENCE_SPACE_TYPE,
+  /*
+   * Op: Sets plane render type
+   * Arg: uint32_t - Plane ID
+   *      uint32_t - Render Type
+   */
+  PLANE_SET_RENDER_TYPE,
+  /*
+   * Op: Sets plane render pose
+   * Arg: uint32_t - Plane ID
+   *      uint64_t - Address of Render Pose object
+   */
+  PLANE_SET_RENDER_POSE,
+  /*
+   * Op: Sets plane render frustum
+   * Arg: uint32_t - Plane ID
+   *      uint64_t - Address of Render Frustum object
+   */
+  PLANE_SET_RENDER_FRUSTUM,
+  /*
+   * Op: Sets plane equation
+   * Arg: uint32_t - Plane ID
+   *      uint64_t - Address of Plane Equation object
+   */
+  PLANE_SET_PLANE_EQUATION,
+  /*
+   * Op: Sets layer gamma
+   * Arg: uint32_t - Plane ID
+   *      uint32_t - layer gamma enum value
+   */
+  PLANE_SET_LAYER_GAMMA,
+  /*
    * Op: Activate or deactivate a CRTC
    * Arg: uint32_t - CRTC ID
    *      uint32_t - 1 to enable, 0 to disable
@@ -721,6 +757,111 @@ enum struct DRMOps {
    *      PrivacyRegions - Consolidated privacy regions
    */
   CONNECTOR_SET_PRIVACY_REGIONS,
+  /*
+   * Op: Sets LSR frame buffer ID for writeback connector.
+   * Arg: uint32_t - Connector ID
+   *      drmModeAtomicReq - Atomic request
+   */
+  CONNECTOR_SET_LSR_OUTPUT_FB_ID,
+  /*
+   * Op: Sets primary display conn id for repro connector
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - primary display conn id
+   */
+  CONNECTOR_SET_SYNC_TO,
+  /*
+   * Op: Sets CONFIG_MATRIX on connector
+   * Arg: uint32_t - Connector ID
+   *      uint64_t - Address of CONFIG_MATRIX object
+   */
+  CONNECTOR_SET_CONFIG_MATRIX,
+  /*
+   * Op: Sets DISPLAY_GAMMA on connector
+   * Arg: uint32_t - Connector ID
+   *      uint64_t - Address of DISPLAY_GAMMA object
+   */
+  CONNECTOR_SET_DISPLAY_GAMMA,
+  /*
+   * Op: Sets Repro session config on connector
+   * Arg: uint32_t - Connector ID
+   *      uint64_t - Address of Repro session config object
+   */
+  CONNECTOR_SET_REPRO_SESSION_CONFIG,
+  /*
+   * Op: Sets Repro session config data on connector
+   * Arg: uint32_t - Connector ID
+   *      uint64_t - Address of Repro session config data object
+   */
+  CONNECTOR_SET_REPRO_SESSION_CONFIG_DATA,
+  /*
+   * Op: Sets Reproj sparse grid
+   * Arg: uint32_t - Connector ID
+   *      uint64_t - Address of reproj sparse grid
+   */
+  CONNECTOR_SET_REPROJ_SPARSE_GRID,
+  /*
+   * Op: Sets Reproj radial dis grid
+   * Arg: uint32_t - Connector ID
+   *      uint64_t - Address of reproj radial dis grid
+   */
+  CONNECTOR_SET_REPROJ_RADIAL_DIS_GRID,
+  /*
+   * Op: Sets Reproj radial dis grid
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - columns of CONNECTOR_SET_REPROJ_RADIAL_DIS_GRID buffer
+   */
+  CONNECTOR_SET_REPROJ_RADIAL_DIS_RESOLUTION,
+  /*
+   * Op: Sets Reproj optical axis offset
+   * Arg: uint32_t - Connector ID
+   *      uint64_t - Address of reproj optical axis offset
+   */
+  CONNECTOR_SET_REPROJ_OPTICAL_AXIS_OFFSET,
+  /*
+   * Op: Sets Reproj grid size
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - grid width
+   *      uint32_t - grid height
+   */
+  CONNECTOR_SET_REPROJ_GRID_SIZE,
+  /*
+   * Op: Sets Reproj R max
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - r max
+   */
+  CONNECTOR_SET_REPROJ_R_MAX,
+  /*
+   * Op: Sets Reproj to lrgb
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - reproj to lrgb
+   */
+  CONNECTOR_SET_REPROJ_TO_LRGB,
+  /*
+   * Op: Sets Reproj error to l
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - error to l
+   */
+  CONNECTOR_SET_REPROJ_ERROR_TO_L,
+  /*
+   * Op: Sets Reproj isp im size
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - isp im width
+   *      uint32_t - isp im height
+   */
+  CONNECTOR_SET_REPROJ_DISP_IM_SIZE,
+  /*
+   * Op: Sets Reproj tile size
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - tile width
+   *      uint32_t - tile height
+   */
+  CONNECTOR_SET_REPROJ_TILE_SIZE,
+  /*
+   * Op: Sets Reprojection mode
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - enum value of reprojection mode
+   */
+  CONNECTOR_SET_REPROJ_MODE,
 };
 
 enum struct DRMRotation {
@@ -1079,7 +1220,6 @@ struct DRMModeInfo {
   uint32_t transfer_time_us;
   uint32_t transfer_time_us_min;
   uint32_t transfer_time_us_max;
-  uint32_t allowed_mode_switch;
   uint32_t cur_panel_mode;
   uint32_t has_cwb_crop;
   uint32_t has_dedicated_cwb;
@@ -1089,6 +1229,7 @@ struct DRMModeInfo {
   uint32_t curr_compression_mode;
   DynamicFrontPorchType fp_type = UNKNOWN;
   std::vector<uint32_t> dyn_fp_list;
+  std::vector<uint32_t> allowed_mode_switch;
   std::vector<DRMSubModeInfo> sub_modes;
   uint32_t qsync_min_fps;
   uint32_t curr_bpp_mode;

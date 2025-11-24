@@ -1002,6 +1002,7 @@ void SDMDisplay::BuildLayerStack() {
     if (sdm_layer_stack_->layer_set_.size() <= kMaxLayerCount) {
       layer->flags.updating = IsLayerUpdating(sdm_layer);
     }
+    layer->flags.buffer_flipped = sdm_layer->BufferLatched();
 
     if (sdm_layer->IsColorTransformSet()) {
       layer->flags.color_transform = true;
@@ -1771,7 +1772,10 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
   layer_stack_.client_incompatible = false;
   validate_done_ = true;
 
-  return (layer_changes_.size() || display_luts_.size()) ? kErrorNeedsCommit : kErrorNone;
+  return ((layer_requests_.size() && has_client_composition_) || layer_changes_.size() ||
+          display_luts_.size())
+             ? kErrorNeedsCommit
+             : kErrorNone;
 }
 
 DisplayError SDMDisplay::AcceptDisplayChanges() {
@@ -2174,6 +2178,93 @@ DisplayError SDMDisplay::SetMaxMixerStages(uint32_t max_mixer_stages) {
   return error;
 }
 
+void SDMDisplay::DumpToFile(SnapHandle *handle, std::string dump_dir_path, int32_t layer_index,
+                            int plane) {
+  auto layer = layer_stack_.layers[layer_index];
+  if (!handle) {
+    DLOGW("Buffer handle is detected as null for layer: %s(%" PRIu64 ") out of %" PRIu32
+          " "
+          "layers with layer "
+          "flag value: %u",
+          layer->layer_name.c_str(), layer->layer_id, layer_stack_.layers.size(),
+          layer->flags.flags);
+    return;
+  }
+
+  DLOGI("Dump layer[%" PRIu32 "] of %" PRIu32 " handle %p", layer_index, layer_stack_.layers.size(),
+        handle);
+
+  // start mapbuffer func
+  vendor_qti_hardware_display_common_Address base_ptr;
+  vendor_qti_hardware_display_common_Rect access_region = {0, 0, 0, 0};
+  vendor_qti_hardware_display_common_Fence snap_fence = {0};
+  auto error =
+      snapmapper_->Lock(*handle, BufferUsage::CPU_READ_OFTEN, access_region, snap_fence, &base_ptr);
+  if (error != Error::NONE) {
+    DLOGE("Failed to map buffer, error = %d", error);
+    return;
+  }
+
+  char dump_file_name[PATH_MAX];
+  size_t result = 0;
+
+  uint32_t width = 0, height = 0, alloc_size = 0;
+
+  auto err = GetMetadata(handle, MetadataType::STRIDE, &width, snapmapper_);
+  if (err != Error::NONE) {
+    DLOGW("Failed to retrieve width: %d", err);
+  }
+  err = GetMetadata(handle, MetadataType::ALIGNED_HEIGHT_IN_PIXELS, &height, snapmapper_);
+  if (err != Error::NONE) {
+    DLOGW("Failed to retrieve height: %d", err);
+  }
+  err = GetMetadata(handle, MetadataType::ALLOCATION_SIZE, &alloc_size, snapmapper_);
+  if (err != Error::NONE) {
+    DLOGW("Failed to retrieve allocation size: %d", err);
+  }
+
+  snprintf(dump_file_name, sizeof(dump_file_name), "%s/input_layer%d_%dx%d_%s_plane%d_frame%d.raw",
+           dump_dir_path.c_str(), layer_index, width, height,
+           GetFormatString(layer->input_buffer.format), plane, dump_input_frame_index_);
+
+  if (base_ptr.addressPointer != 0) {
+    FILE *fp = fopen(dump_file_name, "w+");
+    if (fp) {
+      result = fwrite((void *)(base_ptr.addressPointer), alloc_size, 1, fp);
+      fclose(fp);
+    }
+  }
+
+  vendor_qti_hardware_display_common_Fence unmap_fence = {-1};
+  error = snapmapper_->Unlock(*handle, &unmap_fence);
+  if (error != Error::NONE) {
+    DLOGE("Failed to unmap buffer, error = %d", error);
+    return;
+  }
+
+  DLOGI("Frame Dump %s: is %s", dump_file_name, result ? "Successful" : "Failed");
+  int dump_metadata = 0;
+  SDMDebugHandler::Get()->GetProperty(ENABLE_METADATA_DUMPING, &dump_metadata);
+  if (dump_metadata) {
+    // Dump only extended content metadata for now. Property named generically
+    // for future extension
+    std::shared_ptr<CustomContentMetadata> c_md = layer->input_buffer.extended_content_metadata;
+    if (c_md) {
+      result = 0;
+      snprintf(dump_file_name, sizeof(dump_file_name),
+               "%s/input_layer%d_plane%d_content_md_frame%d.raw", dump_dir_path.c_str(),
+               layer_index, plane, dump_frame_index_);
+      FILE *fp = fopen(dump_file_name, "w+");
+      if (fp) {
+        result = fwrite(&c_md->metadataPayload, c_md->size, 1, fp);
+        fclose(fp);
+      }
+
+      DLOGI("Frame Metadata Dump %s: is %s", dump_file_name, result ? "Successful" : "Failed");
+    }
+  }
+}
+
 void SDMDisplay::DumpInputBuffers() {
   char dir_path[PATH_MAX];
   int status;
@@ -2221,99 +2312,21 @@ void SDMDisplay::DumpInputBuffers() {
     }
 
     if (layer->composition != kCompositionSDE && layer->composition != kCompositionGPU &&
-        layer->composition != kCompositionGPUTarget) {
+        layer->composition != kCompositionGPUTarget && layer->composition != kCompositionIWECSC &&
+        layer->composition != kCompositionIWERepro) {
       DLOGI("Skip dumping the layer, composition type : %d", layer->composition);
       continue;  // Skip to dump i.e. stitch layers, noise layer, cursor layer, ...
     }
 
-    SnapHandle *handle = (SnapHandle *)layer->input_buffer.buffer_id;
     Fence::Wait(layer->input_buffer.acquire_fence);
-
-    if (!handle) {
-      DLOGW("Buffer handle is detected as null for layer: %s(%" PRIu64 ") out of %" PRIu32 " "
-            "layers with layer "
-            "flag value: %u",
-            layer->layer_name.c_str(), layer->layer_id,
-            layer_stack_.layers.size(), layer->flags.flags);
-      continue;
-    }
-
-    DLOGI("Dump layer[%" PRIu32 "] of %" PRIu32 " handle %p", i, layer_stack_.layers.size(),
-          handle);
-
-    // start mapbuffer func
-    vendor_qti_hardware_display_common_Address base_ptr;
-    vendor_qti_hardware_display_common_Rect access_region = {0,0,0,0};
-    vendor_qti_hardware_display_common_Fence snap_fence = {0};
-    auto error = snapmapper_->Lock(*handle, BufferUsage::CPU_READ_OFTEN, access_region, snap_fence, &base_ptr);
-    if (error != Error::NONE) {
-      DLOGE("Failed to map buffer, error = %d", error);
-      continue;
-    }
-
-    char dump_file_name[PATH_MAX];
-    size_t result = 0;
-
-    uint32_t width = 0, height = 0, alloc_size = 0;
-
-    auto err = GetMetadata(handle, MetadataType::STRIDE, &width, snapmapper_);
-    if (err != Error::NONE) {
-      DLOGW("Failed to retrieve width: %d", err);
-    }
-    err = GetMetadata(handle, MetadataType::ALIGNED_HEIGHT_IN_PIXELS, &height,
-                      snapmapper_);
-    if (err != Error::NONE) {
-      DLOGW("Failed to retrieve height: %d", err);
-    }
-    err = GetMetadata(handle, MetadataType::ALLOCATION_SIZE, &alloc_size,
-                      snapmapper_);
-    if (err != Error::NONE) {
-      DLOGW("Failed to retrieve allocation size: %d", err);
-    }
-
-    snprintf(dump_file_name, sizeof(dump_file_name),
-             "%s/input_layer%d_%dx%d_%s_frame%d.raw", dir_path, i, width,
-             height, GetFormatString(layer->input_buffer.format),
-             dump_input_frame_index_);
-
-    if (base_ptr.addressPointer != 0) {
-      FILE *fp = fopen(dump_file_name, "w+");
-      if (fp) {
-        result = fwrite((void *)(base_ptr.addressPointer), alloc_size, 1, fp);
-        fclose(fp);
-      }
-    }
-
-    vendor_qti_hardware_display_common_Fence unmap_fence = {-1};
-    error = snapmapper_->Unlock(*handle, &unmap_fence);
-    if (error != Error::NONE) {
-      DLOGE("Failed to unmap buffer, error = %d", error);
-      continue;
-    }
-
-    DLOGI("Frame Dump %s: is %s", dump_file_name,
-          result ? "Successful" : "Failed");
-
-    SDMDebugHandler::Get()->GetProperty(ENABLE_METADATA_DUMPING,
-                                        &dump_metadata);
-    if (dump_metadata) {
-      // Dump only extended content metadata for now. Property named generically
-      // for future extension
-      std::shared_ptr<CustomContentMetadata> c_md =
-          layer->input_buffer.extended_content_metadata;
-      if (c_md) {
-        result = 0;
-        snprintf(dump_file_name, sizeof(dump_file_name),
-                 "%s/input_layer%d_content_md_frame%d.raw", dir_path, i,
-                 dump_frame_index_);
-        FILE *fp = fopen(dump_file_name, "w+");
-        if (fp) {
-          result = fwrite(&c_md->metadataPayload, c_md->size, 1, fp);
-          fclose(fp);
-        }
-
-        DLOGI("Frame Metadata Dump %s: is %s", dump_file_name,
-              result ? "Successful" : "Failed");
+    //To-Do: Handle Fence wait for CSC and Repro Layers properly
+    if (layer->composition != kCompositionIWERepro) {
+      SnapHandle *handle = (SnapHandle *)layer->input_buffer.buffer_id;
+      DumpToFile(handle, std::string(dir_path), i);
+    } else {
+      for (int plane = 0; plane < 3; plane++) {
+        SnapHandle *handle = (SnapHandle *)layer->input_buffer.planes[plane].buffer_id;
+        DumpToFile(handle, std::string(dir_path), i, plane);
       }
     }
   }
@@ -2961,6 +2974,11 @@ DisplayError SDMDisplay::SetDisplayElapseTime(uint64_t time) {
   return kErrorNone;
 }
 
+DisplayError SDMDisplay::SetDisplayDeviceConfig(SDMDisplayDeviceConfig sdm_display_device_config) {
+  DisplayError error = display_intf_->SetDisplayDeviceConfig(sdm_display_device_config);
+  return kErrorNone;
+}
+
 bool SDMDisplay::IsDisplayCommandMode() { return is_cmd_mode_; }
 
 DisplayError
@@ -3093,6 +3111,7 @@ bool SDMDisplay::IsModeSwitchAllowed(uint32_t config) {
   DisplayError error = kErrorNone;
   uint32_t allowed_mode_switch = 0;
   uint32_t checking_config = config;
+  int bits_per_word = sizeof(uint32_t) * 8;
 
   if (variable_config_map_.find(config) == variable_config_map_.end()) {
     DLOGE("Invalid config: %d", config);
@@ -3110,18 +3129,20 @@ bool SDMDisplay::IsModeSwitchAllowed(uint32_t config) {
     }
   }
 
+  /*   allowed_mode_switch is used as both:
+   * - input: index into the allowed_mode_switch array
+   * - output: value retrieved from this specified index
+   */
+  allowed_mode_switch = checking_config / bits_per_word;
   error = display_intf_->IsSupportedOnDisplay(kSupportedModeSwitch,
                                               &allowed_mode_switch);
   if (error != kErrorNone) {
-    if (error == kErrorResources) {
-      DLOGW("Not allowed to switch to mode:%d", config);
-      return false;
-    }
     DLOGW("Unable to retrieve supported modes for the current device "
           "configuration.");
+    return false;
   }
 
-  if (allowed_mode_switch == 0 || (allowed_mode_switch & (1 << checking_config))) {
+  if (allowed_mode_switch & (1 << (checking_config % bits_per_word))) {
     DLOGV_IF(kTagClient, "Allowed to switch to mode:%d", config);
     return true;
   }
@@ -3371,12 +3392,19 @@ bool SDMDisplay::IsSameGroup(Config config_id1, Config config_id2) {
   if (config_info2.is_virtual_config) {
     GetParentConfig(&config_id2);
   }
+
   const DisplayConfigGroupInfo &config_group1 = config_info1;
   const DisplayConfigGroupInfo &config_group2 = config_info2;
 
+  int bits_per_word = sizeof(uint32_t) * 8;
+  int config1_allowed_index = config_id1 / bits_per_word;
+  int config2_allowed_index = config_id2 / bits_per_word;
+  uint32_t config1_allowed = config_group1.allowed_mode_switch[config1_allowed_index];
+  uint32_t config2_allowed = config_group2.allowed_mode_switch[config2_allowed_index];
+
   return ((config_group1 == config_group2) &&
-          (config_group1.allowed_mode_switch & (1 << (INT32(config_id2)))) &&
-          (config_group2.allowed_mode_switch & (1 << (INT32(config_id1)))));
+          (config1_allowed & (1 << ((UINT32(config_id2)) % bits_per_word))) &&
+          (config2_allowed & (1 << ((UINT32(config_id1) % bits_per_word)))));
 }
 
 bool SDMDisplay::AllowSeamless(Config config) {

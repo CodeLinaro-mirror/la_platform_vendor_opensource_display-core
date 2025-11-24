@@ -260,6 +260,10 @@ void ConcurrencyMgr::PostInit() {
 
 DisplayError ConcurrencyMgr::Deinit() {
   DLOGI("Destroying and cleaning up concurrency manager");
+
+  // Terminate async thread to process CWB status
+  cwb_->TerminateCwbStatusThread();
+
   if (hpd_) {
     hpd_->Deinit();
     delete hpd_;
@@ -1024,6 +1028,12 @@ DisplayError ConcurrencyMgr::SetCursorPosition(Display display, LayerId layer,
 DisplayError ConcurrencyMgr::SetDisplayElapseTime(Display display,
                                                   uint64_t time) {
   return CallDisplayFunction(display, &SDMDisplay::SetDisplayElapseTime, time);
+}
+
+DisplayError ConcurrencyMgr::SetDisplayDeviceConfig(
+    Display display, SDMDisplayDeviceConfig sdm_display_device_config) {
+  return CallDisplayFunction(display, &SDMDisplay::SetDisplayDeviceConfig,
+                             sdm_display_device_config);
 }
 
 DisplayError
@@ -2754,6 +2764,11 @@ DisplayError ConcurrencyMgr::SetAIScalerMode(uint64_t display_id, uint32_t mode_
 
 DisplayError ConcurrencyMgr::SetPanelFeatureConfig(Display display, int32_t type, void *data) {
   return CallDisplayFunction(display, &SDMDisplay::SetPanelFeatureConfig, type, data);
+}
+
+DisplayError ConcurrencyMgr::GetPanelFeatureConfig(Display display, int32_t type, void *data,
+                                                   uint32_t data_size) {
+  return CallDisplayFunction(display, &SDMDisplay::GetPanelFeatureConfig, type, data, data_size);
 }
 
 DisplayError ConcurrencyMgr::ClearBuffersMappedToLayer(uint64_t display, LayerId layer_id,

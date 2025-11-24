@@ -150,6 +150,7 @@ public:
  virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data);
  virtual DisplayError SetDpuDmaMode();
  virtual bool IsDmaModeIncompatible(LayerComposition composition);
+ virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size);
 
 private:
  SDMDisplayBuiltIn(CoreInterface *core_intf, BufferAllocator *buffer_allocator,
@@ -240,6 +241,8 @@ private:
 
  // Whether the DPU DMA mode is enabled.
  bool dpu_dma_enabled_ = false;
+
+ std::string kPuSdmClient = "sdm_client";
 };
 
 } // namespace sdm

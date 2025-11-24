@@ -1032,7 +1032,7 @@ DisplayError SDMDisplayBuiltIn::ControlPartialUpdate(bool enable) {
   DisplayError error = kErrorNone;
 
   if (display_intf_) {
-    error = display_intf_->ControlPartialUpdate(enable);
+    error = display_intf_->ControlPartialUpdate(enable, kPuSdmClient);
   }
 
   return error;
@@ -1927,6 +1927,11 @@ int SDMDisplayBuiltIn::GetNotifyEptConfig() {
 
 DisplayError SDMDisplayBuiltIn::SetPanelFeatureConfig(int32_t type, void *data) {
   return display_intf_->SetPanelFeatureConfig(type, data);
+}
+
+DisplayError SDMDisplayBuiltIn::GetPanelFeatureConfig(int32_t type, void *data,
+                                                      uint32_t data_size) {
+  return display_intf_->GetPanelFeatureConfig(type, data, data_size);
 }
 
 DisplayError SDMDisplayBuiltIn::EnableCopr(bool en) {

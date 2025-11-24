@@ -116,7 +116,9 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   }
   virtual DisplayError SetNoisePlugInOverride(bool override_en, int32_t attn, int32_t noise_zpos);
   virtual DisplayError SetMaxMixerStages(uint32_t max_mixer_stages);
-  virtual DisplayError ControlPartialUpdate(bool enable) { return kErrorNotSupported; }
+  virtual DisplayError ControlPartialUpdate(bool enable, std::string &observer) {
+    return kErrorNotSupported;
+  }
   virtual DisplayError DisablePartialUpdateOneFrame() {
     return kErrorNotSupported;
   }
@@ -307,6 +309,10 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
     return kErrorNotSupported;
   }
 
+  virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size) {
+    return kErrorNotSupported;
+  }
+
   virtual DisplayError PanelBacklightInfo(const std::string &client_name, bool enable,
                                           SdmDisplayCbInterface<PanelBacklightPayload> *cb_intf) {
     return kErrorNotSupported;
@@ -322,6 +328,9 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual bool IsDpuDmaModeEnabled();
   virtual DisplayError SetClientTargetCapability(
       const std::bitset<kClientCapabilityMax> &client_capabilities);
+  virtual DisplayError SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config) {
+    return kErrorNotSupported;
+  }
 
  protected:
   struct DisplayMutex {
@@ -542,6 +551,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   uint32_t active_config_index_ = 0;
   int rgba_split_enable_ = false;
   bool mixer_resolution_updated_ = false;
+  bool primary_commit_needed_ = true;
 
  private:
   // Max tolerable power-state-change wait-times in milliseconds.

@@ -278,7 +278,7 @@ struct DisplayConfigGroupInfo {
   float y_dpi = 0.0f;             //!< Dots per inch in Y-direction.
   bool is_yuv = false;            //!< If the display output is in YUV format.
   bool smart_panel = false;       //!< If the display config has smart panel.
-  uint64_t allowed_mode_switch = 0;
+  std::vector<uint32_t> allowed_mode_switch;
   uint32_t avr_step = 0;  //!< AVR Step fps of the display panel.
   bool fsc_panel = false;       //!< If the display panel is fsd panel
   uint32_t num_fsc_fields = 0;  //!< Panel's fsc fields if panel is fsc panel
@@ -423,6 +423,8 @@ enum PanelFeatureVendorServiceType {
   kTypeDemuraTnAgingSurfTransfer = 11,
   /* Setter: None */
   kTypeSwitchToDAC = 12,
+  /* Getter: char* */
+  kTypeGetDemuraTnAgingValue = 13,
   PanelFeatureVendorServiceTypeMax,
 };
 
@@ -756,11 +758,12 @@ class DisplayInterface {
 
   /*! @brief Method to control partial update feature for each display.
 
-    @param[in] enable partial update feature control flag
+    @param[in] enable partial update feature control
+    @param[in] observer partial update observer
 
     @return \link DisplayError \endlink
   */
-  virtual DisplayError ControlPartialUpdate(bool enable) = 0;
+  virtual DisplayError ControlPartialUpdate(bool enable, std::string &observer) = 0;
 
   /*! @brief Method to disable partial update for at least 1 frame.
     @return \link DisplayError \endlink
@@ -1551,6 +1554,16 @@ class DisplayInterface {
   */
   virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data) = 0;
 
+  /*! @brief Method to get DemuraTn aging value for R, G, B components
+
+   @param[in] type : operation type
+   @param[in] data : pointer to the data
+   @param[in] data_size : size of data
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size) = 0;
+
   /*! @brief Method to enable/disable COPR feature.
 
    @param[in] en: enable or disable COPR feature
@@ -1622,6 +1635,15 @@ class DisplayInterface {
   */
   virtual DisplayError SetClientTargetCapability(
       const std::bitset<kClientCapabilityMax> &client_capabilities) = 0;
+
+  /*! @brief Method to set display device configuration for Late stage reprojection
+
+    @param[in] display_device_config: \link SDMDisplayDeviceConfig \endlink
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetDisplayDeviceConfig(
+      const SDMDisplayDeviceConfig &display_device_config) = 0;
 
  protected:
   virtual ~DisplayInterface() { }

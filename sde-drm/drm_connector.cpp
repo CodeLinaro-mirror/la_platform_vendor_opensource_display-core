@@ -342,6 +342,19 @@ static inline vector<uint32_t> GetFpValues(const string &fp_list) {
   return dyn_fp_list;
 }
 
+static inline vector<uint32_t> GetAllowedModeSwitches(const string &mode_switch_lsit) {
+  stringstream line(mode_switch_lsit);
+  string mode_switch{};
+  vector<uint32_t> allowed_mode_switch_list{};
+
+  DRM_LOGI("Setting allowed mode switch list: %s", mode_switch_lsit.c_str());
+  while (line >> mode_switch) {
+    allowed_mode_switch_list.emplace_back(std::stoul(mode_switch));
+  }
+
+  return allowed_mode_switch_list;
+}
+
 void DRMConnectorManager::Update() {
   lock_guard<mutex> lock(lock_);
   drmModeRes *resource = drmModeGetResources(fd_);
@@ -909,7 +922,8 @@ void DRMConnector::ParseModeProperties(uint64_t blob_id, DRMConnectorInfo *info)
     } else if (line.find(mdp_transfer_time_us_max) != string::npos) {
       mode_item->transfer_time_us_max = std::stoi(string(line, mdp_transfer_time_us_max.length()));
     } else if (line.find(allowed_mode_switch) != string::npos) {
-      mode_item->allowed_mode_switch = std::stoi(string(line, allowed_mode_switch.length()));
+      mode_item->allowed_mode_switch =
+          GetAllowedModeSwitches(string(line, allowed_mode_switch.length()));
     } else if (line.find(panel_mode_caps) != string::npos) {
       if (!submode_item) {
         DRMSubModeInfo submode = {};
@@ -1632,6 +1646,268 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::EMSYNC_FPS),
                                avr_step_fps);
       DRM_LOGD("Connector %d: Setting Avr Step Fps = %d", obj_id, avr_step_fps);
+    } break;
+    case DRMOps::CONNECTOR_SET_LSR_OUTPUT_FB_ID: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::FB_ID_LIST)) {
+        return;
+      }
+
+      uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::FB_ID_LIST);
+      sde_drm_fb_id_list *fb_id_config = va_arg(args, sde_drm_fb_id_list *);
+      int ret =
+          drmModeAtomicAddProperty(req, obj_id, prop_id, reinterpret_cast<uint64_t>(fb_id_config));
+      if (ret < 0) {
+        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, ret %d", obj_id, prop_id, ret);
+      } else {
+        DRM_LOGD("Connector %d: lsr_fb_id_config_ set successfuly", obj_id);
+      }
+    } break;
+
+    case DRMOps::CONNECTOR_SET_SYNC_TO: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::SYNC_TO)) {
+        return;
+      }
+
+      uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::SYNC_TO);
+      uint32_t primary_conn_id = va_arg(args, uint32_t);
+      int ret = drmModeAtomicAddProperty(req, obj_id, prop_id, primary_conn_id);
+      if (ret < 0) {
+        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, ret %d", obj_id, prop_id, ret);
+      }
+      DRM_LOGD("Connector %d: Setting SYNC_TO", obj_id);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_CONFIG_MATRIX: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::CONFIG_MATRIX)) {
+        return;
+      }
+      sde_drm_reproj_matrix_list *handle = va_arg(args, sde_drm_reproj_matrix_list *);
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::CONFIG_MATRIX),
+                               reinterpret_cast<uint64_t>(handle));
+      DRM_LOGD("Connector %d: Setting CONNECTOR_SET_CONFIG_MATRIX", obj_id);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_DISPLAY_GAMMA: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::DISPLAY_GAMMA)) {
+        return;
+      }
+      if (wb_gamma_blob_id_) {
+        drmModeDestroyPropertyBlob(fd_, wb_gamma_blob_id_);
+        wb_gamma_blob_id_ = 0;
+      }
+      struct drm_msm_opaque_config *handle = va_arg(args, struct drm_msm_opaque_config *);
+      int ret = drmModeCreatePropertyBlob(fd_, reinterpret_cast<void *>(handle),
+                                          sizeof(drm_msm_opaque_config), &wb_gamma_blob_id_);
+      if (ret) {
+        DLOGE("Failed to create mode blob property for drmops : %d ret : %d", code, ret);
+        break;
+      }
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::DISPLAY_GAMMA),
+                               wb_gamma_blob_id_);
+      DRM_LOGD("Connector %d: Setting DISPLAY_GAMMA blob_id %d", obj_id, wb_gamma_blob_id_);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_REPRO_SESSION_CONFIG: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPRO_SESSION_CONFIG)) {
+        return;
+      }
+      if (wb_session_config_blob_id_) {
+        drmModeDestroyPropertyBlob(fd_, wb_session_config_blob_id_);
+        wb_session_config_blob_id_ = 0;
+      }
+      struct drm_msm_opaque_config *handle = va_arg(args, struct drm_msm_opaque_config *);
+      int ret =
+          drmModeCreatePropertyBlob(fd_, reinterpret_cast<void *>(handle),
+                                    sizeof(drm_msm_opaque_config), &wb_session_config_blob_id_);
+      if (ret) {
+        DLOGE("Failed to create mode blob property for drmops : %d ret : %d", code, ret);
+        break;
+      }
+      drmModeAtomicAddProperty(req, obj_id,
+                               prop_mgr_.GetPropertyId(DRMProperty::REPRO_SESSION_CONFIG),
+                               wb_session_config_blob_id_);
+      DRM_LOGD("Connector %d: Setting REPRO_SESSION_CONFIG blob_id %d", obj_id,
+               wb_session_config_blob_id_);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_REPRO_SESSION_CONFIG_DATA: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPRO_SESSION_CONFIG_DATA)) {
+        return;
+      }
+      if (wb_session_config_data_blob_id_) {
+        drmModeDestroyPropertyBlob(fd_, wb_session_config_data_blob_id_);
+        wb_session_config_data_blob_id_ = 0;
+      }
+      struct drm_msm_opaque_config *handle = va_arg(args, struct drm_msm_opaque_config *);
+      int ret = drmModeCreatePropertyBlob(fd_, reinterpret_cast<void *>(handle),
+                                          sizeof(drm_msm_opaque_config),
+                                          &wb_session_config_data_blob_id_);
+      if (ret) {
+        DLOGE("Failed to create mode blob property for drmops : %d ret : %d", code, ret);
+        break;
+      }
+      drmModeAtomicAddProperty(req, obj_id,
+                               prop_mgr_.GetPropertyId(DRMProperty::REPRO_SESSION_CONFIG_DATA),
+                               wb_session_config_data_blob_id_);
+      DRM_LOGD("Connector %d: Setting REPRO_SESSION_CONFIG_DATA blob_id %d", obj_id,
+               wb_session_config_data_blob_id_);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_REPROJ_SPARSE_GRID: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_SPARSE_GRID)) {
+        return;
+      }
+      if (wb_sparse_grid_blob_id_) {
+        drmModeDestroyPropertyBlob(fd_, wb_sparse_grid_blob_id_);
+        wb_sparse_grid_blob_id_ = 0;
+      }
+      struct drm_msm_opaque_config *handle = va_arg(args, struct drm_msm_opaque_config *);
+      int ret = drmModeCreatePropertyBlob(fd_, reinterpret_cast<void *>(handle),
+                                          sizeof(drm_msm_opaque_config), &wb_sparse_grid_blob_id_);
+      if (ret) {
+        DLOGE("Failed to create mode blob property for drmops : %d ret : %d", code, ret);
+        break;
+      }
+      drmModeAtomicAddProperty(req, obj_id,
+                               prop_mgr_.GetPropertyId(DRMProperty::REPROJ_SPARSE_GRID),
+                               wb_sparse_grid_blob_id_);
+      DRM_LOGD("Connector %d: Setting REPROJ_SPARSE_GRID blob_id %d", obj_id,
+               wb_sparse_grid_blob_id_);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_REPROJ_RADIAL_DIS_GRID: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_RADIAL_DIS_GRID)) {
+        return;
+      }
+      if (wb_radial_dis_blob_id_) {
+        drmModeDestroyPropertyBlob(fd_, wb_radial_dis_blob_id_);
+        wb_radial_dis_blob_id_ = 0;
+      }
+      struct drm_msm_opaque_config *handle = va_arg(args, struct drm_msm_opaque_config *);
+      int ret = drmModeCreatePropertyBlob(fd_, reinterpret_cast<void *>(handle),
+                                          sizeof(drm_msm_opaque_config), &wb_radial_dis_blob_id_);
+      if (ret) {
+        DLOGE("Failed to create mode blob property for drmops : %d ret : %d", code, ret);
+        break;
+      }
+      drmModeAtomicAddProperty(req, obj_id,
+                               prop_mgr_.GetPropertyId(DRMProperty::REPROJ_RADIAL_DIS_GRID),
+                               wb_radial_dis_blob_id_);
+      DRM_LOGD("Connector %d: Setting REPROJ_RADIAL_DIS_GRID blob_id %d", obj_id,
+               wb_radial_dis_blob_id_);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_REPROJ_RADIAL_DIS_RESOLUTION: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::DISTORT_RESOLUTION)) {
+        return;
+      }
+      uint32_t resolution = va_arg(args, uint32_t);
+      drmModeAtomicAddProperty(
+          req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::DISTORT_RESOLUTION), resolution);
+      DRM_LOGD("Connector %d: DISTORT_RESOLUTION set successfuly", obj_id);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_REPROJ_OPTICAL_AXIS_OFFSET: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_OPTICAL_AXIS_OFFSET)) {
+        return;
+      }
+      struct sde_drm_lsr_point *handle = va_arg(args, struct sde_drm_lsr_point *);
+      drmModeAtomicAddProperty(req, obj_id,
+                               prop_mgr_.GetPropertyId(DRMProperty::REPROJ_OPTICAL_AXIS_OFFSET),
+                               reinterpret_cast<uint64_t>(handle));
+      DRM_LOGD("Connector %d: REPROJ_OPTICAL_AXIS_OFFSET set successfuly", obj_id);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_REPROJ_GRID_SIZE: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_GRID_W) ||
+          !prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_GRID_H)) {
+        return;
+      }
+      uint32_t width = va_arg(args, uint32_t);
+      uint32_t height = va_arg(args, uint32_t);
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_GRID_W),
+                               width);
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_GRID_H),
+                               height);
+      DRM_LOGD("Connector %d: REPROJ_GRID_W REPROJ_GRID_H set successfuly", obj_id);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_REPROJ_R_MAX: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_R_MAX)) {
+        return;
+      }
+      float r_max = va_arg(args, double);
+      uint32_t value;
+      memcpy(&value, &r_max, sizeof(r_max));
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_R_MAX),
+                               value);
+      DRM_LOGD("Connector %d: REPROJ_R_MAX set successfuly ", obj_id);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_REPROJ_TO_LRGB: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_TO_LRGB_LEFT) ||
+          !prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_TO_LRGB_RIGHT)) {
+        return;
+      }
+      float lrgb_left = va_arg(args, double);
+      float lrgb_right = va_arg(args, double);
+      uint32_t lrgb_left_int, lrgb_right_int;
+      memcpy(&lrgb_left_int, &lrgb_left, sizeof(lrgb_left));
+      memcpy(&lrgb_right_int, &lrgb_right, sizeof(lrgb_right));
+      drmModeAtomicAddProperty(
+          req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_TO_LRGB_LEFT), lrgb_left_int);
+      drmModeAtomicAddProperty(
+          req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_TO_LRGB_RIGHT), lrgb_right_int);
+      DRM_LOGD("Connector %d: REPROJ_TO_LRGB set successfuly", obj_id);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_REPROJ_ERROR_TO_L: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_ERROR_TO_L)) {
+        return;
+      }
+      uint32_t value = va_arg(args, uint32_t);
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_ERROR_TO_L),
+                               value);
+      DRM_LOGD("Connector %d: REPROJ_ERROR_TO_L set successfuly", obj_id);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_REPROJ_DISP_IM_SIZE: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_DISP_IM_W) ||
+          !prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_DISP_IM_H)) {
+        return;
+      }
+      uint32_t width = va_arg(args, uint32_t);
+      uint32_t height = va_arg(args, uint32_t);
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_DISP_IM_W),
+                               width);
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_DISP_IM_H),
+                               height);
+      DRM_LOGD("Connector %d: REPROJ_DISP_IM_W REPROJ_DISP_IM_H set successfuly", obj_id);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_REPROJ_TILE_SIZE: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_TILE_W) ||
+          !prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_TILE_H)) {
+        return;
+      }
+      uint32_t width = va_arg(args, uint32_t);
+      uint32_t height = va_arg(args, uint32_t);
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_TILE_W),
+                               width);
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_TILE_H),
+                               height);
+      DRM_LOGD("Connector %d: REPROJ_TILE_W REPROJ_TILE_H set successfuly", obj_id);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_REPROJ_MODE: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_MODE)) {
+        return;
+      }
+
+      uint32_t value = va_arg(args, uint32_t);
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_MODE),
+                               value);
+      DRM_LOGD("Connector %d: REPROJ_MODE set successfuly", obj_id);
     } break;
 
     case DRMOps::CONNECTOR_SET_PRIVACY_REGIONS: {

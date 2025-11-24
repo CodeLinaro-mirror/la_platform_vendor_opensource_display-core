@@ -164,14 +164,14 @@ static PPBlock GetPPBlock(const HWToneMapLut &lut_type) {
   return pp_block;
 }
 
-static uint64_t GetDRMModifier(uint64_t default_modifier, HWCacColorComponent cac_color) {
-  switch (cac_color) {
+static uint64_t GetDRMModifier(uint64_t default_modifier, ColorComponent color) {
+  switch (color) {
 #ifndef TARGET_INCLUDES_NEO
-    case kCacRed:
+    case kColorRed:
       return DRM_FORMAT_MOD_QCOM_CAC_R;
-    case kCacGreen:
+    case kColorGreen:
       return DRM_FORMAT_MOD_QCOM_CAC_G;
-    case kCacBlue:
+    case kColorBlue:
       return DRM_FORMAT_MOD_QCOM_CAC_B;
 #endif
     default:
@@ -180,19 +180,19 @@ static uint64_t GetDRMModifier(uint64_t default_modifier, HWCacColorComponent ca
 }
 
 static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
-                         uint64_t *drm_format_modifier, HWCacColorComponent cac_color) {
+                         uint64_t *drm_format_modifier, ColorComponent color) {
   switch (format) {
     case kFormatARGB8888:
       *drm_format = DRM_FORMAT_BGRA8888;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatRGBA8888:
       *drm_format = DRM_FORMAT_ABGR8888;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatRGBA8888Ubwc:
       *drm_format = DRM_FORMAT_ABGR8888;
-      *drm_format_modifier = GetDRMModifier(DRM_FORMAT_MOD_QCOM_COMPRESSED, cac_color);
+      *drm_format_modifier = GetDRMModifier(DRM_FORMAT_MOD_QCOM_COMPRESSED, color);
       break;
     case kFormatRGBA5551:
       *drm_format = DRM_FORMAT_ABGR1555;
@@ -202,27 +202,27 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
       break;
     case kFormatBGRA8888:
       *drm_format = DRM_FORMAT_ARGB8888;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatRGBX8888:
       *drm_format = DRM_FORMAT_XBGR8888;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatRGBX8888Ubwc:
       *drm_format = DRM_FORMAT_XBGR8888;
-      *drm_format_modifier = GetDRMModifier(DRM_FORMAT_MOD_QCOM_COMPRESSED, cac_color);
+      *drm_format_modifier = GetDRMModifier(DRM_FORMAT_MOD_QCOM_COMPRESSED, color);
       break;
     case kFormatBGRX8888:
       *drm_format = DRM_FORMAT_XRGB8888;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatRGB888:
       *drm_format = DRM_FORMAT_BGR888;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatBGR888:
       *drm_format = DRM_FORMAT_RGB888;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatRGB565:
       *drm_format = DRM_FORMAT_BGR565;
@@ -236,53 +236,53 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
       break;
     case kFormatRGBA1010102:
       *drm_format = DRM_FORMAT_ABGR2101010;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatRGBA1010102Ubwc:
       *drm_format = DRM_FORMAT_ABGR2101010;
-      *drm_format_modifier = GetDRMModifier(DRM_FORMAT_MOD_QCOM_COMPRESSED, cac_color);
+      *drm_format_modifier = GetDRMModifier(DRM_FORMAT_MOD_QCOM_COMPRESSED, color);
       break;
     case kFormatARGB2101010:
       *drm_format = DRM_FORMAT_BGRA1010102;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatRGBX1010102:
       *drm_format = DRM_FORMAT_XBGR2101010;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatRGBX1010102Ubwc:
       *drm_format = DRM_FORMAT_XBGR2101010;
-      *drm_format_modifier = GetDRMModifier(DRM_FORMAT_MOD_QCOM_COMPRESSED, cac_color);
+      *drm_format_modifier = GetDRMModifier(DRM_FORMAT_MOD_QCOM_COMPRESSED, color);
       break;
     case kFormatXRGB2101010:
       *drm_format = DRM_FORMAT_BGRX1010102;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatBGRA1010102:
       *drm_format = DRM_FORMAT_ARGB2101010;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatABGR2101010:
       *drm_format = DRM_FORMAT_RGBA1010102;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatBGRX1010102:
       *drm_format = DRM_FORMAT_XRGB2101010;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatXBGR2101010:
       *drm_format = DRM_FORMAT_RGBX1010102;
-      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier = GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatC8Ubwc:
       *drm_format = DRM_FORMAT_C8;
       *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_FSC_TILE;
-      *drm_format_modifier |= GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier |= GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatC84RUbwc:
       *drm_format = DRM_FORMAT_C8;
       *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_FSC_4R_TILE;
-      *drm_format_modifier |= GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier |= GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatC84R4YUbwc:
       *drm_format = DRM_FORMAT_ABGR8888;
@@ -291,7 +291,7 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
     case kFormatC8:
       *drm_format = DRM_FORMAT_C8;
       *drm_format_modifier = DRM_FORMAT_MOD_QCOM_FSC_TILE;
-      *drm_format_modifier |= GetDRMModifier(*drm_format_modifier, cac_color);
+      *drm_format_modifier |= GetDRMModifier(*drm_format_modifier, color);
       break;
     case kFormatYCbCr420SemiPlanar:
       *drm_format = DRM_FORMAT_NV12;
@@ -465,11 +465,11 @@ int HWDeviceDRM::Registry::Register(HWLayersInfo *hw_layers_info) {
   return err;
 }
 
-void HWDeviceDRM::Registry::GetBufInfoForTunnelPipe(HWCacColorComponent color,
+void HWDeviceDRM::Registry::GetBufInfoForTunnelPipe(ColorComponent color,
                                                     BufferInfo *loopback_cac_info,
                                                     AllocatedBufferInfo *buf_info,
                                                     DRMBuffer *layout) {
-  if ((cac_version_ != kCacVersionLoopback) || (color == kCacNone) || !loopback_cac_info) {
+  if ((cac_version_ != kCacVersionLoopback) || (color == kColorNone) || !loopback_cac_info) {
     return;
   }
   // Using the plane buffer fd and faking the buffer as full screen for CAC loopback
@@ -503,15 +503,16 @@ int HWDeviceDRM::Registry::CreateFbId(const LayerBuffer &buffer, std::vector<uin
     layout.height *= 2;
   }
   for (int color = 0; color < fb_id->size(); color++) {
-    GetBufInfoForTunnelPipe(static_cast<HWCacColorComponent>(color), loopback_cac_info, &buf_info,
-                            &layout);
-    GetDRMFormat(buf_info.format, &layout.drm_format, &layout.drm_format_modifier,
-                 static_cast<HWCacColorComponent>(color));
+    ColorComponent color_field = (buffer.planes[0].color == kColorNone)
+                                     ? static_cast<ColorComponent>(color)
+                                     : buffer.planes[0].color;
+    GetBufInfoForTunnelPipe(color_field, loopback_cac_info, &buf_info, &layout);
+    GetDRMFormat(buf_info.format, &layout.drm_format, &layout.drm_format_modifier, color_field);
     ret = master->CreateFbId(layout, fb_id_data);
     if (ret < 0) {
       DLOGE(
           "CreateFbId failed. width %d, height %d, format: %s, stride %u, "
-          "cac_color %d, usage %" PRIu64 " error %d",
+          "color_field %d, usage %" PRIu64 " error %d",
           layout.width, layout.height, GetFormatString(buf_info.format), layout.stride[0], color,
           buffer.usage, errno);
     }
@@ -567,7 +568,7 @@ int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buff
     if (it != layer->buffer_map->buffer_map.end()) {
       auto itr = it->second.find(core_id_);
       if (itr != it->second.end()) {
-        FrameBufferObject *fb_obj = static_cast<FrameBufferObject*>(itr->second[kCacNone].get());
+        FrameBufferObject *fb_obj = static_cast<FrameBufferObject *>(itr->second[kColorNone].get());
         if (fb_obj->IsEqual(buffer.format, buffer.width, buffer.height, secure_present) &&
             (it->second.size() >= fb_id_size)) {
           // Found fb_id for given handle_id key
@@ -612,10 +613,10 @@ int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buff
   return 0;
 }
 
-void HWDeviceDRM::Registry::MapOutputBufferToFbId(std::shared_ptr<LayerBuffer> output_buffer,
-                                                  bool *fb_modified) {
+int HWDeviceDRM::Registry::MapOutputBufferToFbId(std::shared_ptr<LayerBuffer> output_buffer,
+                                                 bool *fb_modified) {
   if (output_buffer->planes[0].fd < 0) {
-    return;
+    return -1;
   }
 
   uint64_t handle_id = output_buffer->handle_id;
@@ -634,28 +635,30 @@ void HWDeviceDRM::Registry::MapOutputBufferToFbId(std::shared_ptr<LayerBuffer> o
         FrameBufferObject *fb_obj = static_cast<FrameBufferObject*>(itr->second.get());
         if (fb_obj->IsEqual(output_buffer->format, output_buffer->width, output_buffer->height,
                             secure_present)) {
-          return;
+          return 0;
         } else {
           output_buffer_map_.erase(it);
         }
       }
     }
 
-    if (output_buffer_map_.size() >= UI_FBID_LIMIT) {
+    if (output_buffer_map_.size() >= output_fbid_cache_limit_) {
       // Clear output buffer map, if the size reaches cache limit.
       output_buffer_map_.clear();
     }
   }
 
   std::vector<uint32_t> fb_id(1);
-  if (CreateFbId(*output_buffer, &fb_id) >= 0) {
+  int ret = CreateFbId(*output_buffer, &fb_id);
+  if (ret >= 0) {
     std::unordered_map<uint32_t, std::shared_ptr<LayerBufferObject>> dpu_buffer_map;
-    dpu_buffer_map[core_id_] = std::make_shared<FrameBufferObject>(fb_id[kCacNone],
-        core_id_, output_buffer->format, output_buffer->width, output_buffer->height,
-        false /* shallow */, secure_present);
+    dpu_buffer_map[core_id_] = std::make_shared<FrameBufferObject>(
+        fb_id[kColorNone], core_id_, output_buffer->format, output_buffer->width,
+        output_buffer->height, false /* shallow */, secure_present);
     output_buffer_map_[handle_id] = dpu_buffer_map;
     *fb_modified = true;
   }
+  return ret;
 }
 
 void HWDeviceDRM::Registry::Clear() {
@@ -1213,6 +1216,8 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
   hw_panel_info_.fsc_panel = connector_info_.fsc_panel;
   hw_panel_info_.num_fsc_fields = connector_info_.num_fsc_fields;
   hw_panel_info_.is_primary_panel = connector_info_.is_primary;
+  hw_panel_info_.is_lsr_display =
+      connector_info_.is_primary && hw_resource_.num_csc_pipe && hw_resource_.num_repro_pipe;
   hw_panel_info_.is_pluggable = 0;
   hw_panel_info_.hdr_enabled = connector_info_.panel_hdr_prop.hdr_enabled;
   // Convert the luminance values to cd/m^2 units.
@@ -1912,7 +1917,8 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
           uint32_t fg_alpha = layer.plane_alpha;
           uint32_t bg_alpha = 0xffff - layer.plane_alpha;
 
-          if (pipe_info->cac_mode && (pipe_info->cac_mode != kModeLoopbackUnpack)) {
+          if ((pipe_info->cac_mode || (layer.input_buffer.planes[0].color != kColorNone)) &&
+              (pipe_info->cac_mode != kModeLoopbackUnpack)) {
             fg_alpha = bg_alpha = 0xffff;
           }
 
@@ -2069,6 +2075,29 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
           DRMMultiRectMode multirect_mode;
           SetMultiRectMode(pipe_info->flags, &multirect_mode);
           drm_atomic_intf_->Perform(DRMOps::PLANE_SET_MULTIRECT_MODE, pipe_id, multirect_mode);
+
+          SetDrmReferenceSpaceType(pipe_id, layer.reference_space_type);
+          SetDrmRenderPose(pipe_id, layer.layer_pose);
+          SetDrmFrustum(pipe_id, layer.layer_frustum);
+          SetDrmPlaneEquation(pipe_id, layer.plane_equation);
+          // TODO: Need to revisit
+          // + enum sde_drm_lsr_layer_type {
+          // +  SDE_LSR_LAYER_LOCAL = 0,
+          // +  SDE_LSR_LAYER_REMOTE
+          // +};
+          // driver has layer type structe as above (layer.comp_layer_type)
+          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_RENDER_TYPE, pipe_id, SDE_LSR_LAYER_LOCAL);
+
+          // enum sde_drm_layer_gamma_type {
+          // SDE_LAYER_GAMMA_NONE = 0,
+          // SDE_LAYER_GAMMA_1_0,
+          // SDE_LAYER_GAMMA_2_2,
+          // SDE_LAYER_GAMMA_2_6,
+          // SDE_LAYER_GAMMA_REC_601,
+          // SDE_LAYER_GAMMA_REC_709,
+          // SDE_LAYER_GAMMA_REC_SRGB
+          // };
+          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_LAYER_GAMMA, pipe_id, SDE_LAYER_GAMMA_NONE);
 
           SetSsppTonemapFeatures(pipe_info);
 
@@ -2488,11 +2517,11 @@ DisplayError HWDeviceDRM::DefaultCommit(HWLayersInfo *hw_layers_info) {
   uint64_t handle_id = hw_layers_info->hw_layers.at(0).input_buffer.handle_id;
   std::vector<uint32_t> fb_id = {};
   registry_.GetFbId(&hw_layers_info->hw_layers.at(0), handle_id, &fb_id);
-  ret = drmModeSetCrtc(dev_fd, crtc_id, fb_id[kCacNone], 0 /* x */, 0 /* y */, &connector_id,
+  ret = drmModeSetCrtc(dev_fd, crtc_id, fb_id[kColorNone], 0 /* x */, 0 /* y */, &connector_id,
                        1 /* num_connectors */, &mode);
   if (ret < 0) {
     DLOGE("drmModeSetCrtc failed dev fd %d, fb_id %d, crtc id %d, connector id %d, %s", dev_fd,
-          fb_id[kCacNone], crtc_id, connector_id, strerror(errno));
+          fb_id[kColorNone], crtc_id, connector_id, strerror(errno));
     return kErrorHardware;
   }
 
@@ -4176,9 +4205,18 @@ DisplayError HWDeviceDRM::GetFeatureSupportStatus(const HWFeature feature, uint3
   }
 
   switch (feature) {
-    case kAllowedModeSwitch:
-      *status = connector_info_.modes[current_mode_index_].allowed_mode_switch;
+    case kAllowedModeSwitch: {
+      uint32_t idx = *status;
+      if (idx < connector_info_.modes[current_mode_index_].allowed_mode_switch.size()) {
+        *status = connector_info_.modes[current_mode_index_].allowed_mode_switch[idx];
+      } else {
+        DLOGW("Invalid index %u for allowed_mode_switch size[%d] current_mode_idx[%d]", idx,
+              connector_info_.modes[current_mode_index_].allowed_mode_switch.size(),
+              current_mode_index_);
+        error = kErrorParameters;
+      }
       break;
+    }
     case kHasCwbCrop:
       *status = UINT32(has_cwb_crop_);
       break;
@@ -4345,6 +4383,61 @@ void HWDeviceDRM::SetPrivacyRegionsData(std::vector<PrivacyRegion> *privacy_regi
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_PRIVACY_REGIONS, token_.conn_id,
                             &privacy_layer_data_);
 #endif
+}
+
+void HWDeviceDRM::SetDrmReferenceSpaceType(
+    const uint32_t &pipe_id, const SDMRenderLayerReferenceSpaceType &reference_space) {
+  auto drm_reference_type = SDE_LSR_LAYER_LOCK_WORLD_LOCK;
+  switch (reference_space) {
+    case RENDER_LAYER_REFERENCE_SPACE_WORLD:
+      drm_reference_type = SDE_LSR_LAYER_LOCK_WORLD_LOCK;
+      break;
+    case RENDER_LAYER_REFERENCE_SPACE_HEAD:
+      drm_reference_type = SDE_LSR_LAYER_LOCK_HEAD_LOCK;
+      break;
+    case RENDER_LAYER_REFERENCE_SPACE_SPHERE:
+      drm_reference_type = SDE_LSR_LAYER_LOCK_SPHERE_LOCK;
+      break;
+    default:
+      return;
+  }
+  drm_atomic_intf_->Perform(DRMOps::PLANE_SET_REFERENCE_SPACE_TYPE, pipe_id, drm_reference_type);
+}
+
+void HWDeviceDRM::SetDrmRenderPose(const uint32_t &pipe_id, const SDMLayerPose &layer_pose) {
+  sde_drm_render_pose drm_render_pose;
+  memcpy(&drm_render_pose.x_position, &layer_pose.pos.x, sizeof(layer_pose.pos.x));
+  memcpy(&drm_render_pose.y_position, &layer_pose.pos.y, sizeof(layer_pose.pos.y));
+  memcpy(&drm_render_pose.z_position, &layer_pose.pos.z, sizeof(layer_pose.pos.z));
+  memcpy(&drm_render_pose.x_orientation, &layer_pose.orientation.x,
+         sizeof(layer_pose.orientation.x));
+  memcpy(&drm_render_pose.y_orientation, &layer_pose.orientation.y,
+         sizeof(layer_pose.orientation.y));
+  memcpy(&drm_render_pose.z_orientation, &layer_pose.orientation.z,
+         sizeof(layer_pose.orientation.z));
+  memcpy(&drm_render_pose.w_orientation, &layer_pose.orientation.w,
+         sizeof(layer_pose.orientation.w));
+  drm_atomic_intf_->Perform(DRMOps::PLANE_SET_RENDER_POSE, pipe_id, &drm_render_pose);
+}
+
+void HWDeviceDRM::SetDrmFrustum(const uint32_t &pipe_id, const SDMLayerFrustum &layer_frustum) {
+  sde_drm_render_frustum drm_render_frustum;
+  memcpy(&drm_render_frustum.angle_left, &layer_frustum.angleLeft, sizeof(layer_frustum.angleLeft));
+  memcpy(&drm_render_frustum.angle_right, &layer_frustum.angleRight,
+         sizeof(layer_frustum.angleRight));
+  memcpy(&drm_render_frustum.angle_up, &layer_frustum.angleUp, sizeof(layer_frustum.angleUp));
+  memcpy(&drm_render_frustum.angle_down, &layer_frustum.angleDown, sizeof(layer_frustum.angleDown));
+  drm_atomic_intf_->Perform(DRMOps::PLANE_SET_RENDER_FRUSTUM, pipe_id, &drm_render_frustum);
+}
+
+void HWDeviceDRM::SetDrmPlaneEquation(const uint32_t &pipe_id,
+                                      const SDMLayerPlaneEquation &layer_equation) {
+  sde_drm_plane_equation drm_plane_equation;
+  memcpy(&drm_plane_equation.a, &layer_equation.a, sizeof(layer_equation.a));
+  memcpy(&drm_plane_equation.b, &layer_equation.b, sizeof(layer_equation.b));
+  memcpy(&drm_plane_equation.c, &layer_equation.c, sizeof(layer_equation.c));
+  memcpy(&drm_plane_equation.d, &layer_equation.d, sizeof(layer_equation.d));
+  drm_atomic_intf_->Perform(DRMOps::PLANE_SET_PLANE_EQUATION, pipe_id, &drm_plane_equation);
 }
 
 }  // namespace sdm

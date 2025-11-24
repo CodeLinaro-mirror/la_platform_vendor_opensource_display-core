@@ -455,6 +455,7 @@ public:
       SDMVsyncPeriodChangeTimeline *out_timeline);
 
   DisplayError SetDisplayElapseTime(uint64_t time);
+  DisplayError SetDisplayDeviceConfig(SDMDisplayDeviceConfig sdm_display_device_config);
   virtual bool IsDisplayIdle() { return false; };
   virtual bool HasReadBackBufferSupport() { return false; }
   virtual DisplayError NotifyDisplayCalibrationMode(bool in_calibration) {
@@ -530,6 +531,9 @@ public:
   virtual DisplayError GetCoprStats(std::vector<int> *stats) { return kErrorNotSupported; }
   virtual int GetNotifyEptConfig() { return -1; }
   virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data) {
+    return kErrorNotSupported;
+  }
+  virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t input_size) {
     return kErrorNotSupported;
   }
   DisplayError GetCachedActiveConfig(bool get_real_config, Config *config);
@@ -609,6 +613,8 @@ public:
   void UpdateRefreshRate();
   void UpdateActiveConfig();
   void DumpInputBuffers(void);
+  void DumpToFile(SnapHandle *handle, std::string dump_dir_path, int32_t layer_index,
+                  int plane = 0);
   void RetrieveFences(shared_ptr<Fence> *out_retire_fence);
   void SetDrawMethod();
   void ClearRequestMaps();

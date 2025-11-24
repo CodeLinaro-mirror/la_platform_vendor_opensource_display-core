@@ -485,6 +485,8 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
       uint64_t *numFrames, int32_t samples_size[NUM_HISTOGRAM_COLOR_COMPONENTS],
       uint64_t *samples[NUM_HISTOGRAM_COLOR_COMPONENTS]);
   DisplayError SetDisplayElapseTime(Display display, uint64_t time);
+  DisplayError SetDisplayDeviceConfig(Display display,
+                                      SDMDisplayDeviceConfig sdm_display_device_config);
 
   DisplayError SetCameraSmoothInfo(SDMCameraSmoothOp op, int32_t fps) override;
   DisplayError NotifyTUIDone(int ret, int disp_id,
@@ -547,6 +549,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError SetABCMode(uint64_t display_id, string mode_name);
   DisplayError SetAIScalerMode(uint64_t display_id, uint32_t mode_id);
   DisplayError SetPanelFeatureConfig(Display display, int32_t type, void *data);
+  DisplayError GetPanelFeatureConfig(Display display, int32_t type, void *data, uint32_t data_size);
   DisplayError ClearBuffersMappedToLayer(uint64_t display, LayerId layer_id,
                                          const SnapHandle *layerBuffer);
 

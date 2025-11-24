@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -38,6 +38,11 @@ DisplayError HWInfoDefault::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) 
   (*hw_displays_info)[hw_info.display_id] = hw_info;
   DLOGI("display: %4d-%d, connected: %s, primary: %s", hw_info.display_id, hw_info.display_type,
         hw_info.is_connected ? "true" : "false", hw_info.is_primary ? "true" : "false");
+  return kErrorNone;
+}
+
+DisplayError HWInfoDefault::GetVirtualDisplayStatus(VirtualDisplayType type,
+                                                    HWDisplayInfo *hw_info) {
   return kErrorNone;
 }
 
