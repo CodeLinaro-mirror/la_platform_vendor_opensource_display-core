@@ -78,9 +78,6 @@
 #ifndef DRM_FORMAT_MOD_QCOM_LOSSY_2_1
 #define DRM_FORMAT_MOD_QCOM_LOSSY_2_1 fourcc_mod_code(QCOM, 0x200)
 #endif
-#ifndef DRM_FORMAT_MOD_QCOM_FSC_TILE
-#define DRM_FORMAT_MOD_QCOM_FSC_TILE fourcc_mod_code(QCOM, 0x20)
-#endif
 #ifndef DRM_FORMAT_MOD_QCOM_DMA
 #define DRM_FORMAT_MOD_QCOM_DMA fourcc_mod_code(QCOM, 0x400)
 #endif
@@ -1052,9 +1049,15 @@ void HWInfoDRM::GetSDMFormat(uint32_t drm_format, uint64_t drm_format_modifier,
       }
       break;
     case DRM_FORMAT_C8:
-      if (drm_format_modifier == (DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_FSC_TILE)) {
-        fmts.push_back(kFormatC8Ubwc);
-      } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_FSC_TILE) {
+      if (drm_format_modifier & DRM_FORMAT_MOD_QCOM_COMPRESSED) {
+        if (drm_format_modifier & DRM_FORMAT_MOD_QCOM_FSC_TILE) {
+          fmts.push_back(kFormatC8Ubwc);
+        } else if (drm_format_modifier & DRM_FORMAT_MOD_QCOM_FSC_4R_TILE) {
+          fmts.push_back(kFormatC84RUbwc);
+        } else if (drm_format_modifier & DRM_FORMAT_MOD_QCOM_NV12_4R_4Y) {
+          fmts.push_back(kFormatC84R4YUbwc);
+        }
+      } else if (drm_format_modifier & DRM_FORMAT_MOD_QCOM_FSC_TILE) {
         fmts.push_back(kFormatC8);
       }
       break;
@@ -1139,7 +1142,9 @@ DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
           break;
         }
       }
-      hw_info.lm_mask = iter.second.modes[mode_index].lm_mask;
+      if (iter.second.modes.size() != 0) {
+        hw_info.lm_mask = iter.second.modes[mode_index].lm_mask;
+      }
     }
 
     if (iter.second.type == DRM_MODE_CONNECTOR_VIRTUAL) {

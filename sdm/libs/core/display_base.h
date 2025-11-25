@@ -109,6 +109,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError SetDrawMethod(DisplayDrawMethod draw_method);
   virtual DisplayError SetDisplayState(DisplayState state, bool teardown,
                                        shared_ptr<Fence> *release_fence);
+  virtual DisplayError SetOffloadMode(bool enable) { return kErrorNotSupported; }
   virtual DisplayError SetActiveConfig(uint32_t index);
   virtual DisplayError SetActiveConfig(DisplayConfigVariableInfo *variable_info) {
     return kErrorNotSupported;
@@ -320,7 +321,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   DisplayError SetRGBASplit(int32_t split_enable);
   virtual bool IsDpuDmaModeEnabled();
   virtual DisplayError SetClientTargetCapability(
-                              const std::bitset<kClientCapabilityMax> &client_capabilities);
+      const std::bitset<kClientCapabilityMax> &client_capabilities);
+
  protected:
   struct DisplayMutex {
     std::recursive_mutex client_mutex;
@@ -539,6 +541,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool is_mirror_mode_active_ = false;
   uint32_t active_config_index_ = 0;
   int rgba_split_enable_ = false;
+  bool mixer_resolution_updated_ = false;
 
  private:
   // Max tolerable power-state-change wait-times in milliseconds.

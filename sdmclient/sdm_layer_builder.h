@@ -1,7 +1,9 @@
 /*
- * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #ifndef __SDM_LAYER_BUILDER_H__
 #define __SDM_LAYER_BUILDER_H__
 
@@ -21,6 +23,7 @@ struct SDMLayerStack {
   std::map<LayerId, SDMLayer *> layer_map_;
   std::multiset<SDMLayer *, SortLayersByZ> layer_set_;
   uint32_t geometry_changes_ = GeometryChanges::kNone;
+  bool privacy_regions_updated_ = false;
 };
 
 class SDMLayerBuilder : public SDMDisplayLayerBuilderIntf {
@@ -77,6 +80,12 @@ public:
    *stack = &display_layer_stack_[display_id];
    return kErrorNone;
  }
+
+ DisplayError SetLayerPrivacyRegions(uint64_t display, int64_t layer,
+                                     const std::vector<PrivacyRegion> &privacy_regions) override;
+
+ DisplayError SetLayerCornerRadius(uint64_t display, int64_t layer,
+                                   CornerRadius corner_radius) override;
 
 private:
   SDMLayer *GetSDMLayer(uint64_t display_id, int64_t layer_id);

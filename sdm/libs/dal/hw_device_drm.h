@@ -129,6 +129,9 @@ class HWDeviceDRM : public HWInterface {
   virtual DisplayError SetPPFeature(PPFeatureInfo *feature);
   // This API is no longer supported, expectation is to call the correct API on HWEvents
   virtual DisplayError SetVSyncState(bool enable);
+  virtual DisplayError SetOffloadMode(bool enable) {
+    return kErrorNotSupported;
+  }
   virtual void SetIdleTimeoutMs(uint32_t timeout_ms);
   virtual DisplayError SetDisplayMode(const HWDisplayMode hw_display_mode);
   virtual DisplayError SetBppMode(uint32_t bpp);
@@ -199,6 +202,9 @@ class HWDeviceDRM : public HWInterface {
   virtual bool IsVRRSupported() { return false; }
   virtual void DisplayEarlyWakeUp();
   virtual DisplayError setDriverCommitPath(DriverCommitPath path) { return kErrorNotSupported; }
+  virtual uint32_t GetMaxPrivacyRegionsSupported() {
+    return 0;
+  }
 
   enum {
     kHWEventVSync,
@@ -281,6 +287,7 @@ class HWDeviceDRM : public HWInterface {
     return;
   };
   void SetCacType(const HWPipeCacMode &cac_mode, sde_drm::DRMCacMode *target);
+  void SetPrivacyRegionsData(std::vector<PrivacyRegion> *privacy_regions);
 
   class Registry {
    public:
@@ -392,6 +399,9 @@ class HWDeviceDRM : public HWInterface {
   int cached_brightness_level_ = -1;
   int current_brightness_ = -1;
   int32_t loopback_conn_id_ = -1;
+#ifdef MAX_PRIVACY_LAYERS
+  sde_drm_privacy_layer_v1 privacy_layer_data_ = {};
+#endif
 
  private:
   void GetCWBCapabilities();

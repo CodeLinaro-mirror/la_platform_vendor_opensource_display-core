@@ -309,6 +309,10 @@
 // Disable client querying luts
 #define DISABLE_QUERY_LUTS                DISPLAY_PROP("disable_query_luts")
 
+#define ENABLE_PRIVACY_LAYERS             DISPLAY_PROP("enable_privacy_layers")
+
+#define DISABLE_PUNCHHOLE_LAYERS          DISPLAY_PROP("disable_punchhole_layers")
+
 // Add all other.properties above
 // End of property
 // clang-format on

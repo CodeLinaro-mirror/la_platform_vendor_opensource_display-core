@@ -409,7 +409,7 @@ DisplayError Strategy::SetDetailEnhancerData(const DisplayDetailEnhancerData &de
 }
 
 DisplayError Strategy::SetClientTargetCapability(
-                           const std::bitset<kClientCapabilityMax> &client_capabilities) {
+    const std::bitset<kClientCapabilityMax> &client_capabilities) {
   if (strategy_intf_) {
     return strategy_intf_->SetClientTargetCapability(client_capabilities);
   }

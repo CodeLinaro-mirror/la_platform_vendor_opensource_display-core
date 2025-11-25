@@ -90,9 +90,6 @@
 #ifndef DRM_FORMAT_MOD_QCOM_LOSSY_2_1
 #define DRM_FORMAT_MOD_QCOM_LOSSY_2_1 fourcc_mod_code(QCOM, 0x200)
 #endif
-#ifndef DRM_FORMAT_MOD_QCOM_FSC_TILE
-#define DRM_FORMAT_MOD_QCOM_FSC_TILE fourcc_mod_code(QCOM, 0x20)
-#endif
 
 #ifndef SDE_SYSCACHE_LLCC_DISP_LEFT
 #define SDE_SYSCACHE_LLCC_DISP_LEFT 1
@@ -280,10 +277,21 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
     case kFormatC8Ubwc:
       *drm_format = DRM_FORMAT_C8;
       *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_FSC_TILE;
+      *drm_format_modifier |= GetDRMModifier(*drm_format_modifier, cac_color);
+      break;
+    case kFormatC84RUbwc:
+      *drm_format = DRM_FORMAT_C8;
+      *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_FSC_4R_TILE;
+      *drm_format_modifier |= GetDRMModifier(*drm_format_modifier, cac_color);
+      break;
+    case kFormatC84R4YUbwc:
+      *drm_format = DRM_FORMAT_ABGR8888;
+      *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_NV12_4R_4Y;
       break;
     case kFormatC8:
       *drm_format = DRM_FORMAT_C8;
       *drm_format_modifier = DRM_FORMAT_MOD_QCOM_FSC_TILE;
+      *drm_format_modifier |= GetDRMModifier(*drm_format_modifier, cac_color);
       break;
     case kFormatYCbCr420SemiPlanar:
       *drm_format = DRM_FORMAT_NV12;
@@ -1765,6 +1773,8 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
   bool buffer_update = hw_layers_info->common_info->updates_mask.test(kSwapBuffers);
   bool fb_update = hw_layers_info->common_info->updates_mask.test(kUpdateFBObject);
   bool self_refresh = hw_layers_info->common_info->updates_mask.test(kHalSelfRefresh);
+  bool privacy_regions_update =
+      hw_layers_info->common_info->updates_mask.test(kUpdatePrivacyRegions);
   bool update_config = resource_update || buffer_update || tui_state_ == kTUIStateEnd ||
                        hw_layers_info->common_info->flags.geometry_changed || fb_update ||
                        self_refresh;
@@ -2324,6 +2334,10 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
 
   if (hw_panel_info_.mode == kModeCommand) {
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_AUTOREFRESH, token_.conn_id, autorefresh_);
+  }
+
+  if (privacy_regions_update) {
+    SetPrivacyRegionsData(&hw_layers_info->privacy_regions_);
   }
 }
 
@@ -4311,6 +4325,26 @@ void HWDeviceDRM::DisplayEarlyWakeUp() {
   if (result < 0) {
     DLOGW("MSM_DISPLAY_HINT IOCTL failed! error: %d", result);
   }
+}
+
+void HWDeviceDRM::SetPrivacyRegionsData(std::vector<PrivacyRegion> *privacy_regions) {
+#ifdef MAX_PRIVACY_LAYERS
+  DLOGI_IF(kTagDriverConfig, "Send %u privacy regions to drm", privacy_regions->size());
+  sde_privacy privacy_list[privacy_regions->size()];
+  for (size_t i = 0; i < privacy_regions->size(); i++) {
+    PrivacyRegion region = privacy_regions->at(i);
+    privacy_list[i].corner_radius = INT(region.corner_radius);
+    privacy_list[i].left = region.rect.left;
+    privacy_list[i].top = region.rect.top;
+    privacy_list[i].right = region.rect.right;
+    privacy_list[i].bottom = region.rect.bottom;
+  }
+
+  privacy_layer_data_.no_of_layers = privacy_regions->size();
+  memcpy(privacy_layer_data_.privacy_list, privacy_list, sizeof(privacy_list));
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_PRIVACY_REGIONS, token_.conn_id,
+                            &privacy_layer_data_);
+#endif
 }
 
 }  // namespace sdm

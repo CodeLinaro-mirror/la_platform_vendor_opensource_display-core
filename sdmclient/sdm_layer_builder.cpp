@@ -62,7 +62,7 @@ DisplayError SDMLayerBuilder::DeInit(uint64_t display_id) {
 
 LayerBufferFormat SDMLayerBuilder::GetSDMFormat(const int32_t &source, const int32_t flags,
                                                 const int64_t compression_type) {
-  return buffer_allocator_->GetSDMFormat(source, flags, compression_type);
+  return buffer_allocator_->GetSDMFormat(source, flags, compression_type, 0);
 }
 
 bool SDMLayerBuilder::CheckLayerBufferBinding(uint64_t display_id, int64_t layer_id,
@@ -188,6 +188,11 @@ DisplayError SDMLayerBuilder::DestroyLayerLocked(uint64_t display_id, int64_t la
   }
 
   const auto layer = layer_iter->second;
+  if (layer->HasPrivacyRegions()) {
+    DLOGV_IF(kTagClient, "Layer %" PRIu64 " removed, privacy regions updated", layer_id);
+    layer_stack.privacy_regions_updated_ = true;
+  }
+
   layer_map.erase(layer_iter);
 
   const auto z_range = layer_set.equal_range(layer);
@@ -393,6 +398,20 @@ DisplayError SDMLayerBuilder::SetLayerBrightness(uint64_t display,
                                                  float brightness) {
   return CallLayerFunction(display, layer, &SDMLayer::SetLayerBrightness,
                            brightness);
+}
+
+DisplayError SDMLayerBuilder::SetLayerPrivacyRegions(
+    uint64_t display, int64_t layer, const std::vector<PrivacyRegion> &privacy_regions) {
+  auto sdm_layer = GetSDMLayer(display, layer);
+  if (!sdm_layer) {
+    return kErrorNotSupported;
+  }
+
+  return sdm_layer->SetLayerPrivacyRegions(privacy_regions);
+}
+DisplayError SDMLayerBuilder::SetLayerCornerRadius(uint64_t display, int64_t layer,
+                                                   CornerRadius corner_radius) {
+  return CallLayerFunction(display, layer, &SDMLayer::SetLayerCornerRadius, corner_radius);
 }
 
 } // namespace sdm

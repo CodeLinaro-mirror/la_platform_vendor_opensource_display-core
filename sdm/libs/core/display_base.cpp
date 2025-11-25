@@ -354,6 +354,19 @@ DisplayError DisplayBase::Init() {
   if (Debug::Get()->GetProperty(ENABLE_ASYNC_POWER_OFF_WAIT, &prop) == kErrorNone) {
     enable_async_power_off_wait_ = (prop == 1);
   }
+  prop = 0;
+  if (Debug::Get()->GetProperty(DISABLE_PUNCHHOLE_LAYERS, &prop) == kErrorNone) {
+    std::bitset<kClientCapabilityMax> client_capabilities =
+        std::bitset<kClientCapabilityMax>().set();
+
+    if (prop)
+      client_capabilities.reset(kPunchholeSupported);
+
+    error = SetClientTargetCapability(client_capabilities);
+    if (error != kErrorNone) {
+      DLOGW("Failed to populate client capabilities");
+    }
+  }
 
   Debug::GetIdleTimeoutMs(&idle_active_ms_, &inactive_ms);
 
@@ -1170,7 +1183,7 @@ DisplayError DisplayBase::Prepare(LayerStack *layer_stack) {
     }
 
     // Trigger validate only if needed.
-    if (disp_layer_stack_->stack_info.do_hw_validate) {
+    if (draw_method_ == kDrawDefault) {
       error = dpu_core_mux_->Validate(disp_layer_stack_->info);
     }
 
@@ -1978,6 +1991,7 @@ DisplayError DisplayBase::PostCommit() {
     clearstack_.store(false);
   }
 
+  mixer_resolution_updated_ = false;
   return error;
 }
 
@@ -3306,6 +3320,7 @@ DisplayError DisplayBase::SetMixerResolution(uint32_t width, uint32_t height) {
   req_mixer_width_ = width;
   req_mixer_height_ = height;
 
+  mixer_resolution_updated_ = true;
   return kErrorNone;
 }
 
@@ -5344,6 +5359,7 @@ DisplayError DisplayBase::DisableDestinationScalar() {
   comp_manager_->GetDSConfig(display_comp_ctx_, &hw_layers_info);
   hw_intf_->SetDestScalarData(hw_layers_info);
 
+  mixer_resolution_updated_ = true;
   return kErrorNone;
 }
 
@@ -5495,11 +5511,10 @@ bool DisplayBase::IsDpuDmaModeEnabled() {
 }
 
 DisplayError DisplayBase::SetClientTargetCapability(
-                                  const std::bitset<kClientCapabilityMax> &client_capabilities) {
+    const std::bitset<kClientCapabilityMax> &client_capabilities) {
   ClientLock lock(disp_mutex_);
 
   return comp_manager_->SetClientTargetCapability(display_comp_ctx_, client_capabilities);
-
 }
 
 }  // namespace sdm

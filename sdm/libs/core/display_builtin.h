@@ -33,6 +33,7 @@
 
 #include <core/dpps_interface.h>
 #include <core/ipc_interface.h>
+#include <privacy_region_manager.h>
 #include <private/aiqe_ssrc_feature_interface.h>
 #include <private/abc_feature_fact_intf.h>
 #include <private/demuratn_core_uvm_fact_intf.h>
@@ -46,7 +47,7 @@
 #include <private/display_event_proxy_intf.h>
 #include <private/tvm_service_manager_intf.h>
 #include <private/vm_file_xfer_intf.h>
-#include <private/cb_intf.h>
+#include <private/display_cb_intf.h>
 #include <private/vm_file_xfer_fact_intf_extn.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -197,6 +198,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError DisablePartialUpdateOneFrameInternal() override;
   DisplayError SetDisplayState(DisplayState state, bool teardown,
                                shared_ptr<Fence> *release_fence) override;
+  DisplayError SetOffloadMode(bool enable) override;
   void SetIdleTimeoutMs(uint32_t active_ms, uint32_t inactive_ms) override;
   DisplayError SetDisplayMode(uint32_t mode) override;
   DisplayError GetRefreshRateRange(uint32_t *min_refresh_rate,
@@ -367,12 +369,15 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetDemuraTnBatchId(void *data);
   DisplayError SetDemuraTnAodHandlerCtrl(void *data);
   DisplayError SetDemuraTnAgingSurfTransfer(void *data);
+  DisplayError SwitchToDAC(void *data);
+  void ClearDemuraMultiCfgParsers();
   int StartVmFileServiceAndExportFiles();
   int CreateServiceManager();
   int HandleTvmServiceEvent(const TvmServiceCbEvent &event);
   DisplayError DisableDemuraForHandOff();
   DisplayError ValidateDemuraLicense();
   DisplayError SetAvrStepFpsState(uint32_t index, bool enable);
+  void SetPrivacyRegions();
 
   const uint32_t kPuTimeOutMs = 1000;
   std::map<uint32_t, std::vector<HWEvent>> event_list_;
@@ -424,6 +429,7 @@ class DisplayBuiltIn : public DisplayBase,
   const std::string kDemuraTnUserCtrlFile = "/mnt/vendor/persist/display/demuratn_user_ctrl";
   std::shared_ptr<DemuraTnCleanupIntf> demuratn_cleanup_intf_;
   bool demuratn_user_disabled_ = false;
+  DemuraFeatureType demuratn_override_feature_ = kFeatureMax;
   bool abc_enabled_ = false;
   bool abc_tvm_enabled_ = false;
   bool abc_prop_ = false;
@@ -466,6 +472,7 @@ class DisplayBuiltIn : public DisplayBase,
   bool hfi_path_supported_ = false;
   bool double_buffer_codebook_supported_ = false;
   bool previous_frame_default_strategy_ = false;
+  PrivacyRegionManager *privacy_region_mgr_ = nullptr;
 };
 
 }  // namespace sdm

@@ -43,6 +43,7 @@
 #include <utils/formats.h>
 #include <utils/rect.h>
 #include <utils/utils.h>
+#include <PixelFormatModifier.h>
 
 #include <algorithm>
 #include <iomanip>
@@ -1010,6 +1011,7 @@ void SDMDisplay::BuildLayerStack() {
       layer->input_buffer.flags.mask_layer = true;
     }
     layer_stack_.flags.mask_present |= layer->input_buffer.flags.mask_layer;
+    layer_stack_.flags.privacy_regions_updated |= sdm_layer->IsPrivacyRegionUpdated();
 
     layer->flags.compatible = sdm_layer->IsLayerCompatible();
 
@@ -1053,6 +1055,11 @@ void SDMDisplay::BuildLayerStack() {
   if (layer_stack_.flags.front_buffer_layer_present) {
     DLOGV_IF(kTagClient, "front buffer layer present");
   }
+
+  layer_stack_.flags.privacy_regions_updated |=
+      (first_cycle_ || pending_privregions_update_ || sdm_layer_stack_->privacy_regions_updated_);
+
+  pending_privregions_update_ = layer_stack_.flags.privacy_regions_updated;
 
   SDMDebugHandler::ATRACE_INT("HDRPresent ", layer_stack_.flags.hdr_present ? 1 : 0);
 }
@@ -1531,8 +1538,7 @@ DisplayError SDMDisplay::SetFrameDumpConfig(uint32_t count,
       output_buffer_info_.buffer_config.height,
       UINT32(tap_point) ? (UINT32(tap_point) == 1) ? "DSPP" : "DEMURA" : "LM");
 
-  output_buffer_info_.buffer_config.format =
-      buffer_allocator_->GetSDMFormat(format, 0, 0);
+  output_buffer_info_.buffer_config.format = buffer_allocator_->GetSDMFormat(format, 0, 0, 0);
   output_buffer_info_.buffer_config.buffer_count = 1;
   if (buffer_allocator_->AllocateBuffer(&output_buffer_info_) != 0) {
     DLOGE("Buffer allocation failed");
@@ -2018,6 +2024,7 @@ DisplayError SDMDisplay::CommitOrPrepare(bool validate_only,
     PostCommitLayerStack(out_retire_fence);
   }
 
+  pending_privregions_update_ = false;
   return PostPrepareLayerStack(out_num_types, out_num_requests);
 }
 
@@ -2050,6 +2057,7 @@ DisplayError SDMDisplay::CommitLayerStack(void) {
     // onwards.
     flush_on_error_ = true;
     valid_commit_ = true;
+    pending_privregions_update_ = false;
   } else {
     if (error == kErrorShutDown) {
       shutdown_pending_ = true;
@@ -2093,6 +2101,7 @@ SDMDisplay::PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence) {
 
   layer_stack_.flags.geometry_changed = false;
   sdm_layer_stack_->geometry_changes_ = GeometryChanges::kNone;
+  sdm_layer_stack_->privacy_regions_updated_ = false;
   geometry_changes_ = GeometryChanges::kNone;
 
   flush_ = false;
@@ -2467,8 +2476,7 @@ DisplayError SDMDisplay::SetFrameBufferResolution(uint32_t x_pixels,
   // TODO(user): How does the dirty region get set on the client target? File
   // bug on Google
   client_target_layer->composition = kCompositionGPUTarget;
-  client_target_layer->input_buffer.format =
-      buffer_allocator_->GetSDMFormat(format, flags, 0);
+  client_target_layer->input_buffer.format = buffer_allocator_->GetSDMFormat(format, flags, 0, 0);
   client_target_layer->input_buffer.width = UINT32(aligned_width);
   client_target_layer->input_buffer.height = UINT32(aligned_height);
   client_target_layer->input_buffer.unaligned_width = x_pixels;
@@ -3733,7 +3741,10 @@ DisplayError SDMDisplay::SetReadbackBuffer(void *buffer,
   }
   flag = is_ubwc ? INT32(MetadataType::IS_UBWC) : 0;
 
-  output_buffer.format = buffer_allocator_->GetSDMFormat(format, flag, compression_type);
+  uint64_t pixel_format_modifier = 0;
+  snapmapper_->GetMetadata(*hdl, MetadataType::FORMAT_MODIFIER, &pixel_format_modifier);
+  output_buffer.format =
+      buffer_allocator_->GetSDMFormat(format, flag, compression_type, pixel_format_modifier);
   err = GetMetadata(hdl, MetadataType::FD, &output_buffer.planes[0].fd,
                     snapmapper_);
   if (err) {
@@ -4068,8 +4079,9 @@ DisplayError SDMDisplay::GetClientTargetProperty(
   }
   int32_t format = 0;
   uint64_t flags = 0;
-  auto err = buffer_allocator_->SetBufferInfo(client_layer->request.format,
-                                              &format, &flags);
+  uint64_t pixel_format_modifier = 0;
+  auto err = buffer_allocator_->SetBufferInfo(client_layer->request.format, &format, &flags,
+                                              &pixel_format_modifier);
   if (err) {
     DLOGE("Invalid format: %s requested",
           GetFormatString(client_layer->request.format));
@@ -4326,6 +4338,13 @@ DisplayError SDMDisplay::SetStandbyMode(bool enable, bool is_twm) {
     }
 
     if (!null_display_active_) {
+      // notify DRM
+      error = display_intf_->SetOffloadMode(true);
+      if (kErrorNone != error) {
+        DLOGE("Failed to set offload mode. Error = %d", error);
+        return error;
+      }
+
       stored_display_intf_ = display_intf_;
       display_intf_ = display_null_intf_;
       shared_ptr<Fence> release_fence = nullptr;
@@ -4358,6 +4377,14 @@ DisplayError SDMDisplay::SetStandbyMode(bool enable, bool is_twm) {
         DLOGE("Unexpected event. Display state may be inconsistent.");
         return kErrorNotSupported;
       }
+
+      // notify DRM
+      error = stored_display_intf_->SetOffloadMode(false);
+      if (kErrorNone != error) {
+        DLOGE("Failed to set offload mode. Error = %d", error);
+        return error;
+      }
+
       display_intf_ = stored_display_intf_;
       null_display_active_ = false;
       DLOGD("Null Display is disconnected successfully");
@@ -4379,6 +4406,47 @@ DisplayError SDMDisplay::SetRGBASplit(int32_t split_enable) {
         sdm_id_, type_);
 
   return error;
+}
+
+// Set Privacy Regions and Corner Radius on the given layer.
+void SDMDisplay::SetPrivacyRegionsData(uint32_t layer_id, float corner_radius,
+                                       const std::vector<PrivacyRegion> &privacy_regions) {
+  const auto map_layer = sdm_layer_stack_->layer_map_.find(layer_id);
+  if (map_layer == sdm_layer_stack_->layer_map_.end()) {
+    DLOGW("Display [%" PRIu64 "]-[%" PRIu64 "] SetPrivacyRegions: Failed to find layer %d!", id_,
+          type_, layer_id);
+    return;
+  }
+
+  CornerRadius radius = {corner_radius, corner_radius};
+  const auto layer = map_layer->second;
+  DLOGI("Set PrivacyRegions data on Layer %d", layer_id);
+  layer->SetLayerPrivacyRegions(privacy_regions);
+  layer->SetLayerCornerRadius(radius);
+}
+
+DisplayError SDMDisplay::ClearBuffersMappedToLayer(LayerId layer_id,
+                                                   const SnapHandle *layerBuffer) {
+  // Get BufferID from SnapHandle
+  uint64_t buffer_id = 0;
+  if (layerBuffer == nullptr) {
+    DLOGW("Layer Buffer(SnapHandle) is NULL for layer_id %d on display : %d-%d", layer_id, sdm_id_,
+          type_);
+    return kErrorParameters;
+  }
+  GetMetadata(layerBuffer, MetadataType::BUFFER_ID, &buffer_id, snapmapper_);
+  for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
+    Layer *layer = sdm_layer->GetSDMLayer();
+    if (layer->layer_id == layer_id) {
+      auto it = layer->buffer_map->buffer_map.find(buffer_id);
+      if (it != layer->buffer_map->buffer_map.end()) {
+        DLOGV_IF(kTagClient, "Buffer_id %d exists in fbid buffermap of layer - %d.Erasing it.",
+                 buffer_id, layer_id);
+        layer->buffer_map->buffer_map.erase(it);
+      }
+    }
+  }
+  return kErrorNone;
 }
 
 }  // namespace sdm

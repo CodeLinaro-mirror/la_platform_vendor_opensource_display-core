@@ -71,7 +71,7 @@ class StrategyInterface {
   virtual DisplayError SetBlendSpace(const PrimariesTransfer &blend_space) = 0;
   virtual void SetDisplayLayerStack(DispLayerStack *disp_layer_stack) = 0;
   virtual DisplayError SetClientTargetCapability(
-                              const std::bitset<kClientCapabilityMax> &client_capabilities) = 0;
+      const std::bitset<kClientCapabilityMax> &client_capabilities) = 0;
 
   virtual ~StrategyInterface() { }
 };

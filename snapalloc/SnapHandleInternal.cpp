@@ -201,7 +201,7 @@ SnapHandleInternal *SnapHandleInternal::CreateViewHandle(uint32_t view, uint32_t
   if (view_handle == nullptr) {
     return view_handle;
   }
-
+  memset(view_handle, 0, handle_size);
   view_handle->num_ints = SnapHandleData<1>::getExpectedNumInts();
   view_handle->num_fds = SnapHandleData<1>::getExpectedNumFds();
   view_handle->version = static_cast<int>(sizeof(SnapHandle));
@@ -304,7 +304,7 @@ SnapHandleInternal *SnapHandleInternal::createSingleHandle(
   if (h == nullptr) {
     return h;
   }
-
+  memset(h, 0, handle_size);
   h->num_ints = SnapHandleData<1>::getExpectedNumInts();
   h->num_fds = SnapHandleData<1>::getExpectedNumFds();
   h->version = static_cast<int>(sizeof(SnapHandle));
@@ -333,7 +333,7 @@ SnapHandleInternal *SnapHandleInternal::createMultiviewHandle(
   if (h == nullptr) {
     return h;
   }
-
+  memset(h, 0, handle_size);
   h->num_ints = SnapHandleData<2>::getExpectedNumInts();
   h->num_fds = SnapHandleData<2>::getExpectedNumFds();
   h->version = static_cast<int>(sizeof(SnapHandle));

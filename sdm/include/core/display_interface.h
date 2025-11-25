@@ -39,7 +39,7 @@
 #ifndef __DISPLAY_INTERFACE_H__
 #define __DISPLAY_INTERFACE_H__
 
-#include <private/cb_intf.h>
+#include <private/display_cb_intf.h>
 #include <private/display_event_proxy_intf.h>
 #include <private/snapdragon_color_intf.h>
 #include <stdint.h>
@@ -421,6 +421,8 @@ enum PanelFeatureVendorServiceType {
   kTypeDemuraTnAodHandlerCtrl = 10,
   /* Setter: None */
   kTypeDemuraTnAgingSurfTransfer = 11,
+  /* Setter: None */
+  kTypeSwitchToDAC = 12,
   PanelFeatureVendorServiceTypeMax,
 };
 
@@ -691,6 +693,14 @@ class DisplayInterface {
   */
   virtual DisplayError SetDisplayState(DisplayState state, bool teardown,
                                        shared_ptr<Fence> *release_fence) = 0;
+
+  /*! @brief Method to set offload mode (offload to co-processor).
+
+    @param[in] enable
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetOffloadMode(bool enable) = 0;
 
   /*! @brief Method to set active configuration for variable properties of the display device.
 
@@ -1611,7 +1621,7 @@ class DisplayInterface {
     @return \link DisplayError \endlink
   */
   virtual DisplayError SetClientTargetCapability(
-                            const std::bitset<kClientCapabilityMax> &client_capabilities) = 0;
+      const std::bitset<kClientCapabilityMax> &client_capabilities) = 0;
 
  protected:
   virtual ~DisplayInterface() { }

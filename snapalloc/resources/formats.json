@@ -149,6 +149,26 @@
             }
         },
         {
+            "format": "C_8",
+            "data": {
+                "bits_per_pixel": 8,
+                "planes": [
+                    {
+                        "components": [
+                            {
+                                "component_type": "Y",
+                                "offset_bits": 0,
+                                "size_bits": 8
+                            }
+                        ],
+                        "sample_increment_bits": 8,
+                        "h_subsampling_factor": 1,
+                        "v_subsampling_factor": 1
+                    }
+                ]
+            }
+        },
+        {
             "format" : "RGBA_8888",
             "data" : {
                 "bits_per_pixel" : 32,

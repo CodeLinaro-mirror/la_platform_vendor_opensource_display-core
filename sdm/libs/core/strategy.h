@@ -71,7 +71,8 @@ class Strategy {
   DisplayError SetSprIntf(std::shared_ptr<SPRIntf> intf);
   DisplayError SetDetailEnhancerData(const DisplayDetailEnhancerData &de_data);
   DisplayError SetClientTargetCapability(
-                            const std::bitset<kClientCapabilityMax> &client_capabilities);
+      const std::bitset<kClientCapabilityMax> &client_capabilities);
+
  private:
   void GenerateROI();
   void CalculateDstRect(uint32_t dpu_offset, uint32_t mixer_width,

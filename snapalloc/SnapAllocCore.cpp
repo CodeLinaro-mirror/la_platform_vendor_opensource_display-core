@@ -100,19 +100,31 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
     uint64_t id = ++next_id_;
     uint64_t pixel_format_modifier = GetPixelFormatModifier(out_desc);
     constraint_mgr_->ConvertAlignedWidthFromBytesToPixels(
-        out_desc.format, layout.aligned_width_in_bytes, &aligned_width_in_pixels);
+        out_desc.format, layout.aligned_width_in_bytes, pixel_format_modifier,
+        &aligned_width_in_pixels);
     unsigned custom_content_md_size =
         metadata_mgr_->GetCustomContentMetadataSize(out_desc.format, out_desc.usage);
 
     AllocateBuffer(&ad, &m_data, custom_content_md_size, &desc, &out_desc, test_alloc);
 
-    if (desc.usage & QTI_PRIVATE_MULTI_VIEW_INFO) {
+    if ((desc.usage & QTI_PRIVATE_MULTI_VIEW_INFO) ||
+        (desc.usage & QTI_PRIVATE_CLONED_MULTI_VIEW_INFO)) {
       AllocData ad_2;
       AllocData m_data_2;
       ad_2 = ad;
       m_data_2 = m_data;
-
-      AllocateBuffer(&ad_2, &m_data_2, custom_content_md_size, &desc, &out_desc, test_alloc);
+      if (desc.usage & QTI_PRIVATE_CLONED_MULTI_VIEW_INFO) {
+        ad_2.fd = dup(ad.fd);
+        err = mem_alloc_intf_->AllocateMem(
+            &m_data_2, static_cast<vendor_qti_hardware_display_common_BufferUsage>(0),
+            static_cast<vendor_qti_hardware_display_common_PixelFormat>(0));
+        if (err != Error::NONE) {
+          DLOGE("Failed to allocate metadata memory for cloned view");
+          return err;
+        }
+      } else {
+        AllocateBuffer(&ad_2, &m_data_2, custom_content_md_size, &desc, &out_desc, test_alloc);
+      }
       hnd = SnapHandleInternal::createMultiviewHandle(
           ad.fd, m_data.fd, ad_2.fd, m_data_2.fd, out_priv_flags, layout.aligned_width_in_bytes,
           aligned_width_in_pixels, layout.aligned_height, desc.width, desc.height, out_desc.format,
@@ -445,8 +457,10 @@ Error SnapAllocCore::ValidateBufferSize(SnapHandle *hnd, BufferDescriptor desc) 
   int out_priv_flags = 0;
   int ret = constraint_mgr_->GetAllocationData(desc, &ad, &layout, &out_desc, &out_priv_flags);
   int aligned_width_in_pixels = 0;
+  uint64_t pixel_format_modifier = GetPixelFormatModifier(out_desc);
   constraint_mgr_->ConvertAlignedWidthFromBytesToPixels(
-      out_desc.format, layout.aligned_width_in_bytes, &aligned_width_in_pixels);
+      out_desc.format, layout.aligned_width_in_bytes, pixel_format_modifier,
+      &aligned_width_in_pixels);
 
   if (OVERFLOW_MUL(aligned_width_in_pixels, layout.aligned_height)) {
     DLOGE("%s: Allocatiom size overflow", __FUNCTION__);
