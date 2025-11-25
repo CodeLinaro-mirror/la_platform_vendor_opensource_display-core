@@ -3740,14 +3740,16 @@ void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
       }
 
       bool reprojection_buffer = (hw_layer.composition == kCompositionIWERepro);
-      auto layer = reprojection_buffer ? &hw_layer : sdm_layer;
-      hw_layer.input_buffer.planes[0].fd = Sys::dup_(layer->input_buffer.planes[0].fd);
+      auto plane_index =
+          reprojection_buffer ? i % client_ctx_.display_attributes.num_fsc_fields : 0;
+      hw_layer.input_buffer.planes[0].fd =
+          Sys::dup_(sdm_layer->input_buffer.planes[plane_index].fd);
       hw_layer.input_buffer.planes[0].offset = sdm_layer->input_buffer.planes[0].offset;
       hw_layer.input_buffer.planes[0].stride = sdm_layer->input_buffer.planes[0].stride;
       hw_layer.input_buffer.size = sdm_layer->input_buffer.size;
       hw_layer.input_buffer.acquire_fence = sdm_layer->input_buffer.acquire_fence;
       hw_layer.input_buffer.handle_id = reprojection_buffer
-                                            ? hw_layer.input_buffer.planes[0].handle_id
+                                            ? sdm_layer->input_buffer.planes[plane_index].handle_id
                                             : sdm_layer->input_buffer.handle_id;
       // All app buffer handles are set prior to prepare.
       // TODO(user): Other FBT layer attributes like surface damage, dataspace, secure camera and
