@@ -1347,7 +1347,7 @@ Error SnapMetadataManager::ValidateAndMap(SnapHandleInternal *hnd) {
   if (!hnd->base_metadata()) {
     uint64_t reserved_region_size = hnd->reserved_size();
     uint64_t custom_content_md_reserved_size = hnd->custom_content_md_reserved_size();
-    DLOGD("from handle - reserved size %lu custom content metadata size %lu",
+    DLOGD_IF(enable_logs,"from handle - reserved size %lu custom content metadata size %lu",
              reserved_region_size, custom_content_md_reserved_size);
     uint64_t size = GetMetaDataSize(reserved_region_size, custom_content_md_reserved_size);
     void *base = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, hnd->fd_metadata(), 0);
@@ -1356,7 +1356,7 @@ Error SnapMetadataManager::ValidateAndMap(SnapHandleInternal *hnd) {
       return Error::BAD_BUFFER;
     }
     hnd->base_metadata() = (uintptr_t)base;  // NOLINT
-    DLOGD("Successfully mapped metadata %p", hnd->base_metadata());
+    DLOGD_IF(enable_logs, "Successfully mapped metadata %p", hnd->base_metadata());
   }
   return Error::NONE;
 }
