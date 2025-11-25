@@ -862,6 +862,12 @@ enum struct DRMOps {
    *      uint32_t - enum value of reprojection mode
    */
   CONNECTOR_SET_REPROJ_MODE,
+  /*
+   * Op: Sets pose buffer ID for writeback connector.
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - Framebuffer ID
+   */
+  CONNECTOR_SET_POSE_FB_ID,
 };
 
 enum struct DRMRotation {

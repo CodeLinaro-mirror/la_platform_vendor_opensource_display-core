@@ -2088,6 +2088,22 @@ DisplayError ConcurrencyMgr::TeardownConcurrentWriteback(Display display) {
   return kErrorNone;
 }
 
+DisplayError ConcurrencyMgr::SetPoseConfig(uint64_t display_id, void *buffer) {
+  int disp_idx = GetDisplayIndex(display_id);
+  if (disp_idx == -1) {
+    DLOGW("Invalid display = %" PRIu64, display_id);
+    return kErrorNotSupported;
+  }
+
+  SCOPE_LOCK(locker_[disp_idx]);
+  if (!sdm_display_[disp_idx]) {
+    DLOGW("Display %" PRIu64 " is not connected.", display_id);
+    return kErrorResources;
+  }
+
+  return sdm_display_[disp_idx]->SetPoseConfig(buffer);
+}
+
 DisplayError ConcurrencyMgr::CommitOrPrepare(
     Display display, bool validate_only, shared_ptr<Fence> *out_retire_fence,
     uint32_t *out_num_types, uint32_t *out_num_requests, bool *needs_commit) {

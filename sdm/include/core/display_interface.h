@@ -1645,6 +1645,14 @@ class DisplayInterface {
   virtual DisplayError SetDisplayDeviceConfig(
       const SDMDisplayDeviceConfig &display_device_config) = 0;
 
+  /*! @brief Method to set pose configuration.
+
+    @param[in] buffer: \link LayerBuffer \endlink
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetPoseConfig(const LayerBuffer &buffer) = 0;
+
  protected:
   virtual ~DisplayInterface() { }
 };

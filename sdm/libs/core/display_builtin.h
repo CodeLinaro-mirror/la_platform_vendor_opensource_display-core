@@ -316,6 +316,7 @@ class DisplayBuiltIn : public DisplayBase,
   int Notify(const TvmServiceCbEvent &) override;
 
   DisplayError SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config) override;
+  DisplayError SetPoseConfig(const LayerBuffer &buffer) override;
 
  private:
   bool CanCompareFrameROI(LayerStack *layer_stack);
