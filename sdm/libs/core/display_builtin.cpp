@@ -250,7 +250,7 @@ DisplayError DisplayBuiltIn::Init() {
             HWEvent::MMRM,
             HWEvent::VM_RELEASE_EVENT,
             HWEvent::VM_RECLAIM_EVENT};
-  if (client_ctx_.hw_panel_info.mode == kModeCommand) {
+  if ((client_ctx_.hw_panel_info.mode == kModeCommand) || client_ctx_.hw_panel_info.vhm_support) {
     events.push_back(HWEvent::IDLE_POWER_COLLAPSE);
   }
 #endif
