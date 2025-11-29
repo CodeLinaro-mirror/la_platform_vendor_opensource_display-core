@@ -1769,7 +1769,10 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
   layer_stack_.client_incompatible = false;
   validate_done_ = true;
 
-  return (layer_changes_.size() || display_luts_.size()) ? kErrorNeedsCommit : kErrorNone;
+  return ((layer_requests_.size() && has_client_composition_) || layer_changes_.size() ||
+          display_luts_.size())
+             ? kErrorNeedsCommit
+             : kErrorNone;
 }
 
 DisplayError SDMDisplay::AcceptDisplayChanges() {
@@ -3092,6 +3095,7 @@ bool SDMDisplay::IsModeSwitchAllowed(uint32_t config) {
   DisplayError error = kErrorNone;
   uint32_t allowed_mode_switch = 0;
   uint32_t checking_config = config;
+  int bits_per_word = sizeof(uint32_t) * 8;
 
   if (variable_config_map_.find(config) == variable_config_map_.end()) {
     DLOGE("Invalid config: %d", config);
@@ -3109,18 +3113,20 @@ bool SDMDisplay::IsModeSwitchAllowed(uint32_t config) {
     }
   }
 
+  /*   allowed_mode_switch is used as both:
+   * - input: index into the allowed_mode_switch array
+   * - output: value retrieved from this specified index
+   */
+  allowed_mode_switch = checking_config / bits_per_word;
   error = display_intf_->IsSupportedOnDisplay(kSupportedModeSwitch,
                                               &allowed_mode_switch);
   if (error != kErrorNone) {
-    if (error == kErrorResources) {
-      DLOGW("Not allowed to switch to mode:%d", config);
-      return false;
-    }
     DLOGW("Unable to retrieve supported modes for the current device "
           "configuration.");
+    return false;
   }
 
-  if (allowed_mode_switch == 0 || (allowed_mode_switch & (1 << checking_config))) {
+  if (allowed_mode_switch & (1 << (checking_config % bits_per_word))) {
     DLOGV_IF(kTagClient, "Allowed to switch to mode:%d", config);
     return true;
   }
@@ -3370,12 +3376,19 @@ bool SDMDisplay::IsSameGroup(Config config_id1, Config config_id2) {
   if (config_info2.is_virtual_config) {
     GetParentConfig(&config_id2);
   }
+
   const DisplayConfigGroupInfo &config_group1 = config_info1;
   const DisplayConfigGroupInfo &config_group2 = config_info2;
 
+  int bits_per_word = sizeof(uint32_t) * 8;
+  int config1_allowed_index = config_id1 / bits_per_word;
+  int config2_allowed_index = config_id2 / bits_per_word;
+  uint32_t config1_allowed = config_group1.allowed_mode_switch[config1_allowed_index];
+  uint32_t config2_allowed = config_group2.allowed_mode_switch[config2_allowed_index];
+
   return ((config_group1 == config_group2) &&
-          (config_group1.allowed_mode_switch & (1 << (INT32(config_id2)))) &&
-          (config_group2.allowed_mode_switch & (1 << (INT32(config_id1)))));
+          (config1_allowed & (1 << ((UINT32(config_id2)) % bits_per_word))) &&
+          (config2_allowed & (1 << ((UINT32(config_id1) % bits_per_word)))));
 }
 
 bool SDMDisplay::AllowSeamless(Config config) {
@@ -4403,6 +4416,30 @@ void SDMDisplay::SetPrivacyRegionsData(uint32_t layer_id, float corner_radius,
   DLOGI("Set PrivacyRegions data on Layer %d", layer_id);
   layer->SetLayerPrivacyRegions(privacy_regions);
   layer->SetLayerCornerRadius(radius);
+}
+
+DisplayError SDMDisplay::ClearBuffersMappedToLayer(LayerId layer_id,
+                                                   const SnapHandle *layerBuffer) {
+  // Get BufferID from SnapHandle
+  uint64_t buffer_id = 0;
+  if (layerBuffer == nullptr) {
+    DLOGW("Layer Buffer(SnapHandle) is NULL for layer_id %d on display : %d-%d", layer_id, sdm_id_,
+          type_);
+    return kErrorParameters;
+  }
+  GetMetadata(layerBuffer, MetadataType::BUFFER_ID, &buffer_id, snapmapper_);
+  for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
+    Layer *layer = sdm_layer->GetSDMLayer();
+    if (layer->layer_id == layer_id) {
+      auto it = layer->buffer_map->buffer_map.find(buffer_id);
+      if (it != layer->buffer_map->buffer_map.end()) {
+        DLOGV_IF(kTagClient, "Buffer_id %d exists in fbid buffermap of layer - %d.Erasing it.",
+                 buffer_id, layer_id);
+        layer->buffer_map->buffer_map.erase(it);
+      }
+    }
+  }
+  return kErrorNone;
 }
 
 }  // namespace sdm
