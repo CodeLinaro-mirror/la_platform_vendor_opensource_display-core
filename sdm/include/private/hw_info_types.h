@@ -1307,6 +1307,12 @@ enum CwbClient {
   kCwbClientIdleFallback,
   kCwbClientMax,
 };
+
+enum SSREventType {
+  kSSRStart = 0,
+  kSSREnd = 1,
+};
+
 #define CONN_ID_SIZE 24
 #define CONN_1_SHIFT_BITS 12
 #define CONN_BIT_MASK 0x000FFFFFF

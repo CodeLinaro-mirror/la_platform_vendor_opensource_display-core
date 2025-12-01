@@ -506,6 +506,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   virtual DisplayError NotifyCwbDone(int dpy_index, int32_t status,
                                      uint64_t handle_id);
   virtual int NotifyIdleStatus(bool idle_status);
+  virtual void PerformSubsystemRestart(bool start);
 
   DisplayError SetVsyncEnabled(uint64_t display, bool enabled);
   DisplayError GetDozeSupport(Display display, int32_t *out_support);
@@ -688,6 +689,7 @@ private:
 
   std::map<uint64_t, std::future<DisplayError>> commit_done_future_;
   bool disable_get_screen_decorator_support_ = false;
+  SDMPowerMode cached_last_power_mode_[kNumDisplays] = {};
 
   SDMHotPlug *hpd_ = nullptr;
   SDMConcurrentWriteBack *cwb_ = nullptr;
@@ -716,6 +718,8 @@ private:
   Locker client_lock_;
 
   std::shared_ptr<ISnapMapper> snapmapper_ = nullptr;
+
+  bool ssr_active_ = false;
 };
 } // namespace sdm
 

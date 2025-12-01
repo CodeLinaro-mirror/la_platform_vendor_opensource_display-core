@@ -212,6 +212,7 @@ class HWDeviceDRM : public HWInterface {
   virtual DisplayError SetReprojectionConfig(const struct ReprojectionConfig &reprojection_config) {
     return kErrorNone;
   }
+  virtual void SetSSRState(bool active);
 
   enum {
     kHWEventVSync,
@@ -416,6 +417,7 @@ class HWDeviceDRM : public HWInterface {
 #ifdef MAX_PRIVACY_LAYERS
   sde_drm_privacy_layer_v1 privacy_layer_data_ = {};
 #endif
+  bool is_ssr_active_ = false;
 
  private:
   void GetCWBCapabilities();

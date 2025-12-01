@@ -161,6 +161,8 @@ enum DisplayEvent {
   kPostIdleTimeout,         // Event triggered after entering idle.
   kVmReleaseDone,           // Event triggered after releasing the mdp hw to secondary vm.
   kVmReclaimDone,           // Event triggered after acquiring the mdp hw from secondary vm.
+  kSsrStart,                // Event triggered at the start of subsystem restart(SSR).
+  kSsrEnd,                  // Event triggered at the end of subsystem restart (SSR).
 };
 
 /*! @brief This enum represents the secure events received by Display HAL. */

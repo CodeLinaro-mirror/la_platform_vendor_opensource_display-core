@@ -1796,6 +1796,7 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
     master_hw_events_intf_->SetEventState(HWEvent::MMRM, true);
     master_hw_events_intf_->SetEventState(HWEvent::VM_RELEASE_EVENT, true);
     master_hw_events_intf_->SetEventState(HWEvent::VM_RECLAIM_EVENT, true);
+    master_hw_events_intf_->SetEventState(HWEvent::SSR, true);
     registered_hw_events_ = true;
   }
 
@@ -1825,7 +1826,11 @@ DisplayError DisplayBase::PerformCommit(std::map<uint32_t, HWLayersInfo> &hw_lay
   }
   DisplayError error = dpu_core_mux_->Commit(hw_layers_info);
   if (error != kErrorNone) {
-    DLOGE("COMMIT failed: %d ", error);
+    if (is_ssr_active_) {
+      DLOGW("COMMIT failed: %d while SSR is active, ignore failure", error);
+    } else {
+      DLOGE("COMMIT failed: %d ", error);
+    }
   }
 
   SetSelfRefreshRefCount(0);
@@ -1915,6 +1920,10 @@ DisplayError DisplayBase::CommitLocked(LayerStack *layer_stack) {
 DisplayError DisplayBase::PerformHwCommit(std::map<uint32_t, HWLayersInfo> &hw_layers_info) {
   DTRACE_SCOPED();
 
+  if (is_ssr_active_) {
+    return HandleCommitDuringSSR();
+  }
+
   DisplayError error = comp_manager_->PreCommit(display_comp_ctx_);
   if (error != kErrorNone) {
     commit_phase_ = false;
@@ -1923,7 +1932,11 @@ DisplayError DisplayBase::PerformHwCommit(std::map<uint32_t, HWLayersInfo> &hw_l
 
   error = PerformCommit(hw_layers_info);
   if (error != kErrorNone) {
-    DLOGE("Commit IOCTL failed %d", error);
+    if (is_ssr_active_) {
+      DLOGW("Commit IOCTL failed %d while SSR is active, ignore failure", error);
+    } else {
+      DLOGE("Commit IOCTL failed %d", error);
+    }
     CleanupOnError();
     DLOGI("Triggering flush to release fences");
     DisplayError flush_err = FlushLocked(nullptr);
@@ -2295,6 +2308,10 @@ DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
       if (error != kErrorNone) {
         if (error == kErrorDeferred) {
           pending_power_state_ = kPowerStateOff;
+          error = kErrorNone;
+        } else if (error == kErrorHardware && is_ssr_active_) {
+          DLOGI("PowerOff returned %d while SSR is active %d, ignore failure", error,
+                is_ssr_active_);
           error = kErrorNone;
         } else {
           return error;
@@ -4594,7 +4611,7 @@ void DisplayBase::WaitForCompletion(SyncPoints *sync_points) {
   DTRACE_SCOPED();
   // For displays in unified draw, wait on cached retire fence in steady state.
   shared_ptr<Fence> retire_fence = sync_points->retire_fence;
-  DLOGI("Wait for cached retire fence to be in steady state");
+  DLOGI("Wait for cached Retire fence %s to get signaled!", Fence::GetStr(retire_fence).c_str());
   Fence::Wait(retire_fence, kPowerStateTimeout);
   DLOGI("Cached retire fence is in ready state");
 }
@@ -5557,6 +5574,17 @@ DisplayError DisplayBase::SetClientTargetCapability(
   ClientLock lock(disp_mutex_);
 
   return comp_manager_->SetClientTargetCapability(display_comp_ctx_, client_capabilities);
+}
+
+DisplayError DisplayBase::HandleCommitDuringSSR() {
+  DTRACE_BEGIN("Avoiding HW Commit for SSR");
+  CleanupOnError();
+  DisplayError error = FlushLocked(nullptr);
+  if (error != kErrorNone) {
+    DLOGE("Flush error: %d", error);
+  }
+  DTRACE_END();
+  return error;
 }
 
 }  // namespace sdm
