@@ -500,6 +500,7 @@ struct HWResourceInfo {
   std::vector<LayerBufferFormat> cac_supported_formats;
   bool has_cesta = false;
   uint32_t hw_ai_scaler_count = 0;
+  bool is_udc_supported = 0;
 };
 
 struct HWSplitInfo {

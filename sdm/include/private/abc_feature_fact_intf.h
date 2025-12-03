@@ -24,7 +24,8 @@ class ABCFeatureFactIntf {
   virtual std::unique_ptr<sdm::DemuraIntf> CreateABCIntf(const sdm::DemuraInputConfig &input_cfg,
                                                          sdm::PanelFeaturePropertyIntf *prop_intf,
                                                          sdm::BufferAllocator *allocator,
-                                                         sdm::DisplayInterface *display_intf) = 0;
+                                                         sdm::DisplayInterface *display_intf,
+                                                         bool is_udc_supported = true) = 0;
 };
 
 extern "C" ABCFeatureFactIntf *GetABCFeatureFactIntf();
