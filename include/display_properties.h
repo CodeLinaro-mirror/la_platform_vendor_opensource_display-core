@@ -313,6 +313,8 @@
 
 #define DISABLE_PUNCHHOLE_LAYERS          DISPLAY_PROP("disable_punchhole_layers")
 
+#define FORCE_LSR_RENDER_MODE             DISPLAY_PROP("force_lsr_render_mode")
+
 // Add all other.properties above
 // End of property
 // clang-format on

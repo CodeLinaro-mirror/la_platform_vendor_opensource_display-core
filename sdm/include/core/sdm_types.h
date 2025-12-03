@@ -389,8 +389,8 @@ enum SDMRenderLayerReferenceSpaceType {
 
 enum SDMCompositionLayerType {
   COMPOSITION_LAYER_NONE = 0,
-  COMPOSITION_LAYER_PROJECTION = 1,
-  COMPOSITION_LAYER_QUAD = 2
+  COMPOSITION_LAYER_QUAD = 1,
+  COMPOSITION_LAYER_PROJECTION = 2
 };
 
 struct SDMLayerPosition {

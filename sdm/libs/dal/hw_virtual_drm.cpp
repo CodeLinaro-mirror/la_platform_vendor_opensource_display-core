@@ -493,11 +493,16 @@ DisplayError HWVirtualDRM::SetReprojectionConfig(
                             reprojection_config.reproj_disp_im_height);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_TILE_SIZE, token_.conn_id,
                             reprojection_config.reproj_tile_w, reprojection_config.reproj_tile_h);
-  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_MODE, token_.conn_id,
-                            reprojection_config.reprojection_mode);
+  auto reprojection_mode = reprojection_config.reprojection_mode_enabled
+                               ? SDE_LSR_WB_REPROJECTION_MODE
+                               : SDE_LSR_WB_RENDER_MODE;
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_MODE, token_.conn_id, reprojection_mode);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_TO_LRGB, token_.conn_id,
                             reprojection_config.reproj_to_lrgb_left,
                             reprojection_config.reproj_to_lrgb_left);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_MIN_BBOX_SIZE, token_.conn_id,
+                            reprojection_config.reproj_min_bbox_w,
+                            reprojection_config.reproj_min_bbox_h);
   return kErrorNone;
 }
 
