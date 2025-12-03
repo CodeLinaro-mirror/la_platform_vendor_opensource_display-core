@@ -278,7 +278,7 @@ struct DisplayConfigGroupInfo {
   float y_dpi = 0.0f;             //!< Dots per inch in Y-direction.
   bool is_yuv = false;            //!< If the display output is in YUV format.
   bool smart_panel = false;       //!< If the display config has smart panel.
-  uint64_t allowed_mode_switch = 0;
+  std::vector<uint32_t> allowed_mode_switch;
   uint32_t avr_step = 0;  //!< AVR Step fps of the display panel.
   bool fsc_panel = false;       //!< If the display panel is fsd panel
   uint32_t num_fsc_fields = 0;  //!< Panel's fsc fields if panel is fsc panel
@@ -421,6 +421,10 @@ enum PanelFeatureVendorServiceType {
   kTypeDemuraTnAodHandlerCtrl = 10,
   /* Setter: None */
   kTypeDemuraTnAgingSurfTransfer = 11,
+  /* Setter: None */
+  kTypeSwitchToDAC = 12,
+  /* Getter: char* */
+  kTypeGetDemuraTnAgingValue = 13,
   PanelFeatureVendorServiceTypeMax,
 };
 
@@ -1535,6 +1539,16 @@ class DisplayInterface {
    @return \link DisplayError \endlink
   */
   virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data) = 0;
+
+  /*! @brief Method to get DemuraTn aging value for R, G, B components
+
+   @param[in] type : operation type
+   @param[in] data : pointer to the data
+   @param[in] data_size : size of data
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size) = 0;
 
   /*! @brief Method to enable/disable COPR feature.
 

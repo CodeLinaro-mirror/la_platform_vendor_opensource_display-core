@@ -265,6 +265,8 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetABCMode(const string &mode_name) override;
   DisplayError SetAIScalerMode(uint32_t mode_id) override;
   DisplayError SetPanelFeatureConfig(int32_t type, void *data) override;
+  DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size) override;
+  DisplayError GetDemuraTnAgingValue(void *data, uint32_t size);
   DisplayError StartTvmServices();
   DisplayError StartService(TvmDispServiceManagerParams service);
   DisplayError ExportDemuraFiles();
@@ -368,6 +370,8 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetDemuraTnBatchId(void *data);
   DisplayError SetDemuraTnAodHandlerCtrl(void *data);
   DisplayError SetDemuraTnAgingSurfTransfer(void *data);
+  DisplayError SwitchToDAC(void *data);
+  void ClearDemuraMultiCfgParsers();
   int StartVmFileServiceAndExportFiles();
   int CreateServiceManager();
   int HandleTvmServiceEvent(const TvmServiceCbEvent &event);
@@ -426,6 +430,7 @@ class DisplayBuiltIn : public DisplayBase,
   const std::string kDemuraTnUserCtrlFile = "/mnt/vendor/persist/display/demuratn_user_ctrl";
   std::shared_ptr<DemuraTnCleanupIntf> demuratn_cleanup_intf_;
   bool demuratn_user_disabled_ = false;
+  DemuraFeatureType demuratn_override_feature_ = kFeatureMax;
   bool abc_enabled_ = false;
   bool abc_tvm_enabled_ = false;
   bool abc_prop_ = false;

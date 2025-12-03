@@ -534,6 +534,9 @@ public:
   virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data) {
     return kErrorNotSupported;
   }
+  virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t input_size) {
+    return kErrorNotSupported;
+  }
   DisplayError GetCachedActiveConfig(bool get_real_config, Config *config);
   virtual void TimeoutOnBuiltins(){};
   virtual void IdleTimeout(){};
@@ -542,6 +545,7 @@ public:
   virtual bool IsDmaModeIncompatible(LayerComposition composition) { return false; }
   virtual void SetPrivacyRegionsData(uint32_t layer_id, float corner_radius,
                                      const std::vector<PrivacyRegion> &regions);
+  virtual DisplayError ClearBuffersMappedToLayer(LayerId layer_id, const SnapHandle *layerBuffer);
 
  protected:
   static uint32_t throttling_refresh_rate_;

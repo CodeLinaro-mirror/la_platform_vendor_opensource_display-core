@@ -1019,6 +1019,7 @@ DisplayError SDMServices::SetDemuraState(SDMParcel *input_parcel,
 
   auto ret = cb_->SetDemuraState(disp_id, state, demura_idx);
   if (ret != kErrorNone) {
+    output_parcel->writeInt32(ret);
     return ret;
   }
 
@@ -1033,6 +1034,7 @@ DisplayError SDMServices::SetDemuraConfig(SDMParcel *input_parcel,
   int config = input_parcel->readInt32();
   auto ret = cb_->SetDemuraConfig(disp_id, config);
   if (ret != kErrorNone) {
+    output_parcel->writeInt32(ret);
     return ret;
   }
 
@@ -2015,6 +2017,23 @@ DisplayError SDMServices::SetPanelFeatureConfig(SDMParcel *input_parcel, SDMParc
   } else {
     output_parcel->writeInt32(ret);
   }
+  return ret;
+}
+
+DisplayError SDMServices::GetPanelFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel) {
+  int disp_id = input_parcel->readInt32();
+  int type = input_parcel->readInt32();
+  const uint32_t data_size = 64;
+  char data[data_size];
+
+  auto ret = cb_->GetPanelFeatureConfig(disp_id, type, reinterpret_cast<void *>(data), data_size);
+  if (ret != kErrorNone) {
+    DLOGE("Failed, ret %d", ret);
+    output_parcel->write("FAILED", strlen("FAILED"));
+    return kErrorUndefined;
+  }
+
+  output_parcel->write(data, strlen(data));
   return ret;
 }
 

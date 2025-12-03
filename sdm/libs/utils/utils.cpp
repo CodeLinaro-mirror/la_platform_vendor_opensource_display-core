@@ -195,7 +195,14 @@ const char *GetCompositionName(const LayerComposition &composition) {
 
 const char* GetSocName() {
   string soc_id;
-  std::ifstream in("/sys/devices/soc0/soc_id");
+  std::ifstream in;
+
+  if (access("/sys/devices/soc1/soc_id", F_OK) == 0) {
+    in.open("/sys/devices/soc1/soc_id");
+  } else {
+    in.open("/sys/devices/soc0/soc_id");
+  }
+
   if (!in.is_open()) {
     DLOGW("Cannot open soc id file.");
     return "";

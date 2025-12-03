@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
- */
+*/
 
 #ifndef __DEMURATN_CORE_UVM_INTF_H__
 #define __DEMURATN_CORE_UVM_INTF_H__
@@ -16,6 +17,27 @@ enum DemuraTnCoreState {
   kDemuraTnCoreReady,
   kDemuraTnCoreError,
   kDemuraTnCoreStateMax,
+};
+
+enum DemuraFeatureType {
+  kFeatureDUC,
+  kFeatureDAC,
+  kFeatureMax,
+};
+
+static inline const char *DemuraFeatureTypeToString(DemuraFeatureType type) {
+  switch (type) {
+    case kFeatureDAC:
+      return "DAC";
+    case kFeatureDUC:
+      return "DUC";
+    default:
+      return "Unknown";
+  }
+}
+
+struct DemuraTnAgingValues {
+  float value[3];  // R, G, B components
 };
 
 enum DemuraTnCoreUvmParams {
@@ -39,6 +61,10 @@ enum DemuraTnCoreUvmParams {
   kDemuraTnCoreUvmParamAodHandlerCtrl,
   /* Setter: None  */
   kDemuraTnCoreUvmParamAgingSurfTransfer,
+  /* Getter/Setter: enum DemuraFeatureType */
+  kDemuraTnCoreUvmParamOverrideFeature,
+  /* Getter: DemuraTnAgingValues */
+  kDemuraTnCoreUvmParamAgingValues,
   kDemuraTnCoreUvmParamsMax = 2048,
   kDemuraTnCoreUvmPrivParamsStart = 2049,
   kDemuraTnCoreUvmPrivParamsEnd = 4096,
