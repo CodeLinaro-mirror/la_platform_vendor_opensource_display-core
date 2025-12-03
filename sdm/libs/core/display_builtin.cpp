@@ -662,7 +662,7 @@ void DisplayBuiltIn::UpdateQsyncConfig() {
   disp_layer_stack_->stack_info.common_info.hw_avr_info.step_enabled = avr_step_enabled_;
 
   DLOGV_IF(kTagDisplay, "display %d-%d update: %d mode: %d AVR Step state: %d", display_id_,
-           display_type_, disp_layer_stack_->stack_info.common_info.hw_avr_info.update, mode,
+           display_type_, disp_layer_stack_->stack_info.common_info.hw_avr_info.update.any(), mode,
            avr_step_enabled_);
 
   // Store active mode.
@@ -1084,7 +1084,7 @@ DisplayError DisplayBuiltIn::SetupABC() {
     info.prop_id = kPanelFeatureDemuraPanelId;
     ret = prop_intf_->GetPanelFeature(&info);
     if (ret) {
-      DLOGE("Failed to get panel id, error = %d", ret);
+      DLOGE("Failed to get panel id, error = %lu", ret);
       return kErrorUndefined;
     }
   }
@@ -3553,7 +3553,7 @@ void DisplayIPCVmCallbackImpl::ExportHFCBuffer() {
   export_buf_in_params->panel_id = panel_id_;
   export_buf_in_params->mem_handle = buffer_info_hfc_.alloc_buffer_info.mem_handle;
 
-  DLOGI("Allocated hfc buffer mem_handle %d size %d panel id :%x", export_buf_in_params->mem_handle,
+  DLOGI("Allocated hfc buffer mem_handle %ld size %d panel id :%lx", export_buf_in_params->mem_handle,
         export_buf_in_params->size, export_buf_in_params->panel_id);
   if ((ret = ipc_intf_->SetParameter(kIpcParamSetHFCBuffer, in))) {
     DLOGE("Failed to export demura buffers, error = %d", ret);
@@ -4277,7 +4277,7 @@ DisplayError DisplayBuiltIn::SetABCState(bool state) {
 
   // Enable or Disable ABC
   if (SetDemuraIntfStatus(state)) {
-    DLOGE("Failed to set demura status to %s on Display %d, ret = %d", ret,
+    DLOGE("Failed to set demura status to %d on Display %s, ret = %d", ret,
           state ? "true" : "false", display_id_);
     return kErrorUndefined;
   }
