@@ -455,6 +455,9 @@ void HWPeripheralDRM::ResetDestScalarCache() {
       dest_scalar_cache_[j] = {};
     }
   }
+}
+
+void HWPeripheralDRM::ResetAIScalarCache() {
 #ifndef TARGET_INCLUDES_NEO
   if (ai_scaler_blocks_used_ > 0) {
     for (uint32_t j = 0; j < ai_scaler_cache_.size(); j++) {
@@ -650,6 +653,7 @@ DisplayError HWPeripheralDRM::Flush(HWLayersInfo *hw_layers_info) {
     SetTUIState();
   }
   ResetDestScalarCache();
+  ResetAIScalarCache();
   return kErrorNone;
 }
 
