@@ -101,6 +101,7 @@
 #define QDCM_PCC_TRANS_PROP                  DISPLAY_PROP("qdcm.pcc_for_trans")
 #define QDCM_DIAGONAL_MATRIXMODE_PROP        DISPLAY_PROP("qdcm.diagonal_matrix_mode")
 #define QDCM_MODE_COMBINE_PROP               DISPLAY_PROP("qdcm.mode_combine")
+#define QDCM_OTC_CALIB_ENABLE_PROP           DISPLAY_PROP("qdcm.otc.enable")
 #define DISABLE_STC_DIMMING_PROP             DISPLAY_PROP("disable_stc_dimming")
 #define PREFER_MULTIRECT_PROP                DISPLAY_PROP("prefer_multirect")
 #define ENABLE_QDCM_COLORMODES_ON_EXTERNAL   DISPLAY_PROP("qdcm.enable_colormodes_on_external")
