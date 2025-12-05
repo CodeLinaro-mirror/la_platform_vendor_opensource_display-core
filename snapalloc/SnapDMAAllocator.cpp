@@ -1,5 +1,7 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include "SnapDMAAllocator.h"
 
@@ -13,6 +15,7 @@
 
 #include "SnapTypes.h"
 #include "SnapUtils.h"
+#include "Debug.h"
 
 namespace snapalloc {
 
@@ -28,6 +31,7 @@ SnapDMAAllocator *SnapDMAAllocator::GetInstance() {
 
   if (instance_ == nullptr) {
     instance_ = new SnapDMAAllocator();
+    instance_->GetCameraPreviewPerms();
   }
   return instance_;
 }
@@ -135,8 +139,14 @@ Error SnapDMAAllocator::SecureMemPerms(AllocData *ad) {
 
   for (auto const &vm_name : ad->vm_names) {
     VmHandle handle = vmmem->FindVmByName(vm_name);
-    if (vm_name == "qcom,cp_sec_display" || vm_name == "qcom,cp_camera_preview") {
+    if (vm_name == "qcom,cp_sec_display") {
       vm_perms.push_back(std::make_pair(handle, VMMEM_READ));
+    } else if (vm_name == "qcom,cp_camera_preview") {
+      if (allow_camera_preview_write_) {
+        vm_perms.push_back(std::make_pair(handle, VMMEM_READ | VMMEM_WRITE));
+      } else {
+        vm_perms.push_back(std::make_pair(handle, VMMEM_READ));
+      }
     } else {
       vm_perms.push_back(std::make_pair(handle, VMMEM_READ | VMMEM_WRITE));
     }
@@ -363,6 +373,12 @@ bool SnapDMAAllocator::CSFEnabled() {
   }
 #endif
   return false;
+}
+
+void SnapDMAAllocator::GetCameraPreviewPerms() {
+  int value = 0;
+  Debug::GetInstance()->GetProperty(ALLOW_CAMERA_PREVIEW_WRITE, &value);
+  allow_camera_preview_write_ = (value == 1);
 }
 
 }  // namespace snapalloc

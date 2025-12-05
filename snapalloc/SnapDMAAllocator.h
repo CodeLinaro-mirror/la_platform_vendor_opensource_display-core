@@ -1,5 +1,7 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __SNAP_DMA_ALLOCATOR_H__
 #define __SNAP_DMA_ALLOCATOR_H__
@@ -72,6 +74,8 @@ class SnapDMAAllocator : public ISnapMemAllocBackend {
   MemBuf *mem_buf_ = nullptr;
   void *mem_utils_lib_ = {};
   CreateMemBufInterface CreateMemBuf_ = nullptr;
+  void GetCameraPreviewPerms();
+  bool allow_camera_preview_write_ = false;
   DestroyMemBufInterface DestroyMemBuf_ = nullptr;
   bool movable_heap_system_available_ = false;
 };
