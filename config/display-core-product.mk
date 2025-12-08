@@ -40,8 +40,9 @@ endif
 #QDCM calibration json file for nt37802 video PSR amoled VHM panels
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_nt37802_video_PSR_amoled_VHM_120hz_dsi_panel_with_DSC.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_nt37802_video_PSR_amoled_VHM_120hz_dsi_panel_with_DSC.json
 
-#QDCM calibration json file for RaonTech panel
+#QDCM calibration json file for RaonTech panels
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_RaonTech_Non-FSC_mode_video_1440x1440@60_mode_dsi_panel.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_RaonTech_Non-FSC_mode_video_1440x1440@60_mode_dsi_panel.json
+PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_RaonTech_RDP340x_LCoS_RGB_video_mode_1200x1200_90Hz_dual_dsi_panel.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_RaonTech_RDP340x_LCoS_RGB_video_mode_1200x1200_90Hz_dual_dsi_panel.json
 
 #QDCM calibration json file for generic panel on Hamoa target
 ifeq ($(TARGET_BOARD_PLATFORM),hamoa)
