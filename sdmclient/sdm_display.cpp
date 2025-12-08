@@ -1607,6 +1607,7 @@ DisplayError SDMDisplay::CECMessage(char *message) {
 }
 
 DisplayError SDMDisplay::HandleEvent(DisplayEvent event) {
+  DTRACE_SCOPED();
   switch (event) {
   case kPanelDeadEvent:
   case kDisplayPowerResetEvent: {
@@ -1649,6 +1650,18 @@ DisplayError SDMDisplay::HandleEvent(DisplayEvent event) {
   case kIdleTimeout:
     ReqPerfHintRelease();
     break;
+  case kSsrStart: {
+    DLOGI("Set Display Pause state!");
+    display_paused_ = true;
+    display_pause_pending_ = true;
+    event_handler_->PerformSubsystemRestart(true);
+  } break;
+  case kSsrEnd: {
+    event_handler_->PerformSubsystemRestart(false);
+    DLOGI("Reset Display Pause state!");
+    display_pause_pending_ = false;
+    display_paused_ = false;
+  } break;
   default:
     DLOGW("Unknown event: %d", event);
     break;
@@ -4475,6 +4488,10 @@ DisplayError SDMDisplay::ClearBuffersMappedToLayer(LayerId layer_id,
     }
   }
   return kErrorNone;
+}
+
+bool SDMDisplay::IsEPTSupported() {
+  return display_intf_->IsEPTSupported();
 }
 
 }  // namespace sdm

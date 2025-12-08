@@ -545,6 +545,8 @@ public:
   virtual void SetPrivacyRegionsData(uint32_t layer_id, float corner_radius,
                                      const std::vector<PrivacyRegion> &regions);
   virtual DisplayError ClearBuffersMappedToLayer(LayerId layer_id, const SnapHandle *layerBuffer);
+  virtual DisplayError SetPoseConfig(void *buffer) { return kErrorNotSupported; }
+  virtual bool IsEPTSupported();
 
  protected:
   static uint32_t throttling_refresh_rate_;

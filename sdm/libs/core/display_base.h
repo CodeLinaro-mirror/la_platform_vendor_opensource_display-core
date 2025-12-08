@@ -331,6 +331,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config) {
     return kErrorNotSupported;
   }
+  virtual DisplayError SetPoseConfig(const LayerBuffer &buffer) { return kErrorNotSupported; }
+  virtual bool IsEPTSupported();
 
  protected:
   struct DisplayMutex {
@@ -552,6 +554,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   int rgba_split_enable_ = false;
   bool mixer_resolution_updated_ = false;
   bool primary_commit_needed_ = true;
+  bool is_ssr_active_ = false;
 
  private:
   // Max tolerable power-state-change wait-times in milliseconds.
@@ -581,6 +584,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   uint32_t GetMixerCountFromTopology(HWTopology topology);
   void PerformSelfRefresh(uint64_t srEPT);
   std::chrono::system_clock::time_point WaitUntilForSelfRefresh(uint64_t *srEPT);
+  DisplayError HandleCommitDuringSSR();
 
   unsigned int rc_cached_res_width_ = 0;
   unsigned int rc_cached_res_height_ = 0;

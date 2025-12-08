@@ -95,6 +95,7 @@ class DisplayNull : public DisplayInterface {
     return kErrorNotSupported;
   }
   virtual bool IsDpuDmaModeEnabled() { return false; }
+  virtual bool IsEPTSupported() { return false; }
 
   MAKE_NO_OP(CommitOrPrepare(LayerStack *))
   MAKE_NO_OP(PrePrepare(LayerStack *))
@@ -200,6 +201,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(SetRGBASplit(int enable));
   MAKE_NO_OP(SetClientTargetCapability(const std::bitset<kClientCapabilityMax> &));
   MAKE_NO_OP(SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config))
+  MAKE_NO_OP(SetPoseConfig(const LayerBuffer &buffer))
 
  protected:
   DisplayConfigVariableInfo default_variable_config_ = {};

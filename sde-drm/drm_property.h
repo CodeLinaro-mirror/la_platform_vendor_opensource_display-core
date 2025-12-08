@@ -314,6 +314,7 @@ enum struct DRMProperty {
   DISTORT_RESOLUTION,
   LAYER_GAMMA,
   REPROJ_MODE,
+  REPROJ_POSE_FB,
 
   // Insert above
   MAX

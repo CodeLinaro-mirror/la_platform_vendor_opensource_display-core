@@ -513,6 +513,7 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
   string cac_version = "cac_version=";
   string ddr_version = "DDR version=";
   string ai_scaler_count = "ai_scaler_count=";
+  string is_udc_supported = "is_udc_supported=";
 
   while (std::getline(stream, line)) {
     if (line.find(max_blendstages) != string::npos) {
@@ -642,6 +643,7 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
       crtc_info_.demura_count = std::stoi(string(line, demura_count.length()));
     } else if (line.find(abc_count) != string::npos) {
       crtc_info_.abc_count = std::stoi(string(line, abc_count.length()));
+      crtc_info_.is_udc_supported = (crtc_info_.abc_count > 0) ? true : false;
     } else if (line.find(dspp_count) != string::npos) {
       crtc_info_.dspp_count = std::stoi(string(line, dspp_count.length()));
     } else if (line.find(skip_inline_rot_threshold) != string::npos) {
@@ -669,6 +671,8 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
       }
     } else if (line.find(ai_scaler_count) != string::npos) {
       crtc_info_.ai_scaler_count = std::stoi(string(line, ai_scaler_count.length()));
+    } else if (line.find(is_udc_supported) != string::npos) {
+      crtc_info_.is_udc_supported = std::stoi(string(line, is_udc_supported.length()));
     }
   }
   drmModeFreePropertyBlob(blob);

@@ -330,6 +330,7 @@ DisplayError HWInfoDRM::GetHWResourceInfo(HWResourceInfo *hw_resource) {
   DLOGI("MaxSDEClock = %d Hz", hw_resource->max_sde_clk);
   DLOGI("Demura Count = %" PRIu32, hw_resource->demura_count);
   DLOGI("ABC Count = %" PRIu32, hw_resource->abc_count);
+  DLOGI("Is Udc Supported = %d", hw_resource->is_udc_supported);
   DLOGI("DSPP Count = %" PRIu32, hw_resource->dspp_count);
   DLOGI("Clock Fudge Factor = %f", hw_resource->clk_fudge_factor);
   DLOGI("Prefill factors:");
@@ -382,6 +383,7 @@ void HWInfoDRM::GetSystemInfo(HWResourceInfo *hw_resource) {
   hw_resource->has_micro_idle = info.has_micro_idle;
   hw_resource->demura_count = info.demura_count;
   hw_resource->abc_count = info.abc_count;
+  hw_resource->is_udc_supported = info.is_udc_supported;
   hw_resource->dspp_count = info.dspp_count;
   hw_resource->skip_inline_rot_threshold = info.skip_inline_rot_threshold;
   hw_resource->has_noise_layer = info.has_noise_layer;

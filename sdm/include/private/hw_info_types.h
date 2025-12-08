@@ -500,6 +500,7 @@ struct HWResourceInfo {
   std::vector<LayerBufferFormat> cac_supported_formats;
   bool has_cesta = false;
   uint32_t hw_ai_scaler_count = 0;
+  bool is_udc_supported = 0;
 };
 
 struct HWSplitInfo {
@@ -829,6 +830,7 @@ struct HWAIScalerData {
   uint32_t mode_id;
   uint32_t param[AI_SCALER_PARAM_LEN];
   bool is_param_valid = false;
+  uint32_t psm = 0;
 };
 
 struct HWAIScalerInfo {
@@ -1155,6 +1157,9 @@ struct HWLayersInfo {
                                        //!< Pointer to the buffer where composed buffer would be
                                        //!< rendered for virtual displays.
                                        //!< NOTE: This field applies to a virtual display only.
+  std::shared_ptr<LayerBuffer> pose_buffer = nullptr;
+                                     //!< Pointer to the buffer containing pose buffer info.
+                                     //!< NOTE: This field applies to a reprojection display only.
   vector<std::shared_ptr<LayerBuffer>> reprojection_output_buffers = {};
                                        //!< array of the buffer where LSR composed buffer
                                        //!< would be rendered. Which will be later used in
@@ -1171,6 +1176,7 @@ struct HWLayersInfo {
   bool cwb_present = false;  // Indicates there is cwb layer or not
   bool lower_fps = false;  // This field hints to lower the fps in case of idle fallback
   bool iwe_enabled = false;
+  bool lsr_commit = false;
   HWDNSCInfo dnsc_cfg = {};
   SelfRefreshState self_refresh_state = kSelfRefreshNone;
   BufferInfo dummy_loopback_cac_info = {};
@@ -1303,6 +1309,12 @@ enum CwbClient {
   kCwbClientIdleFallback,
   kCwbClientMax,
 };
+
+enum SSREventType {
+  kSSRStart = 0,
+  kSSREnd = 1,
+};
+
 #define CONN_ID_SIZE 24
 #define CONN_1_SHIFT_BITS 12
 #define CONN_BIT_MASK 0x000FFFFFF

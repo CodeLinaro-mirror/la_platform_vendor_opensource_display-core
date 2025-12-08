@@ -49,6 +49,7 @@ public:
  virtual Display GetVsyncSource() = 0;
  virtual bool VsyncCallbackRegistered() = 0;
  virtual int NotifyIdleStatus(bool idle_status) = 0;
+ virtual void PerformSubsystemRestart(bool start) = 0;
 
 protected:
   virtual ~SDMDisplayEventHandler() {}

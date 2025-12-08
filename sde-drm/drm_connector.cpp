@@ -1184,6 +1184,10 @@ int DRMConnector::GetInfo(DRMConnectorInfo *info) {
     ParseCapabilities(props->prop_values[index], &info->panel_id);
   }
 
+  if (!prop_mgr_.IsPropertyAvailable(DRMProperty::EPT)) {
+    info->is_ept_supported = false;
+  }
+
   drmModeFreeObjectProperties(props);
 
   return 0;
@@ -1897,6 +1901,17 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_TILE_H),
                                height);
       DRM_LOGD("Connector %d: REPROJ_TILE_W REPROJ_TILE_H set successfuly", obj_id);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_POSE_FB_ID: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_POSE_FB)) {
+        return;
+      }
+
+      uint32_t fb_id = va_arg(args, uint32_t);
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_POSE_FB),
+                               fb_id);
+      DRM_LOGD("Connector %d: Setting  reprojection pose fb id %d", obj_id, fb_id);
     } break;
 
     case DRMOps::CONNECTOR_SET_REPROJ_MODE: {

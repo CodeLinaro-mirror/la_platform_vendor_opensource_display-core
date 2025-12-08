@@ -318,6 +318,7 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "reproj_mode") { return DRMProperty::REPROJ_MODE; }
   if (name == "reproj_to_lrgb_left") { return DRMProperty::REPROJ_TO_LRGB_LEFT; }
   if (name == "reproj_to_lrgb_right") { return DRMProperty::REPROJ_TO_LRGB_RIGHT; }
+  if (name == "reproj_pose_fb") { return DRMProperty::REPROJ_POSE_FB; }
 
   return DRMProperty::INVALID;
 }

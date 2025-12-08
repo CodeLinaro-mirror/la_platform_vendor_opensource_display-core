@@ -161,6 +161,8 @@ enum DisplayEvent {
   kPostIdleTimeout,         // Event triggered after entering idle.
   kVmReleaseDone,           // Event triggered after releasing the mdp hw to secondary vm.
   kVmReclaimDone,           // Event triggered after acquiring the mdp hw from secondary vm.
+  kSsrStart,                // Event triggered at the start of subsystem restart(SSR).
+  kSsrEnd,                  // Event triggered at the end of subsystem restart (SSR).
 };
 
 /*! @brief This enum represents the secure events received by Display HAL. */
@@ -1644,6 +1646,20 @@ class DisplayInterface {
   */
   virtual DisplayError SetDisplayDeviceConfig(
       const SDMDisplayDeviceConfig &display_device_config) = 0;
+
+  /*! @brief Method to set pose configuration.
+
+    @param[in] buffer: \link LayerBuffer \endlink
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetPoseConfig(const LayerBuffer &buffer) = 0;
+
+  /*! @brief Method to check if EPT is supported by the display.
+
+    @return \link bool \endlink
+  */
+  virtual bool IsEPTSupported() = 0;
 
  protected:
   virtual ~DisplayInterface() { }

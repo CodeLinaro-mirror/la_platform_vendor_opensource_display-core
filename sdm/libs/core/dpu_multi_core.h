@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -83,6 +83,8 @@ class DPUMultiCore : public DPUCoreMux {
   DisplayError SetPPConfig(void *payload, size_t size);
   DisplayError GetFbConfig(uint32_t width, uint32_t height, DisplayDeviceContext *device_ctx,
                            DisplayClientContext *client_ctx);
+  void SetSSRState(bool active);
+  bool IsEPTSupported();
   ~DPUMultiCore() {}
 
  private:
