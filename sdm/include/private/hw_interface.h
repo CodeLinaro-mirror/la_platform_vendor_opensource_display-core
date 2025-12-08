@@ -232,6 +232,7 @@ class HWInterface {
   virtual DisplayError SetReprojectionConfig(
       const struct ReprojectionConfig &reprojection_config) = 0;
   virtual void SetSSRState(bool active) = 0;
+  virtual bool IsEPTSupported() = 0;
 
  protected:
   virtual ~HWInterface() { }

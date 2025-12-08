@@ -1655,6 +1655,12 @@ class DisplayInterface {
   */
   virtual DisplayError SetPoseConfig(const LayerBuffer &buffer) = 0;
 
+  /*! @brief Method to check if EPT is supported by the display.
+
+    @return \link bool \endlink
+  */
+  virtual bool IsEPTSupported() = 0;
+
  protected:
   virtual ~DisplayInterface() { }
 };

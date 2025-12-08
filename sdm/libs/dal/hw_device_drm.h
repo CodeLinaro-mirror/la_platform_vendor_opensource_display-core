@@ -213,6 +213,7 @@ class HWDeviceDRM : public HWInterface {
     return kErrorNone;
   }
   virtual void SetSSRState(bool active);
+  virtual bool IsEPTSupported();
 
   enum {
     kHWEventVSync,

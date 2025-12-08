@@ -4490,4 +4490,8 @@ DisplayError SDMDisplay::ClearBuffersMappedToLayer(LayerId layer_id,
   return kErrorNone;
 }
 
+bool SDMDisplay::IsEPTSupported() {
+  return display_intf_->IsEPTSupported();
+}
+
 }  // namespace sdm

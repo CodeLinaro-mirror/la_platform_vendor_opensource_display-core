@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -378,6 +378,10 @@ DisplayError DPUSingleCore::GetFbConfig(uint32_t width, uint32_t height,
 
 void DPUSingleCore::SetSSRState(bool active) {
   hw_intf_->SetSSRState(active);
+}
+
+bool DPUSingleCore::IsEPTSupported() {
+  return hw_intf_->IsEPTSupported();
 }
 
 }  // namespace sdm

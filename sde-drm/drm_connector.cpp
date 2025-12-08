@@ -1184,6 +1184,10 @@ int DRMConnector::GetInfo(DRMConnectorInfo *info) {
     ParseCapabilities(props->prop_values[index], &info->panel_id);
   }
 
+  if (!prop_mgr_.IsPropertyAvailable(DRMProperty::EPT)) {
+    info->is_ept_supported = false;
+  }
+
   drmModeFreeObjectProperties(props);
 
   return 0;

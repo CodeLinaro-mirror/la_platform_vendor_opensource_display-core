@@ -4482,4 +4482,8 @@ void HWDeviceDRM::SetSSRState(bool active) {
   is_ssr_active_ = active;
 }
 
+bool HWDeviceDRM::IsEPTSupported() {
+  return connector_info_.is_ept_supported;
+}
+
 }  // namespace sdm

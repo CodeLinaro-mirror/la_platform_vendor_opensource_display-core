@@ -1293,6 +1293,7 @@ struct DRMConnectorInfo {
   bool dpu_dma_enabled = false;
   bool emsync_switch_enabled = false;
   bool is_privacy_layers_supported = false;
+  bool is_ept_supported = true;
 };
 
 // All DRM Connectors as map<Connector_id , connector_info>
