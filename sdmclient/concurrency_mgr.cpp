@@ -2730,7 +2730,7 @@ DisplayError ConcurrencyMgr::SetABCState(uint64_t display_id, bool state) {
     return kErrorResources;
   }
 
-  SCOPE_LOCK(locker_[disp_idx]);
+  SEQUENCE_WAIT_SCOPE_LOCK(locker_[disp_idx]);
   if (!sdm_display_[disp_idx]) {
     DLOGW("Display %" PRIu64 " is not connected.", display_id);
     return kErrorResources;
@@ -2746,7 +2746,7 @@ DisplayError ConcurrencyMgr::SetABCReconfig(uint64_t display_id) {
     return kErrorResources;
   }
 
-  SCOPE_LOCK(locker_[disp_idx]);
+  SEQUENCE_WAIT_SCOPE_LOCK(locker_[disp_idx]);
   if (!sdm_display_[disp_idx]) {
     DLOGW("Display %" PRIu64 " is not connected.", display_id);
     return kErrorResources;
@@ -2762,7 +2762,7 @@ DisplayError ConcurrencyMgr::SetABCMode(uint64_t display_id, string mode_name) {
     return kErrorResources;
   }
 
-  SCOPE_LOCK(locker_[disp_idx]);
+  SEQUENCE_WAIT_SCOPE_LOCK(locker_[disp_idx]);
   if (!sdm_display_[disp_idx]) {
     DLOGW("Display %" PRIu64 " is not connected.", display_id);
     return kErrorResources;
