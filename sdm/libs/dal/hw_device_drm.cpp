@@ -28,7 +28,7 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  *
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
@@ -91,6 +91,11 @@
 #ifndef DRM_FORMAT_MOD_QCOM_LOSSY_2_1
 #define DRM_FORMAT_MOD_QCOM_LOSSY_2_1 fourcc_mod_code(QCOM, 0x200)
 #endif
+
+#ifndef PROPERTY_VALUE_MAX
+#define PROPERTY_VALUE_MAX 255
+#endif
+
 
 #define DEST_SCALAR_OVERFETCH_SIZE 5
 
@@ -1007,6 +1012,8 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
     hw_panel_info_.partial_update = connector_info_.modes[index].num_roi;
   }
 
+  hw_panel_info_.is_rc_supported = connector_info_.rc_enable;
+  hw_panel_info_.rc_offset = connector_info_.rc_offset;
   hw_panel_info_.has_ai_scaler = enable_ai_scaler;
   hw_panel_info_.left_roi_count = UINT32(connector_info_.modes[index].num_roi);
   hw_panel_info_.right_roi_count = UINT32(connector_info_.modes[index].num_roi);
@@ -1140,6 +1147,8 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
   DLOGI_IF(kTagDriverConfig, "Panel Maximum Transfer time = %d us",
            hw_panel_info_.transfer_time_us_max);
   DLOGI_IF(kTagDriverConfig, "Dynamic Bit Clk Support = %d", hw_panel_info_.dyn_bitclk_support);
+  DLOGI_IF(kTagDriverConfig, "RC Support = %d RC offset = %d", hw_panel_info_.is_rc_supported,
+           hw_panel_info_.rc_offset);
 }
 
 DisplayError HWDeviceDRM::GetDisplayIdentificationData(uint8_t *out_port, uint32_t *out_data_size,

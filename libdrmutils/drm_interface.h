@@ -28,9 +28,9 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted (subject to the limitations in the
@@ -44,7 +44,7 @@
  *      disclaimer in the documentation and/or other materials provided
  *      with the distribution.
  *
- *    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+ *    * Neither the name of Qualcomm Technologies, Inc. nor the names of its
  *      contributors may be used to endorse or promote products derived
  *      from this software without specific prior written permission.
  *
@@ -1080,6 +1080,8 @@ struct DRMConnectorInfo {
   bool dpu_ctl_op_sync = false;
   bool has_cac_loopback = false;
   DMSType dms_type = DMSType::DMS_VID_DISABLED;
+  bool rc_enable;
+  uint32_t rc_offset;
 };
 
 // All DRM Connectors as map<Connector_id , connector_info>

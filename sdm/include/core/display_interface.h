@@ -23,8 +23,8 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -1537,6 +1537,12 @@ class DisplayInterface {
   virtual DisplayError ValidateExtendedDisplayResolutions(
       std::vector<std::pair<uint32_t, uint32_t>> ext_disp_res,
       std::vector<std::pair<uint32_t, uint32_t>> *fin_disp_res) = 0;
+
+ /*! @brief Method to check if display support RC.
+
+   @return \link RC supported value \endlink
+  */
+  virtual bool GetDisplayRcSupport() = 0;
 
  protected:
   virtual ~DisplayInterface() { }

@@ -588,12 +588,32 @@ ConcurrencyMgr::GetReleaseFences(Display display, uint32_t *out_num_elements,
                              out_num_elements, out_layers, out_fences);
 }
 
+bool ConcurrencyMgr::GetDisplayRcSupport(Display display) {
+  bool output_support = false;
+
+  if (display >= kNumDisplays) {
+    return false;
+  }
+
+  if (!sdm_display_[display]) {
+    DLOGE("Expected valid sdm_display");
+    return false;
+  }
+
+  output_support =
+      sdm_display_[display]->GetDisplayRcSupport();
+  return output_support;
+}
+
 DisplayError ConcurrencyMgr::getDisplayDecorationSupport(Display display,
                                                          uint32_t *format,
                                                          uint32_t *alpha) {
   if (disable_get_screen_decorator_support_) {
     return kErrorNotSupported;
   }
+
+  if (!GetDisplayRcSupport(display))
+    return kErrorNotSupported;
 
   // ScreenDecoration layers supported even if RC HW is disabled since its
   // coming from framework and is independent of RC HW support.

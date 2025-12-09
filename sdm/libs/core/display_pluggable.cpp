@@ -173,6 +173,21 @@ DisplayError DisplayPluggable::Init() {
     }
   }
 
+  if (pf_factory_ && prop_intf_) {
+    // Get status of RC enablement property. Default RC is disabled.
+    int rc_prop_value = 0;
+    Debug::GetProperty(ENABLE_ROUNDED_CORNER, &rc_prop_value);
+
+    if (rc_prop_value && EnableRC() && client_ctx_.hw_panel_info.is_rc_supported) {
+      rc_enable_prop_ = true;
+    }
+  }
+
+  DLOGI("RC feature %s on %s for display %d-%d, is_rc_supported %d",
+         rc_enable_prop_ ? "enabled" : "disabled",
+         client_ctx_.hw_panel_info.is_primary_panel ? "primary" : "secondary",
+         display_id_, display_type_, client_ctx_.hw_panel_info.is_rc_supported);
+
   current_refresh_rate_ = client_ctx_.hw_panel_info.max_fps;
 
   int value = 0;
@@ -192,6 +207,9 @@ DisplayError DisplayPluggable::Init() {
 
 DisplayError DisplayPluggable::Deinit() {
   ClientLock lock(disp_mutex_);
+
+  for (auto &res_info : hw_resource_info_)
+    hw_rc_blocks_in_use_[res_info.core_id] -= rc_blocks_reserved_;
 
   event_proxy_info_.Deinit();
   return DisplayBase::Deinit();

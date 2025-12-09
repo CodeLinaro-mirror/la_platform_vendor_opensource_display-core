@@ -592,6 +592,7 @@ private:
   DisplayError getDisplayMaxBrightness(uint32_t display,
                                        uint32_t *max_brightness_level);
   void PostInit();
+  bool GetDisplayRcSupport(Display display);
 
 #ifdef PROFILE_COVERAGE_DATA
   DisplayError DumpCodeCoverage(const SDMParcel *input_parcel);
