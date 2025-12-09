@@ -28,8 +28,8 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -150,6 +150,8 @@
 // RC
 #define ENABLE_ROUNDED_CORNER                DISPLAY_PROP("enable_rounded_corner")
 #define DISABLE_ROUNDED_CORNER_THREAD        DISPLAY_PROP("disable_rounded_corner_thread")
+#define ENABLE_PER_DISPLAY_RC_POLICY         DISPLAY_PROP("enable_per_display_rc_policy")
+
 // Disable A8 format Screen Decorator support
 #define DISABLE_GET_SCREEN_DECORATOR_SUPPORT DISPLAY_PROP("disable_get_screen_decorator_support")
 

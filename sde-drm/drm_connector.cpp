@@ -28,9 +28,9 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted (subject to the limitations in the
@@ -44,7 +44,7 @@
  *      disclaimer in the documentation and/or other materials provided
  *      with the distribution.
  *
- *    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+ *    * Neither the name of Qualcomm Technologies, Inc. nor the names of its
  *      contributors may be used to endorse or promote products derived
  *      from this software without specific prior written permission.
  *
@@ -683,6 +683,9 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
   const string dms_type = "dms_vid support=";
   const string has_cac_loopback = "has_cac_loopback=";
 
+  const string rc_enable = "rc enable=";
+  const string rc_offset = "rc offset=";
+
   while (std::getline(stream, line)) {
     if (line.find(pixel_formats) != string::npos) {
       vector<pair<uint32_t, uint64_t>> formats_supported;
@@ -738,6 +741,10 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
       } else if (string(line, dms_type.length()) == "dms-vid-non-seamless") {
         info->dms_type = DMSType::DMS_VID_NON_SEAMLESS;
       }
+    } else if (line.find(rc_enable) != string::npos) {
+      info->rc_enable = (string(line, rc_enable.length()) == "true");
+    } else if (line.find(rc_offset) != string::npos) {
+      info->rc_offset = std::stoi(string(line, rc_offset.length()));
     }
   }
 

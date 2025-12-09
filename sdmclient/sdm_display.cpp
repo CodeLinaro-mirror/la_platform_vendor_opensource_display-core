@@ -4160,4 +4160,9 @@ DisplayError SDMDisplay::GetParentConfig(Config *config) {
 
   return kErrorNotSupported;
 }
+
+bool SDMDisplay::GetDisplayRcSupport() {
+  return display_intf_->GetDisplayRcSupport();
+}
+
 }  // namespace sdm

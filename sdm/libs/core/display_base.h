@@ -393,6 +393,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError GetCoprStats(std::vector<int> *stats) { return kErrorNotSupported; }
   virtual DisplayError GetScalerCount(uint32_t *scaler_count) { return kErrorNotSupported; }
   void HandleSelfRefresh();
+  bool GetDisplayRcSupport();
 
  protected:
   struct DisplayMutex {
@@ -601,7 +602,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool cwb_active_ = false;
   DisplayClientContext client_ctx_ = {};
   DisplayDeviceContext device_ctx_;
-  static std::atomic<uint32_t> hw_rc_blocks_in_use_;
+  static std::atomic<uint32_t> hw_rc_blocks_in_use_[CORE_ID_SIZE_IN_BITS];
   uint32_t rc_blocks_reserved_ = 0;
   DynLib extension_lib_;
   bool ssrc_feature_enabled_ = false;

@@ -28,9 +28,9 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  *
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  *
  */
@@ -44,6 +44,7 @@
 #include "drm_encoder.h"
 #include "drm_manager.h"
 #include "drm_plane.h"
+#include "drm_panel_feature_mgr.h"
 
 using std::lock_guard;
 using std::mutex;
@@ -150,7 +151,7 @@ int DRMManager::Init(int drm_fd) {
   if (dpps_mgr_intf_)
     dpps_mgr_intf_->Init(fd_, resource);
 
-  panel_feature_mgr_intf_ = GetPanelFeatureManagerIntf();
+  panel_feature_mgr_intf_ = new DRMPanelFeatureMgr();
   if (!panel_feature_mgr_intf_) {
     DRM_LOGE("Failed to get Panel feature Mgr");
     return DRM_ERR_INVALID;

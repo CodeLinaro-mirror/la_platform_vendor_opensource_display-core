@@ -27,9 +27,9 @@
 * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 /*
- *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Changes from Qualcomm Technologies, Inc. are provided under the following license:
  *
- *  Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  Copyright (c) Qualcomm Technologies, Inc. All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted (subject to the limitations in the
@@ -43,7 +43,7 @@
  *        disclaimer in the documentation and/or other materials provided
  *        with the distribution.
  *
- *      * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+ *      * Neither the name of Qualcomm Technologies, Inc. nor the names of its
  *        contributors may be used to endorse or promote products derived
  *        from this software without specific prior written permission.
  *
@@ -163,6 +163,7 @@ DisplayError HWTVDRM::Init() {
   }
 
   InitDestScaler();
+  CreatePanelFeaturePropertyMap();
 
   return kErrorNone;
 }
@@ -699,6 +700,34 @@ DisplayError HWTVDRM::PowerOn(const HWQosData &qos_data, SyncPoints *sync_points
   }
 
   return HWDeviceDRM::PowerOn(qos_data, sync_points);
+}
+
+void HWTVDRM::CreatePanelFeaturePropertyMap() {
+  panel_feature_property_map_.clear();
+  panel_feature_property_map_[kPanelFeatureSPRInitCfg] = sde_drm::kDRMPanelFeatureSPRInit;
+  panel_feature_property_map_[kPanelFeatureSPRPackType] = sde_drm::kDRMPanelFeatureSPRPackType;
+  panel_feature_property_map_[kPanelFeatureSPRPackTypeMode] = sde_drm::kDRMPanelFeatureSPRPackTypeMode;
+  panel_feature_property_map_[kPanelFeatureDemuraInitCfg] = sde_drm::kDRMPanelFeatureDemuraInit;
+  panel_feature_property_map_[kPanelFeatureDsppIndex] = sde_drm::kDRMPanelFeatureDsppIndex;
+  panel_feature_property_map_[kPanelFeatureDsppSPRInfo] = sde_drm::kDRMPanelFeatureDsppSPRInfo;
+  panel_feature_property_map_[kPanelFeatureDsppRCInfo] = sde_drm::kDRMPanelFeatureDsppRCInfo;
+  panel_feature_property_map_[kPanelFeatureDsppDemuraInfo] =
+               sde_drm::kDRMPanelFeatureDsppDemuraInfo;
+  panel_feature_property_map_[kPanelFeatureRCInitCfg] = sde_drm::kDRMPanelFeatureRCInit;
+  panel_feature_property_map_[kPanelFeatureDemuraPanelId] = sde_drm::kDRMPanelFeaturePanelId;
+  panel_feature_property_map_[kPanelFeatureSPRUDCCfg] = sde_drm::kDRMPanelFeatureSPRUDC;
+  panel_feature_property_map_[kPanelFeatureDemuraCfg0Param2] =
+                 sde_drm::kDRMPanelFeatureDemuraCfg0Param2;
+  panel_feature_property_map_[kPanelFeatureAiqeSsrcConfig] =
+                 sde_drm::kDRMPanelFeatureAiqeSSRCConfig;
+  panel_feature_property_map_[kPanelFeatureAiqeSsrcData] = sde_drm::kDRMPanelFeatureAiqeSSRCData;
+  panel_feature_property_map_[kPanelFeatureAIScalerCfg] = sde_drm::kDRMPanelFeatureAIScalerCfg;
+  panel_feature_property_map_[kPanelFeatureAiqeMdnie] = sde_drm::kDRMPanelFeatureAiqeMdnie;
+  panel_feature_property_map_[kPanelFeatureAiqeMdnieArt] = sde_drm::kDRMPanelFeatureAiqeMdnieArt;
+  panel_feature_property_map_[kPanelFeatureAiqeCopr] = sde_drm::kDRMPanelFeatureAiqeCopr;
+  panel_feature_property_map_[kPanelFeatureABCCfg] = sde_drm::kDRMPanelFeatureABC;
+  panel_feature_property_map_[kPanelFeatureDemuraBacklight] =
+                 sde_drm::kDRMPanelFeatureDemuraBacklight;
 }
 
 int HWTVDRM::GetPanelFeature(PanelFeaturePropertyInfo *feature_info) {

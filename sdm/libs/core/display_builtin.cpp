@@ -457,7 +457,9 @@ DisplayError DisplayBuiltIn::Deinit() {
     demura_dynamic_enabled_ = true;
 
     DeinitCWBBuffer();
-    hw_rc_blocks_in_use_ -= rc_blocks_reserved_;
+
+    for (auto &res_info : hw_resource_info_)
+      hw_rc_blocks_in_use_[res_info.core_id] -= rc_blocks_reserved_;
 
     if (service_manager_intf_) {
       service_manager_intf_->Deinit();

@@ -26,6 +26,11 @@
 * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *
 */
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __DRM_PANEL_FEATURE_MGR_INTF_H__
 #define __DRM_PANEL_FEATURE_MGR_INTF_H__
@@ -46,8 +51,6 @@ class DRMPanelFeatureMgrIntf {
   virtual void ResetPanelFeatures(drmModeAtomicReq *req, const DRMDisplayToken &token) = 0;
   virtual void MarkForNullCommit(const DRMDisplayToken &token, const DRMPanelFeatureID &id) = 0;
 };
-
-extern "C" DRMPanelFeatureMgrIntf *GetPanelFeatureManagerIntf();
 
 }  // namespace sde_drm
 

@@ -64,7 +64,7 @@ namespace sdm {
 
 #define ABC_LIBRARY_NAME "libabc.so"
 
-std::atomic<uint32_t> DisplayBase::hw_rc_blocks_in_use_(0);
+std::atomic<uint32_t> DisplayBase::hw_rc_blocks_in_use_[CORE_ID_SIZE_IN_BITS] = {0, 0, 0, 0, 0, 0, 0, 0};
 bool DisplayBase::display_power_reset_pending_ = false;
 bool DisplayBase::primary_active_ = false;
 Locker DisplayBase::display_power_reset_lock_;
@@ -670,6 +670,7 @@ DisplayError DisplayBase::InitRC() {
     input_cfg.display_xres = client_ctx_.display_attributes.x_pixels;
     input_cfg.display_yres = client_ctx_.display_attributes.y_pixels;
     input_cfg.max_mem_size = rc_total_mem_size;
+    input_cfg.rc_offset = client_ctx_.hw_panel_info.rc_offset;
 
     std::string panel_name = std::string(client_ctx_.hw_panel_info.panel_name);
     std::string::size_type pos;
@@ -1840,10 +1841,11 @@ bool DisplayBase::EnableRC() {
   } else if (kDualSplit == client_ctx_.mixer_attributes.split_type) {
     rc_blocks_reserved_ = 2;
   }
+
   for (auto &res_info : hw_resource_info_) {
-    if (res_info.rc_count >= (hw_rc_blocks_in_use_ + rc_blocks_reserved_)) {
+    if (res_info.rc_count >= (hw_rc_blocks_in_use_[res_info.core_id] + rc_blocks_reserved_)) {
       // Enough HW RC blocks available so update the static counter.
-      hw_rc_blocks_in_use_ += rc_blocks_reserved_;
+      hw_rc_blocks_in_use_[res_info.core_id] += rc_blocks_reserved_;
     } else {
       rc_blocks_reserved_ = 0;
     }
@@ -5252,6 +5254,19 @@ DisplayError DisplayBase::ValidateExtendedDisplayResolutions(
 
   *fin_disp_res = extended_res;
   return kErrorNone;
+}
+
+bool DisplayBase::GetDisplayRcSupport() {
+  int enable_per_display_rc_policy = 0;
+
+  Debug::Get()->GetProperty(ENABLE_PER_DISPLAY_RC_POLICY, &enable_per_display_rc_policy);
+
+  DLOGI("enable_per_display_rc_policy %d rc_support %d", enable_per_display_rc_policy,
+        client_ctx_.hw_panel_info.is_rc_supported);
+  if (enable_per_display_rc_policy)
+    return client_ctx_.hw_panel_info.is_rc_supported;
+  else
+    return true;
 }
 
 DisplayError EventProxyInfo::Init(const std::string &panel_name, DisplayInterface *intf,

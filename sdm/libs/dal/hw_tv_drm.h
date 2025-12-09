@@ -74,6 +74,7 @@ class HWTVDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   void SetDestScalarData(const DestScaleInfoMap dest_scale_info_map);
   void ResetDestScalarCache();
   void CacheDestScalarData();
+  void CreatePanelFeaturePropertyMap();
 
   DisplayError UpdateHDRMetaData(HWLayersInfo *hw_layers_info);
   void DumpHDRMetaData(HWHDRLayerInfo::HDROperation operation);
