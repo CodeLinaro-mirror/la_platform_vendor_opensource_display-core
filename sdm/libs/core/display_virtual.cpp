@@ -171,7 +171,7 @@ DisplayError DisplayVirtual::SetActiveConfig(DisplayConfigVariableInfo *variable
   if (set_max_lum_ != -1.0 || set_min_lum_ != -1.0) {
     client_ctx.hw_panel_info.peak_luminance = set_max_lum_;
     client_ctx.hw_panel_info.blackness_level = set_min_lum_;
-    DLOGI("set peak_luminance %f blackness_level %f for display %d-%d", display_id_,
+    DLOGI("set peak_luminance %d blackness_level %u for display %f-%f", display_id_,
           display_type_, client_ctx.hw_panel_info.peak_luminance,
           client_ctx.hw_panel_info.blackness_level);
   }

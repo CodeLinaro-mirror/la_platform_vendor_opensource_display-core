@@ -465,7 +465,7 @@ int HWDeviceDRM::Registry::CreateFbId(const LayerBuffer &buffer, std::vector<uin
     if (ret < 0) {
       DLOGE(
           "CreateFbId failed. width %d, height %d, format: %s, stride %u, "
-          "cac_color %d, usage %d error %d",
+          "cac_color %d, usage %lu error %d",
           layout.width, layout.height, GetFormatString(buf_info.format), layout.stride[0], color,
           buffer.usage, errno);
     }
@@ -1457,7 +1457,7 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   if (ret) {
     DLOGE(
         "Failed with error: %d, dynamic_fps=%d, seamless_mode_switch_=%d, vrefresh_=%d,"
-        "panel_mode_changed_=%d bit_clk_rate_=%d bpp_mode_changed_=%d",
+        "panel_mode_changed_=%d bit_clk_rate_=%lu bpp_mode_changed_=%d",
         ret, hw_panel_info_.dynamic_fps, seamless_mode_switch_, vrefresh_, panel_mode_changed_,
         bit_clk_rate_, bpp_mode_changed_);
     bpp_mode_changed_ = 0;
@@ -1646,7 +1646,7 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
       DestScaleInfoMap &dest_scale_info_map = hw_layers_info->dest_scale_info_map;
 
       if (dest_scale_info_map.size() && hw_layers_info->left_frame_roi.size() != 1) {
-        DLOGE("left_frame_roi size %d, only 1 ROI supported in PU+DS case",
+        DLOGE("left_frame_roi size %zu, only 1 ROI supported in PU+DS case",
               hw_layers_info->left_frame_roi.size());
       }
 
@@ -3220,7 +3220,7 @@ void HWDeviceDRM::SetUcscCsc(const HWUcscCsc &ucsc_csc, drm_msm_ucsc_csc *csc) {
   csc->cfg_param_0_len = UCSC_CSC_CFG0_PARAM_LEN;
   for (i = 0; i < csc->cfg_param_0_len; i++) {
     csc->cfg_param_0[i] = ucsc_csc.cfg_param_0[i];
-    DLOGV_IF(kTagDriverConfig, " UCSC csc[%d] = %lld", i, csc->cfg_param_0[i]);
+    DLOGV_IF(kTagDriverConfig, " UCSC csc[%d] = %u", i, csc->cfg_param_0[i]);
   }
   csc->cfg_param_1_len = UCSC_CSC_CFG1_PARAM_LEN;
   for (i = 0; i < csc->cfg_param_1_len; i++) {

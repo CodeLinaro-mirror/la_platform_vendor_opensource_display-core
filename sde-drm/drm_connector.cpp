@@ -661,7 +661,7 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
   fmt_str[blob->length] = '\0';
   stringstream stream(fmt_str);
   DRM_LOGI("stream str %s len %zu blob str %s len %d", stream.str().c_str(), stream.str().length(),
-           blob->data, blob->length);
+           (char *)blob->data, blob->length);
   string line = {};
   const string display_type = "display type=";
   const string panel_name = "panel name=";
@@ -785,7 +785,7 @@ void DRMConnector::ParseModeProperties(uint64_t blob_id, DRMConnectorInfo *info)
   fmt_str[blob->length] = '\0';
   stringstream stream(fmt_str);
   DRM_LOGI("stream str %s len %zu blob str %s len %d", stream.str().c_str(), stream.str().length(),
-           blob->data, blob->length);
+           (char *)blob->data, blob->length);
 
   string line = {};
   const string mode_name = "mode_name=";
@@ -1381,10 +1381,10 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::DSC_MODE);
       int ret = drmModeAtomicAddProperty(req, obj_id, prop_id, drm_compression_mode);
       if (ret < 0) {
-        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, compression_mode %d ret %d",
+        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, compression_mode %lu ret %d",
                  obj_id, prop_id, drm_compression_mode, ret);
       } else {
-        DRM_LOGD("Connector %d: Setting compression mode %d", obj_id, drm_compression_mode);
+        DRM_LOGD("Connector %d: Setting compression mode %lu", obj_id, drm_compression_mode);
       }
     } break;
 
@@ -1398,9 +1398,9 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       if (ret < 0) {
         DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, transfer_time %" PRIu64
                  " ret %d",
-                 obj_id, prop_id, drm_transfer_time, ret);
+                 obj_id, prop_id, (uint64_t)drm_transfer_time, ret);
       } else {
-        DRM_LOGD("Connector %d: Setting new transfer time %" PRIu64, obj_id, drm_transfer_time);
+        DRM_LOGD("Connector %d: Setting new transfer time %" PRIu64, obj_id, (uint64_t)drm_transfer_time);
       }
     } break;
 
@@ -1446,10 +1446,10 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::CACHE_STATE);
       int ret = drmModeAtomicAddProperty(req, obj_id, prop_id, cache_state);
       if (ret < 0) {
-        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, cache_state %d ret %d",
+        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, cache_state %lu ret %d",
                  obj_id, prop_id, cache_state, ret);
       } else {
-        DRM_LOGD("Connector %d: Setting cache state %d", obj_id, cache_state);
+        DRM_LOGD("Connector %d: Setting cache state %lu", obj_id, cache_state);
       }
     } break;
 
@@ -1461,10 +1461,10 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::EARLY_FENCE_LINE);
       int ret = drmModeAtomicAddProperty(req, obj_id, prop_id, early_fence_line);
       if (ret < 0) {
-        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, early_fence_line %d ret %d",
+        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, early_fence_line %lu ret %d",
                  obj_id, prop_id, early_fence_line, ret);
       } else {
-        DRM_LOGD("Connector %d: Setting early_fence_line %d", obj_id, early_fence_line);
+        DRM_LOGD("Connector %d: Setting early_fence_line %lu", obj_id, early_fence_line);
       }
     } break;
 
@@ -1495,10 +1495,10 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::WB_USAGE_TYPE);
       int ret = drmModeAtomicAddProperty(req, obj_id, prop_id, wb_usage_mode);
       if (ret < 0) {
-        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, wb_usage_mode %d ret %d",
+        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, wb_usage_mode %lu ret %d",
                  obj_id, prop_id, wb_usage_mode, ret);
       } else {
-        DRM_LOGD("Connector %d: Setting wb_usage_mode %d", obj_id, wb_usage_mode);
+        DRM_LOGD("Connector %d: Setting wb_usage_mode %lu", obj_id, wb_usage_mode);
       }
     } break;
 
