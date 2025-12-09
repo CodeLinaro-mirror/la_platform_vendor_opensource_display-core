@@ -48,6 +48,16 @@
 
 #include "display_base.h"
 
+#if defined(RT_SCHEDULE)
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include "amss/compresmgr_client_api.h"
+#ifdef __cplusplus
+}
+#endif
+#endif
+
 #define __CLASS__ "DisplayBase"
 
 namespace sdm {
@@ -1625,8 +1635,48 @@ void DisplayBase::CommitThread() {
 
   DLOGI("Commit thread entered. %d-%d", display_id_, display_type_);
 
+#if defined(RT_SCHEDULE)
+  CPUConfigReq_t  cpuConfigReq  = {0};
+  CPUConfigResp_t cpuConfigResp = {0};
+  pthread_t       self          = pthread_self();
+  std::string     procName      = "display";
+  std::string     thread_name   = "SDM_Commit_";
+  CompResmgrRet_e ret           = COMPRESMGR_RET_SUCCESS;
+  int             pthread_ret   = 0;
+  struct sched_param params;
+
+  memcpy(cpuConfigReq.procName, procName.c_str(), procName.length() + 1);
+  memcpy(cpuConfigReq.thrdGrpName, thread_name.c_str(), thread_name.length() + 1);
+
+  ret = CompResmgrGetCPUConfig(&cpuConfigReq, &cpuConfigResp);
+
+  if (COMPRESMGR_RET_SUCCESS == ret) {
+    memset((char *)&params, 0x00, sizeof(struct sched_param));
+    params.sched_priority = cpuConfigResp.priority;
+
+    DLOGI("Setting thread name to %s, thread ID: %lu, priority: %d, policy: %d",
+          thread_name.c_str(), static_cast<unsigned long>(self), cpuConfigResp.priority,
+          cpuConfigResp.schedPolicy);
+
+    pthread_ret = pthread_setname_np(self, thread_name.c_str());
+    if (0 != pthread_ret) {
+      DLOGE("pthread_setname_np: %s failed with ret = %d", thread_name.c_str(), pthread_ret);
+    }
+
+    pthread_ret = pthread_setschedparam(self, cpuConfigResp.schedPolicy, &params);
+    if (0 != pthread_ret) {
+      DLOGE("pthread_setschedparam: %s failed with ret = %d", thread_name.c_str(), pthread_ret);
+    } else {
+      DLOGI("pthread setschedparam successful for thread %s", thread_name.c_str());
+    }
+  } else {
+    DLOGE("CompResmgrGetCPUConfig: %s failed with ret = %d", thread_name.c_str(), ret);
+  }
+#else
   // Commit thread need to run with real time priority ie; similar to composer thread.
   SetRealTimePriority();
+  DLOGI("RT_SCHEDULE not defined, falling back to SetRealTimePriority()");
+#endif
 
   // Notify client thread that the thread has started listening to events.
   {

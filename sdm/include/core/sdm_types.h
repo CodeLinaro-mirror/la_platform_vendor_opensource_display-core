@@ -393,6 +393,14 @@ enum SDMRenderIntent {
   TONE_MAP_ENHANCE = 3
 };
 
+enum SDMHdrEotf {
+  kHdrEOTFInvalid = 0,
+  kHdrEOTFSDR = 0x1,
+  kHdrEOTFHdrLumRange = 0x2,
+  kHdrEOTFHDR10 = 0x4,
+  kHdrEOTFHLG = 0x8,
+};
+
 enum SDMPowerMode {
     POWER_MODE_OFF = 0,
     POWER_MODE_DOZE = 1,

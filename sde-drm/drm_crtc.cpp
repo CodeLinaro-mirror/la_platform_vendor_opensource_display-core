@@ -470,6 +470,7 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
   string cac_version = "cac_version=";
   string ddr_version = "DDR version=";
   string ai_scaler_count = "ai_scaler_count=";
+  string mixer_count = "mixer_count=";
 
   while (std::getline(stream, line)) {
     if (line.find(max_blendstages) != string::npos) {
@@ -623,6 +624,8 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
       }
     } else if (line.find(ai_scaler_count) != string::npos) {
       crtc_info_.ai_scaler_count = std::stoi(string(line, ai_scaler_count.length()));
+    } else if (line.find(mixer_count) != string::npos) {
+      crtc_info_.mixer_count = std::stoi(string(line, mixer_count.length()));
     }
   }
   drmModeFreePropertyBlob(blob);

@@ -34,3 +34,8 @@ libsdmdal_la_CFLAGS = $(COMMON_CFLAGS) -DLOG_TAG=\"SDM\"
 libsdmdal_la_CPPFLAGS = $(AM_CPPFLAGS) -DPP_DRM_ENABLE
 libsdmdal_la_LIBADD = ../utils/libsdmutils.la ../../../sde-drm/libsdedrm.la -ldl -ldisplaydebug
 libsdmdal_la_LDFLAGS = -shared -avoid-version
+
+if RT_SCHEDULE
+    libsdmdal_la_CPPFLAGS += -DRT_SCHEDULE
+    libsdmdal_la_LIBADD += -lcompresmgr_client
+endif
