@@ -752,6 +752,11 @@ DisplayError HWDeviceDRM::Init() {
     DLOGW("Device removal detected on connector id %u. Connector status %s and %zu modes.",
           token_.conn_id, connector_info_.is_connected ? "connected":"disconnected",
           connector_info_.modes.size());
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, token_.conn_id, 0);
+    int ret = NullCommit(true /* synchronous */, false /* retain_planes */);
+    if (ret) {
+        DLOGE("NullCommit failed with error: %d", ret);
+    }
     drm_mgr_intf_->DestroyAtomicReq(drm_atomic_intf_);
     drm_atomic_intf_ = {};
     drm_mgr_intf_->UnregisterDisplay(&token_);
