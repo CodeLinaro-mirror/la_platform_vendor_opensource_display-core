@@ -8,6 +8,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <inttypes.h>
 
 #include "SnapConstraintParser.h"
 
@@ -61,7 +62,7 @@ int DisplayConstraintProvider::GetCapabilities(BufferDescriptor desc, Capability
 
 int DisplayConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferConstraints *data) {
   if (format_data_map_.find(desc.format) == format_data_map_.end()) {
-    ALOGE("Could not find entry for format %lu", static_cast<uint64_t>(desc.format));
+    ALOGE("Could not find entry for format %" PRIu64, static_cast<uint64_t>(desc.format));
     return -1;
   }
 
@@ -126,7 +127,7 @@ int DisplayConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConst
   int status = 0;
   status = BuildConstraints(desc, &data);
   if (status != Error::NONE) {
-    ALOGW("Error while getting constraints from display libs width %d, height %d, format %d",
+    ALOGW("Error while getting constraints from display libs width %d, height %d, format %" PRIu64,
           desc.width, desc.height, static_cast<uint64_t>(desc.format));
     return -1;
   }
@@ -140,7 +141,7 @@ int DisplayConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConst
   if (constraint_set_map_.find(desc.format) != constraint_set_map_.end()) {
     *out = constraint_set_map_.at(desc.format);
   } else {
-    ALOGE("DisplayConstraintProvider could not find entry for format %lu",
+    ALOGE("DisplayConstraintProvider could not find entry for format %" PRIu64,
           static_cast<uint64_t>(desc.format));
   }
   return 0;
