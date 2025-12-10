@@ -484,6 +484,7 @@ struct HWResourceInfo {
   DDRVersion ddr_version = kDDRVersion5;
   bool has_cesta = false;
   uint32_t hw_ai_scaler_count = 0;
+  uint32_t mixer_count = 0;
 };
 
 struct HWSplitInfo {

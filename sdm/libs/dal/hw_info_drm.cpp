@@ -457,6 +457,7 @@ void HWInfoDRM::GetSystemInfo(HWResourceInfo *hw_resource) {
   hw_resource->rc_total_mem_size = info.rc_total_mem_size;
   hw_resource->dsc_block_count = info.dsc_block_count;
   hw_resource->hw_ai_scaler_count = info.ai_scaler_count;
+  hw_resource->mixer_count = info.mixer_count;
 }
 
 void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
@@ -1229,7 +1230,8 @@ DisplayError HWInfoDRM::GetPanelBootParamString(std::string *panel_boot_param_st
 }
 
 uint32_t HWInfoDRM::GetMaxMixerCount() {
-  return 8;
+  if (hw_resource_)
+    return hw_resource_->mixer_count;
   return drm_mgr_intf_->GetCrtcCount();
 }
 
