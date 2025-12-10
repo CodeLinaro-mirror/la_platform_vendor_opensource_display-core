@@ -28,9 +28,8 @@
 */
 
 /*
-* ​​​​​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-*
-* Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -260,6 +259,10 @@ void DRMCrtcManager::UnsetScalerLUT() {
 
 int DRMCrtcManager::GetCrtcInfo(uint32_t crtc_id, DRMCrtcInfo *info) {
   lock_guard<mutex> lock(lock_);
+  if (crtc_pool_.size() == 0) {
+    DRM_LOGE("No valid crtc provided");
+    return -ENODEV;
+  }
   if (crtc_id == 0) {
     crtc_pool_.begin()->second->GetInfo(info);
   } else {
