@@ -1148,7 +1148,7 @@ DisplayError ConcurrencyMgr::SetPowerMode(uint64_t display, int32_t int_mode) {
 
     if (ssr_active_) {
       // Cache Power Mode in SSR Active state.
-      DLOGI("SSR Active, cache Power mode %d for Display %d", mode, display);
+      DLOGI("SSR Active, cache Power mode %d for Display %llu", mode, display);
       cached_last_power_mode_[display] = mode;
       DTRACE_END();
       return kErrorNone;
