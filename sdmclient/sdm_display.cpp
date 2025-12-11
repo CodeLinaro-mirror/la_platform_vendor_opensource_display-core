@@ -3815,7 +3815,7 @@ DisplayError SDMDisplay::SetReadbackBuffer(void *buffer,
   CwbTapPoint &tap_point = config.tap_point;
 
   DisplayError error = kErrorNone;
-  error = display_intf_->CaptureCwb(output_buffer, config);
+  error = display_intf_->CaptureCwb(output_buffer, config, client);
   if (error) {
     if (error == kErrorParameters) {
       DLOGE("Invalid input parameter detected (display %d-%d)!", sdm_id_,

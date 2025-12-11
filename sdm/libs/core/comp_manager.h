@@ -160,6 +160,7 @@ class CompManager : public CwbCallback {
   DisplayError SetDisplayDeviceConfig(Handle display_ctx,
                                       const SDMDisplayDeviceConfig &display_device_config);
   DisplayError SetPoseConfig(Handle display_ctx, const LayerBuffer &buffer);
+  DisplayError CanTakeDPUScreenshot(Handle display_ctx);
 
  private:
   static const int kMaxThermalLevel = 3;
