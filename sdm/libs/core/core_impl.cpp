@@ -547,24 +547,24 @@ void CoreImpl::OverRideDemuraPanelIds(std::vector<uint64_t> *panel_ids) {
   count = panel_ids->size();
 
   if (count >= 2 && (!panel_id_prim || !panel_id_sec)) {
-    DLOGI("skip panel override count 2 panel_id_prim %lx panel_id_sec %lx\n",
+    DLOGI("skip panel override count 2 panel_id_prim %" PRIu64 "panel_id_sec %" PRIu64 "\n",
       panel_id_prim, panel_id_sec);
     return;
   }
 
   if (count == 1 && !panel_id_prim && !panel_id_sec) {
-    DLOGI("skip panel override count 1 panel_id_prim %lx panel_id_sec %lx\n",
+    DLOGI("skip panel override count 1 panel_id_prim %" PRIu64 " panel_id_sec %" PRIu64 "\n",
       panel_id_prim, panel_id_sec);
     return;
   }
 
   panel_ids->clear();
   if (panel_id_prim) {
-    DLOGI("override primary panel id %lx\n", panel_id_prim);
+    DLOGI("override primary panel id %" PRIu64 "\n", panel_id_prim);
     panel_ids->push_back(panel_id_prim);
   }
   if (panel_id_sec) {
-    DLOGI("override secondary panel id %lx\n", panel_id_sec);
+    DLOGI("override secondary panel id %" PRIu64 "\n", panel_id_sec);
     panel_ids->push_back(panel_id_sec);
   }
 }
