@@ -552,7 +552,7 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
     pipe_caps.master_pipe_id = pipe_obj.second.master_plane_id;
     pipe_caps.block_sec_ui = pipe_obj.second.block_sec_ui;
     pipe_caps.hw_block_mask = pipe_obj.second.hw_block_mask;
-    DLOGI("Adding %s Pipe : Id %d, master_pipe_id : Id %d block_sec_ui: %d hw_block_mask: %lx",
+    DLOGI("Adding %s Pipe : Id %d, master_pipe_id : Id %d block_sec_ui: %d hw_block_mask: 0x%lx",
           name.c_str(), pipe_obj.first, pipe_obj.second.master_plane_id,
           pipe_obj.second.block_sec_ui, pipe_obj.second.hw_block_mask.to_ulong());
     pipe_caps.inverse_pma = pipe_obj.second.inverse_pma;

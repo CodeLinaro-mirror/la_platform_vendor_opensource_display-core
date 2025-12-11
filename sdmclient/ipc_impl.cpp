@@ -265,7 +265,7 @@ int IPCImpl::SetParameter(IPCParams param, const GenericPayload &in) {
       cmd_export_demura_buffer.demura_mem_info.hfc_mem_size = hfc_buffer->size;
       cmd_export_demura_buffer.demura_mem_info.panel_id = hfc_buffer->panel_id;
 
-      DLOGI("Sending hfc params %ld",
+      DLOGI("Sending hfc params %" PRId64,
             cmd_export_demura_buffer.demura_mem_info.hfc_mem_hdl);
       ret = qrtr_client_intf_->SendCommand(&cmd, sizeof(Command));
       if (ret != 0) {
@@ -337,7 +337,7 @@ int IPCImpl::ProcessExportBuffers(const GenericPayload &in,
       }
       exported_fds.emplace(buf_type, temp_fd);
     }
-    DLOGI("Sending hfc: mem_hdl %ld, size %d panel_id %lu",
+    DLOGI("Sending hfc: mem_hdl %" PRId64 ", size %d panel_id %" PRIu64,
           demura_mem_info.hfc_mem_hdl, demura_mem_info.hfc_mem_size,
           demura_mem_info.panel_id);
     ret = qrtr_client_intf_->SendCommand(&cmd, sizeof(Command));
@@ -421,7 +421,7 @@ int IPCImpl::ProcessOps(IPCOps op, const GenericPayload &in,
 
 int IPCImpl::OnResponse(void *rsp_buf, size_t rsp_size) {
   if (rsp_size != sizeof(Response)) {
-    DLOGE("Mismatch in response size!! %zu-%lu", rsp_size, sizeof(Response));
+    DLOGE("Mismatch in response size!! %zu-%zu", rsp_size, sizeof(Response));
     return -EINVAL;
   }
   Response *rsp = reinterpret_cast<Response *>(rsp_buf);

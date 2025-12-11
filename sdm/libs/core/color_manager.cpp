@@ -1877,8 +1877,8 @@ bool DPUColorManager::IsValidateNeeded() {
 
   for (int i = 1; i < color_mgr_cnt; i++) {
     if (needed[0] != needed[i]) {
-      DLOGW("Need validate for DPU's are different, DPU0=%d, DPU%d=%d",
-                                    static_cast<int>(needed[0]), i, static_cast<int>(needed[i]));
+      DLOGW("Need validate for DPU's are different, DPU0=%s, DPU%d=%s",
+        needed[0] ? "true" : "false", i, needed[i] ? "true" : "false");
     }
   }
 
