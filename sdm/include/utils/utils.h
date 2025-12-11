@@ -42,6 +42,8 @@
 #include <mutex>
 #include <set>
 
+#define EMERGENCY_INTEGER_BANDWIDTH_FOR_ID 8
+
 namespace sdm {
 
 constexpr size_t get_page_size() {
@@ -75,25 +77,79 @@ class IdManager {
   }
   uint64_t GetNextPossibleId(bool next_to_max) {
     std::lock_guard<std::mutex> lock(id_mutex_);
-    return (next_to_max) ? 1 + GetMaxId() : GetNonConflictingIdToIncrementalPath();
+    if (next_to_max) {
+      auto max_id = GetMaxId();
+      if (max_id == UINT64_MAX) {
+        // Either wrap to 0, or reuse GetNonConflictingIdToIncrementalPath(),
+        // depending on expected behavior.
+        return GetNonConflictingIdToIncrementalPath();
+      }
+      return max_id + 1;
+    }
+    return GetNonConflictingIdToIncrementalPath();
   }
 
  private:
   inline uint64_t GetMaxId() { return (active_ids_.empty() ? 0 : *(active_ids_.rbegin())); }
-  // find non-conflicting id to future path for incremental id.
+  /*
+  * GetNonConflictingIdToIncrementalPath function finds and returns a unique ID that won't
+  * conflict with existing incremental path IDs. It follows a multi-step strategy:
+  *
+  * 1. If no active IDs exist, returns 0 as starting ID as incremental ID always starts with 1.
+  * 2. Attempts to reuse a disposed ID if exists, which ensures no conflict with incremental IDs.
+  * 3. If no disposed IDs are available, falls back to using an emergency integer bandwidth from
+  *    upper end of uint64 range (UINT64_MAX - EMERGENCY_INTEGER_BANDWIDTH_FOR_ID, UINT64_MAX).
+  * 4. If the current max ID is already within the emergency bandwidth range,
+  *    increments it by 1 (with overflow protection).
+  */
   uint64_t GetNonConflictingIdToIncrementalPath() {
-    auto possible_id = 0;
-    for (auto &id : active_ids_) {
-      if (id >= (UINT64_MAX - UINT8_MAX)) {
-        return GetMaxId() + 1;  // use next unreserved id in top range, if no thrown id available
-      } else if (possible_id < id) {
-        return possible_id;  // use thrown id, which will never be used by client again
-      } else if (possible_id == id) {
-        possible_id++;  // to check next id, whether it is thrown, if current id is reserved
-      }
+    if (active_ids_.empty()) {
+      // No active IDs; start from 0
+      return 0;
     }
-    // Consider Id-0 as valid for internal use, if external client shares non-zero incremental ids.
-    return (possible_id) ? (UINT64_MAX - UINT8_MAX) : 0;  // Use top range, if no thrown id found
+    uint64_t max_id = GetMaxId();
+    // Try to get disposed id, which will never conflict with incremental id.
+    if (GetDisposedId(max_id)) {
+      return max_id;  // As max_id is replaced with disposed id.
+    }
+    // No disposed IDs available; all IDs in [0, max_id] are in use. Fall back to emergency
+    // bandwidth at upper end of uint64 range
+    // [UINT64_MAX - EMERGENCY_INTEGER_BANDWIDTH_FOR_ID, UINT64_MAX].
+    if (max_id < UINT64_MAX - EMERGENCY_INTEGER_BANDWIDTH_FOR_ID) {
+      // Reserve a set of emergency integers for ID allocation at the upper end
+      // of the 64-bit integer range.
+      return UINT64_MAX - EMERGENCY_INTEGER_BANDWIDTH_FOR_ID;
+    }
+    // Edge case: prevent overflow if max_id reaches UINT64_MAX (extremely unlikely)
+    if (max_id == UINT64_MAX) {
+      return 0;
+    }
+    // Validated integer from range [UINT64_MAX - EMERGENCY_INTEGER_BANDWIDTH_FOR_ID, UINT64_MAX].
+    return max_id + 1;
+  }
+
+  bool GetDisposedId(uint64_t &id) {
+    // std::set is ordered; begin() points to the minimum element.
+    uint64_t min_id = *active_ids_.begin();
+    if (min_id > 0) {
+      // Safe: min_id is at least 1, so min_id - 1 will not underflow.
+      id = min_id - 1;
+      return true;
+    }
+    // min_id == 0 case
+    // Find an ID not in the set between min_id (0) and max_id, inclusive.
+    // Since active_ids_ is sorted, walk from the beginning and look for a gap.
+    uint64_t prev = *active_ids_.begin();  // this is 0
+    for (auto it = std::next(active_ids_.begin()); it != active_ids_.end(); ++it) {
+      uint64_t cur = *it;
+      // If there is a gap (non-consecutive numbers), return the missing ID.
+      if (cur > prev + 1) {
+        id = prev + 1;
+        return true;
+      }
+      prev = cur;
+    }
+    return false;
   }
 
   std::mutex id_mutex_;
