@@ -1903,6 +1903,20 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       DRM_LOGD("Connector %d: REPROJ_TILE_W REPROJ_TILE_H set successfuly", obj_id);
     } break;
 
+    case DRMOps::CONNECTOR_SET_REPROJ_MIN_BBOX_SIZE: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_MIN_BBOX_W) ||
+          !prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_MIN_BBOX_H)) {
+        return;
+      }
+      uint32_t min_width = va_arg(args, uint32_t);
+      uint32_t min_height = va_arg(args, uint32_t);
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_MIN_BBOX_W),
+                               min_width);
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_MIN_BBOX_H),
+                               min_height);
+      DRM_LOGD("Connector %d: REPROJ_MIN_BBOX_W REPROJ_MIN_BBOX_H set successfuly", obj_id);
+    } break;
+
     case DRMOps::CONNECTOR_SET_POSE_FB_ID: {
       if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_POSE_FB)) {
         return;

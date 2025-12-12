@@ -868,6 +868,13 @@ enum struct DRMOps {
    *      uint32_t - Framebuffer ID
    */
   CONNECTOR_SET_POSE_FB_ID,
+  /*
+   * Op: Sets Reproj min bbox size
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - min bbox width
+   *      uint32_t - min bbox height
+   */
+  CONNECTOR_SET_REPROJ_MIN_BBOX_SIZE,
 };
 
 enum struct DRMRotation {
