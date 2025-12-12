@@ -24,6 +24,7 @@ cc_library_shared {
         "-DLOG_TAG=\"SnapAlloc\"",
         "-Wno-unused-parameter",
         "-Wall",
+        "-Wno-format",
         "-Werror",
     ],
     srcs: ["*.cpp"],

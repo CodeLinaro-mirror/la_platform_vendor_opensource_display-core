@@ -1432,7 +1432,7 @@ DPUColorManager *DPUColorManager::CreateDpuColorManager(SDMDisplayType type,
   // From a logical display ID create physical display ID per physical display
   ret = dpu_color_manager->CreatePhysicalDisplayIds(display_id_info);
   if (ret || dpu_color_manager->display_id_list_.size() == 0) {
-    DLOGE("Failed to create local display ids ret=%d, display_id count=%d",
+    DLOGE("Failed to create local display ids ret=%d, display_id count=%zu",
             ret, dpu_color_manager->display_id_list_.size());
     return NULL;
   }
@@ -1551,7 +1551,7 @@ DisplayError DPUColorManager::ColorMgrGetNumOfModes(uint32_t *mode_cnt) {
 
   // check if mode count is same for all displays
   if (mode_count_set.size() > 1) {
-    DLOGE("Different num of mode for both displays mode_count %d", mode_count_set.size());
+    DLOGE("Different num of mode for both displays mode_count %zu", mode_count_set.size());
     error = kErrorNotSupported;
     return error;
   }
@@ -1568,7 +1568,7 @@ bool DPUColorManager::CompareSDEDisplayModes(vector<SDEDisplayMode>& mode) {
 
   for (int i = 1; i < mode.size(); i++) {
     if ((mode[0].id != mode[i].id) && (mode[0].type != mode[i].type) &&
-          (mode[0].name != mode[i].name))
+          (strcmp(mode[0].name, mode[i].name) != 0))
       is_same_mode = false;
   }
 
@@ -1878,7 +1878,7 @@ bool DPUColorManager::IsValidateNeeded() {
   for (int i = 1; i < color_mgr_cnt; i++) {
     if (needed[0] != needed[i]) {
       DLOGW("Need validate for DPU's are different, DPU0=%d, DPU%d=%d",
-                                    needed[0], i, needed[i]);
+                                    static_cast<int>(needed[0]), i, static_cast<int>(needed[i]));
     }
   }
 
