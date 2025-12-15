@@ -4479,6 +4479,10 @@ DisplayError SDMDisplay::ClearBuffersMappedToLayer(LayerId layer_id,
   for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
     Layer *layer = sdm_layer->GetSDMLayer();
     if (layer->layer_id == layer_id) {
+      if (!layer->buffer_map) {
+        // nothing to erase; just treat as already cleared
+        continue;
+      }
       auto it = layer->buffer_map->buffer_map.find(buffer_id);
       if (it != layer->buffer_map->buffer_map.end()) {
         DLOGV_IF(kTagClient, "Buffer_id %llu exists in fbid buffermap of layer - %lld.Erasing it.",
