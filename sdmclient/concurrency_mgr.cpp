@@ -27,8 +27,8 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <algorithm>
@@ -739,13 +739,8 @@ DisplayError ConcurrencyMgr::Hotplug(Display display, bool state) {
       return kErrorNotSupported;
     }
   }
-
-  // External display hotplug events are handled asynchronously
-  if (display == SDM_DISPLAY_EXTERNAL || display == SDM_DISPLAY_EXTERNAL_2) {
-    std::thread(&ConcurrencyMgr::SendHotplug, this, display, state).detach();
-  } else {
-    callbacks_.OnHotplug(display, state);
-  }
+  // Sending callback synchronously for both primary and secondary displays
+  callbacks_.OnHotplug(display, state);
   return kErrorNone;
 }
 
