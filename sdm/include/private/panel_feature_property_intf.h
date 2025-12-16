@@ -65,6 +65,7 @@ enum PanelFeaturePropertyID {
   kPanelFeatureABCCfg,
   kPanelFeatureDemuraBacklight,
   kPanelFeatureDemuraDoubleBufferCbFlags,
+  kPanelFeatureDemuraBrgtInvAdjExpFlag,
   kPanelFeaturePropertyIDMax
 };
 
