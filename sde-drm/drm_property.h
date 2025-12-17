@@ -317,6 +317,7 @@ enum struct DRMProperty {
   REPROJ_POSE_FB,
   REPROJ_MIN_BBOX_W,
   REPROJ_MIN_BBOX_H,
+  LSR_MODE,
 
   // Insert above
   MAX

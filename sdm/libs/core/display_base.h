@@ -586,6 +586,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   void PerformSelfRefresh(uint64_t srEPT);
   std::chrono::system_clock::time_point WaitUntilForSelfRefresh(uint64_t *srEPT);
   DisplayError HandleCommitDuringSSR();
+  bool IsPrimaryCommitNeeded();
 
   unsigned int rc_cached_res_width_ = 0;
   unsigned int rc_cached_res_height_ = 0;
@@ -623,6 +624,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool wb_downscale_supports_ = false;
   bool enable_ai_scaler_ = false;
   uint64_t next_expected_present_ = 0;
+  bool lsr_first_commit_ = true;
+  bool cwb_with_lsr_active_ = false;
 };
 
 }  // namespace sdm

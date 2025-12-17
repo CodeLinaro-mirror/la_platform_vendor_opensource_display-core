@@ -1639,24 +1639,45 @@ DisplayError DisplayBase::CommitOrPrepare(LayerStack *layer_stack) {
   return async_commit ? kErrorNone : kErrorNeedsCommit;
 }
 
+bool DisplayBase::IsPrimaryCommitNeeded() {
+  if (!client_ctx_.hw_panel_info.is_lsr_display) {
+    lsr_first_commit_ = true;
+    return true;
+  }
+
+  bool lsr_enabled = (disp_layer_stack_->stack_info.iwe_repro_left_index != -1) ||
+                     (disp_layer_stack_->stack_info.iwe_repro_right_index != -1);
+  bool is_cwb_commit = (disp_layer_stack_->stack_info.output_buffer != nullptr);
+  if (!lsr_enabled) {
+    lsr_first_commit_ = true;
+    cwb_with_lsr_active_ = is_cwb_commit;
+    return true;
+  }
+
+  if (is_cwb_commit || lsr_first_commit_) {
+    lsr_first_commit_ = false;
+    cwb_with_lsr_active_ = is_cwb_commit;
+    return true;
+  }
+
+  // CWB teardown commit needed as we are not doing commit on primary for LSR.
+  if (!is_cwb_commit && cwb_with_lsr_active_) {
+    cwb_with_lsr_active_ = is_cwb_commit;
+    return true;
+  }
+
+  return false;
+}
+
 void DisplayBase::HandleAsyncCommit() {
   // Do not acquire mutexes here.
   // Perform hw commit here.
-
-  if ((disp_layer_stack_->stack_info.iwe_repro_left_index == -1) &&
-      (disp_layer_stack_->stack_info.iwe_repro_right_index == -1)) {
-    primary_commit_needed_ = true;
-  }
+  primary_commit_needed_ = IsPrimaryCommitNeeded();
 
   DisplayError error = PerformHwCommit(disp_layer_stack_->info);
   if (error != kErrorNone) {
     DLOGW("HwCommit failed %d", error);
     CleanupOnError();
-  }
-
-  if ((disp_layer_stack_->stack_info.iwe_repro_left_index != -1) ||
-      (disp_layer_stack_->stack_info.iwe_repro_right_index != -1)) {
-    primary_commit_needed_ = false;
   }
 }
 
@@ -1897,17 +1918,8 @@ DisplayError DisplayBase::CommitLocked(LayerStack *layer_stack) {
     return error;
   }
 
-  if ((disp_layer_stack_->stack_info.iwe_repro_left_index == -1) &&
-      (disp_layer_stack_->stack_info.iwe_repro_right_index == -1)) {
-    primary_commit_needed_ = true;
-  }
-
+  primary_commit_needed_ = IsPrimaryCommitNeeded();
   error = PerformHwCommit(disp_layer_stack_->info);
-
-  if ((disp_layer_stack_->stack_info.iwe_repro_left_index != -1) ||
-      (disp_layer_stack_->stack_info.iwe_repro_right_index != -1)) {
-    primary_commit_needed_ = false;
-  }
 
   if (error != kErrorNone) {
     DLOGE("HwCommit failed %d", error);
@@ -3743,8 +3755,10 @@ void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
     return;
   }
 
+  bool is_lsr_commit = (disp_layer_stack_->stack_info.iwe_repro_left_index != -1);
   // Copy the acquire fence from clients layers  to HWLayers
   for (auto& info : disp_layer_stack_->info) {
+    info.second.lsr_commit = is_lsr_commit;
     uint32_t hw_layers_count = UINT32(info.second.hw_layers.size());
 
     for (uint32_t i = 0; i < hw_layers_count; i++) {

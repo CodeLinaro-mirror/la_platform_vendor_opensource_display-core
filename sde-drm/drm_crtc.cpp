@@ -1020,6 +1020,17 @@ void DRMCrtc::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       DRM_LOGD("CRTC %d: Set flush_sync_en %d", obj_id, flush_sync_en);
     }; break;
 
+    case DRMOps::CRTC_SET_LSR_MODE: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::LSR_MODE)) {
+        return;
+      }
+
+      uint32_t lsr_mode = va_arg(args, uint32_t);
+      AddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::LSR_MODE), lsr_mode,
+                  true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("CRTC %d: Set lsr_mode %d", obj_id, lsr_mode);
+    }; break;
+
     default:
       DRM_LOGE("Invalid opcode %d to set the property on crtc %d", code, obj_id);
       break;
