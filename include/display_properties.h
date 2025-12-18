@@ -203,6 +203,8 @@
 #define ENABLE_QSYNC_IDLE                    DISPLAY_PROP("enable_qsync_idle")
 #define ENHANCE_IDLE_TIME                    DISPLAY_PROP("enhance_idle_time")
 #define CPU_CLUSTER_BOOST_MASK               DISPLAY_PROP("cpu_cluster_boost_mask")
+#define PERF_VERSION_PROP                    DISPLAY_PROP("perf_version")
+#define MINIMUM_LARGE_COMP_FPS               DISPLAY_PROP("minimum_large_comp_fps")
 
 #define MMRM_FLOOR_CLK_VOTE                  DISPLAY_PROP("mmrm_floor_vote")
 
@@ -250,7 +252,7 @@
 #define HW_SUPPORTS_UBWCP                    GRALLOC_PROP("hw_supports_ubwcp")
 #define ENABLE_SNAPALLOC_PROP                GRALLOC_PROP("enable_snapalloc")
 #define ENABLE_ALLOCATION_DATA_DUMPING       GRALLOC_PROP("enable_allocation_data_dumping")
-
+#define ALLOW_CAMERA_PREVIEW_WRITE           GRALLOC_PROP("allow_camera_preview_write")
 // Add all vendor.gralloc.properties above
 
 #define QDCM_DISABLE_TIMEOUT_PROP            PERSIST_DISPLAY_PROP("qdcm.disable_timeout")
