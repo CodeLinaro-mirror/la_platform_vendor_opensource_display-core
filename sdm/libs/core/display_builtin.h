@@ -301,6 +301,7 @@ class DisplayBuiltIn : public DisplayBase,
   void GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) override;
   bool IsPrimaryDisplay() override;
   DisplayError GetPanelBrightnessBasePath(std::string *base_path) override;
+  void HandleSSREvent(SSREventType ssr_event) override;
 
   // Implement the DppsPropIntf
   DisplayError DppsProcessOps(enum DppsOps op, void *payload, size_t size) override;
@@ -316,6 +317,7 @@ class DisplayBuiltIn : public DisplayBase,
   int Notify(const TvmServiceCbEvent &) override;
 
   DisplayError SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config) override;
+  DisplayError SetPoseConfig(const LayerBuffer &buffer) override;
 
  private:
   bool CanCompareFrameROI(LayerStack *layer_stack);

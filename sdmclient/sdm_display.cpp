@@ -1607,6 +1607,7 @@ DisplayError SDMDisplay::CECMessage(char *message) {
 }
 
 DisplayError SDMDisplay::HandleEvent(DisplayEvent event) {
+  DTRACE_SCOPED();
   switch (event) {
   case kPanelDeadEvent:
   case kDisplayPowerResetEvent: {
@@ -1649,6 +1650,18 @@ DisplayError SDMDisplay::HandleEvent(DisplayEvent event) {
   case kIdleTimeout:
     ReqPerfHintRelease();
     break;
+  case kSsrStart: {
+    DLOGI("Set Display Pause state!");
+    display_paused_ = true;
+    display_pause_pending_ = true;
+    event_handler_->PerformSubsystemRestart(true);
+  } break;
+  case kSsrEnd: {
+    event_handler_->PerformSubsystemRestart(false);
+    DLOGI("Reset Display Pause state!");
+    display_pause_pending_ = false;
+    display_paused_ = false;
+  } break;
   default:
     DLOGW("Unknown event: %d", event);
     break;
@@ -3802,7 +3815,7 @@ DisplayError SDMDisplay::SetReadbackBuffer(void *buffer,
   CwbTapPoint &tap_point = config.tap_point;
 
   DisplayError error = kErrorNone;
-  error = display_intf_->CaptureCwb(output_buffer, config);
+  error = display_intf_->CaptureCwb(output_buffer, config, client);
   if (error) {
     if (error == kErrorParameters) {
       DLOGE("Invalid input parameter detected (display %d-%d)!", sdm_id_,
@@ -4441,8 +4454,8 @@ void SDMDisplay::SetPrivacyRegionsData(uint32_t layer_id, float corner_radius,
                                        const std::vector<PrivacyRegion> &privacy_regions) {
   const auto map_layer = sdm_layer_stack_->layer_map_.find(layer_id);
   if (map_layer == sdm_layer_stack_->layer_map_.end()) {
-    DLOGW("Display [%" PRIu64 "]-[%" PRIu64 "] SetPrivacyRegions: Failed to find layer %d!", id_,
-          type_, layer_id);
+    DLOGW("Display [%" PRIu64 "]-[%d] SetPrivacyRegions: Failed to find layer %d!", id_, type_,
+          layer_id);
     return;
   }
 
@@ -4458,8 +4471,8 @@ DisplayError SDMDisplay::ClearBuffersMappedToLayer(LayerId layer_id,
   // Get BufferID from SnapHandle
   uint64_t buffer_id = 0;
   if (layerBuffer == nullptr) {
-    DLOGW("Layer Buffer(SnapHandle) is NULL for layer_id %d on display : %d-%d", layer_id, sdm_id_,
-          type_);
+    DLOGW("Layer Buffer(SnapHandle) is NULL for layer_id %lld on display : %d-%d", layer_id,
+          sdm_id_, type_);
     return kErrorParameters;
   }
   GetMetadata(layerBuffer, MetadataType::BUFFER_ID, &buffer_id, snapmapper_);
@@ -4468,13 +4481,17 @@ DisplayError SDMDisplay::ClearBuffersMappedToLayer(LayerId layer_id,
     if (layer->layer_id == layer_id) {
       auto it = layer->buffer_map->buffer_map.find(buffer_id);
       if (it != layer->buffer_map->buffer_map.end()) {
-        DLOGV_IF(kTagClient, "Buffer_id %d exists in fbid buffermap of layer - %d.Erasing it.",
+        DLOGV_IF(kTagClient, "Buffer_id %llu exists in fbid buffermap of layer - %lld.Erasing it.",
                  buffer_id, layer_id);
         layer->buffer_map->buffer_map.erase(it);
       }
     }
   }
   return kErrorNone;
+}
+
+bool SDMDisplay::IsEPTSupported() {
+  return display_intf_->IsEPTSupported();
 }
 
 }  // namespace sdm

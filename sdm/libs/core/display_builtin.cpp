@@ -254,8 +254,9 @@ DisplayError DisplayBuiltIn::Init() {
             HWEvent::POWER_EVENT,
             HWEvent::MMRM,
             HWEvent::VM_RELEASE_EVENT,
-            HWEvent::VM_RECLAIM_EVENT};
-  if (client_ctx_.hw_panel_info.mode == kModeCommand) {
+            HWEvent::VM_RECLAIM_EVENT,
+            HWEvent::SSR};
+  if ((client_ctx_.hw_panel_info.mode == kModeCommand) || client_ctx_.hw_panel_info.vhm_support) {
     events.push_back(HWEvent::IDLE_POWER_COLLAPSE);
   }
 #endif
@@ -1144,6 +1145,7 @@ void DisplayBuiltIn::PreCommit(LayerStack *layer_stack) {
 DisplayError DisplayBuiltIn::SetupABCFeature() {
   DemuraInputConfig input_cfg;
   input_cfg.secure_session = false;
+  bool is_udc_supported = true;
   std::string brightness_base;
   hw_intf_->GetPanelBrightnessBasePath(&brightness_base);
   input_cfg.brightness_path = brightness_base + "brightness";
@@ -1177,8 +1179,15 @@ DisplayError DisplayBuiltIn::SetupABCFeature() {
     return kErrorResources;
   }
 
+  for (auto info_intf = hw_info_intf_.Begin(); info_intf != hw_info_intf_.End(); info_intf++) {
+    HWResourceInfo hw_resource_info = HWResourceInfo();
+    info_intf->second->GetHWResourceInfo(&hw_resource_info);
+    uint32_t core_id = hw_resource_info.core_id;
+    DLOGI("core [%d] is_udc_supported [%d]", core_id, hw_resource_info.is_udc_supported);
+    is_udc_supported &= hw_resource_info.is_udc_supported;
+  }
   std::unique_ptr<DemuraIntf> abc_intf =
-      abc_factory_->CreateABCIntf(input_cfg, prop_intf_, buffer_allocator_, this);
+      abc_factory_->CreateABCIntf(input_cfg, prop_intf_, buffer_allocator_, this, is_udc_supported);
   if (!abc_intf) {
     DLOGE("Unable to create abc_intf on Display %d-%d", display_id_, display_type_);
     return kErrorMemory;
@@ -3649,6 +3658,32 @@ void DisplayBuiltIn::HandleVmReclaimEvent() {
     event_handler_->HandleEvent(kVmReclaimDone);
 }
 
+void DisplayBuiltIn::HandleSSREvent(SSREventType ssr_event) {
+  DTRACE_SCOPED();
+
+  DisplayEvent event = (ssr_event == SSREventType::kSSRStart) ? kSsrStart : kSsrEnd;
+  DLOGI("Handle %s event", (event == kSsrStart) ? "SSR Start" : "SSR End");
+  is_ssr_active_ = (event == kSsrStart);
+  dpu_core_mux_->SetSSRState(is_ssr_active_);
+
+  if (!event_handler_) {
+    DLOGW("Event handler is null");
+    return;
+  }
+
+  event_handler_->HandleEvent(event);
+
+  {
+    ClientLock lock(disp_mutex_);
+    reset_panel_ = true;
+    validated_ = false;
+  }
+
+  if (event == kSsrEnd) {
+    event_handler_->Refresh();
+  }
+}
+
 DisplayError DisplayBuiltIn::GetQsyncFps(uint32_t *qsync_fps) {
   ClientLock lock(disp_mutex_);
   return dpu_core_mux_->GetQsyncFps(qsync_fps);
@@ -5734,6 +5769,10 @@ void DisplayBuiltIn::SetPrivacyRegions() {
 DisplayError DisplayBuiltIn::SetDisplayDeviceConfig(
     const SDMDisplayDeviceConfig &display_device_config) {
   return comp_manager_->SetDisplayDeviceConfig(display_comp_ctx_, display_device_config);
+}
+
+DisplayError DisplayBuiltIn::SetPoseConfig(const LayerBuffer &buffer) {
+  return comp_manager_->SetPoseConfig(display_comp_ctx_, buffer);
 }
 
 }  // namespace sdm

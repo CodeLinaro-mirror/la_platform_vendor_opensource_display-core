@@ -1,7 +1,7 @@
 /*
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __DPU_CORE_MUX_H__
 #define __DPU_CORE_MUX_H__
@@ -106,6 +106,8 @@ class DPUCoreMux {
   virtual DisplayError GetFbConfig(uint32_t width, uint32_t height,
                                    DisplayDeviceContext *device_ctx,
                                    DisplayClientContext *client_ctx) = 0;
+  virtual void SetSSRState(bool active) = 0;
+  virtual bool IsEPTSupported() = 0;
 };
 
 }  // namespace sdm

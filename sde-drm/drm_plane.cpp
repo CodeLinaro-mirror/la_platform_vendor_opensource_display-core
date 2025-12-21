@@ -1853,7 +1853,9 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       prop_id = prop_mgr_.GetPropertyId(DRMProperty::COLOR_MASK_OVERRIDE);
       AddProperty(req, obj_id, prop_id, (uint32_t)color_override, true /* cache */,
                   tmp_prop_val_map_);
-      DRM_LOGD("Plane = %d : Layer Color mask override = %d", obj_id, color_override);
+      if (color_override != (DRMReserveColor)0) {
+        DRM_LOGD("Plane = %d : Layer Color mask override = %d", obj_id, color_override);
+      }
     } break;
 
     default:

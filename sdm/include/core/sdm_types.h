@@ -389,8 +389,8 @@ enum SDMRenderLayerReferenceSpaceType {
 
 enum SDMCompositionLayerType {
   COMPOSITION_LAYER_NONE = 0,
-  COMPOSITION_LAYER_PROJECTION = 1,
-  COMPOSITION_LAYER_QUAD = 2
+  COMPOSITION_LAYER_QUAD = 1,
+  COMPOSITION_LAYER_PROJECTION = 2
 };
 
 struct SDMLayerPosition {
@@ -721,6 +721,15 @@ struct CornerRadius {
   bool operator ==(const CornerRadius &corner_radius) {
     return (operator !=(corner_radius));
   }
+};
+
+// CWB client currently using the block
+enum CWBClient {
+  kCWBClientNone,      // No client connected
+  kCWBClientFrameDump, // Dump to file
+  kCWBClientColor,     // Internal client i.e. Color Manager
+  kCWBClientExternal,  // External client calling through private APIs
+  kCWBClientComposer,  // Client to SDM i.e. SurfaceFlinger
 };
 
 }  // namespace sdm

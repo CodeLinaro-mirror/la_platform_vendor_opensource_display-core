@@ -455,6 +455,9 @@ void HWPeripheralDRM::ResetDestScalarCache() {
       dest_scalar_cache_[j] = {};
     }
   }
+}
+
+void HWPeripheralDRM::ResetAIScalarCache() {
 #ifndef TARGET_INCLUDES_NEO
   if (ai_scaler_blocks_used_ > 0) {
     for (uint32_t j = 0; j < ai_scaler_cache_.size(); j++) {
@@ -561,6 +564,9 @@ void HWPeripheralDRM::SetAIScalerData(const AIScalerInfoMap ai_scale_info_map) {
     ai_scaler_cfg->src_h = ai_scale_info->ai_scale_data.src_h;
     ai_scaler_cfg->dst_w = ai_scale_info->ai_scale_data.dst_w;
     ai_scaler_cfg->dst_h = ai_scale_info->ai_scale_data.dst_h;
+#ifdef AIQE_AI_SCALER_PSM_FLAG
+    ai_scaler_cfg->psm = ai_scale_info->ai_scale_data.psm;
+#endif
     if (ai_scale_info->ai_scale_data.is_param_valid) {
       memcpy(ai_scaler_cfg->param, ai_scale_info->ai_scale_data.param,
              AIQE_AI_SCALER_PARAM_LEN * sizeof(ai_scaler_cfg->param[0]));
@@ -647,6 +653,7 @@ DisplayError HWPeripheralDRM::Flush(HWLayersInfo *hw_layers_info) {
     SetTUIState();
   }
   ResetDestScalarCache();
+  ResetAIScalarCache();
   return kErrorNone;
 }
 

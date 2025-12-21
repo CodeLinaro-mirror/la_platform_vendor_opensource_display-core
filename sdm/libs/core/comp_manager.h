@@ -159,6 +159,8 @@ class CompManager : public CwbCallback {
       Handle display_ctx, const std::bitset<kClientCapabilityMax> &client_capabilities);
   DisplayError SetDisplayDeviceConfig(Handle display_ctx,
                                       const SDMDisplayDeviceConfig &display_device_config);
+  DisplayError SetPoseConfig(Handle display_ctx, const LayerBuffer &buffer);
+  DisplayError CanTakeDPUScreenshot(Handle display_ctx);
 
  private:
   static const int kMaxThermalLevel = 3;

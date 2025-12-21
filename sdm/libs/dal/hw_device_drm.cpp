@@ -752,6 +752,11 @@ DisplayError HWDeviceDRM::Init() {
     DLOGW("Device removal detected on connector id %u. Connector status %s and %zu modes.",
           token_.conn_id, connector_info_.is_connected ? "connected":"disconnected",
           connector_info_.modes.size());
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, token_.conn_id, 0);
+    int ret = NullCommit(true /* synchronous */, false /* retain_planes */);
+    if (ret) {
+        DLOGE("NullCommit failed with error: %d", ret);
+    }
     drm_mgr_intf_->DestroyAtomicReq(drm_atomic_intf_);
     drm_atomic_intf_ = {};
     drm_mgr_intf_->UnregisterDisplay(&token_);
@@ -1528,10 +1533,29 @@ DisplayError HWDeviceDRM::PowerOn(const HWQosData &qos_data, SyncPoints *sync_po
       is_synchronous = false;
     }
   }
+
+  // Set panel mode if panel is in active state
+  if (last_power_mode_ != DRMPowerMode::OFF &&
+      (panel_mode_changed_ & DRM_MODE_FLAG_VID_MODE_PANEL)) {
+    // Switch to video mode, corresponding change the fence_offset
+    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_OUTPUT_FENCE_OFFSET, token_.crtc_id, 1);
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_PANEL_MODE, token_.conn_id,
+                              panel_mode_changed_);
+    is_synchronous = true;
+    ResetROI();
+  }
+
   int ret = NullCommit(is_synchronous, true /* retain_planes */);
   if (ret) {
     DLOGE("Failed with error: %d", ret);
     return kErrorHardware;
+  }
+
+  if (last_power_mode_ != DRMPowerMode::OFF &&
+      (panel_mode_changed_ & DRM_MODE_FLAG_VID_MODE_PANEL)) {
+    panel_mode_changed_ = 0;
+    synchronous_commit_ = false;
+    reset_output_fence_offset_ = true;
   }
 
   sync_points->retire_fence = Fence::Create(INT(retire_fence_fd), "retire_power_on");
@@ -1594,11 +1618,20 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   }
   int ret = NullCommit(is_synchronous, false /* retain_planes */);
   if (ret) {
-    DLOGE(
-        "Failed with error: %d, dynamic_fps=%d, seamless_mode_switch_=%d, vrefresh_=%d,"
-        "panel_mode_changed_=%d bit_clk_rate_=%" PRIu64 " bpp_mode_changed_=%d",
-        ret, hw_panel_info_.dynamic_fps, seamless_mode_switch_, vrefresh_, panel_mode_changed_,
-        bit_clk_rate_, bpp_mode_changed_);
+    if (is_ssr_active_) {
+      DLOGW(
+          "Failed with error: %d, dynamic_fps=%d, seamless_mode_switch_=%d, vrefresh_=%d,"
+          "panel_mode_changed_=%d bit_clk_rate_=%" PRIu64
+          " bpp_mode_changed_=%d while SSR is active, ignore failure",
+          ret, hw_panel_info_.dynamic_fps, seamless_mode_switch_, vrefresh_, panel_mode_changed_,
+          bit_clk_rate_, bpp_mode_changed_);
+    } else {
+      DLOGE(
+          "Failed with error: %d, dynamic_fps=%d, seamless_mode_switch_=%d, vrefresh_=%d,"
+          "panel_mode_changed_=%d bit_clk_rate_=%" PRIu64 " bpp_mode_changed_=%d",
+          ret, hw_panel_info_.dynamic_fps, seamless_mode_switch_, vrefresh_, panel_mode_changed_,
+          bit_clk_rate_, bpp_mode_changed_);
+    }
     bpp_mode_changed_ = 0;
     return kErrorHardware;
   }
@@ -1616,6 +1649,12 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
       }
     }
     bpp_mode_changed_ = 0;
+  }
+
+  if (is_ssr_active_) {
+    DLOGI("SSR Active, close Power-Off Retire fence %" PRId64, retire_fence_fd);
+    close(retire_fence_fd);
+    retire_fence_fd = -1;
   }
 
   sync_points->retire_fence = Fence::Create(INT(retire_fence_fd), "retire_power_off");
@@ -2569,10 +2608,25 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
   }
 
   int ret = drm_atomic_intf_->Commit(sync_commit, false /* retain_planes*/);
+
+  if (is_ssr_active_) {
+    DLOGI("SSR Active, close Retire %" PRId64 " and Release %" PRId64 " fence of Commit!",
+          retire_fence_fd, release_fence_fd);
+    close(release_fence_fd);
+    close(retire_fence_fd);
+    release_fence_fd = -1;
+    retire_fence_fd = -1;
+  }
+
   shared_ptr<Fence> release_fence = Fence::Create(INT(release_fence_fd), "release");
   shared_ptr<Fence> retire_fence = Fence::Create(INT(retire_fence_fd), "retire");
   if (ret) {
-    DLOGE("%s failed with error %d crtc %d", __FUNCTION__, ret, token_.crtc_id);
+    if (is_ssr_active_) {
+      DLOGW("%s failed with error %d crtc %d while SSR is active, ignore failure", __FUNCTION__,
+            ret, token_.crtc_id);
+    } else {
+      DLOGE("%s failed with error %d crtc %d", __FUNCTION__, ret, token_.crtc_id);
+    }
     DumpHWLayers(hw_layers_info);
     vrefresh_ = 0;
     panel_mode_changed_ = 0;
@@ -2674,10 +2728,12 @@ DisplayError HWDeviceDRM::Flush(HWLayersInfo *hw_layers_info) {
     DLOGI("Tearing down the CWB topology");
   }
 
-  int ret = NullCommit(sync_commit /* synchronous */, false /* retain_planes*/);
-  if (ret) {
-    DLOGE("failed with error %d", ret);
-    return kErrorHardware;
+  if (!is_ssr_active_) {
+    int ret = NullCommit(sync_commit /* synchronous */, false /* retain_planes*/);
+    if (ret) {
+      DLOGE("failed with error %d", ret);
+      return kErrorHardware;
+    }
   }
 
   if (cwb_config_[core_id_].enabled) {
@@ -3595,7 +3651,13 @@ DisplayError HWDeviceDRM::NullCommit(bool synchronous, bool retain_planes) {
 
   int ret = drm_atomic_intf_->Commit(synchronous , retain_planes);
   if (ret) {
-    DLOGE("failed with error %d, crtc=%u", ret, token_.crtc_id);
+    if (is_ssr_active_) {
+      DLOGW("failed with error %d, crtc=%u while SSR is active, ignore failure", ret,
+            token_.crtc_id);
+    } else {
+      DLOGE("failed with error %d, crtc=%u", ret, token_.crtc_id);
+    }
+
     return kErrorHardware;
   }
   DLOGI("Null commit succeeded crtc=%u", token_.crtc_id);
@@ -4438,6 +4500,14 @@ void HWDeviceDRM::SetDrmPlaneEquation(const uint32_t &pipe_id,
   memcpy(&drm_plane_equation.c, &layer_equation.c, sizeof(layer_equation.c));
   memcpy(&drm_plane_equation.d, &layer_equation.d, sizeof(layer_equation.d));
   drm_atomic_intf_->Perform(DRMOps::PLANE_SET_PLANE_EQUATION, pipe_id, &drm_plane_equation);
+}
+
+void HWDeviceDRM::SetSSRState(bool active) {
+  is_ssr_active_ = active;
+}
+
+bool HWDeviceDRM::IsEPTSupported() {
+  return connector_info_.is_ept_supported;
 }
 
 }  // namespace sdm

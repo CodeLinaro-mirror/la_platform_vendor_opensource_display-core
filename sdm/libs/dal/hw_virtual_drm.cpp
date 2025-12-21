@@ -210,6 +210,9 @@ DisplayError HWVirtualDRM::SetWbConfigs(const HWDisplayAttributes &display_attri
 }
 
 void HWVirtualDRM::ConfigureDNSC(HWLayersInfo *hw_layers_info) {
+  if (hw_layers_info->lsr_commit) {
+    return;
+  }
 #ifdef FEATURE_DNSC_BLUR
   sde_drm::DRMFrameTriggerMode trigger_mode = sde_drm::DRMFrameTriggerMode::FRAME_DONE_WAIT_DEFAULT;
   sde_drm::DRMWBUsageType usage_mode = sde_drm::DRMWBUsageType::WB_USAGE_WFD;
@@ -237,6 +240,7 @@ DisplayError HWVirtualDRM::Commit(HWLayersInfo *hw_layers_info) {
   }
 
   ConfigureWbConnectorFbId(output_buf_fb_id, lsr_out_fb_ids);
+  ConfigurePoseBuffer(hw_layers_info->pose_buffer);
   ConfigureDNSC(hw_layers_info);
   ConfigureWbConnectorDestRect(hw_layers_info->iwe_enabled);
   SetWbCSC();
@@ -330,6 +334,7 @@ DisplayError HWVirtualDRM::Validate(HWLayersInfo *hw_layers_info) {
   }
 
   ConfigureWbConnectorFbId(output_buf_fb_id, lsr_out_fb_ids);
+  ConfigurePoseBuffer(hw_layers_info->pose_buffer);
   ConfigureWbConnectorDestRect();
   SetWbCSC();
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_SYNC_TO, token_.conn_id, primary_disp_conn_id_);
@@ -488,11 +493,16 @@ DisplayError HWVirtualDRM::SetReprojectionConfig(
                             reprojection_config.reproj_disp_im_height);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_TILE_SIZE, token_.conn_id,
                             reprojection_config.reproj_tile_w, reprojection_config.reproj_tile_h);
-  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_MODE, token_.conn_id,
-                            reprojection_config.reprojection_mode);
+  auto reprojection_mode = reprojection_config.reprojection_mode_enabled
+                               ? SDE_LSR_WB_REPROJECTION_MODE
+                               : SDE_LSR_WB_RENDER_MODE;
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_MODE, token_.conn_id, reprojection_mode);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_TO_LRGB, token_.conn_id,
                             reprojection_config.reproj_to_lrgb_left,
                             reprojection_config.reproj_to_lrgb_left);
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_REPROJ_MIN_BBOX_SIZE, token_.conn_id,
+                            reprojection_config.reproj_min_bbox_w,
+                            reprojection_config.reproj_min_bbox_h);
   return kErrorNone;
 }
 
@@ -585,6 +595,47 @@ void HWVirtualDRM::ProgramDisplayDeviceConfig() {
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_DISPLAY_GAMMA, token_.conn_id, &display_gamma_);
 
   set_display_device_config_ = false;
+}
+
+DisplayError HWVirtualDRM::ConfigurePoseBuffer(std::shared_ptr<LayerBuffer> pose_buffer) {
+  if (!pose_buffer) {
+    return kErrorUndefined;
+  }
+
+  if (pose_buffer->planes[0].fd < 0) {
+    DLOGE("Invalid Pose Buffer fd");
+    return kErrorUndefined;
+  }
+
+  uint64_t handle_id = pose_buffer->handle_id;
+  bool secure_present = (pose_buffer->flags.secure || pose_buffer->flags.secure_display ||
+                         pose_buffer->flags.secure_camera);
+  bool need_fb_id_creation = true;
+  if (!handle_id || (handle_id != previous_pose_handle_)) {
+    pose_fb_obj_ = nullptr;
+  } else if (pose_fb_obj_ && pose_fb_obj_.get()->IsEqual(pose_buffer->format, pose_buffer->width,
+                                                         pose_buffer->height, secure_present)) {
+    need_fb_id_creation = false;
+  }
+
+  if (need_fb_id_creation) {
+    std::vector<uint32_t> fb_id(1);
+    int ret = registry_.CreateFbId(*pose_buffer, &fb_id);
+    if (ret >= 0) {
+      pose_fb_obj_ = std::make_shared<FrameBufferObject>(
+          fb_id[kColorNone], core_id_, pose_buffer->format, pose_buffer->width, pose_buffer->height,
+          false /* shallow */, secure_present);
+    }
+  }
+
+  uint32_t pose_fb_id = pose_fb_obj_->GetFbId();
+  if (!pose_fb_id) {
+    DLOGE("Invalid pose fbid");
+    return kErrorUndefined;
+  }
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_POSE_FB_ID, token_.conn_id, pose_fb_id);
+
+  return kErrorNone;
 }
 
 }  // namespace sdm

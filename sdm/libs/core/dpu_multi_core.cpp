@@ -1,7 +1,7 @@
 /*
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include "dpu_multi_core.h"
 
@@ -1041,6 +1041,21 @@ DisplayError DPUMultiCore::GetFbConfig(uint32_t width, uint32_t height,
     device_ctx->at(core_ids_[i]).fb_config.x_pixels = dpu_fb_width;
   }
   return error;
+}
+
+void DPUMultiCore::SetSSRState(bool active) {
+  for (auto hw_intf : hw_intf_) {
+    hw_intf.second->SetSSRState(active);
+  }
+}
+
+bool DPUMultiCore::IsEPTSupported() {
+  bool ept_supported = true;
+  for (auto hw_intf : hw_intf_) {
+    ept_supported &= hw_intf.second->IsEPTSupported();
+  }
+
+  return ept_supported;
 }
 
 }  // namespace sdm

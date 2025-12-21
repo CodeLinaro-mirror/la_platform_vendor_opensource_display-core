@@ -23,11 +23,10 @@
 */
 
 /*
-* ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-*
-* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __RESOURCE_DEFAULT_H__
 #define __RESOURCE_DEFAULT_H__
@@ -139,6 +138,10 @@ class ResourceDefault : public ResourceInterface {
                                               const SDMDisplayDeviceConfig &display_device_config) {
     return kErrorNone;
   }
+  virtual DisplayError SetPoseConfig(Handle display_ctx, const LayerBuffer &buffer) {
+    return kErrorNone;
+  }
+  virtual DisplayError CanTakeDPUScreenshot(uint32_t display_id) { return kErrorNone; };
 
  private:
   enum PipeOwner {

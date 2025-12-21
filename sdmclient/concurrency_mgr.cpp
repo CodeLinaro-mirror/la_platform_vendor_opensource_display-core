@@ -387,8 +387,15 @@ void ConcurrencyMgr::GetCapabilities(uint32_t *outCount,
   }
   count += disable_llcbc_support ? 0 : 1;
 
+  bool is_ept_supported = true;
+  if (!IsEPTSupported()) {
+    is_ept_supported = false;
+  }
+  count += is_ept_supported ? 0 : 1;
+
   if (outCapabilities != nullptr && (*outCount >= count)) {
     int index = 0;
+
     if (!disable_skip_validate) {
       outCapabilities[index++] = INT32(SDMCapability::kSkipValidate);
     }
@@ -396,8 +403,21 @@ void ConcurrencyMgr::GetCapabilities(uint32_t *outCount,
     if (!disable_llcbc_support) {
       outCapabilities[index++] = INT32(SDMCapability::kLayerLifeCycleBatchCommand);
     }
+
+    if (!is_ept_supported) {
+      outCapabilities[index++] = INT32(SDMCapability::kPresentFenceIsNotReliable);
+    }
   }
   *outCount = count;
+}
+
+bool ConcurrencyMgr::IsEPTSupported() {
+  SCOPE_LOCK(locker_[SDM_DISPLAY_PRIMARY]);
+  if (!sdm_display_[SDM_DISPLAY_PRIMARY]) {
+    return false;  // Safe default value
+  }
+
+  return sdm_display_[SDM_DISPLAY_PRIMARY]->IsEPTSupported();
 }
 
 void ConcurrencyMgr::Dump(uint32_t *out_size, char *out_buffer) {
@@ -1125,6 +1145,15 @@ DisplayError ConcurrencyMgr::SetPowerMode(uint64_t display, int32_t int_mode) {
   // transition during secure session.
   {
     SCOPE_LOCK(locker_[display]);
+
+    if (ssr_active_) {
+      // Cache Power Mode in SSR Active state.
+      DLOGI("SSR Active, cache Power mode %d for Display %llu", mode, display);
+      cached_last_power_mode_[display] = mode;
+      DTRACE_END();
+      return kErrorNone;
+    }
+
     if (sdm_display_[display]) {
       is_builtin =
           (sdm_display_[display]->GetDisplayClass() == DISPLAY_CLASS_BUILTIN);
@@ -1675,11 +1704,6 @@ ConcurrencyMgr::SetReadbackBuffer(uint64_t display, void *buffer,
     return kErrorNotSupported;
   }
 
-  int virtual_dpy_index = disp_->GetDisplayIndex(qdutilsDisplayType::DISPLAY_VIRTUAL);
-  if ((virtual_dpy_index != -1) && sdm_display_[virtual_dpy_index]) {
-    return kErrorNotSupported;
-  }
-
   CwbConfig cwb_config = {}; /* SF uses LM tappoint*/
 
   return CallDisplayFunction(display, &SDMDisplay::SetReadbackBuffer, buffer,
@@ -2086,6 +2110,22 @@ DisplayError ConcurrencyMgr::TeardownConcurrentWriteback(Display display) {
   }
 
   return kErrorNone;
+}
+
+DisplayError ConcurrencyMgr::SetPoseConfig(uint64_t display_id, void *buffer) {
+  int disp_idx = GetDisplayIndex(display_id);
+  if (disp_idx == -1) {
+    DLOGW("Invalid display = %" PRIu64, display_id);
+    return kErrorNotSupported;
+  }
+
+  SCOPE_LOCK(locker_[disp_idx]);
+  if (!sdm_display_[disp_idx]) {
+    DLOGW("Display %" PRIu64 " is not connected.", display_id);
+    return kErrorResources;
+  }
+
+  return sdm_display_[disp_idx]->SetPoseConfig(buffer);
 }
 
 DisplayError ConcurrencyMgr::CommitOrPrepare(
@@ -2705,7 +2745,7 @@ DisplayError ConcurrencyMgr::SetABCState(uint64_t display_id, bool state) {
     return kErrorResources;
   }
 
-  SCOPE_LOCK(locker_[disp_idx]);
+  SEQUENCE_WAIT_SCOPE_LOCK(locker_[disp_idx]);
   if (!sdm_display_[disp_idx]) {
     DLOGW("Display %" PRIu64 " is not connected.", display_id);
     return kErrorResources;
@@ -2721,7 +2761,7 @@ DisplayError ConcurrencyMgr::SetABCReconfig(uint64_t display_id) {
     return kErrorResources;
   }
 
-  SCOPE_LOCK(locker_[disp_idx]);
+  SEQUENCE_WAIT_SCOPE_LOCK(locker_[disp_idx]);
   if (!sdm_display_[disp_idx]) {
     DLOGW("Display %" PRIu64 " is not connected.", display_id);
     return kErrorResources;
@@ -2737,7 +2777,7 @@ DisplayError ConcurrencyMgr::SetABCMode(uint64_t display_id, string mode_name) {
     return kErrorResources;
   }
 
-  SCOPE_LOCK(locker_[disp_idx]);
+  SEQUENCE_WAIT_SCOPE_LOCK(locker_[disp_idx]);
   if (!sdm_display_[disp_idx]) {
     DLOGW("Display %" PRIu64 " is not connected.", display_id);
     return kErrorResources;
@@ -2776,4 +2816,70 @@ DisplayError ConcurrencyMgr::ClearBuffersMappedToLayer(uint64_t display, LayerId
   return CallDisplayFunction(display, &SDMDisplay::ClearBuffersMappedToLayer, layer_id,
                              layerBuffer);
 }
+
+void ConcurrencyMgr::PerformSubsystemRestart(bool start) {
+  DTRACE_SCOPED();
+  DLOGI("Perform Subsystem Restart: %s", start ? "Start" : "End");
+  // Wait until all commands are flushed.
+  std::lock_guard<std::mutex> lock(command_seq_mutex_);
+  std::lock_guard<std::mutex> tui_lock(tui_mutex_);
+
+  // Acquire lock on all displays.
+  for (Display display = SDM_DISPLAY_PRIMARY; display < kNumDisplays; display++) {
+    locker_[display].Lock();
+  }
+
+  DisplayError status = kErrorNone;
+  if (start) {
+    // SSR Start
+    ssr_active_ = true;
+    for (Display display = SDM_DISPLAY_PRIMARY; display < kNumDisplays; display++) {
+      if (sdm_display_[display] != NULL) {
+        cached_last_power_mode_[display] = sdm_display_[display]->GetCurrentPowerMode();
+        DLOGI("Powering off Display %d", INT32(display));
+        status =
+            sdm_display_[display]->SetPowerMode(SDMPowerMode::POWER_MODE_OFF, true /* teardown */);
+        if (status != kErrorNone) {
+          DLOGW("Power off for Display %d failed with error: %d", INT32(display), status);
+        }
+      }
+    }
+  } else {
+    // SSR End
+    for (Display display = SDM_DISPLAY_PRIMARY; display < kNumDisplays; display++) {
+      if (sdm_display_[display] != NULL) {
+        SDMPowerMode mode = cached_last_power_mode_[display];
+        DLOGI("Setting Display %d to mode = %d", INT32(display), mode);
+        status = sdm_display_[display]->SetPowerMode(mode, false /* teardown */);
+        if (status != kErrorNone) {
+          DLOGE("Setting %d mode for Display %d failed with error: %d", mode, INT32(display),
+                status);
+        }
+        SDMColorMode color_mode = sdm_display_[display]->GetCurrentColorMode();
+        SDMRenderIntent render_intent = sdm_display_[display]->GetCurrentRenderIntent();
+        status = sdm_display_[display]->SetColorModeWithRenderIntent(color_mode, render_intent);
+        if (status != kErrorNone) {
+          DLOGE("SetColorMode failed for Display %d with error: %d", INT32(display), status);
+        }
+      }
+    }
+
+    Display vsync_source = vsync_source_;
+    // adb shell stop sets vsync source as max display
+    if (vsync_source != kNumDisplays && sdm_display_[vsync_source]) {
+      status = sdm_display_[vsync_source]->SetVsyncEnabled(true);
+      if (status != kErrorNone) {
+        DLOGE("Enabling Vsync failed for Disp: %" PRIu64 " with error: %d", vsync_source, status);
+      }
+    }
+    ssr_active_ = false;
+  }
+
+  // Release lock on all displays.
+  for (Display display = SDM_DISPLAY_PRIMARY; display < kNumDisplays; display++) {
+    locker_[display].Unlock();
+  }
+  DLOGI("Perform Subsystem Restart done!");
+}
+
 }  // namespace sdm

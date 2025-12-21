@@ -69,15 +69,6 @@ enum SecureSessionType {
   kSecureMax,
 };
 
-// CWB client currently using the block
-enum CWBClient {
-  kCWBClientNone,      // No client connected
-  kCWBClientFrameDump, // Dump to file
-  kCWBClientColor,     // Internal client i.e. Color Manager
-  kCWBClientExternal,  // External client calling through private APIs
-  kCWBClientComposer,  // Client to SDM i.e. SurfaceFlinger
-};
-
 enum CWBReleaseFenceError {
   kCWBReleaseFenceErrorNone,
   kCWBReleaseFenceSignaled = kCWBReleaseFenceErrorNone,
@@ -545,6 +536,8 @@ public:
   virtual void SetPrivacyRegionsData(uint32_t layer_id, float corner_radius,
                                      const std::vector<PrivacyRegion> &regions);
   virtual DisplayError ClearBuffersMappedToLayer(LayerId layer_id, const SnapHandle *layerBuffer);
+  virtual DisplayError SetPoseConfig(void *buffer) { return kErrorNotSupported; }
+  virtual bool IsEPTSupported();
 
  protected:
   static uint32_t throttling_refresh_rate_;

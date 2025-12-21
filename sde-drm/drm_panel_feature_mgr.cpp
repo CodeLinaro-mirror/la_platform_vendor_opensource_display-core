@@ -422,6 +422,7 @@ void DRMPanelFeatureMgr::ParseDsppCapabilities(uint32_t blob_id, std::vector<int
 
   *size = sizeof(int) * values->size();
   delete[] fmt_str;
+  drmModeFreePropertyBlob(blob);
 }
 
 void DRMPanelFeatureMgr::ParseCapabilities(uint32_t blob_id, char* value, uint32_t max_len,
@@ -457,6 +458,7 @@ void DRMPanelFeatureMgr::ParseCapabilities(uint32_t blob_id, char* value, uint32
   std::copy(val.begin(), val.end(), value);
   value[val.size()] = '\0';
   delete[] fmt_str;
+  drmModeFreePropertyBlob(blob);
 }
 
 void DRMPanelFeatureMgr::GetPanelFeatureInfo(DRMPanelFeatureInfo *info) {
@@ -547,6 +549,7 @@ void DRMPanelFeatureMgr::GetPanelFeatureInfo(DRMPanelFeatureInfo *info) {
       uint8_t *src_end = src_begin + blob->length;
       uint8_t *dst = reinterpret_cast<uint8_t *> (info->prop_ptr);
       std::copy(src_begin, src_end, dst);
+      drmModeFreePropertyBlob(blob);
     } else {
       uint8_t *src_begin = reinterpret_cast<uint8_t *> (props->prop_values[j]);
       uint8_t *src_end = src_begin + info->prop_size;
