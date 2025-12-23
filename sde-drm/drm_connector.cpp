@@ -652,7 +652,7 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
   const string dpu_ctl_op_sync = "dpu_ctl_op_sync=";
   const string dms_type = "dms_vid support=";
   const string has_cac_loopback = "has_cac_loopback=";
-
+  const string ext_bridge = "ext bridge hpd support=";
   while (std::getline(stream, line)) {
     if (line.find(pixel_formats) != string::npos) {
       vector<pair<uint32_t, uint64_t>> formats_supported;
@@ -708,6 +708,8 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
       } else if (string(line, dms_type.length()) == "dms-vid-non-seamless") {
         info->dms_type = DMSType::DMS_VID_NON_SEAMLESS;
       }
+    } else if (line.find(ext_bridge) != string::npos) {
+      info->is_dsi_to_hdmi_bridge = (string(line, ext_bridge.length()) == "true");
     }
   }
 

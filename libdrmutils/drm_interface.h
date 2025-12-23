@@ -1078,6 +1078,7 @@ struct DRMConnectorInfo {
   bool dpu_ctl_op_sync = false;
   bool has_cac_loopback = false;
   DMSType dms_type = DMSType::DMS_VID_DISABLED;
+  bool is_dsi_to_hdmi_bridge = false;
 };
 
 // All DRM Connectors as map<Connector_id , connector_info>
