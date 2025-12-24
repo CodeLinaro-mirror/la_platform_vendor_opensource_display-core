@@ -1443,8 +1443,8 @@ void DisplayPluggable::UpdateQsyncConfig() {
   disp_layer_stack_->stack_info.common_info.hw_avr_info.mode = GetAvrMode(mode);
   disp_layer_stack_->stack_info.common_info.hw_avr_info.step_enabled = avr_step_enabled_;
 
-  DLOGV_IF(kTagDisplay, "display %d-%d update: %d mode: %d AVR Step state: %d", display_id_,
-           display_type_, disp_layer_stack_->stack_info.common_info.hw_avr_info.update.any(), mode,
+  DLOGV_IF(kTagDisplay, "display %d-%d update: %lu mode: %u AVR Step state: %d", display_id_,
+           display_type_, disp_layer_stack_->stack_info.common_info.hw_avr_info.update.to_ulong(), mode,
            avr_step_enabled_);
 
   // Store active mode.
