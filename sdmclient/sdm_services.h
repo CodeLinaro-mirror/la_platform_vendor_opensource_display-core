@@ -138,10 +138,11 @@ enum {
   SDM_SERVICE_DEBUG_IWE,
   SDM_SERVICE_DEBUG_WB_USAGE,
   SDM_SERVICE_DEBUG_DEMURA,
+  SDM_SERVICE_DEBUG_COLOR_PROCESSING,
   SDM_SERVICE_DEBUG_MAX_VAL =
-      SDM_SERVICE_DEBUG_DEMURA,  // Used to check each bit of the debug command
-                                 // paramater. Update DEBUG_MAX_VAL when adding
-                                 // new debug tag.
+      SDM_SERVICE_DEBUG_COLOR_PROCESSING,  // Used to check each bit of the debug command
+                                           // paramater. Update DEBUG_MAX_VAL when adding
+                                           // new debug tag.
 };
 
 enum {
