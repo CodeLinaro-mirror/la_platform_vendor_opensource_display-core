@@ -874,14 +874,7 @@ void ConcurrencyMgr::RegisterCompositorCallback(SDMCompositorCbIntf *cb, bool en
   vector<Display> pending_hotplugs;
 
   client_connected_ = enable;
-  if (!enable) {
-    DLOGI("Unregister AidlComposerClient's callback");
-    if (hpd_) {
-      hpd_->Deinit();
-      hpd_ = nullptr;
-    }
-
-  } else {
+  if (enable) {
     GetPendingHotplug(pending_hotplugs);
 
     if (sdm_display_[SDM_DISPLAY_PRIMARY]) {
