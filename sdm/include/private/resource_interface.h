@@ -125,7 +125,7 @@ class ResourceInterface {
   virtual DisplayError GetDefaultQoSData(Handle display_ctx,
                                          std::map<uint32_t, HWQosData> *default_qos_data) = 0;
   virtual bool IsGPUHWAvailable() = 0;
-  virtual DisplayError SetAIScalerMode(uint32_t mode_id) = 0;
+  virtual DisplayError SetAIScalerMode(Handle display_ctx, uint32_t mode_id) = 0;
   virtual DisplayError GetAIScalerMode(uint32_t *mode_id) = 0;
   virtual DisplayError SetDisplayDeviceConfig(
       Handle display_ctx, const SDMDisplayDeviceConfig &display_device_config) = 0;

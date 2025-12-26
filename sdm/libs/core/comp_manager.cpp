@@ -210,8 +210,10 @@ DisplayError CompManager::UnregisterDisplay(Handle display_ctx) {
   return kErrorNone;
 }
 
-DisplayError CompManager::SetAIScalerMode(uint32_t mode_id) {
-  return resource_intf_->SetAIScalerMode(mode_id);
+DisplayError CompManager::SetAIScalerMode(Handle comp_handle, uint32_t mode_id) {
+  DisplayCompositionContext *display_comp_ctx =
+      reinterpret_cast<DisplayCompositionContext *>(comp_handle);
+  return resource_intf_->SetAIScalerMode(display_comp_ctx->display_resource_ctx, mode_id);
 }
 
 DisplayError CompManager::GetAIScalerMode(uint32_t *mode_id) {
