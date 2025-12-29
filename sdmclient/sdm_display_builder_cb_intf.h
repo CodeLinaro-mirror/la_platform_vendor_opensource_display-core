@@ -26,6 +26,7 @@ public:
                           int *hpd_connected) = 0;
   virtual bool IsClientConnected() = 0;
   virtual DisplayError WaitForCommitDoneAsync(Display display, int client_id) = 0;
+  virtual void SetPrimaryConnected(bool state) = 0;
 
   std::mutex command_seq_mutex_;
 };
