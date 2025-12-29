@@ -1787,8 +1787,8 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
   // Regiser for power events on first cycle in unified draw.
   if (first_cycle_ && display_type_ == kBuiltIn) {
     // Register for panel dead for all the cores since notification is sent at any time
-    for (int i = 0; i < hw_events_intf_.size(); i++) {
-      hw_events_intf_[i]->SetEventState(HWEvent::PANEL_DEAD, true);
+    for (auto &hw_event : hw_events_intf_) {
+      hw_events_intf_[hw_event.first]->SetEventState(HWEvent::PANEL_DEAD, true);
     }
   }
 
@@ -2342,9 +2342,9 @@ DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
 
     case kStateOn:
       if (comp_manager_->GetDefaultQosData(display_comp_ctx_, &qos_data) == kErrorNone) {
-        for (int i = 0; i < cached_qos_data_.size(); i++) {
-          if (!cached_qos_data_[i].valid)
-            cached_qos_data_[i] = qos_data[i];
+        for (auto &cached_qos : cached_qos_data_) {
+          if (!cached_qos_data_[cached_qos.first].valid)
+            cached_qos_data_[cached_qos.first] = qos_data[cached_qos.first];
         }
       }
       error = dpu_core_mux_->PowerOn(cached_qos_data_, &sync_points);
