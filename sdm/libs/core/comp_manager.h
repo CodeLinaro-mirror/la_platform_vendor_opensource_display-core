@@ -155,6 +155,7 @@ class CompManager : public CwbCallback {
   void LoadCwbHwDnscConfig(int32_t core_id, HWLayersInfo *info);
   bool IsActiveDisplay(int32_t display_id);
   bool IsGPUHWAvailable();
+  DisplayError CanTakeDPUScreenshot(Handle display_ctx);
 
  private:
   static const int kMaxThermalLevel = 3;

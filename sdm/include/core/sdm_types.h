@@ -651,6 +651,15 @@ struct CornerRadius {
   }
 };
 
+// CWB client currently using the block
+enum CWBClient {
+  kCWBClientNone,      // No client connected
+  kCWBClientFrameDump, // Dump to file
+  kCWBClientColor,     // Internal client i.e. Color Manager
+  kCWBClientExternal,  // External client calling through private APIs
+  kCWBClientComposer,  // Client to SDM i.e. SurfaceFlinger
+};
+
 }  // namespace sdm
 
 #endif  // __SDM_TYPES_H__

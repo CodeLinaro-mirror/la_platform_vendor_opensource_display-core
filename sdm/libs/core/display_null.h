@@ -178,7 +178,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(ForceToneMapUpdate(LayerStack *layer_stack))
   MAKE_NO_OP(UpdateTransferTime(uint32_t transfer_time))
   MAKE_NO_OP(SetJitterConfig(uint32_t, float, uint32_t))
-  MAKE_NO_OP(CaptureCwb(const LayerBuffer &, const CwbConfig &));
+  MAKE_NO_OP(CaptureCwb(const LayerBuffer &, const CwbConfig &, const CWBClient &));
   MAKE_NO_OP(GetPanelFeatureInfo(PanelFeatureInfo *info));
   MAKE_NO_OP(PanelOprInfo(const std::string &client_name, bool enable,
                           SdmDisplayCbInterface<PanelOprPayload> *cb_intf));

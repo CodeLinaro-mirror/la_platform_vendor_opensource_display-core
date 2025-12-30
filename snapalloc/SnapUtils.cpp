@@ -224,7 +224,7 @@ bool CheckWidthConstraints(SnapPixelFormat format, int width) {
 bool CheckHeightConstraints(SnapPixelFormat format, int height) {
   auto format_traits = format_traits_map.find(format);
   if (format_traits != format_traits_map.end()) {
-    if (format_traits->second.width_even) {
+    if (format_traits->second.height_even) {
       if (height & 1) {
         DLOGE("Height is odd for format %lu", static_cast<uint64_t>(format));
         return false;

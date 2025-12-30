@@ -46,6 +46,7 @@
 #include "sdm_debugger.h"
 #include "sdm_display_builtin.h"
 #include "sdm_factory.h"
+#include "perf_hint_parser.h"
 
 #define __CLASS__ "SDMDisplayBuiltIn"
 
@@ -186,6 +187,13 @@ DisplayError SDMDisplayBuiltIn::Init() {
   SDMDebugHandler::Get()->GetProperty(ENHANCE_IDLE_TIME, &enhance_idle_time);
   enhance_idle_time_ = (enhance_idle_time == 1);
   DLOGI("enhance_idle_time: %d", enhance_idle_time);
+
+  int32_t raw_min_fps = 90;
+  SDMDebugHandler::Get()->GetProperty(MINIMUM_LARGE_COMP_FPS, &raw_min_fps);
+
+  if (raw_min_fps > 0) {
+    minimum_large_comp_fps_ = raw_min_fps;
+  }
 
   LoadMixedModePerfHintThreshold();
 
@@ -1492,13 +1500,16 @@ DisplayError SDMDisplayBuiltIn::PostInit() {
 }
 
 bool SDMDisplayBuiltIn::NeedsLargeCompPerfHint() {
-  if (active_refresh_rate_ < 90) {
-    DLOGV_IF(kTagResources, "Current fps %d doesn't qualify for large comp hint",
-             active_refresh_rate_);
+  if (active_refresh_rate_ < static_cast<int>(minimum_large_comp_fps_)) {
+    DLOGV_IF(kTagResources,
+             "Current fps %d doesn't qualify for large comp hint "
+             "(minimum %u)",
+             active_refresh_rate_, minimum_large_comp_fps_);
     return false;
   }
 
   std::string trace;
+
   if (large_comp_hint_threshold_ > 0 &&
       sdm_layer_stack_->layer_set_.size() >= large_comp_hint_threshold_) {
     trace = "app layers " + to_string(sdm_layer_stack_->layer_set_.size()) + " threshold " +
@@ -1659,6 +1670,12 @@ void SDMDisplayBuiltIn::LoadMixedModePerfHintThreshold() {
   // For mixed mode composition, if perf hint for large composition cycles is
   // enabled and if the use case meets the threshold, SF and SDM will be running
   // on the gold CPU cores.
+
+  PerfHintParser perf_hint_parser;
+  if (perf_hint_parser.Init() == kErrorNone) {
+    perf_hint_parser.GetPerfHintThresholds(&mixed_mode_threshold_);
+    return;
+  }
 
   // For 120 fps, 8 layers should fall back to GPU
   mixed_mode_threshold_.insert(std::make_pair<int32_t, int32_t>(120, 8));
