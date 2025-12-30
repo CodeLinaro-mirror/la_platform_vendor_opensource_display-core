@@ -257,7 +257,8 @@ int UBWCPolicy::OffTargetAlloc(BufferDescriptor desc, AllocData *out_ad,
 Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc,
                                std::map<SnapConstraintProvider *, CapabilitySet> const &providers,
                                UBWCCapabilities caps, AllocData *out_ad,
-                               vendor_qti_hardware_display_common_BufferLayout *out_layout) {
+                               vendor_qti_hardware_display_common_BufferLayout *out_layout,
+                               bool *used_adreno_for_size) {
   (void)desc;
   (void)caps;
 
@@ -487,8 +488,10 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc,
         int ret = graphics_provider_->GetInitialMetadata(desc, &graphics_metadata, true);
         if (!ret) {
           size = graphics_provider_->AdrenoGetAlignedGpuBufferSize(graphics_metadata.data);
-          if (size > 0)
+          if (size > 0) {
             out_ad->size = size;
+            *used_adreno_for_size = true;
+          }
         }
       }
 
@@ -549,8 +552,10 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc,
       int ret = graphics_provider_->GetInitialMetadata(desc, &graphics_metadata, true);
       if (!ret) {
         size = graphics_provider_->AdrenoGetAlignedGpuBufferSize(graphics_metadata.data);
-        if (size > 0)
+        if (size > 0) {
           out_ad->size = size;
+          *used_adreno_for_size = true;
+        }
       }
     }
   }
