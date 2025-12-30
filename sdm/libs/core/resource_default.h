@@ -141,6 +141,7 @@ class ResourceDefault : public ResourceInterface {
   virtual DisplayError SetPoseConfig(Handle display_ctx, const LayerBuffer &buffer) {
     return kErrorNone;
   }
+  virtual DisplayError CanTakeDPUScreenshot(uint32_t display_id) { return kErrorNone; };
 
  private:
   enum PipeOwner {

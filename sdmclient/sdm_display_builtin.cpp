@@ -1166,7 +1166,9 @@ DisplayError SDMDisplayBuiltIn::SetDynamicDSIClock() {
   DTRACE_SCOPED();
 
   DisplayError error = display_intf_->SetDynamicDSIClock(scheduled_dynamic_dsi_clk_);
-  if (error != kErrorNone) {
+  if (error == kErrorDeferred) {
+    return error;
+  } else if (error != kErrorNone) {
     DLOGE(" failed: Clk: %" PRIu64 " Error: %d", scheduled_dynamic_dsi_clk_, error);
   }
 
@@ -1973,27 +1975,33 @@ void SDMDisplayBuiltIn::InitializePerfHints() {
   // check if perf hints will be enabled/disabled.
   if (enable_perf_hints_ && !cpu_hint_) {
     nsecs_t current_time = callbacks_->SystemTime(SYSTEM_TIME_MONOTONIC);
-    if (nanoseconds_to_milliseconds(current_time - boot_completed_time_) > elapse_time_threshold_) {
+    if ((nanoseconds_to_milliseconds(current_time - boot_completed_time_) /
+         perf_hint_current_retries_) > elapse_time_threshold_) {
       int value = 0;
       SDMDebugHandler::Get()->GetProperty("vendor.mpctl.init.complete", &value);
-      enable_perf_hints_ = (value == 1);
 
-      if (enable_perf_hints_) {
+      if (value == 1) {
         cpu_hint_ = new CPUHint();
         if (cpu_hint_->Init(static_cast<SDMDebugHandler *>(SDMDebugHandler::Get()), callbacks_) !=
             kErrorNone) {
           delete cpu_hint_;
           cpu_hint_ = NULL;
           DLOGW("CPU Hints failed to initialize");
+          enable_perf_hints_ = false;
           return;
         }
+
+        // Reset to indicate perf hints initialization is done
+        enable_perf_hints_ = false;
         DLOGI("Perf hints enabled");
-      } else {
+        return;
+      }
+      if (perf_hint_current_retries_ > kPerfHintMaxRetries) {
+        // Reset to indicate perf hints initialization is done
+        enable_perf_hints_ = false;
         DLOGI("Perf hints disabled");
       }
-
-      // Reset to indicate perf hints initialization is done
-      enable_perf_hints_ = false;
+      perf_hint_current_retries_++;
     }
   }
 }

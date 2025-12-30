@@ -196,7 +196,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
                                                       CwbConfig &cwb_config);
   virtual bool ValidateCwbConfigForDownscale(const LayerBuffer &output_buffer,
                                              CwbConfig &cwb_config);
-  virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config);
+  virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config,
+                                  const CWBClient &client);
   virtual DisplayError PostHandleSecureEvent(SecureEvent secure_event) {
     return kErrorNotSupported;
   }
@@ -464,7 +465,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   int core_count_ = 0;
   ColorManagerIntf *color_mgr_ = NULL;
   bool partial_update_control_ = true;
-  std::vector<HWEventsInterface *> hw_events_intf_ = {};
+  std::map<uint32_t, HWEventsInterface *> hw_events_intf_;
   HWEventsInterface *master_hw_events_intf_ = nullptr;
   bool disable_pu_one_frame_ = false;
   bool pu_pending_ = false;
@@ -585,6 +586,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   void PerformSelfRefresh(uint64_t srEPT);
   std::chrono::system_clock::time_point WaitUntilForSelfRefresh(uint64_t *srEPT);
   DisplayError HandleCommitDuringSSR();
+  bool IsPrimaryCommitNeeded();
 
   unsigned int rc_cached_res_width_ = 0;
   unsigned int rc_cached_res_height_ = 0;
@@ -622,6 +624,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool wb_downscale_supports_ = false;
   bool enable_ai_scaler_ = false;
   uint64_t next_expected_present_ = 0;
+  bool lsr_first_commit_ = true;
+  bool cwb_with_lsr_active_ = false;
 };
 
 }  // namespace sdm

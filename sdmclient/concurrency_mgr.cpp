@@ -874,14 +874,7 @@ void ConcurrencyMgr::RegisterCompositorCallback(SDMCompositorCbIntf *cb, bool en
   vector<Display> pending_hotplugs;
 
   client_connected_ = enable;
-  if (!enable) {
-    DLOGI("Unregister AidlComposerClient's callback");
-    if (hpd_) {
-      hpd_->Deinit();
-      hpd_ = nullptr;
-    }
-
-  } else {
+  if (enable) {
     GetPendingHotplug(pending_hotplugs);
 
     if (sdm_display_[SDM_DISPLAY_PRIMARY]) {
@@ -1148,7 +1141,7 @@ DisplayError ConcurrencyMgr::SetPowerMode(uint64_t display, int32_t int_mode) {
 
     if (ssr_active_) {
       // Cache Power Mode in SSR Active state.
-      DLOGI("SSR Active, cache Power mode %d for Display %d", mode, display);
+      DLOGI("SSR Active, cache Power mode %d for Display %llu", mode, display);
       cached_last_power_mode_[display] = mode;
       DTRACE_END();
       return kErrorNone;
@@ -1701,11 +1694,6 @@ ConcurrencyMgr::SetReadbackBuffer(uint64_t display, void *buffer,
   }
 
   if (display != SDM_DISPLAY_PRIMARY) {
-    return kErrorNotSupported;
-  }
-
-  int virtual_dpy_index = disp_->GetDisplayIndex(qdutilsDisplayType::DISPLAY_VIRTUAL);
-  if ((virtual_dpy_index != -1) && sdm_display_[virtual_dpy_index]) {
     return kErrorNotSupported;
   }
 

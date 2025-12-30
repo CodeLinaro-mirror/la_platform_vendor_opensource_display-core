@@ -256,7 +256,7 @@ DisplayError DisplayBuiltIn::Init() {
             HWEvent::VM_RELEASE_EVENT,
             HWEvent::VM_RECLAIM_EVENT,
             HWEvent::SSR};
-  if (client_ctx_.hw_panel_info.mode == kModeCommand) {
+  if ((client_ctx_.hw_panel_info.mode == kModeCommand) || client_ctx_.hw_panel_info.vhm_support) {
     events.push_back(HWEvent::IDLE_POWER_COLLAPSE);
   }
 #endif
@@ -3475,7 +3475,8 @@ DisplayError DisplayBuiltIn::GetConfig(DisplayConfigFixedInfo *fixed_info) {
   fixed_info->hdr_eotf = client_ctx_.hw_panel_info.hdr_eotf;
   fixed_info->hdr_metadata_type_one = client_ctx_.hw_panel_info.hdr_metadata_type_one;
   fixed_info->partial_update = client_ctx_.hw_panel_info.partial_update;
-  fixed_info->readback_supported = has_concurrent_writeback;
+  fixed_info->readback_supported =
+      has_concurrent_writeback && !(kQuadSplit == client_ctx_.mixer_attributes.split_type);
   fixed_info->supports_unified_draw = unified_draw_supported_;
 
   return kErrorNone;
@@ -3915,12 +3916,36 @@ void DisplayBuiltIn::InitCWBBuffer() {
     return;
   }
 
+  bool is_wb_ubwc_supported = true;
+
+  for (auto hw_info = hw_info_intf_.Begin(); hw_info != hw_info_intf_.End(); hw_info++) {
+    HWDisplaysInfo display_infos;
+    DisplayError error = hw_info->second->GetDisplaysStatus(&display_infos);
+    if (error)
+      continue;
+
+    bool is_cur_core_wb_ubwc_supported = false;
+    for (auto &iter : display_infos) {
+      auto &info = iter.second;
+      if (info.display_type == kVirtual && info.is_wb_ubwc_supported) {
+        is_cur_core_wb_ubwc_supported = true;
+        break;
+      }
+    }
+    is_wb_ubwc_supported &= is_cur_core_wb_ubwc_supported;
+  }
+
   // Initialize CWB buffer with display resolution to get full size buffer
   // as mixer or fb can init with custom values based on property
   output_buffer_info_.buffer_config.width = client_ctx_.display_attributes.x_pixels;
   output_buffer_info_.buffer_config.height = client_ctx_.display_attributes.y_pixels;
 
-  output_buffer_info_.buffer_config.format = kFormatRGBX8888Ubwc;
+  if (is_wb_ubwc_supported) {
+    output_buffer_info_.buffer_config.format = kFormatRGBX8888Ubwc;
+  } else {
+    output_buffer_info_.buffer_config.format = kFormatRGB888;
+  }
+
   output_buffer_info_.buffer_config.buffer_count = 1;
   if (buffer_allocator_->AllocateBuffer(&output_buffer_info_) != 0) {
     DLOGE("Buffer allocation failed");

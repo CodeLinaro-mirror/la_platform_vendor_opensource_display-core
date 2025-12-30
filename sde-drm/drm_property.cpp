@@ -319,6 +319,9 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "reproj_to_lrgb_left") { return DRMProperty::REPROJ_TO_LRGB_LEFT; }
   if (name == "reproj_to_lrgb_right") { return DRMProperty::REPROJ_TO_LRGB_RIGHT; }
   if (name == "reproj_pose_fb") { return DRMProperty::REPROJ_POSE_FB; }
+  if (name == "reproj_min_bbox_w") { return DRMProperty::REPROJ_MIN_BBOX_W; }
+  if (name == "reproj_min_bbox_h") { return DRMProperty::REPROJ_MIN_BBOX_H; }
+  if (name == "lsr_mode") { return DRMProperty::LSR_MODE; }
 
   return DRMProperty::INVALID;
 }

@@ -52,6 +52,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <inttypes.h>
 
 #include "concurrency_mgr.h"
 #include "sdm_debugger.h"
@@ -1190,7 +1191,8 @@ DisplayError SDMDisplay::SetPowerMode(SDMPowerMode mode, bool teardown) {
 
   PostPowerMode();
 
-  if (scheduled_dynamic_dsi_clk_ && mode == SDMPowerMode::POWER_MODE_ON) {
+  if (scheduled_dynamic_dsi_clk_ &&
+      (mode == SDMPowerMode::POWER_MODE_ON || mode == SDMPowerMode::POWER_MODE_DOZE)) {
     uint64_t dsi_clk = scheduled_dynamic_dsi_clk_;
     scheduled_dynamic_dsi_clk_ = 0;
     ScheduleDynamicDSIClock(dsi_clk);
@@ -3815,7 +3817,7 @@ DisplayError SDMDisplay::SetReadbackBuffer(void *buffer,
   CwbTapPoint &tap_point = config.tap_point;
 
   DisplayError error = kErrorNone;
-  error = display_intf_->CaptureCwb(output_buffer, config);
+  error = display_intf_->CaptureCwb(output_buffer, config, client);
   if (error) {
     if (error == kErrorParameters) {
       DLOGE("Invalid input parameter detected (display %d-%d)!", sdm_id_,
@@ -4454,7 +4456,7 @@ void SDMDisplay::SetPrivacyRegionsData(uint32_t layer_id, float corner_radius,
                                        const std::vector<PrivacyRegion> &privacy_regions) {
   const auto map_layer = sdm_layer_stack_->layer_map_.find(layer_id);
   if (map_layer == sdm_layer_stack_->layer_map_.end()) {
-    DLOGW("Display [%" PRIu64 "]-[%" PRIu64 "] SetPrivacyRegions: Failed to find layer %d!", id_,
+    DLOGW("Display [%" PRIu64 "]-[%d] SetPrivacyRegions: Failed to find layer %" PRIu32 "!", id_,
           type_, layer_id);
     return;
   }
@@ -4471,18 +4473,24 @@ DisplayError SDMDisplay::ClearBuffersMappedToLayer(LayerId layer_id,
   // Get BufferID from SnapHandle
   uint64_t buffer_id = 0;
   if (layerBuffer == nullptr) {
-    DLOGW("Layer Buffer(SnapHandle) is NULL for layer_id %d on display : %d-%d", layer_id, sdm_id_,
-          type_);
+    DLOGW("Layer Buffer(SnapHandle) is NULL for layer_id %" PRId64 " on display : %d-%d",
+          static_cast<int64_t>(layer_id), sdm_id_, type_);
     return kErrorParameters;
   }
   GetMetadata(layerBuffer, MetadataType::BUFFER_ID, &buffer_id, snapmapper_);
   for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
     Layer *layer = sdm_layer->GetSDMLayer();
     if (layer->layer_id == layer_id) {
+      if (!layer->buffer_map) {
+        // nothing to erase; just treat as already cleared
+        continue;
+      }
       auto it = layer->buffer_map->buffer_map.find(buffer_id);
       if (it != layer->buffer_map->buffer_map.end()) {
-        DLOGV_IF(kTagClient, "Buffer_id %d exists in fbid buffermap of layer - %d.Erasing it.",
-                 buffer_id, layer_id);
+        DLOGV_IF(kTagClient,
+                 "Buffer_id %" PRIu64 " exists in fbid buffermap of layer - %" PRId64
+                 " .Erasing it.",
+                 buffer_id, static_cast<int64_t>(layer_id));
         layer->buffer_map->buffer_map.erase(it);
       }
     }

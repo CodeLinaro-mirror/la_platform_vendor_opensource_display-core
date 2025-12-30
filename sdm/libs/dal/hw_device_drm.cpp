@@ -752,6 +752,11 @@ DisplayError HWDeviceDRM::Init() {
     DLOGW("Device removal detected on connector id %u. Connector status %s and %zu modes.",
           token_.conn_id, connector_info_.is_connected ? "connected":"disconnected",
           connector_info_.modes.size());
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, token_.conn_id, 0);
+    int ret = NullCommit(true /* synchronous */, false /* retain_planes */);
+    if (ret) {
+        DLOGE("NullCommit failed with error: %d", ret);
+    }
     drm_mgr_intf_->DestroyAtomicReq(drm_atomic_intf_);
     drm_atomic_intf_ = {};
     drm_mgr_intf_->UnregisterDisplay(&token_);
@@ -1528,10 +1533,29 @@ DisplayError HWDeviceDRM::PowerOn(const HWQosData &qos_data, SyncPoints *sync_po
       is_synchronous = false;
     }
   }
+
+  // Set panel mode if panel is in active state
+  if (last_power_mode_ != DRMPowerMode::OFF &&
+      (panel_mode_changed_ & DRM_MODE_FLAG_VID_MODE_PANEL)) {
+    // Switch to video mode, corresponding change the fence_offset
+    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_OUTPUT_FENCE_OFFSET, token_.crtc_id, 1);
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_PANEL_MODE, token_.conn_id,
+                              panel_mode_changed_);
+    is_synchronous = true;
+    ResetROI();
+  }
+
   int ret = NullCommit(is_synchronous, true /* retain_planes */);
   if (ret) {
     DLOGE("Failed with error: %d", ret);
     return kErrorHardware;
+  }
+
+  if (last_power_mode_ != DRMPowerMode::OFF &&
+      (panel_mode_changed_ & DRM_MODE_FLAG_VID_MODE_PANEL)) {
+    panel_mode_changed_ = 0;
+    synchronous_commit_ = false;
+    reset_output_fence_offset_ = true;
   }
 
   sync_points->retire_fence = Fence::Create(INT(retire_fence_fd), "retire_power_on");

@@ -508,6 +508,12 @@ enum struct DRMOps {
    */
   CRTC_SET_FLUSH_SYNC_EN,
   /*
+   * Op: Indicates input buffers holds reprojection output buffers
+   * Args: uint32_t CRTC ID
+   *       uin32_t - lsr_mode (0 / 1)
+   */
+  CRTC_SET_LSR_MODE,
+  /*
    * Op: Sets CRTC to offload mode (offload to co-processor)
    * Arg: uint32_t - CRTC ID
    *      uint32_t - offload mode ON or Off
@@ -868,6 +874,13 @@ enum struct DRMOps {
    *      uint32_t - Framebuffer ID
    */
   CONNECTOR_SET_POSE_FB_ID,
+  /*
+   * Op: Sets Reproj min bbox size
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - min bbox width
+   *      uint32_t - min bbox height
+   */
+  CONNECTOR_SET_REPROJ_MIN_BBOX_SIZE,
 };
 
 enum struct DRMRotation {
