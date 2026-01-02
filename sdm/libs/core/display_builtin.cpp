@@ -4946,7 +4946,7 @@ DisplayError DisplayBuiltIn::SetAIScalerMode(uint32_t mode_id) {
   DisplayError ret = kErrorParameters;
 
   if (IsPrimaryDisplay()) {
-    ret = comp_manager_->SetAIScalerMode(mode_id);
+    ret = comp_manager_->SetAIScalerMode(display_comp_ctx_, mode_id);
   }
 
   if (ret) {

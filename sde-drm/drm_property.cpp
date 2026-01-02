@@ -279,6 +279,7 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "SDE_DSPP_AIQE_SSRC_CONFIG_V1") { return DRMProperty::SDE_DSPP_AIQE_SSRC_CONFIG_V1; }
   if (name == "SDE_DSPP_AIQE_SSRC_DATA_V1") { return DRMProperty::SDE_DSPP_AIQE_SSRC_DATA_V1; }
   if (name == "SDE_DSPP_AIQE_AI_SCALER_V1") { return DRMProperty::AI_SCALER_CFG_V1; }
+  if (name == "SDE_DSPP_AIQE_AI_SCALER_V2") { return DRMProperty::AI_SCALER_CFG_V2; }
   if (name == "SDE_DSPP_AIQE_MDNIE_V1") { return DRMProperty::SDE_DSPP_AIQE_MDNIE_V1; }
   if (name == "SDE_DSPP_AIQE_MDNIE_V2") { return DRMProperty::SDE_DSPP_AIQE_MDNIE_V2; }
   if (name == "SDE_DSPP_AIQE_MDNIE_ART_V1") { return DRMProperty::SDE_DSPP_AIQE_MDNIE_ART_V1; }
