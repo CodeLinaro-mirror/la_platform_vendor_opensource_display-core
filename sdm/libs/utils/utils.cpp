@@ -249,6 +249,10 @@ const char* GetSocName() {
       return kCanoeSocName;
     case kArtSocId:
       return kArtSocName;
+    case kShikraSocId1:
+    case kShikraSocId2:
+    case kShikraSocId3:
+      return kShikraSocName;
     default:
       return "";
   }
