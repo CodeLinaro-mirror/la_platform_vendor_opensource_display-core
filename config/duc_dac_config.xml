@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+SPDX-License-Identifier: BSD-3-Clause-Clear
+-->
+<Config>
+    <DemuraConfiguration>
+        <Panel PanelType="Primary">
+            <disable>0</disable>
+            <overrideLow>0</overrideLow>
+            <overrideHigh>0</overrideHigh>
+            <multiConfigCount>0</multiConfigCount>
+        </Panel>
+        <Panel PanelType="Secondary">
+            <disable>0</disable>
+            <overrideLow>0</overrideLow>
+            <overrideHigh>0</overrideHigh>
+            <multiConfigCount>0</multiConfigCount>
+        </Panel>
+        <enableBacklightScreenRefresh>0</enableBacklightScreenRefresh>
+        <renameFileAllowed>0</renameFileAllowed>
+        <disablePanelReplacement>0</disablePanelReplacement>
+        <disableOptSingleLM>0</disableOptSingleLM>
+        <bypassConfigCopyToQMCS>0</bypassConfigCopyToQMCS>
+    </DemuraConfiguration>
+    <DemuraTnConfiguration>
+        <Panel PanelType="Primary">
+            <shortTimer>1000</shortTimer>
+            <longTimer>60000</longTimer>
+            <recalibTimer>3600000</recalibTimer>
+            <recordTimer>900000</recordTimer>
+            <idleTimer>300000</idleTimer>
+            <recalibTimerDivider>1</recalibTimerDivider>
+            <disableCWBDownScale>0</disableCWBDownScale>
+        </Panel>
+        <Panel PanelType="Secondary">
+            <shortTimer>1000</shortTimer>
+            <longTimer>60000</longTimer>
+            <recalibTimer>3600000</recalibTimer>
+            <recordTimer>900000</recordTimer>
+            <idleTimer>300000</idleTimer>
+            <recalibTimerDivider>1</recalibTimerDivider>
+            <disableCWBDownScale>0</disableCWBDownScale>
+        </Panel>
+        <serviceStartDuration>2</serviceStartDuration>
+        <disableAODHandle>0</disableAODHandle>
+    </DemuraTnConfiguration>
+</Config>

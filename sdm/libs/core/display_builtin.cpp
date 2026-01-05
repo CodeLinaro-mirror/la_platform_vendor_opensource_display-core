@@ -362,6 +362,17 @@ DisplayError DisplayBuiltIn::Init() {
     abc_prop_ = abc_tvm_enabled_;
 #endif
 
+    std::shared_ptr<DucDacConfigParserIntf> duc_dac_config_parser =
+        pf_factory_->CreateDucDacConfigParserIntf();
+    if (!duc_dac_config_parser) {
+      DLOGE("Invalid demura feature parser factory");
+      return kErrorUndefined;
+    }
+    if (duc_dac_config_parser->Init() != kErrorNone) {
+      DLOGE("Failed to initialize duc dac config parser");
+      return kErrorUndefined;
+    }
+
     // Get demura count from HW info
     uint32_t demura_cnt = 0;
     for (int i = 0; i < core_count_; i++) {
@@ -372,15 +383,30 @@ DisplayError DisplayBuiltIn::Init() {
       DisableDemuraForHandOff();
     }
 
+    bool disable_demura_prop = false;
+    int *disable_demura = nullptr;
+    GenericPayload disable_demura_pl;
+
+    int ret = disable_demura_pl.CreatePayload<int>(disable_demura);
+    if (ret || disable_demura == nullptr) {
+      DLOGE("Failed to create disable_demura payload: ret %d, disable_demura %d", ret,
+            disable_demura == nullptr);
+    } else {
+      if (IsPrimaryDisplay()) {
+        ret = duc_dac_config_parser->GetParameter(kDucDisable, &disable_demura_pl);
+      } else {
+        ret = duc_dac_config_parser->GetParameter(kDucDisableSecondary, &disable_demura_pl);
+      }
+      if (ret || disable_demura == nullptr) {
+        DLOGE("Failed to get disable demura status: ret %d", ret);
+      } else {
+        disable_demura_prop = *disable_demura ? true : false;
+      }
+    }
+
     int demura_prop = 0;
     Debug::Get()->GetProperty(ENABLE_DEMURA, &demura_prop);
-    int disable_demura_prop = 0;
-    if (IsPrimaryDisplay()) {
-      Debug::Get()->GetProperty(DISABLE_DEMURA_PRIMARY, &disable_demura_prop);
-    } else {
-      Debug::Get()->GetProperty(DISABLE_DEMURA_SECONDARY, &disable_demura_prop);
-    }
-    demura_enable_ = demura_prop && (!disable_demura_prop);
+    demura_enable_ = demura_prop && !disable_demura_prop;
 
     if (demura_enable_) {  // Create parser manager for demura
       pm_intf_ = pf_factory_->CreateDemuraParserManager(ipc_intf_, buffer_allocator_);
@@ -404,6 +430,42 @@ DisplayError DisplayBuiltIn::Init() {
         comp_manager_->FreeDemuraFetchResources(display_id_);
         comp_manager_->SetDemuraStatusForDisplay(display_id_, false);
       } else {
+        uint64_t *panel_id = nullptr;
+
+        GenericPayload panel_id_pl;
+        ret = panel_id_pl.CreatePayload<uint64_t>(panel_id);
+        if (ret || panel_id == nullptr) {
+          DLOGE("Failed to create panel_id payload: ret %d, panel_id %d", ret, panel_id == nullptr);
+          return kErrorUndefined;
+        }
+
+        if (IsPrimaryDisplay()) {
+          ret = duc_dac_config_parser->GetParameter(kDucOverridePanelId, &panel_id_pl);
+        } else {
+          ret = duc_dac_config_parser->GetParameter(kDucOverridePanelIdSecondary, &panel_id_pl);
+        }
+
+        if (ret || panel_id == nullptr) {
+          DLOGE("Failed to get disable demura status: ret %d, panel_id %d", ret,
+                panel_id == nullptr);
+          return kErrorUndefined;
+        }
+
+        DLOGI("panel overide total value for %s display %lx\n",
+              IsPrimaryDisplay() ? "primary" : "secondary", *panel_id);
+
+        PanelFeaturePropertyInfo info;
+        if (!(*panel_id)) {
+          info.prop_ptr = reinterpret_cast<uint64_t>(panel_id);
+          info.prop_id = kPanelFeatureDemuraPanelId;
+          ret = prop_intf_->GetPanelFeature(&info);
+          if (ret) {
+            DLOGE("Failed to get panel id, error = %d", ret);
+            return kErrorUndefined;
+          }
+        }
+        panel_id_ = *panel_id;
+        DLOGI("panel_id 0x%" PRIX64, panel_id_);
         SetupDemuraT0AndTn();
       }
     }
@@ -1275,35 +1337,7 @@ DisplayError DisplayBuiltIn::SetupABC() {
 
 DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
   DisplayError error = kErrorNone;
-  int ret = 0, panel_id_w = 0;
-  uint64_t panel_id = 0;
-
-  if (IsPrimaryDisplay()) {
-    Debug::Get()->GetProperty(DEMURA_PRIMARY_PANEL_OVERRIDE_LOW, &panel_id_w);
-    panel_id = static_cast<uint32_t>(panel_id_w);
-    Debug::Get()->GetProperty(DEMURA_PRIMARY_PANEL_OVERRIDE_HIGH, &panel_id_w);
-    panel_id |= ((static_cast<uint64_t>(panel_id_w)) << 32);
-    DLOGI("panel overide total value for primary display %" PRIX64 "\n", panel_id);
-  } else {
-    Debug::Get()->GetProperty(DEMURA_SECONDARY_PANEL_OVERRIDE_LOW, &panel_id_w);
-    panel_id = static_cast<uint32_t>(panel_id_w);
-    Debug::Get()->GetProperty(DEMURA_SECONDARY_PANEL_OVERRIDE_HIGH, &panel_id_w);
-    panel_id |= ((static_cast<uint64_t>(panel_id_w)) << 32);
-    DLOGI("panel overide total value for secondary display %" PRIX64 "\n", panel_id);
-  }
-
-  PanelFeaturePropertyInfo info;
-  if (!panel_id) {
-    info.prop_ptr = reinterpret_cast<uint64_t>(&panel_id);
-    info.prop_id = kPanelFeatureDemuraPanelId;
-    ret = prop_intf_->GetPanelFeature(&info);
-    if (ret) {
-      DLOGE("Failed to get panel id, error = %d", ret);
-      return kErrorUndefined;
-    }
-  }
-  panel_id_ = panel_id;
-  DLOGI("panel_id 0x%" PRIX64, panel_id_);
+  int ret = 0;
 
   PanelFeaturePropertyInfo demura_info;
   bool double_buffer_codebook_supported = false;
