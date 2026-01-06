@@ -627,7 +627,9 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
     }
     hw_resource->hw_pipes.push_back(std::move(pipe_caps));
   }
-  hw_resource->has_excl_rect = planes[0].second.has_excl_rect;
+
+  if (planes.size() != 0)
+    hw_resource->has_excl_rect = planes[0].second.has_excl_rect;
 }
 
 void HWInfoDRM::MapPlaneToConnector(HWResourceInfo *hw_resource) {
