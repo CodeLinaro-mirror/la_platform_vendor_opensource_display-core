@@ -237,15 +237,15 @@ Error SnapAllocCore::RetainViewBuffer(SnapHandle *meta_hnd, uint32_t view,
   }
 
   err = ImportHandleLocked(view_handle);
-  DLOGD("%s: line %d: handles_map_ size %d", __FUNCTION__, __LINE__,
+  DLOGD_IF(enable_logs,"%s: line %d: handles_map_ size %d", __FUNCTION__, __LINE__,
            handles_map_.size());
 
-  DLOGD("===============");
+  DLOGD_IF(enable_logs,"===============");
 
   for (auto &entry : handles_map_) {
-    DLOGD("SnapAllocCore::Retain: handles_map: buf->id %lu", entry.second->id());
+    DLOGD_IF(enable_logs,"SnapAllocCore::Retain: handles_map: buf->id %lu", entry.second->id());
   }
-  DLOGD("===============");
+  DLOGD_IF(enable_logs,"===============");
   *out_view_handle = view_handle;
   return err;
 }
