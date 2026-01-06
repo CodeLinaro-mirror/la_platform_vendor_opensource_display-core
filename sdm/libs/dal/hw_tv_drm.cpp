@@ -298,10 +298,6 @@ DisplayError HWTVDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
     return kErrorUndefined;
   }
 
-  if (first_cycle_) {
-    return kErrorNone;
-  }
-
   if (tui_state_ != kTUIStateNone && tui_state_ != kTUIStateEnd) {
     DLOGI("Request deferred TUI state %d", tui_state_);
     pending_power_state_ = kPowerStateOff;
