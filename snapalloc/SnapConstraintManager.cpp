@@ -6,6 +6,7 @@
 #include <log/log.h>
 
 #include <iostream>
+#include <inttypes.h>
 
 #include "GraphicsConstraintProvider.h"
 #include "SnapConstraintParser.h"
@@ -138,7 +139,7 @@ void SnapConstraintManager::GetImplDefinedFormat(
       // flexible YUV format to NV21_ZSL
       *out_format = vendor_qti_hardware_display_common_PixelFormat::NV21_ZSL;
       ALOGD_IF(DEBUG,
-               "Falling back to default YUV format - no camera/video specific format defined. Usage %lu", usage);
+               "Falling back to default YUV format - no camera/video specific format defined. Usage %" PRIu64, usage);
     }
   }
 }
@@ -256,7 +257,7 @@ Error SnapConstraintManager::ConvertAlignedWidthFromBytesToPixels(
     return Error::NONE;
   }
   if (format_data_map_.find(format) == format_data_map_.end()) {
-    ALOGE("Could not find entry for format %lu", static_cast<uint64_t>(format));
+    ALOGE("Could not find entry for format %" PRIu64, static_cast<uint64_t>(format));
     return Error::UNSUPPORTED;
   }
   auto format_data = format_data_map_.at(format);
@@ -272,7 +273,7 @@ Error SnapConstraintManager::ConstraintsToBufferLayout(
     BufferDescriptor desc, BufferConstraints *constraints,
     vendor_qti_hardware_display_common_BufferLayout *layout) {
   if (format_data_map_.find(desc.format) == format_data_map_.end()) {
-    ALOGE("Could not find entry for format %d", static_cast<uint64_t>(desc.format));
+    ALOGE("Could not find entry for format %" PRIu64, static_cast<uint64_t>(desc.format));
     return Error::UNSUPPORTED;
   }
 
@@ -280,7 +281,7 @@ Error SnapConstraintManager::ConstraintsToBufferLayout(
   layout->bpp = (format_data.bits_per_pixel) / 8;
 
   if ((format_data.planes.size() > QTI_MAX_NUM_PLANES) || !format_data.planes.size()) {
-    ALOGE("%s: Invalid format data plane count %d", __FUNCTION__, format_data.planes.size());
+    ALOGE("%s: Invalid format data plane count %zu", __FUNCTION__, format_data.planes.size());
     return Error::BAD_VALUE;
   }
 
@@ -288,8 +289,8 @@ Error SnapConstraintManager::ConstraintsToBufferLayout(
 
   layout->aligned_width_in_bytes = constraints->planes[0].stride.horizontal_stride;
   ALOGD_IF(DEBUG,
-           "layout->aligned_width_in_bytes %d constraints->planes[0].stride.horizontal_stride %d "
-           "format_data.planes[0].sample_increment_bits %d in bytes %d",
+           "layout->aligned_width_in_bytes %d constraints->planes[0].stride.horizontal_stride %" PRIu64
+           "format_data.planes[0].sample_increment_bits %" PRIu32 "in bytes %" PRIu32,
            layout->aligned_width_in_bytes, constraints->planes[0].stride.horizontal_stride,
            format_data.planes[0].sample_increment_bits,
            format_data.planes[0].sample_increment_bits / 8);
@@ -297,15 +298,15 @@ Error SnapConstraintManager::ConstraintsToBufferLayout(
   layout->size_in_bytes = 0;
 
   ALOGD_IF(DEBUG,
-           "%s: format %d, plane_count %d, aligned_width_in_bytes %d, aligned_height %d plane size "
-           "from format data %d",
+           "%s: format %d, plane_count %d, aligned_width_in_bytes %d, aligned_height %d plane size %zu"
+           "from format data %" PRIu64,
            __FUNCTION__, desc.format, layout->plane_count, layout->aligned_width_in_bytes,
            layout->aligned_height, format_data.planes.size());
   int offset_sum = 0;
   for (int i = 0; i < format_data.planes.size(); i++) {
     // Populate fixed data
 
-    ALOGD_IF(DEBUG, "%s: component count %d", __FUNCTION__,
+    ALOGD_IF(DEBUG, "%s: component count %zu", __FUNCTION__,
              format_data.planes[i].components.size());
     layout->planes[i].component_count = format_data.planes[i].components.size();
     for (int j = 0; j < layout->planes[i].component_count; j++) {
@@ -321,7 +322,7 @@ Error SnapConstraintManager::ConstraintsToBufferLayout(
     }
 
     ALOGD_IF(
-        DEBUG, "%s: sample_increment_bits %d horizontal_subsampling %d vertical_subsampling %d",
+        DEBUG, "%s: sample_increment_bits %" PRIu32 "horizontal_subsampling %" PRIu64 " vertical_subsampling %" PRIu64,
         __FUNCTION__, format_data.planes[i].sample_increment_bits,
         format_data.planes[i].horizontal_subsampling, format_data.planes[i].vertical_subsampling);
     layout->planes[i].sample_increment_bits = format_data.planes[i].sample_increment_bits;
@@ -330,8 +331,8 @@ Error SnapConstraintManager::ConstraintsToBufferLayout(
 
     // Populate constraint-based data
     ALOGD_IF(DEBUG,
-             "%s: format %d, i %d constraints->planes[i].stride.horizontal_stride %d "
-             "constraints->planes[i].scanline.scanline %d constraints->planes[i].size_align %d",
+             "%s: format %d, i %d constraints->planes[i].stride.horizontal_stride %" PRIu64
+             "constraints->planes[i].scanline.scanline %" PRIu64 "constraints->planes[i].size_align %" PRIu64,
              __FUNCTION__, desc.format, i, constraints->planes[i].stride.horizontal_stride,
              constraints->planes[i].scanline.scanline, constraints->planes[i].size_align);
 
@@ -366,7 +367,7 @@ Error SnapConstraintManager::ConstraintsToBufferLayout(
     ALOGD_IF(DEBUG,
              "%s: format %d, layout->planes[i].horizontal_stride_in_bytes %d "
              "layout->planes[i].scanlines %d "
-             " constraints->planes[i].size_align %d layout->planes[i].size_in_bytes %d"
+             " constraints->planes[i].size_align %" PRIu64 "layout->planes[i].size_in_bytes %d"
              " layout->planes[%d].offset_in_bytes %d",
              __FUNCTION__, desc.format, layout->planes[i].horizontal_stride_in_bytes,
              layout->planes[i].scanlines, constraints->planes[i].size_align,
@@ -421,7 +422,7 @@ Error SnapConstraintManager::MergeConstraints(std::vector<BufferConstraints> con
 uint8_t SnapConstraintManager::GetBitsPerPixel(
     vendor_qti_hardware_display_common_PixelFormat format) {
   if (format_data_map_.find(format) == format_data_map_.end()) {
-    ALOGE("Could not find entry for format %d", static_cast<uint64_t>(format));
+    ALOGE("Could not find entry for format %" PRIu64, static_cast<uint64_t>(format));
     return Error::NONE;
   }
 
@@ -433,7 +434,7 @@ Error SnapConstraintManager::AlignmentToAlignedConstraints(BufferDescriptor desc
                                                            BufferConstraints alignment,
                                                            BufferConstraints *aligned) {
   if (format_data_map_.find(desc.format) == format_data_map_.end()) {
-    ALOGE("Could not find entry for format %d", static_cast<uint64_t>(desc.format));
+    ALOGE("Could not find entry for format %" PRIu64, static_cast<uint64_t>(desc.format));
     return Error::UNSUPPORTED;
   }
 
@@ -442,18 +443,18 @@ Error SnapConstraintManager::AlignmentToAlignedConstraints(BufferDescriptor desc
   aligned->size_align_bytes = alignment.size_align_bytes;
 
   if (!alignment.planes.empty()) {
-    ALOGD_IF(DEBUG, "alignment.planes.size() %d", alignment.planes.size());
+    ALOGD_IF(DEBUG, "alignment.planes.size() %zu", alignment.planes.size());
     for (int i = 0; i < alignment.planes.size(); i++) {
       PlaneConstraints plane;
       plane.components = alignment.planes[i].components;
       plane.alignment_type = ALIGNED_OUTPUT;
 
       // TODO: factor in subsampling from format data here for CbCr
-      ALOGD_IF(DEBUG, "alignment.planes[i].stride.horizontal_stride_align %d",
+      ALOGD_IF(DEBUG, "alignment.planes[i].stride.horizontal_stride_align %" PRIu64,
                alignment.planes[i].stride.horizontal_stride_align);
-      ALOGD_IF(DEBUG, "alignment.planes[i].scanline.scanline_align %d",
+      ALOGD_IF(DEBUG, "alignment.planes[i].scanline.scanline_align %" PRIu64,
                alignment.planes[i].scanline.scanline_align);
-      ALOGD_IF(DEBUG, "alignment.planes[i].size_align %d", alignment.planes[i].size_align);
+      ALOGD_IF(DEBUG, "alignment.planes[i].size_align %" PRIu64, alignment.planes[i].size_align);
 
       // TODO: If default constraint provider returns an aligned output for
       // YV12, move this special handling to default constraint provider
@@ -499,7 +500,7 @@ Error SnapConstraintManager::FetchAndMergeConstraints(
     BufferDescriptor desc, std::map<SnapConstraintProvider *, CapabilitySet> const &providers,
     vendor_qti_hardware_display_common_BufferLayout *out_layout) {
   if (format_data_map_.find(desc.format) == format_data_map_.end()) {
-    ALOGE("Could not find entry for format %d", static_cast<uint64_t>(desc.format));
+    ALOGE("Could not find entry for format %" PRIu64, static_cast<uint64_t>(desc.format));
     return Error::UNSUPPORTED;
   }
 

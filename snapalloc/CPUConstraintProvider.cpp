@@ -7,6 +7,7 @@
 #include <log/log.h>
 #include <fstream>
 #include <iostream>
+#include <inttypes.h>
 
 #include "SnapConstraintParser.h"
 #include "SnapUtils.h"
@@ -57,7 +58,7 @@ int CPUConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConstrain
   if (constraint_set_map_.find(desc.format) != constraint_set_map_.end()) {
     *out = constraint_set_map_.at(desc.format);
   } else {
-    ALOGD_IF(DEBUG, "CPU could not find entry for format %lu", static_cast<uint64_t>(desc.format));
+    ALOGD_IF(DEBUG, "CPU could not find entry for format %" PRIu64, static_cast<uint64_t>(desc.format));
   }
   return 0;
 }
