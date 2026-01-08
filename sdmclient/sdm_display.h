@@ -530,6 +530,8 @@ public:
   DisplayError GetCachedActiveConfig(bool get_real_config, Config *config);
   bool GetDisplayRcSupport();
 
+  int32_t GetSdmId() { return sdm_id_; };
+
  protected:
   static uint32_t throttling_refresh_rate_;
   // Maximum number of layers supported by display manager.
