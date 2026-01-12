@@ -48,13 +48,23 @@
 
 #include "display_base.h"
 
+#if defined(RT_SCHEDULE)
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include "amss/compresmgr_client_api.h"
+#ifdef __cplusplus
+}
+#endif
+#endif
+
 #define __CLASS__ "DisplayBase"
 
 namespace sdm {
 
 #define ABC_LIBRARY_NAME "libabc.so"
 
-std::atomic<uint32_t> DisplayBase::hw_rc_blocks_in_use_(0);
+std::atomic<uint32_t> DisplayBase::hw_rc_blocks_in_use_[CORE_ID_SIZE_IN_BITS] = {0, 0, 0, 0, 0, 0, 0, 0};
 bool DisplayBase::display_power_reset_pending_ = false;
 bool DisplayBase::primary_active_ = false;
 Locker DisplayBase::display_power_reset_lock_;
@@ -660,6 +670,7 @@ DisplayError DisplayBase::InitRC() {
     input_cfg.display_xres = client_ctx_.display_attributes.x_pixels;
     input_cfg.display_yres = client_ctx_.display_attributes.y_pixels;
     input_cfg.max_mem_size = rc_total_mem_size;
+    input_cfg.rc_offset = client_ctx_.hw_panel_info.rc_offset;
 
     std::string panel_name = std::string(client_ctx_.hw_panel_info.panel_name);
     std::string::size_type pos;
@@ -1324,14 +1335,14 @@ DisplayError DisplayBase::GetNoisePluginParams(LayerStack *layer_stack) {
   int32_t *val = nullptr;
   ret = payload.CreatePayload<int32_t>(val);
   if (ret) {
-    DLOGE("Display %d-%d CreatePayload failed for NoisePlugInDisable", display_id_, display_type_,
+    DLOGE("Display %d-%d CreatePayload failed for NoisePlugInDisable ret=%d", display_id_, display_type_,
           ret);
     return kErrorUndefined;
   }
   *val = disable_noise_plugin ? 1 : 0;
   ret = noise_plugin_intf_->SetParameter(kNoisePlugInDisable, payload);
   if (ret) {
-    DLOGE("Display %d-%d Disabling NoisePlugin for Full frame skip failed", display_id_,
+    DLOGE("Display %d-%d Disabling NoisePlugin for Full frame skip failed ret %d", display_id_,
           display_type_, ret);
     return kErrorUndefined;
   }
@@ -1625,8 +1636,48 @@ void DisplayBase::CommitThread() {
 
   DLOGI("Commit thread entered. %d-%d", display_id_, display_type_);
 
+#if defined(RT_SCHEDULE)
+  CPUConfigReq_t  cpuConfigReq  = {0};
+  CPUConfigResp_t cpuConfigResp = {0};
+  pthread_t       self          = pthread_self();
+  std::string     procName      = "display";
+  std::string     thread_name   = "SDM_Commit_";
+  CompResmgrRet_e ret           = COMPRESMGR_RET_SUCCESS;
+  int             pthread_ret   = 0;
+  struct sched_param params;
+
+  memcpy(cpuConfigReq.procName, procName.c_str(), procName.length() + 1);
+  memcpy(cpuConfigReq.thrdGrpName, thread_name.c_str(), thread_name.length() + 1);
+
+  ret = CompResmgrGetCPUConfig(&cpuConfigReq, &cpuConfigResp);
+
+  if (COMPRESMGR_RET_SUCCESS == ret) {
+    memset((char *)&params, 0x00, sizeof(struct sched_param));
+    params.sched_priority = cpuConfigResp.priority;
+
+    DLOGI("Setting thread name to %s, thread ID: %lu, priority: %d, policy: %d",
+          thread_name.c_str(), static_cast<unsigned long>(self), cpuConfigResp.priority,
+          cpuConfigResp.schedPolicy);
+
+    pthread_ret = pthread_setname_np(self, thread_name.c_str());
+    if (0 != pthread_ret) {
+      DLOGE("pthread_setname_np: %s failed with ret = %d", thread_name.c_str(), pthread_ret);
+    }
+
+    pthread_ret = pthread_setschedparam(self, cpuConfigResp.schedPolicy, &params);
+    if (0 != pthread_ret) {
+      DLOGE("pthread_setschedparam: %s failed with ret = %d", thread_name.c_str(), pthread_ret);
+    } else {
+      DLOGI("pthread setschedparam successful for thread %s", thread_name.c_str());
+    }
+  } else {
+    DLOGE("CompResmgrGetCPUConfig: %s failed with ret = %d", thread_name.c_str(), ret);
+  }
+#else
   // Commit thread need to run with real time priority ie; similar to composer thread.
   SetRealTimePriority();
+  DLOGI("RT_SCHEDULE not defined, falling back to SetRealTimePriority()");
+#endif
 
   // Notify client thread that the thread has started listening to events.
   {
@@ -1653,7 +1704,7 @@ void DisplayBase::CommitThread() {
     // Wait for client thread to signal. Handle spurious interrupts.
     if (!(disp_mutex_.worker_cv.wait_until(disp_mutex_.worker_mutex, timeout_at,
                                            [this] { return (disp_mutex_.worker_busy); }))) {
-      DLOGI("Received %s Timeout, panel: %s, timeout: %d us",
+      DLOGI("Received %s Timeout, panel: %s, timeout: %lld us",
             (self_refresh_state ? "Self-Refresh Threshold" : "Idle"),
             client_ctx_.hw_panel_info.mode == kModeVideo ? "video" : "cmd", wait_duration);
 
@@ -1790,10 +1841,11 @@ bool DisplayBase::EnableRC() {
   } else if (kDualSplit == client_ctx_.mixer_attributes.split_type) {
     rc_blocks_reserved_ = 2;
   }
+
   for (auto &res_info : hw_resource_info_) {
-    if (res_info.rc_count >= (hw_rc_blocks_in_use_ + rc_blocks_reserved_)) {
+    if (res_info.rc_count >= (hw_rc_blocks_in_use_[res_info.core_id] + rc_blocks_reserved_)) {
       // Enough HW RC blocks available so update the static counter.
-      hw_rc_blocks_in_use_ += rc_blocks_reserved_;
+      hw_rc_blocks_in_use_[res_info.core_id] += rc_blocks_reserved_;
     } else {
       rc_blocks_reserved_ = 0;
     }
@@ -5202,6 +5254,19 @@ DisplayError DisplayBase::ValidateExtendedDisplayResolutions(
 
   *fin_disp_res = extended_res;
   return kErrorNone;
+}
+
+bool DisplayBase::GetDisplayRcSupport() {
+  int enable_per_display_rc_policy = 0;
+
+  Debug::Get()->GetProperty(ENABLE_PER_DISPLAY_RC_POLICY, &enable_per_display_rc_policy);
+
+  DLOGI("enable_per_display_rc_policy %d rc_support %d", enable_per_display_rc_policy,
+        client_ctx_.hw_panel_info.is_rc_supported);
+  if (enable_per_display_rc_policy)
+    return client_ctx_.hw_panel_info.is_rc_supported;
+  else
+    return true;
 }
 
 DisplayError EventProxyInfo::Init(const std::string &panel_name, DisplayInterface *intf,

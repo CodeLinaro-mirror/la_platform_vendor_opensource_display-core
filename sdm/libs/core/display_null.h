@@ -28,8 +28,8 @@
  */
 
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -92,6 +92,9 @@ class DisplayNull : public DisplayInterface {
   virtual DisplayError NotifyExpectedPresent(uint64_t expected_present_time,
                                              uint32_t frame_interval_ns) {
     return kErrorNotSupported;
+  }
+  bool GetDisplayRcSupport() {
+    return false;
   }
 
   MAKE_NO_OP(CommitOrPrepare(LayerStack *))

@@ -28,9 +28,9 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -91,6 +91,11 @@
 #ifndef DRM_FORMAT_MOD_QCOM_LOSSY_2_1
 #define DRM_FORMAT_MOD_QCOM_LOSSY_2_1 fourcc_mod_code(QCOM, 0x200)
 #endif
+
+#ifndef PROPERTY_VALUE_MAX
+#define PROPERTY_VALUE_MAX 255
+#endif
+
 
 #define DEST_SCALAR_OVERFETCH_SIZE 5
 
@@ -465,7 +470,7 @@ int HWDeviceDRM::Registry::CreateFbId(const LayerBuffer &buffer, std::vector<uin
     if (ret < 0) {
       DLOGE(
           "CreateFbId failed. width %d, height %d, format: %s, stride %u, "
-          "cac_color %d, usage %d error %d",
+          "cac_color %d, usage %" PRIu64 " error %d",
           layout.width, layout.height, GetFormatString(buf_info.format), layout.stride[0], color,
           buffer.usage, errno);
     }
@@ -1007,6 +1012,8 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
     hw_panel_info_.partial_update = connector_info_.modes[index].num_roi;
   }
 
+  hw_panel_info_.is_rc_supported = connector_info_.rc_enable;
+  hw_panel_info_.rc_offset = connector_info_.rc_offset;
   hw_panel_info_.has_ai_scaler = enable_ai_scaler;
   hw_panel_info_.left_roi_count = UINT32(connector_info_.modes[index].num_roi);
   hw_panel_info_.right_roi_count = UINT32(connector_info_.modes[index].num_roi);
@@ -1140,6 +1147,8 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
   DLOGI_IF(kTagDriverConfig, "Panel Maximum Transfer time = %d us",
            hw_panel_info_.transfer_time_us_max);
   DLOGI_IF(kTagDriverConfig, "Dynamic Bit Clk Support = %d", hw_panel_info_.dyn_bitclk_support);
+  DLOGI_IF(kTagDriverConfig, "RC Support = %d RC offset = %d", hw_panel_info_.is_rc_supported,
+           hw_panel_info_.rc_offset);
 }
 
 DisplayError HWDeviceDRM::GetDisplayIdentificationData(uint8_t *out_port, uint32_t *out_data_size,
@@ -1367,6 +1376,11 @@ DisplayError HWDeviceDRM::PowerOn(const HWQosData &qos_data, SyncPoints *sync_po
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_POWER_MODE, token_.conn_id, DRMPowerMode::ON);
   drm_atomic_intf_->Perform(DRMOps::CRTC_GET_RELEASE_FENCE, token_.crtc_id, &release_fence_fd);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_GET_RETIRE_FENCE, token_.conn_id, &retire_fence_fd);
+  if (connector_info_.modes[current_mode_index_].cur_panel_mode == DRM_MODE_FLAG_VID_MODE_PANEL) {
+    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_OUTPUT_FENCE_OFFSET, token_.crtc_id, 1);
+  } else if (connector_info_.modes[current_mode_index_].cur_panel_mode == DRM_MODE_FLAG_CMD_MODE_PANEL) {
+    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_OUTPUT_FENCE_OFFSET, token_.crtc_id, 0);
+  }
   if (enable_brightness_drm_prop_ && cached_brightness_level_ != -1) {
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_BRIGHTNESS, token_.conn_id,
                               cached_brightness_level_);
@@ -1452,7 +1466,7 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   if (ret) {
     DLOGE(
         "Failed with error: %d, dynamic_fps=%d, seamless_mode_switch_=%d, vrefresh_=%d,"
-        "panel_mode_changed_=%d bit_clk_rate_=%d bpp_mode_changed_=%d",
+        "panel_mode_changed_=%d bit_clk_rate_=%" PRIu64 " bpp_mode_changed_=%d",
         ret, hw_panel_info_.dynamic_fps, seamless_mode_switch_, vrefresh_, panel_mode_changed_,
         bit_clk_rate_, bpp_mode_changed_);
     bpp_mode_changed_ = 0;
@@ -1641,7 +1655,7 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
       DestScaleInfoMap &dest_scale_info_map = hw_layers_info->dest_scale_info_map;
 
       if (dest_scale_info_map.size() && hw_layers_info->left_frame_roi.size() != 1) {
-        DLOGE("left_frame_roi size %d, only 1 ROI supported in PU+DS case",
+        DLOGE("left_frame_roi size %zu, only 1 ROI supported in PU+DS case",
               hw_layers_info->left_frame_roi.size());
       }
 
@@ -3215,7 +3229,7 @@ void HWDeviceDRM::SetUcscCsc(const HWUcscCsc &ucsc_csc, drm_msm_ucsc_csc *csc) {
   csc->cfg_param_0_len = UCSC_CSC_CFG0_PARAM_LEN;
   for (i = 0; i < csc->cfg_param_0_len; i++) {
     csc->cfg_param_0[i] = ucsc_csc.cfg_param_0[i];
-    DLOGV_IF(kTagDriverConfig, " UCSC csc[%d] = %lld", i, csc->cfg_param_0[i]);
+    DLOGV_IF(kTagDriverConfig, " UCSC csc[%d] = %u", i, csc->cfg_param_0[i]);
   }
   csc->cfg_param_1_len = UCSC_CSC_CFG1_PARAM_LEN;
   for (i = 0; i < csc->cfg_param_1_len; i++) {

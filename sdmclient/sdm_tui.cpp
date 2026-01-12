@@ -432,7 +432,7 @@ void SDMTrustedUI::VmReleaseDone(Display display) {
 
   if (clients_waiting_for_vm_release_.test(display)) {
     vm_release_locker_[display].Signal();
-    DLOGI("Signal vm release done!! for display %d", display);
+    DLOGI("Signal vm release done!! for display %" PRIu64, (uint64_t)display);
     clients_waiting_for_vm_release_.reset(display);
   }
 }

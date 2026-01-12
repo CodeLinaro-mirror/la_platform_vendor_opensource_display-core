@@ -457,6 +457,7 @@ void HWInfoDRM::GetSystemInfo(HWResourceInfo *hw_resource) {
   hw_resource->rc_total_mem_size = info.rc_total_mem_size;
   hw_resource->dsc_block_count = info.dsc_block_count;
   hw_resource->hw_ai_scaler_count = info.ai_scaler_count;
+  hw_resource->mixer_count = info.mixer_count;
 }
 
 void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
@@ -551,7 +552,7 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
     pipe_caps.master_pipe_id = pipe_obj.second.master_plane_id;
     pipe_caps.block_sec_ui = pipe_obj.second.block_sec_ui;
     pipe_caps.hw_block_mask = pipe_obj.second.hw_block_mask;
-    DLOGI("Adding %s Pipe : Id %d, master_pipe_id : Id %d block_sec_ui: %d hw_block_mask: 0x%x",
+    DLOGI("Adding %s Pipe : Id %d, master_pipe_id : Id %d block_sec_ui: %d hw_block_mask: 0x%lx",
           name.c_str(), pipe_obj.first, pipe_obj.second.master_plane_id,
           pipe_obj.second.block_sec_ui, pipe_obj.second.hw_block_mask.to_ulong());
     pipe_caps.inverse_pma = pipe_obj.second.inverse_pma;
@@ -626,7 +627,9 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
     }
     hw_resource->hw_pipes.push_back(std::move(pipe_caps));
   }
-  hw_resource->has_excl_rect = planes[0].second.has_excl_rect;
+
+  if (planes.size() != 0)
+    hw_resource->has_excl_rect = planes[0].second.has_excl_rect;
 }
 
 void HWInfoDRM::MapPlaneToConnector(HWResourceInfo *hw_resource) {
@@ -1229,7 +1232,8 @@ DisplayError HWInfoDRM::GetPanelBootParamString(std::string *panel_boot_param_st
 }
 
 uint32_t HWInfoDRM::GetMaxMixerCount() {
-  return 8;
+  if (hw_resource_)
+    return hw_resource_->mixer_count;
   return drm_mgr_intf_->GetCrtcCount();
 }
 

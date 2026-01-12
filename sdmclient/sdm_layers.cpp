@@ -416,7 +416,7 @@ DisplayError SDMLayer::SetLayerSourceCrop(SDMRect crop) {
        (crop.right != roundf(crop.right)) ||
        (crop.bottom != roundf(crop.bottom)));
   if (non_integral_source_crop_) {
-    DLOGV_IF(kTagClient, "Crop: LTRB %f %f %f %f", crop.left, crop.top,
+    DLOGV_IF(kTagClient, "Crop: LTRB %d %d %d %d", crop.left, crop.top,
              crop.right, crop.bottom);
   }
   if (layer_->src_rect != src_rect) {

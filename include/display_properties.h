@@ -28,8 +28,8 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -101,6 +101,7 @@
 #define QDCM_PCC_TRANS_PROP                  DISPLAY_PROP("qdcm.pcc_for_trans")
 #define QDCM_DIAGONAL_MATRIXMODE_PROP        DISPLAY_PROP("qdcm.diagonal_matrix_mode")
 #define QDCM_MODE_COMBINE_PROP               DISPLAY_PROP("qdcm.mode_combine")
+#define QDCM_OTC_CALIB_ENABLE_PROP           DISPLAY_PROP("qdcm.otc.enable")
 #define DISABLE_STC_DIMMING_PROP             DISPLAY_PROP("disable_stc_dimming")
 #define PREFER_MULTIRECT_PROP                DISPLAY_PROP("prefer_multirect")
 #define ENABLE_QDCM_COLORMODES_ON_EXTERNAL   DISPLAY_PROP("qdcm.enable_colormodes_on_external")
@@ -129,6 +130,10 @@
 #define DISABLE_ROTATOR_PRE_DOWNSCALER_PROP  DISPLAY_PROP("disable_pre_downscaler")
 #define DISABLE_INLINE_ROTATOR_UI_PROP       DISPLAY_PROP("disable_inline_rotator_ui")
 #define ENABLE_POMS_DURING_DOZE              DISPLAY_PROP("enable_poms_during_doze")
+//Disable virtual display
+#define DISABLE_VIRTUAL_DISPLAY              DISPLAY_PROP("disable_virtual_display")
+//Disable display brightness set
+#define DISABLE_SET_DISPLAY_BRIGHTNESS       DISPLAY_PROP("disable_set_display_brightness")
 // Disable 3D adaptive tone mapping support
 #define DISABLE_3D_ADAPTIVE_TM               DISPLAY_PROP("disable_3d_adaptive_tm")
 #define DISABLE_SDR_HISTOGRAM                DISPLAY_PROP("disable_sdr_histogram")
@@ -146,6 +151,8 @@
 // RC
 #define ENABLE_ROUNDED_CORNER                DISPLAY_PROP("enable_rounded_corner")
 #define DISABLE_ROUNDED_CORNER_THREAD        DISPLAY_PROP("disable_rounded_corner_thread")
+#define ENABLE_PER_DISPLAY_RC_POLICY         DISPLAY_PROP("enable_per_display_rc_policy")
+
 // Disable A8 format Screen Decorator support
 #define DISABLE_GET_SCREEN_DECORATOR_SUPPORT DISPLAY_PROP("disable_get_screen_decorator_support")
 

@@ -591,16 +591,16 @@ bool SDMDisplayBuilder::IsHWDisplayConnected(Display client_id) {
       [&sdm_id](auto &info) { return sdm_id == info.second.display_id; });
 
   if (itr_hw == hw_displays_info.end()) {
-    DLOGW("client id: %d, sdm_id: %d not found in hw map", client_id, sdm_id);
+    DLOGW("client id: %" PRIu64 ", sdm_id: %d not found in hw map", client_id, sdm_id);
     return false;
   }
 
   if (!itr_hw->second.is_connected) {
-    DLOGW("client_id: %d, sdm_id: %d, not connected", client_id, sdm_id);
+    DLOGW("client_id: %" PRIu64 ", sdm_id: %d, not connected", client_id, sdm_id);
     return false;
   }
 
-  DLOGI("client_id: %d, sdm_id: %d, is connected", client_id, sdm_id);
+  DLOGI("client_id: %" PRIu64 ", sdm_id: %d, is connected", client_id, sdm_id);
   return true;
 }
 
@@ -1073,13 +1073,13 @@ DisplayError SDMDisplayBuilder::GetDisplayHwId(uint64_t disp_id,
                                                int32_t *disp_hw_id) {
   int disp_idx = GetDisplayIndex(disp_id);
   if (disp_idx == -1) {
-    DLOGE("Invalid display = %d", disp_id);
+    DLOGE("Invalid display = %" PRIu64, disp_id);
     return kErrorNotSupported;
   }
 
   SCOPE_LOCK(locker_[disp_id]);
   if (!cb_->GetDisplayFromClientId(disp_idx)) {
-    DLOGE("Display %d is not connected.", disp_id);
+    DLOGE("Display %" PRIu64 " is not connected.", disp_id);
     return kErrorNotSupported;
   }
 

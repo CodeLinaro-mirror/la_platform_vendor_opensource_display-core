@@ -28,9 +28,8 @@
 */
 
 /*
-* ​​​​​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-*
-* Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -260,6 +259,10 @@ void DRMCrtcManager::UnsetScalerLUT() {
 
 int DRMCrtcManager::GetCrtcInfo(uint32_t crtc_id, DRMCrtcInfo *info) {
   lock_guard<mutex> lock(lock_);
+  if (crtc_pool_.size() == 0) {
+    DRM_LOGE("No valid crtc provided");
+    return -ENODEV;
+  }
   if (crtc_id == 0) {
     crtc_pool_.begin()->second->GetInfo(info);
   } else {
@@ -414,7 +417,7 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
   fmt_str[blob->length] = '\0';
   stringstream stream(fmt_str);
   DRM_LOGI("stream str %s len %zu blob str %s len %d", stream.str().c_str(), stream.str().length(),
-           blob->data, blob->length);
+           (char *)(blob->data), blob->length);
   string line = {};
   string max_blendstages = "max_blendstages=";
   string qseed_type = "qseed_type=";
@@ -470,6 +473,7 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
   string cac_version = "cac_version=";
   string ddr_version = "DDR version=";
   string ai_scaler_count = "ai_scaler_count=";
+  string mixer_count = "mixer_count=";
 
   while (std::getline(stream, line)) {
     if (line.find(max_blendstages) != string::npos) {
@@ -623,6 +627,8 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
       }
     } else if (line.find(ai_scaler_count) != string::npos) {
       crtc_info_.ai_scaler_count = std::stoi(string(line, ai_scaler_count.length()));
+    } else if (line.find(mixer_count) != string::npos) {
+      crtc_info_.mixer_count = std::stoi(string(line, mixer_count.length()));
     }
   }
   drmModeFreePropertyBlob(blob);

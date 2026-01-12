@@ -23,9 +23,9 @@
 */
 
 /*
-* ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+* ​Changes from Qualcomm Technologies, Inc. are provided under the following license:
 *
-* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -180,14 +180,6 @@ enum HWMixerSplit {
   kNoSplit,
   kDualSplit,
   kQuadSplit,
-};
-
-enum HwHdrEotf {
-  kHdrEOTFInvalid = 0,
-  kHdrEOTFSDR = 0x1,
-  kHdrEOTFHdrLumRange = 0x2,
-  kHdrEOTFHDR10 = 0x4,
-  kHdrEOTFHLG = 0x8,
 };
 
 enum HwColorspace {
@@ -492,6 +484,7 @@ struct HWResourceInfo {
   DDRVersion ddr_version = kDDRVersion5;
   bool has_cesta = false;
   uint32_t hw_ai_scaler_count = 0;
+  uint32_t mixer_count = 0;
 };
 
 struct HWSplitInfo {
@@ -569,6 +562,8 @@ struct HWPanelInfo {
   bool ssip_enabled = false;           // SSIP features supported
   bool has_ai_scaler = false;          // AI Scaler feature is enabled
   bool vhm_support = false;            // Video Hybrid Mode support
+  bool is_rc_supported = false;        // RC supported
+  uint32_t rc_offset = 0;              // RC offset
 
   bool operator !=(const HWPanelInfo &panel_info) {
     return ((port != panel_info.port) || (mode != panel_info.mode) ||

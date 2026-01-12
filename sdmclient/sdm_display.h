@@ -528,6 +528,7 @@ public:
     return kErrorNotSupported;
   }
   DisplayError GetCachedActiveConfig(bool get_real_config, Config *config);
+  bool GetDisplayRcSupport();
 
  protected:
   static uint32_t throttling_refresh_rate_;

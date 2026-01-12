@@ -96,8 +96,9 @@ class DisplayPluggable : public DisplayBase, HWEventHandler {
   DisplayError NotifyDisplayCalibrationMode(bool in_calibration) override;
   DisplayError SetPaHistCollection(
     const std::string &client_name, bool enable,
-    SdmDisplayCbInterface<PaHistCollectionPayload> *cb_intf);
-  DisplayError GetPaHistBins(std::array<uint32_t, HIST_BIN_SIZE> *buf);
+    SdmDisplayCbInterface<PaHistCollectionPayload> *cb_intf) override;
+  DisplayError GetPaHistBins(std::array<uint32_t,
+    HIST_BIN_SIZE> *buf) override;
 
   DisplayError SetVRRState(bool state) override;
   //DisplayError GetQsyncFps(uint32_t *qsync_fps) override;

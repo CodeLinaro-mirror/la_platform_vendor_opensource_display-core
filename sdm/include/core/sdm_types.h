@@ -1,8 +1,6 @@
 /*
 * Copyright (c) 2014 - 2019, 2021-2021, The Linux Foundation. All rights reserved.
 *
-* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
-*
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are
 * met:
@@ -391,6 +389,14 @@ enum SDMRenderIntent {
   ENHANCE = 1,
   TONE_MAP_COLORIMETRIC = 2,
   TONE_MAP_ENHANCE = 3
+};
+
+enum SDMHdrEotf {
+  kHdrEOTFInvalid = 0,
+  kHdrEOTFSDR = 0x1,
+  kHdrEOTFHdrLumRange = 0x2,
+  kHdrEOTFHDR10 = 0x4,
+  kHdrEOTFHLG = 0x8,
 };
 
 enum SDMPowerMode {

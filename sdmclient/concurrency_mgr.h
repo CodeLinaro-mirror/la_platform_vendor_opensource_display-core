@@ -592,6 +592,7 @@ private:
   DisplayError getDisplayMaxBrightness(uint32_t display,
                                        uint32_t *max_brightness_level);
   void PostInit();
+  bool GetDisplayRcSupport(Display display);
 
 #ifdef PROFILE_COVERAGE_DATA
   DisplayError DumpCodeCoverage(const SDMParcel *input_parcel);
@@ -652,6 +653,8 @@ private:
   std::mutex mutex_lum_;
   static bool pending_power_mode_[kNumDisplays];
 
+  bool disable_virtual_display_ = false;
+  bool disable_set_display_brightness_ = false;
   int32_t idle_pc_ref_cnt_ = 0;
 
   int32_t enable_primary_reconfig_req_ = 0;
