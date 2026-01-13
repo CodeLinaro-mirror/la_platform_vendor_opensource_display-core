@@ -75,25 +75,45 @@ class IdManager {
   }
   uint64_t GetNextPossibleId(bool next_to_max) {
     std::lock_guard<std::mutex> lock(id_mutex_);
-    return (next_to_max) ? 1 + GetMaxId() : GetNonConflictingIdToIncrementalPath();
+    return next_to_max ? GetNextAfterMax() : GetFirstFreeId();
   }
 
  private:
-  inline uint64_t GetMaxId() { return (active_ids_.empty() ? 0 : *(active_ids_.rbegin())); }
-  // find non-conflicting id to future path for incremental id.
-  uint64_t GetNonConflictingIdToIncrementalPath() {
-    auto possible_id = 0;
-    for (auto &id : active_ids_) {
-      if (id >= (UINT64_MAX - UINT8_MAX)) {
-        return GetMaxId() + 1;  // use next unreserved id in top range, if no thrown id available
-      } else if (possible_id < id) {
-        return possible_id;  // use thrown id, which will never be used by client again
-      } else if (possible_id == id) {
-        possible_id++;  // to check next id, whether it is thrown, if current id is reserved
+  static constexpr uint64_t EMERGENCY_INTEGER_BANDWIDTH_FOR_ID = 32;
+  static constexpr uint64_t EMERGENCY_INTEGER_START_FOR_ID =
+      UINT64_MAX - EMERGENCY_INTEGER_BANDWIDTH_FOR_ID + 1;
+
+  inline uint64_t GetMaxId() { return active_ids_.empty() ? 0 : *active_ids_.rbegin(); }
+  uint64_t GetNextAfterMax() {
+    uint64_t max_id = GetMaxId();
+    if (max_id == UINT64_MAX) {
+      return GetFirstFreeId();
+    }
+
+    return max_id + 1;
+  }
+
+  uint64_t GetFirstFreeId() {
+    // Check for emergency integer band first.
+    // If not found, check for any free integer in the range [0, max_id].
+    for (uint64_t id = EMERGENCY_INTEGER_START_FOR_ID;; ++id) {
+      if (active_ids_.find(id) == active_ids_.end()) {
+        return id;
+      }
+      if (id == UINT64_MAX) {
+        break;
       }
     }
-    // Consider Id-0 as valid for internal use, if external client shares non-zero incremental ids.
-    return (possible_id) ? (UINT64_MAX - UINT8_MAX) : 0;  // Use top range, if no thrown id found
+
+    uint64_t possible_id = 0;
+    for (uint64_t id : active_ids_) {
+      if (possible_id < id) {
+        return possible_id;
+      }
+      ++possible_id;
+    }
+
+    return 0;
   }
 
   std::mutex id_mutex_;
