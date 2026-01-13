@@ -301,6 +301,7 @@ DisplayError HWInfoDRM::GetHWResourceInfo(HWResourceInfo *hw_resource) {
     hw_resource->hw_dest_scalar_info.count = 0;
   }
 
+  DLOGI("GetHWResourceInfo for DPU%d: ", core_id_);
   DLOGI("Destination scaler %sfound. Block count = %d.", hw_resource->hw_dest_scalar_info.count ?
         "": "disabled or not ", hw_resource->hw_dest_scalar_info.count);
   DLOGI("Max plane width = %d", hw_resource->max_pipe_width);
@@ -552,8 +553,8 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
     pipe_caps.master_pipe_id = pipe_obj.second.master_plane_id;
     pipe_caps.block_sec_ui = pipe_obj.second.block_sec_ui;
     pipe_caps.hw_block_mask = pipe_obj.second.hw_block_mask;
-    DLOGI("Adding %s Pipe : Id %d, master_pipe_id : Id %d block_sec_ui: %d hw_block_mask: 0x%lx",
-          name.c_str(), pipe_obj.first, pipe_obj.second.master_plane_id,
+    DLOGI("DPU%d adding %s Pipe : Id %d, master_pipe_id : Id %d block_sec_ui: %d hw_block_mask: 0x%lx",
+          core_id_, name.c_str(), pipe_obj.first, pipe_obj.second.master_plane_id,
           pipe_obj.second.block_sec_ui, pipe_obj.second.hw_block_mask.to_ulong());
     pipe_caps.inverse_pma = pipe_obj.second.inverse_pma;
     pipe_caps.dgm_csc_version = pipe_obj.second.dgm_csc_version;
@@ -1074,8 +1075,9 @@ DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
       (*hw_displays_info)[hw_info.display_id] = hw_info;
     }
 
-    DLOGI_IF(log_once, "display: %4d-%d, connected: %s, primary: %s, in other core: %s",
-             hw_info.display_id, hw_info.display_type, hw_info.is_connected ? "true" : "false",
+    DLOGI_IF(log_once, "display(DPU%d): %4d-%d, connected: %s, primary: %s, in other core: %s",
+             core_id_, hw_info.display_id, hw_info.display_type,
+             hw_info.is_connected ? "true" : "false",
              hw_info.is_primary ? "true" : "false",
              hw_info.has_disp_in_other_core ? "true" : "false");
   }
@@ -1157,15 +1159,15 @@ DisplayError HWInfoDRM::GetMaxDisplaysSupported(const SDMDisplayType type, int32
       return kErrorParameters;
   }
 
-  DLOGI_IF(log_once, "Max %d concurrent displays.",
+  DLOGI_IF(log_once, "DPU%d: Max %d concurrent displays.", core_id_,
            max_displays_builtin + std::max(max_displays_tmds, max_displays_dpmst) +
                max_displays_virtual);
-  DLOGI_IF(log_once, "Max %d concurrent displays of type %d (BuiltIn).", max_displays_builtin,
-           kBuiltIn);
-  DLOGI_IF(log_once, "Max %d concurrent displays of type %d (Pluggable).",
+  DLOGI_IF(log_once, "DPU%d: Max %d concurrent displays of type %d (BuiltIn).", core_id_,
+           max_displays_builtin, kBuiltIn);
+  DLOGI_IF(log_once, "DPU%d: Max %d concurrent displays of type %d (Pluggable).", core_id_,
            std::max(max_displays_tmds, max_displays_dpmst), kPluggable);
-  DLOGI_IF(log_once, "Max %d concurrent displays of type %d (Virtual).", max_displays_virtual,
-           kVirtual);
+  DLOGI_IF(log_once, "DPU%d: Max %d concurrent displays of type %d (Virtual).", core_id_,
+           max_displays_virtual, kVirtual);
 
   log_once = kTagDisplay;
 
