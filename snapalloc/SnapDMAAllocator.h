@@ -43,7 +43,8 @@ class SnapDMAAllocator : public ISnapMemAllocBackend {
   Error CleanBuffer(void *base, unsigned int size, int op, int fd);
   int ImportBuffer(int fd);
   Error SecureMemPerms(AllocData *ad);
-  void GetHeapInfo(vendor_qti_hardware_display_common_BufferUsage usage, bool sensor_flag,
+  void GetHeapInfo(vendor_qti_hardware_display_common_BufferUsage usage,
+                   vendor_qti_hardware_display_common_HeapType heap_name_opt, bool sensor_flag,
                    bool use_uncached, std::string *dma_heap_name,
                    std::vector<std::string> *dma_vm_names, unsigned int *alloc_type,
                    unsigned int *flags, unsigned int *alloc_size);

@@ -46,7 +46,8 @@ Error SnapAllocCore::AllocateBuffer(AllocData *ad, AllocData *m_data,
                                     unsigned custom_content_md_size,
                                     unsigned batch_mode_dyn_md_size, BufferDescriptor *desc,
                                     BufferDescriptor *out_desc, bool test_alloc) {
-  auto err = mem_alloc_intf_->AllocateMem(ad, out_desc->usage, out_desc->format);
+  auto err =
+      mem_alloc_intf_->AllocateMem(ad, out_desc->usage, out_desc->format, desc->additionalOptions);
   if (err != Error::NONE) {
     DLOGE("Failed to allocate memory for format %d usage %d", out_desc->format, out_desc->usage);
     return err;
