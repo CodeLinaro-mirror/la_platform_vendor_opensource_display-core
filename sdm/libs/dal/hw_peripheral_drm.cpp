@@ -185,6 +185,18 @@ DisplayError HWPeripheralDRM::SetDynamicDSIClock(uint64_t bit_clk_rate) {
     return kErrorNotSupported;
   }
 
+  if (hw_panel_info_.vhm_support) {
+    if (idle_pc_enabled_) {
+      // reject bit rate clock change if idle pc is enabled
+      return kErrorNotSupported;
+    }
+    if (idle_pc_state_ == sde_drm::DRMIdlePCState::DISABLE) {
+      // defer bit rate clock change until idle pc is disabled
+      DLOGV_IF(kTagDriverConfig, "Defer setting Dynamic DSI Clock until Idle PC is disabled");
+      return kErrorDeferred;
+    }
+  }
+
   if (GetSupportedBitClkRate(current_mode_index_, bit_clk_rate) ==
       connector_info_.modes[current_mode_index_].curr_bit_clk_rate) {
     return kErrorNone;
