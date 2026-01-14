@@ -185,6 +185,18 @@ DisplayError HWPeripheralDRM::SetDynamicDSIClock(uint64_t bit_clk_rate) {
     return kErrorNotSupported;
   }
 
+  if (hw_panel_info_.vhm_support) {
+    if (idle_pc_enabled_) {
+      // reject bit rate clock change if idle pc is enabled
+      return kErrorNotSupported;
+    }
+    if (idle_pc_state_ == sde_drm::DRMIdlePCState::DISABLE) {
+      // defer bit rate clock change until idle pc is disabled
+      DLOGV_IF(kTagDriverConfig, "Defer setting Dynamic DSI Clock until Idle PC is disabled");
+      return kErrorDeferred;
+    }
+  }
+
   if (GetSupportedBitClkRate(current_mode_index_, bit_clk_rate) ==
       connector_info_.modes[current_mode_index_].curr_bit_clk_rate) {
     return kErrorNone;
@@ -412,6 +424,9 @@ DisplayError HWPeripheralDRM::Commit(HWLayersInfo *hw_layers_info) {
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_USECASE_IDX, token_.conn_id,
                             hw_layers_info->common_info->flags.only_video_updating);
 
+  drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_LSR_MODE, token_.crtc_id,
+                            hw_layers_info->lsr_commit);
+
   error = HWDeviceDRM::Commit(hw_layers_info);
   shared_ptr<Fence> cwb_fence = Fence::Create(INT(cwb_fence_fd), "cwb_fence");
   if (error != kErrorNone) {
@@ -455,6 +470,9 @@ void HWPeripheralDRM::ResetDestScalarCache() {
       dest_scalar_cache_[j] = {};
     }
   }
+}
+
+void HWPeripheralDRM::ResetAIScalarCache() {
 #ifndef TARGET_INCLUDES_NEO
   if (ai_scaler_blocks_used_ > 0) {
     for (uint32_t j = 0; j < ai_scaler_cache_.size(); j++) {
@@ -561,6 +579,9 @@ void HWPeripheralDRM::SetAIScalerData(const AIScalerInfoMap ai_scale_info_map) {
     ai_scaler_cfg->src_h = ai_scale_info->ai_scale_data.src_h;
     ai_scaler_cfg->dst_w = ai_scale_info->ai_scale_data.dst_w;
     ai_scaler_cfg->dst_h = ai_scale_info->ai_scale_data.dst_h;
+#ifdef AIQE_AI_SCALER_PSM_FLAG
+    ai_scaler_cfg->psm = ai_scale_info->ai_scale_data.psm;
+#endif
     if (ai_scale_info->ai_scale_data.is_param_valid) {
       memcpy(ai_scaler_cfg->param, ai_scale_info->ai_scale_data.param,
              AIQE_AI_SCALER_PARAM_LEN * sizeof(ai_scaler_cfg->param[0]));
@@ -647,6 +668,7 @@ DisplayError HWPeripheralDRM::Flush(HWLayersInfo *hw_layers_info) {
     SetTUIState();
   }
   ResetDestScalarCache();
+  ResetAIScalarCache();
   return kErrorNone;
 }
 

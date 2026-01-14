@@ -69,15 +69,6 @@ enum SecureSessionType {
   kSecureMax,
 };
 
-// CWB client currently using the block
-enum CWBClient {
-  kCWBClientNone,      // No client connected
-  kCWBClientFrameDump, // Dump to file
-  kCWBClientColor,     // Internal client i.e. Color Manager
-  kCWBClientExternal,  // External client calling through private APIs
-  kCWBClientComposer,  // Client to SDM i.e. SurfaceFlinger
-};
-
 enum CWBReleaseFenceError {
   kCWBReleaseFenceErrorNone,
   kCWBReleaseFenceSignaled = kCWBReleaseFenceErrorNone,
@@ -455,6 +446,7 @@ public:
       SDMVsyncPeriodChangeTimeline *out_timeline);
 
   DisplayError SetDisplayElapseTime(uint64_t time);
+  DisplayError SetDisplayDeviceConfig(SDMDisplayDeviceConfig sdm_display_device_config);
   virtual bool IsDisplayIdle() { return false; };
   virtual bool HasReadBackBufferSupport() { return false; }
   virtual DisplayError NotifyDisplayCalibrationMode(bool in_calibration) {
@@ -532,6 +524,9 @@ public:
   virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data) {
     return kErrorNotSupported;
   }
+  virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t input_size) {
+    return kErrorNotSupported;
+  }
   DisplayError GetCachedActiveConfig(bool get_real_config, Config *config);
   virtual void TimeoutOnBuiltins(){};
   virtual void IdleTimeout(){};
@@ -541,6 +536,8 @@ public:
   virtual void SetPrivacyRegionsData(uint32_t layer_id, float corner_radius,
                                      const std::vector<PrivacyRegion> &regions);
   virtual DisplayError ClearBuffersMappedToLayer(LayerId layer_id, const SnapHandle *layerBuffer);
+  virtual DisplayError SetPoseConfig(void *buffer) { return kErrorNotSupported; }
+  virtual bool IsEPTSupported();
 
  protected:
   static uint32_t throttling_refresh_rate_;
@@ -609,6 +606,8 @@ public:
   void UpdateRefreshRate();
   void UpdateActiveConfig();
   void DumpInputBuffers(void);
+  void DumpToFile(SnapHandle *handle, std::string dump_dir_path, int32_t layer_index,
+                  int plane = 0);
   void RetrieveFences(shared_ptr<Fence> *out_retire_fence);
   void SetDrawMethod();
   void ClearRequestMaps();

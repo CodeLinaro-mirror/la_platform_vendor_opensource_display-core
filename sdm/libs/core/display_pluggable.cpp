@@ -545,4 +545,8 @@ DisplayError DisplayPluggable::GetPanelBrightnessBasePath(std::string *base_path
   return dpu_core_mux_->GetPanelBrightnessBasePath(base_path);
 }
 
+void DisplayPluggable::HandleSSREvent(SSREventType ssr_event) {
+  DLOGW("SSR is not supported for pluggable displays");
+}
+
 }  // namespace sdm

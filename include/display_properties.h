@@ -102,6 +102,7 @@
 #define QDCM_PCC_TRANS_PROP                  DISPLAY_PROP("qdcm.pcc_for_trans")
 #define QDCM_DIAGONAL_MATRIXMODE_PROP        DISPLAY_PROP("qdcm.diagonal_matrix_mode")
 #define QDCM_MODE_COMBINE_PROP               DISPLAY_PROP("qdcm.mode_combine")
+#define QDCM_OTC_CALIB_ENABLE_PROP           DISPLAY_PROP("qdcm.otc.enable")
 #define DISABLE_STC_DIMMING_PROP             DISPLAY_PROP("disable_stc_dimming")
 #define PREFER_MULTIRECT_PROP                DISPLAY_PROP("prefer_multirect")
 #define DROP_SKEWED_VSYNC                    DISPLAY_PROP("drop_skewed_vsync")
@@ -203,6 +204,8 @@
 #define ENABLE_QSYNC_IDLE                    DISPLAY_PROP("enable_qsync_idle")
 #define ENHANCE_IDLE_TIME                    DISPLAY_PROP("enhance_idle_time")
 #define CPU_CLUSTER_BOOST_MASK               DISPLAY_PROP("cpu_cluster_boost_mask")
+#define PERF_VERSION_PROP                    DISPLAY_PROP("perf_version")
+#define MINIMUM_LARGE_COMP_FPS               DISPLAY_PROP("minimum_large_comp_fps")
 
 #define MMRM_FLOOR_CLK_VOTE                  DISPLAY_PROP("mmrm_floor_vote")
 
@@ -250,7 +253,7 @@
 #define HW_SUPPORTS_UBWCP                    GRALLOC_PROP("hw_supports_ubwcp")
 #define ENABLE_SNAPALLOC_PROP                GRALLOC_PROP("enable_snapalloc")
 #define ENABLE_ALLOCATION_DATA_DUMPING       GRALLOC_PROP("enable_allocation_data_dumping")
-
+#define ALLOW_CAMERA_PREVIEW_WRITE           GRALLOC_PROP("allow_camera_preview_write")
 // Add all vendor.gralloc.properties above
 
 #define QDCM_DISABLE_TIMEOUT_PROP            PERSIST_DISPLAY_PROP("qdcm.disable_timeout")
@@ -293,6 +296,7 @@
 #define LSR_VARIANT                          DISPLAY_PROP("lsr_variant")
 #define ENABLE_SPLIT_VOTE                    DISPLAY_PROP("enable_split_vote")
 #define ENABLE_SELECTIVE_PANEL_DEAD          DISPLAY_PROP("selective_panel_dead")
+#define DISABLE_CACHE_MANAGER                DISPLAY_PROP("disable_cache_manager")
 
 // Enable AI Scaler
 #define ENABLE_AI_SCALER_PROP                DISPLAY_PROP("enable_ai_scaler")
@@ -312,6 +316,8 @@
 #define ENABLE_PRIVACY_LAYERS             DISPLAY_PROP("enable_privacy_layers")
 
 #define DISABLE_PUNCHHOLE_LAYERS          DISPLAY_PROP("disable_punchhole_layers")
+
+#define FORCE_LSR_RENDER_MODE             DISPLAY_PROP("force_lsr_render_mode")
 
 // Add all other.properties above
 // End of property

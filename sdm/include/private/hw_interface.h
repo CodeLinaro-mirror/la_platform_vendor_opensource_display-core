@@ -69,6 +69,30 @@ struct HWScanInfo {
   }
 };
 
+struct ReprojectionConfig {
+  struct drm_msm_opaque_config reproj_sparse_grid =
+      {};                      // reproj_reproj_sparse_grid data field is 2D array.
+  uint32_t reproj_grid_w = 0;  // grid width
+  uint32_t reproj_grid_h = 0;  // grid height
+  struct drm_msm_opaque_config reproj_radial_dis_grid =
+      {};                           // reproj_radial_dis_grid data field is 2D array.
+  uint32_t distort_resolution = 0;  // num column of reproj_radial_dis_grid data array
+  struct sde_drm_lsr_point reproj_optical_axis_offset = {};  // config to for optical_axis_offset
+  float reproj_r_max = 0;
+  uint32_t reproj_error_to_l = 0;
+  uint32_t reproj_disp_im_width = 0;
+  uint32_t reproj_disp_im_height = 0;
+  uint32_t reproj_tile_w = 0;
+  uint32_t reproj_tile_h = 0;
+  struct drm_msm_opaque_config repro_session_config = {};
+  struct drm_msm_opaque_config repro_session_data_config = {};
+  uint32_t reprojection_mode_enabled = true;
+  float reproj_to_lrgb_left = 0;
+  float reproj_to_lrgb_right = 0;
+  uint32_t reproj_min_bbox_w = 0;
+  uint32_t reproj_min_bbox_h = 0;
+};
+
 enum HWFeature {
   kAllowedModeSwitch,
   kHasCwbCrop,
@@ -114,6 +138,7 @@ class HWEventHandler {
   virtual void GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) = 0;
   virtual bool IsPrimaryDisplay() = 0;
   virtual DisplayError GetPanelBrightnessBasePath(std::string *base_path) = 0;
+  virtual void HandleSSREvent(SSREventType ssr_event) = 0;
 
  protected:
   virtual ~HWEventHandler() { }
@@ -200,6 +225,11 @@ class HWInterface {
   virtual void DisplayEarlyWakeUp() = 0;
   virtual DisplayError setDriverCommitPath(DriverCommitPath path) = 0;
   virtual uint32_t GetMaxPrivacyRegionsSupported() = 0;
+  virtual DisplayError SetDisplayDeviceConfig(SDMDisplayDeviceConfig sdm_display_device_config) = 0;
+  virtual DisplayError SetReprojectionConfig(
+      const struct ReprojectionConfig &reprojection_config) = 0;
+  virtual void SetSSRState(bool active) = 0;
+  virtual bool IsEPTSupported() = 0;
 
  protected:
   virtual ~HWInterface() { }

@@ -41,6 +41,7 @@
 #include <stdint.h>
 #include <utility>
 #include <atomic>
+#include <inttypes.h>
 #include <utils/debug.h>
 
 #define __CLASS__ "SDMLayer"
@@ -549,6 +550,42 @@ DisplayError SDMLayer::SetLayerType(SDMLayerTypes type) {
 DisplayError SDMLayer::SetLayerFlag(SDMLayerFlag flag) {
   compatible_ = (flag == SDMLayerFlag::LAYER_FLAG_COMPATIBLE);
 
+  return kErrorNone;
+}
+
+DisplayError SDMLayer::SetRenderLayerReferenceSpaceType(
+    SDMRenderLayerReferenceSpaceType reference_layer_space_type) {
+  layer_->reference_space_type = reference_layer_space_type;
+  return kErrorNone;
+}
+
+DisplayError SDMLayer::SetCompositionLayerType(SDMCompositionLayerType comp_layer_type) {
+  layer_->comp_layer_type = comp_layer_type;
+  return kErrorNone;
+}
+
+DisplayError SDMLayer::SetLayerPose(SDMLayerPose layer_pose) {
+  layer_->layer_pose = layer_pose;
+  return kErrorNone;
+}
+
+DisplayError SDMLayer::SetLayerQuadSize(SDMLayerQuadSize layer_quad_size) {
+  layer_->layer_quad_size = layer_quad_size;
+  return kErrorNone;
+}
+
+DisplayError SDMLayer::SetLayerFrustum(SDMLayerFrustum layer_frustum) {
+  layer_->layer_frustum = layer_frustum;
+  return kErrorNone;
+}
+
+DisplayError SDMLayer::SetLayerPlaneEquation(SDMLayerPlaneEquation plane_equation) {
+  layer_->plane_equation = plane_equation;
+  return kErrorNone;
+}
+
+DisplayError SDMLayer::SetLayerVisibilityType(SDMLayerVisibilityType layer_visibility_type) {
+  layer_->layer_visibility_type = layer_visibility_type;
   return kErrorNone;
 }
 
@@ -1108,7 +1145,7 @@ DisplayError SDMLayer::SetLayerPrivacyRegions(const std::vector<PrivacyRegion> &
   DTRACE_SCOPED();
   bool updated = false;
   if (privacy_regions.size() != layer_->privacy_regions.size()) {
-    DLOGV_IF(kTagClient, "Layer's %d: privacy regions updated (cur %u new %u)", id_,
+    DLOGV_IF(kTagClient, "Layer's %" PRId64 ": privacy regions updated (cur %u new %u)", id_,
              layer_->privacy_regions.size(), privacy_regions.size());
     updated = true;
   }
@@ -1119,7 +1156,7 @@ DisplayError SDMLayer::SetLayerPrivacyRegions(const std::vector<PrivacyRegion> &
       PrivacyRegion new_region = privacy_regions[i];
 
       if (cur_region != new_region) {
-        DLOGV_IF(kTagClient, "Layer's %d: privacy regions updated - index %d", id_, i);
+        DLOGV_IF(kTagClient, "Layer's %" PRId64 ": privacy regions updated - index %d", id_, i);
         updated = true;
         break;
       }
@@ -1135,7 +1172,7 @@ DisplayError SDMLayer::SetLayerPrivacyRegions(const std::vector<PrivacyRegion> &
       if (Contains(dst_rect_, layer_rect)) {
         layer_->privacy_regions.push_back(region);
       } else {
-        DLOGV_IF(kTagClient, "Layer %d: region %f %f %f %f is not within %f %f %f %f", id_,
+        DLOGV_IF(kTagClient, "Layer %" PRId64 ": region %f %f %f %f is not within %f %f %f %f", id_,
                  layer_rect.left, layer_rect.top, layer_rect.right, layer_rect.bottom,
                  dst_rect_.left, dst_rect_.top, dst_rect_.right, dst_rect_.bottom);
       }
@@ -1160,7 +1197,7 @@ bool SDMLayer::IsPrivacyRegionUpdated() {
   }
 
   if (privacy_region_state_ != kRegionActive && layer_->privacy_regions.size() > 0) {
-    DLOGV_IF(kTagClient, "Reset layer's %d privacy regions", id_);
+    DLOGV_IF(kTagClient, "Reset layer's %" PRId64 " privacy regions", id_);
     privacy_region_state_ = kRegionUpdate;
     layer_->privacy_regions.clear();
     return true;

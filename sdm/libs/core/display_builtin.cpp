@@ -224,6 +224,11 @@ DisplayError DisplayBuiltIn::Init() {
     color_mgr_->ColorMgrGetStcModes(&stc_color_modes_);
   }
 
+  pu_subject_ = std::make_unique<PuSubjectIntfImpl>(this);
+  if (!pu_subject_) {
+    DLOGE("Unable to create partial update subject on Display %d-%d", display_id_, display_type_);
+  }
+
   if (client_ctx_.hw_panel_info.mode == kModeCommand && Debug::IsVideoModeEnabled()) {
     error = dpu_core_mux_->SetDisplayMode(kModeVideo);
     if (error != kErrorNone) {
@@ -249,8 +254,9 @@ DisplayError DisplayBuiltIn::Init() {
             HWEvent::POWER_EVENT,
             HWEvent::MMRM,
             HWEvent::VM_RELEASE_EVENT,
-            HWEvent::VM_RECLAIM_EVENT};
-  if (client_ctx_.hw_panel_info.mode == kModeCommand) {
+            HWEvent::VM_RECLAIM_EVENT,
+            HWEvent::SSR};
+  if ((client_ctx_.hw_panel_info.mode == kModeCommand) || client_ctx_.hw_panel_info.vhm_support) {
     events.push_back(HWEvent::IDLE_POWER_COLLAPSE);
   }
 #endif
@@ -266,8 +272,9 @@ DisplayError DisplayBuiltIn::Init() {
       primary_core_id_ = i;
       master_core = false;
     } else {
-      // register panel dead for all the cores
+      // register panel dead and display event thread exit event for all the cores
       std::vector<HWEvent> core_event_list = {HWEvent::PANEL_DEAD};
+      core_event_list.push_back(HWEvent::EXIT);
       event_list_[i] = core_event_list;
     }
   }
@@ -799,13 +806,13 @@ DisplayError DisplayBuiltIn::setColorSamplingState(SamplingState state) {
     histogramCtrl.value = sde_drm::HistModes::kHistEnabled;
     histogramIRQ.value = sde_drm::HistModes::kHistEnabled;
     if (client_ctx_.hw_panel_info.mode == kModeCommand) {
-      ControlPartialUpdate(false /* enable */);
+      ControlPartialUpdate(false /* enable */, kPuSamplingClient);
     }
   } else {
     histogramCtrl.value = sde_drm::HistModes::kHistDisabled;
     histogramIRQ.value = sde_drm::HistModes::kHistDisabled;
     if (client_ctx_.hw_panel_info.mode == kModeCommand) {
-      ControlPartialUpdate(true /* enable */);
+      ControlPartialUpdate(true /* enable */, kPuSamplingClient);
     }
   }
 
@@ -1138,6 +1145,7 @@ void DisplayBuiltIn::PreCommit(LayerStack *layer_stack) {
 DisplayError DisplayBuiltIn::SetupABCFeature() {
   DemuraInputConfig input_cfg;
   input_cfg.secure_session = false;
+  bool is_udc_supported = true;
   std::string brightness_base;
   hw_intf_->GetPanelBrightnessBasePath(&brightness_base);
   input_cfg.brightness_path = brightness_base + "brightness";
@@ -1171,8 +1179,15 @@ DisplayError DisplayBuiltIn::SetupABCFeature() {
     return kErrorResources;
   }
 
+  for (auto info_intf = hw_info_intf_.Begin(); info_intf != hw_info_intf_.End(); info_intf++) {
+    HWResourceInfo hw_resource_info = HWResourceInfo();
+    info_intf->second->GetHWResourceInfo(&hw_resource_info);
+    uint32_t core_id = hw_resource_info.core_id;
+    DLOGI("core [%d] is_udc_supported [%d]", core_id, hw_resource_info.is_udc_supported);
+    is_udc_supported &= hw_resource_info.is_udc_supported;
+  }
   std::unique_ptr<DemuraIntf> abc_intf =
-      abc_factory_->CreateABCIntf(input_cfg, prop_intf_, buffer_allocator_, this);
+      abc_factory_->CreateABCIntf(input_cfg, prop_intf_, buffer_allocator_, this, is_udc_supported);
   if (!abc_intf) {
     DLOGE("Unable to create abc_intf on Display %d-%d", display_id_, display_type_);
     return kErrorMemory;
@@ -1656,15 +1671,15 @@ DisplayError DisplayBuiltIn::PostCommit() {
 
   if (switch_to_cmd_) {
     switch_to_cmd_ = false;
-    ControlPartialUpdateLocked(true /* enable */);
+    ControlPartialUpdateLocked(true /* enable */, kPuPanelClient);
   }
 
   if (last_panel_mode_ != client_ctx_.hw_panel_info.mode) {
     UpdateDisplayModeParams();
   }
 
-  if (dpps_pu_nofiy_pending_) {
-    dpps_pu_nofiy_pending_ = false;
+  if (dpps_pu_notify_pending_) {
+    dpps_pu_notify_pending_ = false;
     dpps_pu_lock_.Broadcast();
   }
   dpps_info_.Init(this, client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
@@ -1729,7 +1744,7 @@ void DisplayBuiltIn::HandleQsyncPostCommit() {
 
 void DisplayBuiltIn::UpdateDisplayModeParams() {
   if (client_ctx_.hw_panel_info.mode == kModeVideo) {
-    ControlPartialUpdateLocked(false /* enable */);
+    ControlPartialUpdateLocked(false /* enable */, kPuPanelClient);
   } else if (client_ctx_.hw_panel_info.mode == kModeCommand) {
     // Flush idle timeout value currently set.
     comp_manager_->SetIdleTimeoutMs(display_comp_ctx_, 0, 0);
@@ -1767,6 +1782,10 @@ DisplayError DisplayBuiltIn::SetDisplayState(DisplayState state, bool teardown,
 
   if (error) {
     DLOGW("Failed to update driver path when transitioning to state %d", state);
+  }
+
+  if (state == kStateOn) {
+    primary_commit_needed_ = true;
   }
 
   error = DisplayBase::SetDisplayState(state, teardown, release_fence);
@@ -1866,7 +1885,7 @@ DisplayError DisplayBuiltIn::SetDisplayMode(uint32_t mode) {
     DisplayBase::ReconfigureDisplay();
 
     if (mode == kModeVideo) {
-      ControlPartialUpdateLocked(false /* enable */);
+      ControlPartialUpdateLocked(false /* enable */, kPuPanelClient);
       uint32_t active_ms = 0;
       uint32_t inactive_ms = 0;
       Debug::GetIdleTimeoutMs(&active_ms, &inactive_ms);
@@ -2248,24 +2267,29 @@ DisplayError DisplayBuiltIn::GetPanelMaxBrightness(uint32_t *max_brightness_leve
   return kErrorNone;
 }
 
-DisplayError DisplayBuiltIn::ControlPartialUpdate(bool enable) {
+DisplayError DisplayBuiltIn::ControlPartialUpdate(bool enable, std::string &observer) {
   ClientLock lock(disp_mutex_);
-  return ControlPartialUpdateLocked(enable);
+  return ControlPartialUpdateLocked(enable, observer);
 }
 
-DisplayError DisplayBuiltIn::ControlPartialUpdateLocked(bool enable) {
-  if (dpps_info_.disable_pu_ && enable) {
-    // Nothing to be done.
-    DLOGI("partial update is disabled by DPPS for display %d-%d", display_id_, display_type_);
-    return kErrorNotSupported;
+DisplayError DisplayBuiltIn::ControlPartialUpdateLocked(bool enable, std::string &observer) {
+  if (!pu_subject_) {
+    DLOGE("Invalid pu subject pointer is null");
+    return kErrorUndefined;
   }
 
-  if (enable == partial_update_control_) {
-    DLOGI("Same state transition is requested.");
-    return kErrorNone;
+  if (enable) {
+    pu_subject_->DeRegister(observer);
+  } else {
+    pu_subject_->Register(observer, nullptr);
   }
-  validated_ = false;
+
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetPartialUpdateControl(bool enable) {
   partial_update_control_ = enable;
+  validated_ = false;
 
   return kErrorNone;
 }
@@ -2322,12 +2346,12 @@ DisplayError DisplayBuiltIn::DppsProcessOps(enum DppsOps op, void *payload, size
       }
       enable = *(reinterpret_cast<bool *>(payload));
       dpps_info_.disable_pu_ = !enable;
-      ControlPartialUpdate(enable);
+      ControlPartialUpdate(enable, kPuDppsClient);
       event_handler_->Refresh();
       {
         ClientLock lock(disp_mutex_);
         validated_ = false;
-        dpps_pu_nofiy_pending_ = true;
+        dpps_pu_notify_pending_ = true;
       }
       ret = dpps_pu_lock_.WaitFinite(kPuTimeOutMs);
       if (ret) {
@@ -2534,7 +2558,14 @@ std::string DisplayBuiltIn::Dump() {
   os << " TransferTime: " << hw_panel_info.transfer_time_us << "us";
   os << " Min TransferTime: " << hw_panel_info.transfer_time_us_min << "us";
   os << " Max TransferTime: " << hw_panel_info.transfer_time_us_max << "us";
-  os << " AllowedModeSwitch: " << hw_panel_info.allowed_mode_switch;
+  os << " AllowedModeSwitch:";
+  if (hw_panel_info.allowed_mode_switch.empty()) {
+    os << " 0";
+  } else {
+    for (size_t i = 0; i < hw_panel_info.allowed_mode_switch.size(); ++i) {
+      os << " " << hw_panel_info.allowed_mode_switch[i];
+    }
+  }
   os << " PanelModeCaps: ";
   snprintf(capabilities, sizeof(capabilities), "0x%x", hw_panel_info.panel_mode_caps);
   os << capabilities;
@@ -2606,9 +2637,17 @@ std::string DisplayBuiltIn::Dump() {
 
     AppendRCMaskData(os);
 
-    const char *header  = "\n| Idx |   Comp Type   |   Split   | Pipe |    W x H    |          Format          |  Src Rect (L T R B) |  Dst Rect (L T R B) |  Z | Pipe Flags | Deci(HxV) | CS | Rng | Tr |";  //NOLINT
-    const char *newline = "\n|-----|---------------|-----------|------|-------------|--------------------------|---------------------|---------------------|----|------------|-----------|----|-----|----|";  //NOLINT
-    const char *format  = "\n| %3s | %13s | %9s | %4d | %4d x %4d | %24s | %4d %4d %4d %4d | %4d %4d %4d %4d | %2s | %10s | %9s | %2s | %3s | %2s |";  //NOLINT
+    const char *header =
+        "\n| Idx |   Comp Type   |     Split    | Pipe |    W x H    |          Format         "
+        " |  Src Rect (L T R B) |  Dst Rect (L T R B) |  Z | Pipe Flags | Deci(HxV) | CS | Rng "
+        "| Tr |";  //NOLINT
+    const char *newline =
+        "\n|-----|---------------|--------------|------|-------------|-------------------------"
+        "-|---------------------|---------------------|----|------------|-----------|----|-----"
+        "|----|";  //NOLINT
+    const char *format =
+        "\n| %3s | %13s | %12s | %4d | %4d x %4d | %24s | %4d %4d %4d %4d | %4d %4d %4d %4d | %2s "
+        "| %10s | %9s | %2s | %3s | %2s |";  //NOLINT
 
     os << "\n";
     os << newline;
@@ -2997,7 +3036,11 @@ bool DisplayBuiltIn::CanSkipDisplayPrepare(LayerStack *layer_stack) {
     return false;
   }
 
-  if (disp_layer_stack_->stack_info.iwe_target_index != -1) {
+  if ((disp_layer_stack_->stack_info.iwe_target_index != -1) ||
+      (disp_layer_stack_->stack_info.iwe_csc_left_index != -1) ||
+      (disp_layer_stack_->stack_info.iwe_csc_right_index != -1) ||
+      (disp_layer_stack_->stack_info.iwe_repro_left_index != -1) ||
+      (disp_layer_stack_->stack_info.iwe_repro_right_index != -1)) {
     return false;
   }
 
@@ -3432,7 +3475,8 @@ DisplayError DisplayBuiltIn::GetConfig(DisplayConfigFixedInfo *fixed_info) {
   fixed_info->hdr_eotf = client_ctx_.hw_panel_info.hdr_eotf;
   fixed_info->hdr_metadata_type_one = client_ctx_.hw_panel_info.hdr_metadata_type_one;
   fixed_info->partial_update = client_ctx_.hw_panel_info.partial_update;
-  fixed_info->readback_supported = has_concurrent_writeback;
+  fixed_info->readback_supported =
+      has_concurrent_writeback && !(kQuadSplit == client_ctx_.mixer_attributes.split_type);
   fixed_info->supports_unified_draw = unified_draw_supported_;
 
   return kErrorNone;
@@ -3613,6 +3657,32 @@ void DisplayBuiltIn::HandleVmReleaseEvent() {
 void DisplayBuiltIn::HandleVmReclaimEvent() {
   if (event_handler_)
     event_handler_->HandleEvent(kVmReclaimDone);
+}
+
+void DisplayBuiltIn::HandleSSREvent(SSREventType ssr_event) {
+  DTRACE_SCOPED();
+
+  DisplayEvent event = (ssr_event == SSREventType::kSSRStart) ? kSsrStart : kSsrEnd;
+  DLOGI("Handle %s event", (event == kSsrStart) ? "SSR Start" : "SSR End");
+  is_ssr_active_ = (event == kSsrStart);
+  dpu_core_mux_->SetSSRState(is_ssr_active_);
+
+  if (!event_handler_) {
+    DLOGW("Event handler is null");
+    return;
+  }
+
+  event_handler_->HandleEvent(event);
+
+  {
+    ClientLock lock(disp_mutex_);
+    reset_panel_ = true;
+    validated_ = false;
+  }
+
+  if (event == kSsrEnd) {
+    event_handler_->Refresh();
+  }
 }
 
 DisplayError DisplayBuiltIn::GetQsyncFps(uint32_t *qsync_fps) {
@@ -3846,12 +3916,36 @@ void DisplayBuiltIn::InitCWBBuffer() {
     return;
   }
 
+  bool is_wb_ubwc_supported = true;
+
+  for (auto hw_info = hw_info_intf_.Begin(); hw_info != hw_info_intf_.End(); hw_info++) {
+    HWDisplaysInfo display_infos;
+    DisplayError error = hw_info->second->GetDisplaysStatus(&display_infos);
+    if (error)
+      continue;
+
+    bool is_cur_core_wb_ubwc_supported = false;
+    for (auto &iter : display_infos) {
+      auto &info = iter.second;
+      if (info.display_type == kVirtual && info.is_wb_ubwc_supported) {
+        is_cur_core_wb_ubwc_supported = true;
+        break;
+      }
+    }
+    is_wb_ubwc_supported &= is_cur_core_wb_ubwc_supported;
+  }
+
   // Initialize CWB buffer with display resolution to get full size buffer
   // as mixer or fb can init with custom values based on property
   output_buffer_info_.buffer_config.width = client_ctx_.display_attributes.x_pixels;
   output_buffer_info_.buffer_config.height = client_ctx_.display_attributes.y_pixels;
 
-  output_buffer_info_.buffer_config.format = kFormatRGBX8888Ubwc;
+  if (is_wb_ubwc_supported) {
+    output_buffer_info_.buffer_config.format = kFormatRGBX8888Ubwc;
+  } else {
+    output_buffer_info_.buffer_config.format = kFormatRGB888;
+  }
+
   output_buffer_info_.buffer_config.buffer_count = 1;
   if (buffer_allocator_->AllocateBuffer(&output_buffer_info_) != 0) {
     DLOGE("Buffer allocation failed");
@@ -4914,6 +5008,56 @@ DisplayError DisplayBuiltIn::SetPanelFeatureConfig(int32_t type, void *data) {
   return ret;
 }
 
+DisplayError DisplayBuiltIn::GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size) {
+  DisplayError ret = kErrorNone;
+
+  if (!data || !data_size) {
+    DLOGE("Invalid input data %pK, data size %d", data, data_size);
+    return kErrorParameters;
+  }
+
+  switch (type) {
+    case kTypeGetDemuraTnAgingValue:
+      ret = GetDemuraTnAgingValue(data, data_size);
+      break;
+    default:
+      DLOGE("Invalid type %d", type);
+      ret = kErrorParameters;
+      break;
+  }
+
+  return ret;
+}
+
+DisplayError DisplayBuiltIn::GetDemuraTnAgingValue(void *data, uint32_t data_size) {
+  int ret = 0;
+  GenericPayload payload = {};
+  DemuraTnAgingValues *aging_values = nullptr;
+
+  if (!demuratn_ || !data) {
+    DLOGE("Invalid demuratn_ %pK, data %pK", demuratn_.get(), data);
+    return kErrorUndefined;
+  }
+
+  ret = payload.CreatePayload<DemuraTnAgingValues>(aging_values);
+  if (ret || aging_values == nullptr) {
+    DLOGE("Failed to create the payload, ret %d", ret);
+    return kErrorUndefined;
+  }
+
+  ret = demuratn_->GetParameter(kDemuraTnCoreUvmParamAgingValues, &payload);
+  if (ret) {
+    DLOGE("Get aging values failed ret %d", ret);
+    return kErrorUndefined;
+  }
+
+  char *output = reinterpret_cast<char *>(data);
+  snprintf(output, data_size, "%.2f %.2f %.2f", aging_values->value[0], aging_values->value[1],
+           aging_values->value[2]);
+  DLOGI("Query aging values: %s", output);
+  return kErrorNone;
+}
+
 DisplayError DisplayBuiltIn::SetDemuraTnCWBSamplingPeriod(void *data) {
   int ret = 0;
   int *period_ptr = nullptr;
@@ -5009,7 +5153,7 @@ DisplayError DisplayBuiltIn::ExportABCFiles() {
 }
 
 DisplayError DisplayBuiltIn::StartTvmServices() {
-  if (!abc_prop_ && !demura_enable_) {
+  if (!abc_tvm_enabled_ && !demura_enable_) {
     return kErrorNone;
   }
 
@@ -5133,6 +5277,7 @@ int DisplayBuiltIn::StartVmFileServiceAndExportFiles() {
   ret = vm_file_xfer_intf_->Init();
   if (ret) {
     DLOGE("Failed to init VmFileXferClient ret %d", ret);
+    vm_file_xfer_intf_->Deinit();
     vm_file_xfer_intf_.reset();
     vm_file_xfer_intf_ = nullptr;
     return ret;
@@ -5644,6 +5789,15 @@ void DisplayBuiltIn::SetPrivacyRegions() {
       disp_layer_stack_->info.at(core_id).privacy_regions_ = regions;
     }
   }
+}
+
+DisplayError DisplayBuiltIn::SetDisplayDeviceConfig(
+    const SDMDisplayDeviceConfig &display_device_config) {
+  return comp_manager_->SetDisplayDeviceConfig(display_comp_ctx_, display_device_config);
+}
+
+DisplayError DisplayBuiltIn::SetPoseConfig(const LayerBuffer &buffer) {
+  return comp_manager_->SetPoseConfig(display_comp_ctx_, buffer);
 }
 
 }  // namespace sdm

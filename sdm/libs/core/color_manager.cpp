@@ -1973,12 +1973,9 @@ ColorManagerIntf* ColorMgrFactoryIntfImpl::CreateColorManagerIntf(SDMDisplayType
   } else {
     core_id = ColorManagerProxy::getCoreId(display_id);
     DLOGV("Creating CreateColorManagerProxy for core_id=%d", core_id);
-    ptr = ColorManagerProxy::CreateColorManagerProxy(type, dpu_core_mux,
-                                                    display_client_ctx.display_attributes,
-                                                    display_client_ctx.hw_panel_info,
-                                                    dpps_intf, disp_intf,
-                                                    hw_res_info[core_id],
-                                                    display_id);
+    ptr = ColorManagerProxy::CreateColorManagerProxy(
+        type, dpu_core_mux, display_client_ctx.display_attributes, display_client_ctx.hw_panel_info,
+        dpps_intf, disp_intf, hw_res_info[0], display_id);
   }
 
   return ptr;

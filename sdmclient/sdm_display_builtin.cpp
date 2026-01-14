@@ -46,6 +46,7 @@
 #include "sdm_debugger.h"
 #include "sdm_display_builtin.h"
 #include "sdm_factory.h"
+#include "perf_hint_parser.h"
 
 #define __CLASS__ "SDMDisplayBuiltIn"
 
@@ -186,6 +187,13 @@ DisplayError SDMDisplayBuiltIn::Init() {
   SDMDebugHandler::Get()->GetProperty(ENHANCE_IDLE_TIME, &enhance_idle_time);
   enhance_idle_time_ = (enhance_idle_time == 1);
   DLOGI("enhance_idle_time: %d", enhance_idle_time);
+
+  int32_t raw_min_fps = 90;
+  SDMDebugHandler::Get()->GetProperty(MINIMUM_LARGE_COMP_FPS, &raw_min_fps);
+
+  if (raw_min_fps > 0) {
+    minimum_large_comp_fps_ = raw_min_fps;
+  }
 
   LoadMixedModePerfHintThreshold();
 
@@ -1032,7 +1040,7 @@ DisplayError SDMDisplayBuiltIn::ControlPartialUpdate(bool enable) {
   DisplayError error = kErrorNone;
 
   if (display_intf_) {
-    error = display_intf_->ControlPartialUpdate(enable);
+    error = display_intf_->ControlPartialUpdate(enable, kPuSdmClient);
   }
 
   return error;
@@ -1158,7 +1166,9 @@ DisplayError SDMDisplayBuiltIn::SetDynamicDSIClock() {
   DTRACE_SCOPED();
 
   DisplayError error = display_intf_->SetDynamicDSIClock(scheduled_dynamic_dsi_clk_);
-  if (error != kErrorNone) {
+  if (error == kErrorDeferred) {
+    return error;
+  } else if (error != kErrorNone) {
     DLOGE(" failed: Clk: %" PRIu64 " Error: %d", scheduled_dynamic_dsi_clk_, error);
   }
 
@@ -1491,13 +1501,16 @@ DisplayError SDMDisplayBuiltIn::PostInit() {
 }
 
 bool SDMDisplayBuiltIn::NeedsLargeCompPerfHint() {
-  if (active_refresh_rate_ < 90) {
-    DLOGV_IF(kTagResources, "Current fps %d doesn't qualify for large comp hint",
-             active_refresh_rate_);
+  if (active_refresh_rate_ < static_cast<int>(minimum_large_comp_fps_)) {
+    DLOGV_IF(kTagResources,
+             "Current fps %d doesn't qualify for large comp hint "
+             "(minimum %u)",
+             active_refresh_rate_, minimum_large_comp_fps_);
     return false;
   }
 
   std::string trace;
+
   if (large_comp_hint_threshold_ > 0 &&
       sdm_layer_stack_->layer_set_.size() >= large_comp_hint_threshold_) {
     trace = "app layers " + to_string(sdm_layer_stack_->layer_set_.size()) + " threshold " +
@@ -1658,6 +1671,12 @@ void SDMDisplayBuiltIn::LoadMixedModePerfHintThreshold() {
   // For mixed mode composition, if perf hint for large composition cycles is
   // enabled and if the use case meets the threshold, SF and SDM will be running
   // on the gold CPU cores.
+
+  PerfHintParser perf_hint_parser;
+  if (perf_hint_parser.Init() == kErrorNone) {
+    perf_hint_parser.GetPerfHintThresholds(&mixed_mode_threshold_);
+    return;
+  }
 
   // For 120 fps, 8 layers should fall back to GPU
   mixed_mode_threshold_.insert(std::make_pair<int32_t, int32_t>(120, 8));
@@ -1929,6 +1948,11 @@ DisplayError SDMDisplayBuiltIn::SetPanelFeatureConfig(int32_t type, void *data) 
   return display_intf_->SetPanelFeatureConfig(type, data);
 }
 
+DisplayError SDMDisplayBuiltIn::GetPanelFeatureConfig(int32_t type, void *data,
+                                                      uint32_t data_size) {
+  return display_intf_->GetPanelFeatureConfig(type, data, data_size);
+}
+
 DisplayError SDMDisplayBuiltIn::EnableCopr(bool en) {
   return display_intf_->EnableCopr(en);
 }
@@ -1951,27 +1975,33 @@ void SDMDisplayBuiltIn::InitializePerfHints() {
   // check if perf hints will be enabled/disabled.
   if (enable_perf_hints_ && !cpu_hint_) {
     nsecs_t current_time = callbacks_->SystemTime(SYSTEM_TIME_MONOTONIC);
-    if (nanoseconds_to_milliseconds(current_time - boot_completed_time_) > elapse_time_threshold_) {
+    if ((nanoseconds_to_milliseconds(current_time - boot_completed_time_) /
+         perf_hint_current_retries_) > elapse_time_threshold_) {
       int value = 0;
       SDMDebugHandler::Get()->GetProperty("vendor.mpctl.init.complete", &value);
-      enable_perf_hints_ = (value == 1);
 
-      if (enable_perf_hints_) {
+      if (value == 1) {
         cpu_hint_ = new CPUHint();
         if (cpu_hint_->Init(static_cast<SDMDebugHandler *>(SDMDebugHandler::Get()), callbacks_) !=
             kErrorNone) {
           delete cpu_hint_;
           cpu_hint_ = NULL;
           DLOGW("CPU Hints failed to initialize");
+          enable_perf_hints_ = false;
           return;
         }
+
+        // Reset to indicate perf hints initialization is done
+        enable_perf_hints_ = false;
         DLOGI("Perf hints enabled");
-      } else {
+        return;
+      }
+      if (perf_hint_current_retries_ > kPerfHintMaxRetries) {
+        // Reset to indicate perf hints initialization is done
+        enable_perf_hints_ = false;
         DLOGI("Perf hints disabled");
       }
-
-      // Reset to indicate perf hints initialization is done
-      enable_perf_hints_ = false;
+      perf_hint_current_retries_++;
     }
   }
 }
@@ -2016,6 +2046,107 @@ DisplayError SDMDisplayBuiltIn::SetDpuDmaMode() {
 
 bool SDMDisplayBuiltIn::IsDmaModeIncompatible(LayerComposition composition) {
   return (composition == kCompositionGPU && dpu_dma_enabled_);
+}
+
+DisplayError SDMDisplayBuiltIn::PopulateLayerBuffer(void *buffer_hnd, LayerBuffer *output_buffer) {
+  if (!buffer_hnd || !output_buffer) {
+    DLOGE("Invalid input: buffer_hnd or output_buffer is null.");
+    return kErrorParameters;
+  }
+
+  SnapHandle *hdl = static_cast<SnapHandle *>(buffer_hnd);
+  if (!hdl) {
+    DLOGE("Bad parameter: SnapHandle is null.");
+    return kErrorNotSupported;
+  }
+
+  auto err = GetMetadata(hdl, MetadataType::STRIDE, &output_buffer->width, snapmapper_);
+  if (err) {
+    DLOGE("Failed to retrieve aligned width");
+  }
+  output_buffer->planes[0].stride = output_buffer->width;
+
+  err =
+      GetMetadata(hdl, MetadataType::ALIGNED_HEIGHT_IN_PIXELS, &output_buffer->height, snapmapper_);
+  if (err) {
+    DLOGE("Failed to retrieve aligned height");
+  }
+
+  uint64_t tmp_width, tmp_height;
+  err = GetMetadata(hdl, MetadataType::WIDTH, &tmp_width, snapmapper_);
+  if (err) {
+    DLOGE("Failed to retrieve unaligned width");
+  } else {
+    output_buffer->unaligned_width = static_cast<uint32_t>(tmp_width);
+  }
+
+  err = GetMetadata(hdl, MetadataType::HEIGHT, &tmp_height, snapmapper_);
+  if (err) {
+    DLOGE("Failed to retrieve unaligned height");
+  } else {
+    output_buffer->unaligned_height = static_cast<uint32_t>(tmp_height);
+  }
+
+  int format;
+  err = GetMetadata(hdl, MetadataType::PIXEL_FORMAT_ALLOCATED, &format, snapmapper_);
+  if (err) {
+    DLOGE("Failed to retrieve format");
+  }
+
+  BufferUsage usage_flag;
+  err = GetMetadata(hdl, MetadataType::USAGE, &usage_flag, snapmapper_);
+  if (err) {
+    DLOGE("Failed to retrieve flag");
+  }
+  output_buffer->usage = static_cast<uint64_t>(usage_flag);
+
+  int64_t compression_type;
+  err = GetMetadata(hdl, MetadataType::COMPRESSION, &compression_type, snapmapper_);
+  if (err) {
+    DLOGE("Failed to retrieve compression type");
+  }
+
+  int64_t is_ubwc = 0, flag = 0;
+  err = snapmapper_->GetMetadata(*hdl, MetadataType::IS_UBWC, &is_ubwc);
+  if (err) {
+    DLOGE("Failed to retrieve is_ubwc");
+    return kErrorNotSupported;
+  }
+  flag = is_ubwc ? INT32(MetadataType::IS_UBWC) : 0;
+
+  uint64_t pixel_format_modifier = 0;
+  snapmapper_->GetMetadata(*hdl, MetadataType::FORMAT_MODIFIER, &pixel_format_modifier);
+  output_buffer->format =
+      buffer_allocator_->GetSDMFormat(format, flag, compression_type, pixel_format_modifier);
+
+  err = GetMetadata(hdl, MetadataType::FD, &output_buffer->planes[0].fd, snapmapper_);
+  if (err) {
+    DLOGE("Failed to retrieve file descriptor");
+    return kErrorNotSupported;
+  }
+
+  err = GetMetadata(hdl, MetadataType::BUFFER_ID, &output_buffer->handle_id, snapmapper_);
+  if (err) {
+    DLOGE("Failed to retrieve buffer id");
+  }
+
+  return kErrorNone;
+}
+
+DisplayError SDMDisplayBuiltIn::SetPoseConfig(void *buffer_hnd) {
+  LayerBuffer pose_buffer = {};
+  DisplayError error = PopulateLayerBuffer(buffer_hnd, &pose_buffer);
+  if (error != kErrorNone) {
+    DLOGE("Failed to populate LayerBuffer for pose config. Error = %d", error);
+    return error;
+  }
+
+  error = display_intf_->SetPoseConfig(pose_buffer);
+  if (error != kErrorNone) {
+    DLOGE("Failed to set pose config. Error = %d", error);
+    return error;
+  }
+  return kErrorNone;
 }
 
 } // namespace sdm

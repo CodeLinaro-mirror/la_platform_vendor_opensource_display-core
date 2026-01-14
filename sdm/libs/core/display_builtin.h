@@ -56,6 +56,7 @@
 
 #include "display_base.h"
 #include "drm_interface.h"
+#include "pu_subject_intf_impl.h"
 
 namespace sdm {
 
@@ -193,7 +194,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError Init() override;
   DisplayError Deinit() override;
   DisplayError Prepare(LayerStack *layer_stack) override;
-  DisplayError ControlPartialUpdate(bool enable) override;
+  DisplayError ControlPartialUpdate(bool enable, std::string &observer) override;
   DisplayError DisablePartialUpdateOneFrame() override;
   DisplayError DisablePartialUpdateOneFrameInternal() override;
   DisplayError SetDisplayState(DisplayState state, bool teardown,
@@ -266,6 +267,8 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetABCMode(const string &mode_name) override;
   DisplayError SetAIScalerMode(uint32_t mode_id) override;
   DisplayError SetPanelFeatureConfig(int32_t type, void *data) override;
+  DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size) override;
+  DisplayError GetDemuraTnAgingValue(void *data, uint32_t size);
   DisplayError StartTvmServices();
   DisplayError StartService(TvmDispServiceManagerParams service);
   DisplayError ExportDemuraFiles();
@@ -298,6 +301,7 @@ class DisplayBuiltIn : public DisplayBase,
   void GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) override;
   bool IsPrimaryDisplay() override;
   DisplayError GetPanelBrightnessBasePath(std::string *base_path) override;
+  void HandleSSREvent(SSREventType ssr_event) override;
 
   // Implement the DppsPropIntf
   DisplayError DppsProcessOps(enum DppsOps op, void *payload, size_t size) override;
@@ -311,6 +315,9 @@ class DisplayBuiltIn : public DisplayBase,
 
   // Implement SdmDisplayCbInterface
   int Notify(const TvmServiceCbEvent &) override;
+
+  DisplayError SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config) override;
+  DisplayError SetPoseConfig(const LayerBuffer &buffer) override;
 
  private:
   bool CanCompareFrameROI(LayerStack *layer_stack);
@@ -344,7 +351,8 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError HandleSPR();
   void CacheFrameROI();
   void PreCommit(LayerStack *layer_stack);
-  DisplayError ControlPartialUpdateLocked(bool enable);
+  DisplayError ControlPartialUpdateLocked(bool enable, std::string &observer);
+  DisplayError SetPartialUpdateControl(bool enable);
   DisplayError SetDppsFeatureLocked(void *payload, size_t size);
   DisplayError HandleDemuraLayer(LayerStack *layer_stack);
   void NotifyDppsHdrPresent(LayerStack *layer_stack);
@@ -397,7 +405,7 @@ class DisplayBuiltIn : public DisplayBase,
   vector<LayerRect> left_frame_roi_ = {};
   vector<LayerRect> right_frame_roi_ = {};
   Locker dpps_pu_lock_;
-  bool dpps_pu_nofiy_pending_ = false;
+  bool dpps_pu_notify_pending_ = false;
   enum class SamplingState { Off, On } samplingState = SamplingState::Off;
   DisplayError setColorSamplingState(SamplingState state);
 
@@ -473,6 +481,12 @@ class DisplayBuiltIn : public DisplayBase,
   bool double_buffer_codebook_supported_ = false;
   bool previous_frame_default_strategy_ = false;
   PrivacyRegionManager *privacy_region_mgr_ = nullptr;
+
+  friend class PuSubjectIntfImpl;
+  std::unique_ptr<PuSubjectIntf> pu_subject_ = nullptr;
+  std::string kPuPanelClient = "panel_client";
+  std::string kPuSamplingClient = "sampling_client";
+  std::string kPuDppsClient = "dpps_client";
 };
 
 }  // namespace sdm

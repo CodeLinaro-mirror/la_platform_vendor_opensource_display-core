@@ -116,7 +116,9 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   }
   virtual DisplayError SetNoisePlugInOverride(bool override_en, int32_t attn, int32_t noise_zpos);
   virtual DisplayError SetMaxMixerStages(uint32_t max_mixer_stages);
-  virtual DisplayError ControlPartialUpdate(bool enable) { return kErrorNotSupported; }
+  virtual DisplayError ControlPartialUpdate(bool enable, std::string &observer) {
+    return kErrorNotSupported;
+  }
   virtual DisplayError DisablePartialUpdateOneFrame() {
     return kErrorNotSupported;
   }
@@ -194,7 +196,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
                                                       CwbConfig &cwb_config);
   virtual bool ValidateCwbConfigForDownscale(const LayerBuffer &output_buffer,
                                              CwbConfig &cwb_config);
-  virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config);
+  virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config,
+                                  const CWBClient &client);
   virtual DisplayError PostHandleSecureEvent(SecureEvent secure_event) {
     return kErrorNotSupported;
   }
@@ -307,6 +310,10 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
     return kErrorNotSupported;
   }
 
+  virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size) {
+    return kErrorNotSupported;
+  }
+
   virtual DisplayError PanelBacklightInfo(const std::string &client_name, bool enable,
                                           SdmDisplayCbInterface<PanelBacklightPayload> *cb_intf) {
     return kErrorNotSupported;
@@ -322,6 +329,11 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual bool IsDpuDmaModeEnabled();
   virtual DisplayError SetClientTargetCapability(
       const std::bitset<kClientCapabilityMax> &client_capabilities);
+  virtual DisplayError SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config) {
+    return kErrorNotSupported;
+  }
+  virtual DisplayError SetPoseConfig(const LayerBuffer &buffer) { return kErrorNotSupported; }
+  virtual bool IsEPTSupported();
 
  protected:
   struct DisplayMutex {
@@ -453,7 +465,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   int core_count_ = 0;
   ColorManagerIntf *color_mgr_ = NULL;
   bool partial_update_control_ = true;
-  std::vector<HWEventsInterface *> hw_events_intf_ = {};
+  std::map<uint32_t, HWEventsInterface *> hw_events_intf_;
   HWEventsInterface *master_hw_events_intf_ = nullptr;
   bool disable_pu_one_frame_ = false;
   bool pu_pending_ = false;
@@ -542,6 +554,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   uint32_t active_config_index_ = 0;
   int rgba_split_enable_ = false;
   bool mixer_resolution_updated_ = false;
+  bool primary_commit_needed_ = true;
+  bool is_ssr_active_ = false;
 
  private:
   // Max tolerable power-state-change wait-times in milliseconds.
@@ -571,6 +585,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   uint32_t GetMixerCountFromTopology(HWTopology topology);
   void PerformSelfRefresh(uint64_t srEPT);
   std::chrono::system_clock::time_point WaitUntilForSelfRefresh(uint64_t *srEPT);
+  DisplayError HandleCommitDuringSSR();
+  bool IsPrimaryCommitNeeded();
 
   unsigned int rc_cached_res_width_ = 0;
   unsigned int rc_cached_res_height_ = 0;
@@ -608,6 +624,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool wb_downscale_supports_ = false;
   bool enable_ai_scaler_ = false;
   uint64_t next_expected_present_ = 0;
+  bool lsr_first_commit_ = true;
+  bool cwb_with_lsr_active_ = false;
 };
 
 }  // namespace sdm

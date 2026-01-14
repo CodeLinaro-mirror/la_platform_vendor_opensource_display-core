@@ -84,6 +84,7 @@ DisplayError SDMDisplayResolutionExtn::GetExtendedDisplayResolutions(uint32_t pa
           XMLElement *scaling_node = panel_res_node->FirstChildElement();
           while (scaling_node != nullptr) {
             double res_x = 0.0, res_y = 0.0;
+            uint32_t res_overlap = 0;
             if (!strcmp(scaling_node->Name(), "ScalingFactor")) {
               const char *x = scaling_node->Attribute("x");
               const char *y = scaling_node->Attribute("y");
@@ -104,12 +105,16 @@ DisplayError SDMDisplayResolutionExtn::GetExtendedDisplayResolutions(uint32_t pa
             } else if (!strcmp(scaling_node->Name(), "ScalingResolution")) {
               const char *w = scaling_node->Attribute("w");
               const char *h = scaling_node->Attribute("h");
+              const char *overlap = scaling_node->Attribute("overlap");
               if (w == nullptr || h == nullptr) {
                 scaling_node = scaling_node->NextSiblingElement();
                 continue;
               }
               res_x = std::atof(w);
               res_y = std::atof(h);
+              if (overlap) {
+                res_overlap = std::atof(overlap);
+              }
             }
 
             scaling_node = scaling_node->NextSiblingElement();
@@ -135,7 +140,12 @@ DisplayError SDMDisplayResolutionExtn::GetExtendedDisplayResolutions(uint32_t pa
               DLOGI("Mode for RGBA Split Feature: x_res = %f y_res = %f panel w = %d panel h = %d",
                     res_x, res_y, p_width, p_height);
               extended_disp_res->push_back(std::make_pair(UINT32(res_x), UINT32(res_y)));
-            } else {
+            } else if (res_overlap && (floor(res_x) == res_x) && (floor(res_y) == res_y) &&
+                       (UINT32(res_x) % 2 == 0) && (UINT32(res_y) % 2 == 0)) {
+              DLOGI("Mode for Overlap Feature: x_res = %f y_res = %f panel w = %d panel h = %d",
+                    res_x, res_y, p_width, p_height);
+              extended_disp_res->push_back(std::make_pair(UINT32(res_x), UINT32(res_y)));
+            }  else {
               DLOGI("scaling resolution: %f x %f is invalid", res_x, res_y);
             }
           }

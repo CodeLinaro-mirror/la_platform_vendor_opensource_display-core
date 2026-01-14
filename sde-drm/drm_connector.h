@@ -124,6 +124,11 @@ class DRMConnector {
   DRMStatus status_ = DRMStatus::FREE;
   std::unique_ptr<DRMPPManager> pp_mgr_{};
   DRMJitterConfig jitter_cfg_ = {};
+  uint32_t wb_gamma_blob_id_ = 0;
+  uint32_t wb_session_config_blob_id_ = 0;
+  uint32_t wb_session_config_data_blob_id_ = 0;
+  uint32_t wb_sparse_grid_blob_id_ = 0;
+  uint32_t wb_radial_dis_blob_id_ = 0;
 #ifdef SDE_MAX_ROI_V1
   sde_drm_roi_v1 roi_v1_ {};
 #endif

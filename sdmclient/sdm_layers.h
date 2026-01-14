@@ -140,6 +140,14 @@ class SDMLayer {
   DisplayError SetLayerZOrder(uint32_t z);
   DisplayError SetLayerType(SDMLayerTypes type);
   DisplayError SetLayerFlag(SDMLayerFlag flag);
+  DisplayError SetRenderLayerReferenceSpaceType(
+      SDMRenderLayerReferenceSpaceType reference_layer_space_type);
+  DisplayError SetCompositionLayerType(SDMCompositionLayerType comp_layer_type);
+  DisplayError SetLayerPose(SDMLayerPose layer_pose);
+  DisplayError SetLayerQuadSize(SDMLayerQuadSize layer_quad_size);
+  DisplayError SetLayerFrustum(SDMLayerFrustum layer_frustum);
+  DisplayError SetLayerPlaneEquation(SDMLayerPlaneEquation plane_equation);
+  DisplayError SetLayerVisibilityType(SDMLayerVisibilityType layer_visibility_type);
   DisplayError SetLayerColorTransform(const float *matrix);
   DisplayError SetLayerBrightness(float brightness);
   void SetComposition(const LayerComposition &sdm_composition);

@@ -28,9 +28,9 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-  SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
 #include <drm_master.h>
@@ -106,17 +106,7 @@ DisplayError HWEventsDRM::InitializePollFd() {
     switch (event_data.event_type) {
       case HWEvent::VSYNC: {
         poll_fds_[i].events = POLLIN | POLLPRI | POLLERR;
-        if (is_primary_) {
-          DRMMaster *master = nullptr;
-          int ret = DRMMaster::GetInstance(&master);
-          if (ret < 0) {
-            DLOGE("Failed to acquire DRMMaster instance");
-            return kErrorNotSupported;
-          }
-          master->GetHandle(&poll_fds_[i].fd);
-        } else {
-          HandleDRMOpen(poll_fds_[i].fd);
-        }
+        HandleDRMOpen(poll_fds_[i].fd);
         vsync_index_ = i;
       } break;
       case HWEvent::EXIT: {
@@ -211,6 +201,15 @@ DisplayError HWEventsDRM::InitializePollFd() {
         poll_fds_[i].events = POLLIN | POLLPRI | POLLERR;
         vm_reclaim_event_index_ = i;
       } break;
+      case HWEvent::SSR: {
+        HandleDRMOpen(poll_fds_[i].fd);
+        if (poll_fds_[i].fd < 0) {
+          DLOGE("drmOpen failed with error %d for SSR", poll_fds_[i].fd);
+          return kErrorResources;
+        }
+        poll_fds_[i].events = POLLIN | POLLPRI | POLLERR;
+        ssr_event_index_ = i;
+      } break;
       default:
         break;
     }
@@ -265,6 +264,9 @@ DisplayError HWEventsDRM::SetEventParser() {
         break;
       case HWEvent::VM_RECLAIM_EVENT:
         event_data.event_parser = &HWEventsDRM::HandleVmReclaimEvent;
+        break;
+      case HWEvent::SSR:
+        event_data.event_parser = &HWEventsDRM::HandleSSREvent;
         break;
       default:
         error = kErrorParameters;
@@ -345,6 +347,8 @@ DisplayError HWEventsDRM::Deinit() {
   SetEventState(HWEvent::POWER_EVENT, false);
   SetEventState(HWEvent::VM_RELEASE_EVENT, false);
   SetEventState(HWEvent::VM_RECLAIM_EVENT, false);
+  SetEventState(HWEvent::VSYNC, false);
+  SetEventState(HWEvent::SSR, false);
 
   Sys::pthread_cancel_(event_thread_);
   WakeUpEventThread();
@@ -430,6 +434,9 @@ DisplayError HWEventsDRM::SetEventState(HWEvent event, bool enable, void *arg) {
     case HWEvent::VM_RECLAIM_EVENT: {
       RegisterVmReclaimEvents(enable);
     } break;
+    case HWEvent::SSR: {
+      RegisterSSREvents(enable);
+    } break;
     default:
       DLOGE("Event not supported");
       return kErrorNotSupported;
@@ -457,9 +464,7 @@ void HWEventsDRM::CloseFds() {
   for (uint32_t i = 0; i < event_data_list_.size(); i++) {
     switch (event_data_list_[i].event_type) {
       case HWEvent::VSYNC:
-        if (!is_primary_) {
-          drmClose(poll_fds_[i].fd);
-        }
+        drmClose(poll_fds_[i].fd);
         poll_fds_[i].fd = -1;
         break;
       case HWEvent::EXIT:
@@ -480,6 +485,7 @@ void HWEventsDRM::CloseFds() {
       case HWEvent::POWER_EVENT:
       case HWEvent::VM_RELEASE_EVENT:
       case HWEvent::VM_RECLAIM_EVENT:
+      case HWEvent::SSR:
         drmClose(poll_fds_[i].fd);
         poll_fds_[i].fd = -1;
         break;
@@ -536,6 +542,7 @@ void *HWEventsDRM::DisplayEventHandler() {
         case HWEvent::POWER_EVENT:
         case HWEvent::VM_RELEASE_EVENT:
         case HWEvent::VM_RECLAIM_EVENT:
+        case HWEvent::SSR:
           if (poll_fd.revents & (POLLIN | POLLPRI | POLLERR)) {
             (this->*(event_data_list_[i]).event_parser)(nullptr);
           }
@@ -1136,6 +1143,79 @@ void HWEventsDRM::HandleVmReclaimEvent(char * /*data*/) {
   auto msm_event = reinterpret_cast<struct drm_msm_event_resp *>(event_data.data());
   DLOGI("vm reclaim event data %d", *(reinterpret_cast<uint32_t *>(msm_event->data)));
   event_handler_->HandleVmReclaimEvent();
+}
+
+DisplayError HWEventsDRM::RegisterSSREvents(bool enable) {
+  DTRACE_SCOPED();
+  if (ssr_event_index_ == UINT32_MAX) {
+    DLOGI("SSR event is not supported");
+    return kErrorNone;
+  }
+
+  struct drm_msm_event_req req = {};
+  int ret = 0;
+  req.object_id = token_.conn_id;
+  req.object_type = DRM_MODE_OBJECT_CONNECTOR;
+  req.event = DRM_EVENT_SSR;
+  if (enable) {
+    ret = drmIoctl(poll_fds_[ssr_event_index_].fd, DRM_IOCTL_MSM_REGISTER_EVENT, &req);
+  } else {
+    ret = drmIoctl(poll_fds_[ssr_event_index_].fd, DRM_IOCTL_MSM_DEREGISTER_EVENT, &req);
+  }
+
+  if (ret) {
+    DLOGW("Failed to register for SSR events (enable %d) for connector %d", enable, token_.conn_id);
+  } else {
+    DLOGI(
+        "Successfully registered for SSR events - conn_id %d object_type %x event 0x%x "
+        "ssr_event_index_ %d",
+        req.object_id, req.object_type, req.event, ssr_event_index_);
+  }
+  return kErrorNone;
+}
+
+void HWEventsDRM::HandleSSREvent(char *data) {
+  DTRACE_SCOPED();
+  char event_data[kMaxStringLength];
+  int32_t size;
+  struct drm_msm_event_resp *event_resp = NULL;
+
+  size = (int32_t)Sys::pread_(poll_fds_[ssr_event_index_].fd, event_data, kMaxStringLength, 0);
+  if (size < 0) {
+    DLOGE("Size is invalid!");
+    return;
+  }
+
+  if (size > kMaxStringLength) {
+    DLOGE("Event size %d is greater than event buffer size %d\n", size, kMaxStringLength);
+    return;
+  }
+
+  if (size < (int32_t)sizeof(*event_resp)) {
+    DLOGE("Size %d exp %zd\n", size, sizeof(*event_resp));
+    return;
+  }
+
+  int32_t i = 0;
+  while (i < size) {
+    event_resp = (struct drm_msm_event_resp *)&event_data[i];
+    switch (event_resp->base.type) {
+      case DRM_EVENT_SSR: {
+        uint32_t *event_payload = reinterpret_cast<uint32_t *>(event_resp->data);
+        if (event_payload) {
+          SSREventType type = *event_payload == 0 ? SSREventType::kSSRStart : SSREventType::kSSREnd;
+          DLOGI("Received SSR event type %d", type);
+          event_handler_->HandleSSREvent(type);
+        }
+        break;
+      }
+      default: {
+        DLOGE("Received an unexpected event %d", event_resp->base.type);
+        break;
+      }
+    }
+    i += event_resp->base.length;
+  }
 }
 
 }  // namespace sdm

@@ -36,6 +36,10 @@ static inline const char *DemuraFeatureTypeToString(DemuraFeatureType type) {
   }
 }
 
+struct DemuraTnAgingValues {
+  float value[3];  // R, G, B components
+};
+
 enum DemuraTnCoreUvmParams {
   /* Getter: DemuraTnCoreState */
   kDemuraTnCoreUvmParamInitReady,
@@ -59,6 +63,8 @@ enum DemuraTnCoreUvmParams {
   kDemuraTnCoreUvmParamAgingSurfTransfer,
   /* Getter/Setter: enum DemuraFeatureType */
   kDemuraTnCoreUvmParamOverrideFeature,
+  /* Getter: DemuraTnAgingValues */
+  kDemuraTnCoreUvmParamAgingValues,
   kDemuraTnCoreUvmParamsMax = 2048,
   kDemuraTnCoreUvmPrivParamsStart = 2049,
   kDemuraTnCoreUvmPrivParamsEnd = 4096,

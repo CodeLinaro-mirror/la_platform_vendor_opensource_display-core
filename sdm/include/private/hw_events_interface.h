@@ -23,9 +23,9 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-  SPDX-License-Identifier: BSD-3-Clause-Clear
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
 #ifndef __HW_EVENTS_INTERFACE_H__
@@ -57,6 +57,7 @@ enum HWEvent {
   POWER_EVENT,
   VM_RELEASE_EVENT,
   VM_RECLAIM_EVENT,
+  SSR,
   HW_EVENT_MAX,
 };
 
@@ -71,8 +72,8 @@ class HWEventsInterface {
   static DisplayError Create(DisplayId display_id, SDMDisplayType display_type,
                              HWEventHandler *event_handler,
                              const std::map<uint32_t, std::vector<HWEvent>> &event_list,
-                             std::vector<HWEventsInterface *> *intf);
-  static DisplayError Destroy(std::vector<HWEventsInterface *> *intf);
+                             std::map<uint32_t, HWEventsInterface *> *intf);
+  static DisplayError Destroy(std::map<uint32_t, HWEventsInterface *> *intf);
 
  protected:
   virtual ~HWEventsInterface() { }

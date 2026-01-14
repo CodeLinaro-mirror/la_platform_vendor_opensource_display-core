@@ -127,6 +127,10 @@ class ResourceInterface {
   virtual bool IsGPUHWAvailable() = 0;
   virtual DisplayError SetAIScalerMode(uint32_t mode_id) = 0;
   virtual DisplayError GetAIScalerMode(uint32_t *mode_id) = 0;
+  virtual DisplayError SetDisplayDeviceConfig(
+      Handle display_ctx, const SDMDisplayDeviceConfig &display_device_config) = 0;
+  virtual DisplayError SetPoseConfig(Handle display_ctx, const LayerBuffer &buffer) = 0;
+  virtual DisplayError CanTakeDPUScreenshot(uint32_t display_id) = 0;
 };
 
 }  // namespace sdm

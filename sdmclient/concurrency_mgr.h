@@ -137,6 +137,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
 
   DisplayError PostBuffer(const CwbConfig &cwb_config, void *buffer,
                           int32_t display_type);
+  DisplayError SetPoseConfig(uint64_t disp_id, void *buffer);
 
   template <typename... Args>
   DisplayError CallDisplayFunction(Display display,
@@ -485,6 +486,8 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
       uint64_t *numFrames, int32_t samples_size[NUM_HISTOGRAM_COLOR_COMPONENTS],
       uint64_t *samples[NUM_HISTOGRAM_COLOR_COMPONENTS]);
   DisplayError SetDisplayElapseTime(Display display, uint64_t time);
+  DisplayError SetDisplayDeviceConfig(Display display,
+                                      SDMDisplayDeviceConfig sdm_display_device_config);
 
   DisplayError SetCameraSmoothInfo(SDMCameraSmoothOp op, int32_t fps) override;
   DisplayError NotifyTUIDone(int ret, int disp_id,
@@ -503,6 +506,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   virtual DisplayError NotifyCwbDone(int dpy_index, int32_t status,
                                      uint64_t handle_id);
   virtual int NotifyIdleStatus(bool idle_status);
+  virtual void PerformSubsystemRestart(bool start);
 
   DisplayError SetVsyncEnabled(uint64_t display, bool enabled);
   DisplayError GetDozeSupport(Display display, int32_t *out_support);
@@ -547,6 +551,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError SetABCMode(uint64_t display_id, string mode_name);
   DisplayError SetAIScalerMode(uint64_t display_id, uint32_t mode_id);
   DisplayError SetPanelFeatureConfig(Display display, int32_t type, void *data);
+  DisplayError GetPanelFeatureConfig(Display display, int32_t type, void *data, uint32_t data_size);
   DisplayError ClearBuffersMappedToLayer(uint64_t display, LayerId layer_id,
                                          const SnapHandle *layerBuffer);
 
@@ -646,6 +651,7 @@ private:
   DisplayError HandleTUITransition(int disp_id, int event);
   DisplayError TUIEventHandler(uint64_t disp_id, SDMTUIEventType event_type);
   void GetPendingHotplug(vector<Display> &pending_hotplugs);
+  bool IsEPTSupported();
 
   CoreInterface *core_intf_ = nullptr;
   SDMCompositorCallbacks callbacks_{};
@@ -684,6 +690,7 @@ private:
 
   std::map<uint64_t, std::future<DisplayError>> commit_done_future_;
   bool disable_get_screen_decorator_support_ = false;
+  SDMPowerMode cached_last_power_mode_[kNumDisplays] = {};
 
   SDMHotPlug *hpd_ = nullptr;
   SDMConcurrentWriteBack *cwb_ = nullptr;
@@ -712,6 +719,8 @@ private:
   Locker client_lock_;
 
   std::shared_ptr<ISnapMapper> snapmapper_ = nullptr;
+
+  bool ssr_active_ = false;
 };
 } // namespace sdm
 

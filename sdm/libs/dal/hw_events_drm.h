@@ -92,6 +92,7 @@ class HWEventsDRM : public HWEventsInterface {
   void HandlePowerEvent(char * /*data*/);
   void HandleVmReleaseEvent(char * /*data*/);
   void HandleVmReclaimEvent(char * /*data*/);
+  void HandleSSREvent(char *data);
   int SetHwRecoveryEvent(const uint32_t hw_event_code, HWRecoveryEvent *sdm_event_code);
   void PopulateHWEventData(const vector<HWEvent> &event_list);
   void WakeUpEventThread();
@@ -107,6 +108,7 @@ class HWEventsDRM : public HWEventsInterface {
   DisplayError RegisterPowerEvents(bool enable);
   DisplayError RegisterVmReleaseEvents(bool enable);
   DisplayError RegisterVmReclaimEvents(bool enable);
+  DisplayError RegisterSSREvents(bool enable);
   void HandleDRMOpen(int& fd);
 
   HWEventHandler *event_handler_{};
@@ -139,6 +141,7 @@ class HWEventsDRM : public HWEventsInterface {
   std::bitset<HW_EVENT_MAX> registered_hw_events_ = {};
   uint32_t core_id_ = 0;
   char path_[64];
+  uint32_t ssr_event_index_ = UINT32_MAX;
 };
 
 }  // namespace sdm

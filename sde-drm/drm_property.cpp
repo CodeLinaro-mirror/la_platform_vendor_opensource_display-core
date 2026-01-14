@@ -103,6 +103,13 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "capabilities") { return DRMProperty::CAPABILITIES; }
   if (name == "mode_properties") { return DRMProperty::MODE_PROPERTIES; }
   if (name == "lut_ed") { return DRMProperty::LUT_ED; }
+  if (name == "layer_lock_type") { return DRMProperty::REFERENCE_SPACE_TYPE; }
+  if (name == "render_type") { return DRMProperty::RENDER_TYPE; }
+  if (name == "render_pose") { return DRMProperty::RENDER_POSE; }
+  if (name == "render_frustum") { return DRMProperty::RENDER_FRUSTUM; }
+  if (name == "plane_equation") { return DRMProperty::PLANE_EQUATION; }
+  if (name == "config_matrix") { return DRMProperty::CONFIG_MATRIX; }
+  if (name == "reproj_display_gamma") { return DRMProperty::DISPLAY_GAMMA; }
   if (name == "lut_cir") { return DRMProperty::LUT_CIR; }
   if (name == "lut_sep") { return DRMProperty::LUT_SEP; }
   if (name == "rot_caps_v1") { return DRMProperty::ROTATOR_CAPS_V1; }
@@ -291,6 +298,30 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "offload_mode") { return DRMProperty::OFFLOAD_MODE; }
   if (name == "emsync_fps") { return DRMProperty::EMSYNC_FPS; }
   if (name == "privacy_layers_v1") { return DRMProperty::PRIVACY_REGIONS; }
+  if (name == "fb_id_list") { return DRMProperty::FB_ID_LIST; }
+  if (name == "sync_to") { return DRMProperty::SYNC_TO; }
+  if (name == "reproj_gcx_session_config") { return DRMProperty::REPRO_SESSION_CONFIG; }
+  if (name == "reproj_gcx_session_config_data") { return DRMProperty::REPRO_SESSION_CONFIG_DATA; }
+  if (name == "reproj_sparse_grid") { return DRMProperty::REPROJ_SPARSE_GRID; }
+  if (name == "reproj_radial_dis_grid") { return DRMProperty::REPROJ_RADIAL_DIS_GRID; }
+  if (name == "reproj_optical_axis_offset") { return DRMProperty::REPROJ_OPTICAL_AXIS_OFFSET; }
+  if (name == "reproj_grid_w") { return DRMProperty::REPROJ_GRID_W; }
+  if (name == "reproj_grid_h") { return DRMProperty::REPROJ_GRID_H; }
+  if (name == "reproj_r_max") { return DRMProperty::REPROJ_R_MAX; }
+  if (name == "reproj_error_to_l") { return DRMProperty::REPROJ_ERROR_TO_L; }
+  if (name == "reproj_disp_im_w") { return DRMProperty::REPROJ_DISP_IM_W; }
+  if (name == "reproj_disp_im_h") { return DRMProperty::REPROJ_DISP_IM_H; }
+  if (name == "reproj_tile_w") { return DRMProperty::REPROJ_TILE_W; }
+  if (name == "reproj_tile_h") { return DRMProperty::REPROJ_TILE_H; }
+  if (name == "distort_resolution") { return DRMProperty::DISTORT_RESOLUTION; }
+  if (name == "layer_gamma") { return DRMProperty::LAYER_GAMMA; }
+  if (name == "reproj_mode") { return DRMProperty::REPROJ_MODE; }
+  if (name == "reproj_to_lrgb_left") { return DRMProperty::REPROJ_TO_LRGB_LEFT; }
+  if (name == "reproj_to_lrgb_right") { return DRMProperty::REPROJ_TO_LRGB_RIGHT; }
+  if (name == "reproj_pose_fb") { return DRMProperty::REPROJ_POSE_FB; }
+  if (name == "reproj_min_bbox_w") { return DRMProperty::REPROJ_MIN_BBOX_W; }
+  if (name == "reproj_min_bbox_h") { return DRMProperty::REPROJ_MIN_BBOX_H; }
+  if (name == "lsr_mode") { return DRMProperty::LSR_MODE; }
 
   return DRMProperty::INVALID;
 }
