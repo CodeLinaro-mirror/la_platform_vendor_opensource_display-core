@@ -243,7 +243,7 @@ Error SnapConstraintManager::GetAllocationData(
       static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
           GetPixelFormatModifier(*out_desc));
   if (IsCameraCustomFormat(out_desc->format, pixel_format_modifier)) {
-    DLOGD_IF(enable_logs, "Camera MIPMAP formats - calling into camera APIs");
+    DLOGD_IF(enable_logs, "Camera Custom formats - calling into camera APIs");
     // Camera custom formats. Need to use camera lib.
     camera_provider_->GetCameraAlloc(*out_desc, out_ad, out_layout);
   } else if (ubwc_enabled) {

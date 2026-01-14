@@ -263,6 +263,7 @@ struct FormatTraits {
   bool ubwc_supported;
   bool width_even;
   bool height_even;
+  bool camera_custom_format;
 };
 
 bool IsUbwcSupported(SnapPixelFormat format);

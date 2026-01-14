@@ -116,6 +116,10 @@ static std::unordered_map<std::string, vendor_qti_hardware_display_common_PixelF
         {"NV12_MIPMAP", NV12_MIPMAP},
         {"TP10_UBWC_MIPMAP", TP10_UBWC_MIPMAP},
         {"P010_MIPMAP", P010_MIPMAP},
+        {"BAYER16_UBWC", BAYER16_UBWC},
+        {"TBAYER10_UBWC", TBAYER10_UBWC},
+        {"GBR16_UBWC", GBR16_UBWC},
+        {"GBRTP10_UBWC", GBRTP10_UBWC},
 };
 
 static std::unordered_map<std::string, vendor_qti_hardware_display_common_PlaneLayoutComponentType>

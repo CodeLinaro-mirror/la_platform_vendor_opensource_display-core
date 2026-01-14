@@ -63,8 +63,12 @@ typedef enum : unsigned int {
       0x156,  // YUV format with fliexible alignment defined by
               // individual APIs
   CAMERA_PIXEL_FORMAT_TP10_UBWC_FLEX_8_BATCH =
-      0x157,  // YUV format with fliexible alignment defined by
-              // individual APIs
+      0x157,                                  // YUV format with fliexible alignment defined by
+                                              // individual APIs
+  CAMERA_PIXEL_FORMAT_BAYER16_UBWC = 0x158,   // BAYER16 UBWC format
+  CAMERA_PIXEL_FORMAT_TBAYER10_UBWC = 0x159,  // TBAYER10 UBWC format
+  CAMERA_PIXEL_FORMAT_GBR16_UBWC = 0x160,     // GBR16 UBWC format
+  CAMERA_PIXEL_FORMAT_GBRTP10_UBWC = 0x161,   // GBRTP10 UBWC format
 } CamxPixelFormat;
 
 // Camera Result Codes
@@ -288,7 +292,19 @@ class CameraConstraintProvider : public SnapConstraintProvider {
            CAMERA_PIXEL_FORMAT_TP10_UBWC_FLEX_4_BATCH},
           {{.format = vendor_qti_hardware_display_common_PixelFormat::TP10,
             .modifier = PIXEL_FORMAT_MODIFIER_UBWC_FLEX_8_BATCH},
-           CAMERA_PIXEL_FORMAT_TP10_UBWC_FLEX_8_BATCH}};
+           CAMERA_PIXEL_FORMAT_TP10_UBWC_FLEX_8_BATCH},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::BAYER16_UBWC,
+            .modifier = PIXEL_FORMAT_MODIFIER_EXPLICIT_UBWC},
+           CAMERA_PIXEL_FORMAT_BAYER16_UBWC},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::TBAYER10_UBWC,
+            .modifier = PIXEL_FORMAT_MODIFIER_EXPLICIT_UBWC},
+           CAMERA_PIXEL_FORMAT_TBAYER10_UBWC},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::GBR16_UBWC,
+            .modifier = PIXEL_FORMAT_MODIFIER_EXPLICIT_UBWC},
+           CAMERA_PIXEL_FORMAT_GBR16_UBWC},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::GBRTP10_UBWC,
+            .modifier = PIXEL_FORMAT_MODIFIER_EXPLICIT_UBWC},
+           CAMERA_PIXEL_FORMAT_GBRTP10_UBWC}};
 };
 }  // namespace snapalloc
 
