@@ -39,7 +39,8 @@ class UBWCPolicy {
   Error GetUBWCAlloc(BufferDescriptor desc,
                      std::map<SnapConstraintProvider *, CapabilitySet> const &providers,
                      UBWCCapabilities caps, AllocData *out_ad,
-                     vendor_qti_hardware_display_common_BufferLayout *out_layout);
+                     vendor_qti_hardware_display_common_BufferLayout *out_layout,
+                     bool *used_adreno_for_size);
 
   void Init(std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map);
   vendor_qti_hardware_display_common_Compression GetUBWCScheme(
