@@ -1186,7 +1186,8 @@ DisplayError SDMDisplay::SetPowerMode(SDMPowerMode mode, bool teardown) {
 
   PostPowerMode();
 
-  if (scheduled_dynamic_dsi_clk_ && mode == SDMPowerMode::POWER_MODE_ON) {
+  if (scheduled_dynamic_dsi_clk_ &&
+      (mode == SDMPowerMode::POWER_MODE_ON || mode == SDMPowerMode::POWER_MODE_DOZE)) {
     uint64_t dsi_clk = scheduled_dynamic_dsi_clk_;
     scheduled_dynamic_dsi_clk_ = 0;
     ScheduleDynamicDSIClock(dsi_clk);
@@ -3783,7 +3784,7 @@ DisplayError SDMDisplay::SetReadbackBuffer(void *buffer,
   CwbTapPoint &tap_point = config.tap_point;
 
   DisplayError error = kErrorNone;
-  error = display_intf_->CaptureCwb(output_buffer, config);
+  error = display_intf_->CaptureCwb(output_buffer, config, client);
   if (error) {
     if (error == kErrorParameters) {
       DLOGE("Invalid input parameter detected (display %d-%d)!", sdm_id_,

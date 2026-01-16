@@ -116,7 +116,8 @@ class DisplayVirtual : public DisplayBase {
   virtual DisplayError SetColorTransform(const uint32_t length, const double *color_transform) {
     return kErrorNone;
   }
-  virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config) {
+  virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config,
+                                  const CWBClient &client) {
     return kErrorNotSupported;
   }
 
