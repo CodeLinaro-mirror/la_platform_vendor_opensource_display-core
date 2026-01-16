@@ -38,6 +38,8 @@ struct SnapHandleInternal::SnapHandleProperties {
   int lock_count = 0;
 
   int ref_count = 0;
+  unsigned batch_mode_dyn_md_reserved_size;
+  uint64_t batch_mode_dyn_md_region_base;
 };
 
 #define DEFINE_FD_ACCESSOR(cls, type, var) \
@@ -76,6 +78,8 @@ DEFINE_PROPERTY_ACCESSOR(SnapHandleInternal, uint64_t, custom_content_md_region_
 DEFINE_PROPERTY_ACCESSOR(SnapHandleInternal, unsigned, flush)
 DEFINE_PROPERTY_ACCESSOR(SnapHandleInternal, int, lock_count)
 DEFINE_PROPERTY_ACCESSOR(SnapHandleInternal, int, ref_count)
+DEFINE_PROPERTY_ACCESSOR(SnapHandleInternal, unsigned, batch_mode_dyn_md_reserved_size)
+DEFINE_PROPERTY_ACCESSOR(SnapHandleInternal, uint64_t, batch_mode_dyn_md_region_base)
 
 template <int N>
 class SnapHandleData : public SnapHandleInternal {
@@ -103,7 +107,7 @@ class SnapHandleData : public SnapHandleInternal {
                      uint64_t id, unsigned size,
                      vendor_qti_hardware_display_common_BufferUsage usage,
                      uint64_t pixel_format_modifier, unsigned layer_count, unsigned reserved_size,
-                     unsigned custom_content_md_size) {
+                     unsigned custom_content_md_size, unsigned batch_mode_dyn_md_size) {
     prop.flags = flags;
     prop.aligned_width_in_bytes = width_in_bytes;
     prop.aligned_width_in_pixels = width_in_pixels;
@@ -122,6 +126,7 @@ class SnapHandleData : public SnapHandleInternal {
     prop.custom_content_md_reserved_size = custom_content_md_size;
     prop.pixel_format_modifier = pixel_format_modifier;
     prop.view = view;
+    prop.batch_mode_dyn_md_reserved_size = batch_mode_dyn_md_size;
   }
 };
 void SnapHandleInternal::closeFds() {
@@ -298,7 +303,7 @@ SnapHandleInternal *SnapHandleInternal::createSingleHandle(
     int uh, vendor_qti_hardware_display_common_PixelFormat format, int buf_type, uint64_t id,
     unsigned size, vendor_qti_hardware_display_common_BufferUsage usage,
     uint64_t pixel_format_modifier, unsigned layer_count, unsigned reserved_size,
-    unsigned custom_content_md_size) {
+    unsigned custom_content_md_size, unsigned batch_mode_dyn_md_size) {
   size_t handle_size = sizeof(SnapHandleProperties) + sizeof(FdPair) + sizeof(SnapHandle);
   SnapHandleData<1> *h = static_cast<SnapHandleData<1> *>(malloc(handle_size));
   if (h == nullptr) {
@@ -316,8 +321,8 @@ SnapHandleInternal *SnapHandleInternal::createSingleHandle(
   SnapHandleProperties &prop = h->getProperties(0);
   h->setProperties(prop, flags, vendor_qti_hardware_display_common_QtiViews::PRIV_VIEW_MASK_PRIMARY,
                    width_in_bytes, width_in_pixels, height, uw, uh, format, buf_type, id, size,
-                   usage, pixel_format_modifier, layer_count, reserved_size,
-                   custom_content_md_size);
+                   usage, pixel_format_modifier, layer_count, reserved_size, custom_content_md_size,
+                   batch_mode_dyn_md_size);
   return h;
 }
 
@@ -327,7 +332,7 @@ SnapHandleInternal *SnapHandleInternal::createMultiviewHandle(
     vendor_qti_hardware_display_common_PixelFormat format, int buf_type, uint64_t id1, uint64_t id2,
     unsigned size, vendor_qti_hardware_display_common_BufferUsage usage,
     uint64_t pixel_format_modifier, unsigned layer_count, unsigned reserved_size,
-    unsigned custom_content_md_size) {
+    unsigned custom_content_md_size, unsigned batch_mode_dyn_md_size) {
   size_t handle_size = ((sizeof(SnapHandleProperties) + sizeof(FdPair)) * 2 + sizeof(SnapHandle));
   SnapHandleData<2> *h = static_cast<SnapHandleData<2> *>(malloc(handle_size));
   if (h == nullptr) {
@@ -347,16 +352,18 @@ SnapHandleInternal *SnapHandleInternal::createMultiviewHandle(
   fd_secondary.fd_metadata = meta_fd2;
 
   SnapHandleProperties &prop_primary = h->getProperties(0);
-  h->setProperties(
-      prop_primary, flags, vendor_qti_hardware_display_common_QtiViews::PRIV_VIEW_MASK_PRIMARY,
-      width_in_bytes, width_in_pixels, height, uw, uh, format, buf_type, id1, size, usage,
-      pixel_format_modifier, layer_count, reserved_size, custom_content_md_size);
+  h->setProperties(prop_primary, flags,
+                   vendor_qti_hardware_display_common_QtiViews::PRIV_VIEW_MASK_PRIMARY,
+                   width_in_bytes, width_in_pixels, height, uw, uh, format, buf_type, id1, size,
+                   usage, pixel_format_modifier, layer_count, reserved_size, custom_content_md_size,
+                   batch_mode_dyn_md_size);
 
   SnapHandleProperties &prop_secondary = h->getProperties(1);
-  h->setProperties(
-      prop_secondary, flags, vendor_qti_hardware_display_common_QtiViews::PRIV_VIEW_MASK_SECONDARY,
-      width_in_bytes, width_in_pixels, height, uw, uh, format, buf_type, id2, size, usage,
-      pixel_format_modifier, layer_count, reserved_size, custom_content_md_size);
+  h->setProperties(prop_secondary, flags,
+                   vendor_qti_hardware_display_common_QtiViews::PRIV_VIEW_MASK_SECONDARY,
+                   width_in_bytes, width_in_pixels, height, uw, uh, format, buf_type, id2, size,
+                   usage, pixel_format_modifier, layer_count, reserved_size, custom_content_md_size,
+                   batch_mode_dyn_md_size);
 
   return h;
 }
