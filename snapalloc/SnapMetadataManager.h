@@ -34,7 +34,8 @@ class SnapMetadataManager {
                                 vendor_qti_hardware_display_common_MetadataType type, void *out);
   Error DumpBuffer(SnapHandleInternal *hnd);
   Error DumpBuffers();
-  uint64_t GetMetaDataSize(uint64_t reserved_region_size, uint64_t custom_content_md_region_size);
+  uint64_t GetMetaDataSize(uint64_t reserved_region_size, uint64_t custom_content_md_region_size,
+                           uint64_t batch_mode_md_size);
   Error ValidateAndMap(SnapHandleInternal *hnd);
   void UnmapAndReset(SnapHandleInternal *hnd);
   Error GetCustomDimensions(SnapHandleInternal *hnd, SnapMetadata *metadata, int32_t *stride,
@@ -46,6 +47,7 @@ class SnapMetadataManager {
       vendor_qti_hardware_display_common_BufferLayout *layout);  // TODO: make this API extensible
   uint32_t GetCustomContentMetadataSize(vendor_qti_hardware_display_common_PixelFormat format,
                                         vendor_qti_hardware_display_common_BufferUsage usage);
+  uint64_t GetBatchModeDynamicMetadataSize(uint64_t pixel_format_modifier);
   Error GetMetadataState(SnapHandleInternal *hnd, vendor_qti_hardware_display_common_MetadataType type, bool *out);
   bool IsFormatSupportedByGPU(BufferDescriptor desc);
   typedef Error (SnapMetadataManager::*MetadataHelper)(SnapMetadata *metadata,

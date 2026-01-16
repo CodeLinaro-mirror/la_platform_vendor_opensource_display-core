@@ -248,3 +248,24 @@ bool IsCameraCustomFormat(SnapPixelFormat format, SnapPixelFormatModifier modifi
   }
   return false;
 }
+
+int GetBatchSize(vendor_qti_hardware_display_common_PixelFormatModifier modifier) {
+  int batchsize = 1;
+  switch (modifier) {
+    case PIXEL_FORMAT_MODIFIER_UBWC_FLEX:
+      batchsize = 16;
+      break;
+    case PIXEL_FORMAT_MODIFIER_UBWC_FLEX_2_BATCH:
+      batchsize = 2;
+      break;
+    case PIXEL_FORMAT_MODIFIER_UBWC_FLEX_4_BATCH:
+      batchsize = 4;
+      break;
+    case PIXEL_FORMAT_MODIFIER_UBWC_FLEX_8_BATCH:
+      batchsize = 8;
+      break;
+    default:
+      break;
+  }
+  return batchsize;
+}
