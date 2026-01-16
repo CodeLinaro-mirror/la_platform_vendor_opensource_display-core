@@ -335,6 +335,9 @@
 // Enable RGB Histogram
 #define ENABLE_RGB_HISTOGRAM              DISPLAY_PROP("enable_rgb_histogram")
 
+// Enable composer driven HDCP path
+#define COMPOSER_DRIVEN_HDCP              DISPLAY_PROP("composer_driven_hdcp")
+
 // Add all other.properties above
 // End of property
 // clang-format on

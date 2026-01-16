@@ -419,6 +419,7 @@ private:
   };
 
   int bw_mode_release_fd_ = -1;
+  bool composer_driven_hdcp_ = false;
 
   SDMServicesCbIntf *cb_ = nullptr;
   SDMDisplayBuilder *disp_ = nullptr;

@@ -772,6 +772,7 @@ public:
   bool is_poms_mode_ = false;
   bool pending_privregions_update_ = false;
   FrameCaptureIntf *fcm_ = nullptr;
+  bool composer_driven_hdcp_ = false;
 };
 
 inline DisplayError SDMDisplay::Perform(uint32_t operation, ...) {

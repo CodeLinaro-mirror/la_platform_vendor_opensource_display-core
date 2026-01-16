@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -25,6 +25,7 @@ class SDMCompositorCallbacks {
   void OnSeamlessPossible(uint64_t display);
   void OnVsyncIdle(uint64_t display);
   void OnVsyncPeriodTimingChanged(uint64_t display, SDMVsyncPeriodChangeTimeline &timeline);
+  void onHdcpLevelsChanged(uint64_t display, uint32_t min_enc_level);
 
   // sideband callbacks
   void NotifyQsyncChange(uint64_t display_id, bool qsync_enabled, uint32_t refresh_rate,
