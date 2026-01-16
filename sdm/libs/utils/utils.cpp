@@ -28,9 +28,9 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-  SPDX-License-Identifier: BSD-3-Clause-Clear
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
 #include <unistd.h>
@@ -212,5 +212,79 @@ bool IsXRVariant() {
   }
 
   return false;
+}
+
+// TODO(user): Use FP16 library instead for conversions
+uint16_t float_2_FP16(const float in) {
+  if (in == 0) {
+    return static_cast<uint16_t>(in);
+  }
+
+  float f = 0;
+  float *pf = nullptr;
+  uint32_t *pu = nullptr;
+  uint32_t b = 0;
+  uint32_t mi = 0;
+  uint32_t mo = 0;
+  int32_t ei = 0;
+  int32_t eo = 0;
+  uint32_t si = 0;
+  uint16_t out = 0;
+
+  f = in;
+  pf = &f;
+  // this is to obtain the uint32_t representation
+  // of floating-point input
+  pu = reinterpret_cast<uint32_t *>(pf);
+  b = *pu;
+  // this is to find the uint16_t representation
+  // of the uint32_t type
+  mi = (b >> 13) & 0x3FF;
+  ei = (b >> 23) & 0xFF;
+  si = b >> 31;
+  eo = ei - 127 + 15;
+  mo = mi;
+  if (eo <= 0) {
+    mo = (mi | 0x400) >> (1 - eo);
+    eo = 0;
+  }
+  out = (uint16_t)((si << 15) | ((uint16_t)eo << 10) | mo);
+
+  return out;
+}
+
+// TODO(user): Use FP16 library instead for conversions
+float FP16_2_float(const uint16_t in) {
+  if (in == 0) {
+    return static_cast<float>(in);
+  }
+
+  float *pf = nullptr;
+  uint32_t *pu = nullptr;
+  uint32_t b = 0;
+  uint32_t mi = 0;
+  uint32_t mo = 0;
+  int32_t ei = 0;
+  int32_t eo = 0;
+  uint32_t si = 0;
+  float out = 0;
+
+  // this is to find the uint32_t representation
+  // of the uint16_t type
+  mi = in & 0x3FF;
+  ei = (in >> 10) & 0x1F;
+  si = in >> 15;
+  eo = ei - 15 + 127;
+  mo = mi;
+
+  b = (uint32_t)((si << 31) | ((uint32_t)eo << 23) | (mo << 13));
+
+  pu = &b;
+  // this is to obtain the floating_point representation
+  // of uint32_t input
+  pf = reinterpret_cast<float *>(pu);
+  out = *pf;
+
+  return out;
 }
 }  // namespace sdm
