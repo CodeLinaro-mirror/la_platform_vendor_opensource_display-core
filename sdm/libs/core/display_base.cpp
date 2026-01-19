@@ -5620,4 +5620,19 @@ bool DisplayBase::IsEPTSupported() {
   return dpu_core_mux_->IsEPTSupported();
 }
 
+void DisplayBase::UpdateColorModes() {
+  uint32_t i = 0;
+  num_color_modes_ = UINT32(color_mode_attr_map_.size());
+  color_modes_.resize(num_color_modes_);
+  for (ColorModeAttrMap::iterator it = color_mode_attr_map_.begin();
+       ((i < num_color_modes_) && (it != color_mode_attr_map_.end())); i++, it++) {
+    color_modes_[i].id = INT32(i);
+    std::size_t length = (it->first).copy(color_modes_[i].name, sizeof(SDEDisplayMode::name) - 1);
+    color_modes_[i].name[length] = '\0';
+    color_mode_map_.insert(std::make_pair(color_modes_[i].name, &color_modes_[i]));
+    DLOGI("Color mode = %s", color_modes_[i].name);
+  }
+  return;
+}
+
 }  // namespace sdm

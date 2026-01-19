@@ -88,6 +88,8 @@ class DPUMultiCore : public DPUCoreMux {
                            DisplayClientContext *client_ctx);
   void SetSSRState(bool active);
   bool IsEPTSupported();
+  DisplayError SetHdrCapabilities(const std::vector<Hdr> &hdr_types, float max_avg_luminance,
+                                  float min_luminance);
   ~DPUMultiCore() {}
 
  private:

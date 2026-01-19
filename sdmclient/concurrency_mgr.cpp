@@ -658,6 +658,15 @@ ConcurrencyMgr::GetHdrCapabilities(Display display, uint32_t *out_num_types,
                              out_max_average_luminance, out_min_luminance);
 }
 
+DisplayError ConcurrencyMgr::SetHdrCapabilities(Display display, const std::vector<Hdr> &hdr_types,
+                                                float max_avg_luminance, float min_luminance) {
+  std::lock_guard<std::mutex> obj(mutex_lum_);
+  core_intf_->SetHdrCapabilities(display, hdr_types, max_avg_luminance, min_luminance);
+
+  DLOGI("Setting hdr capabilities with max_lum %f, min_lum %f", max_avg_luminance, min_luminance);
+  return kErrorNone;
+}
+
 DisplayError
 ConcurrencyMgr::GetReleaseFences(Display display, uint32_t *out_num_elements,
                                  LayerId *out_layers,

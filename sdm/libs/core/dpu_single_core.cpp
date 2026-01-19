@@ -396,4 +396,9 @@ bool DPUSingleCore::IsEPTSupported() {
   return hw_intf_->IsEPTSupported();
 }
 
+DisplayError DPUSingleCore::SetHdrCapabilities(const std::vector<Hdr> &hdr_types,
+                                               float max_avg_luminance, float min_luminance) {
+  return hw_intf_->SetHdrCapabilities(hdr_types, max_avg_luminance, min_luminance);
+}
+
 }  // namespace sdm
