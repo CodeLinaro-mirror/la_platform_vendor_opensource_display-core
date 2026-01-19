@@ -28,8 +28,8 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-* Copyright (c) 2023, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -58,8 +58,7 @@ void AddProperty(drmModeAtomicReqPtr req, uint32_t object_id, uint32_t property_
 uint16_t DRM_float_2_FP16(const float in);
 float DRM_FP16_2_float(const uint16_t in);
 
-// common to plane and crtc
-static std::pair<uint32_t, uint32_t> alpha_range_ = {0, UINT16_MAX};
+extern std::pair<uint32_t, uint32_t> alpha_range_;
 
 }  // namespace sde_drm
 
