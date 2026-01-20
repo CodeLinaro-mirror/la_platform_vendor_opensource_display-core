@@ -144,6 +144,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   bool use_hfi_path_ = false;
   bool hwio_path_switch_pending_ = false;
   bool set_tui_none_ = false;
+  sde_drm::DRMCacheState lsr_cache_state_ = sde_drm::DRMCacheState::DISABLED;
 };
 
 }  // namespace sdm
