@@ -1289,6 +1289,7 @@ struct DRMConnectorInfo {
   // Connection status of this connector
   bool is_connected;
   bool is_wb_ubwc_supported;
+  bool is_wb_downscale_supported = false;
   uint32_t topology_control;
   bool dyn_bitclk_support;
   std::vector<uint8_t> edid;
