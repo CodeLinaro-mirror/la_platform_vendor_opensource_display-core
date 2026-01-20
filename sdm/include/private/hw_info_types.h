@@ -277,6 +277,13 @@ enum HWReserveColor {
   kAlpha = 1 << 3,
 };
 
+struct PixelShiftConfig {
+  uint32_t shift_left = 0;             //!< left shift pixel value
+  uint32_t shift_top = 0;              //!< top shift pixel value
+  uint32_t shift_right = 0;            //!< right shift pixel value
+  uint32_t shift_bottom = 0;           //!< bottom shift pixel value
+};
+
 typedef std::map<HWSubBlockType, std::vector<LayerBufferFormat>> FormatsMap;
 typedef std::map<LayerBufferFormat, float> CompRatioMap;
 
@@ -583,6 +590,8 @@ struct HWPanelInfo {
   bool fsc_panel = false;              // fsd_panel
   uint32_t num_fsc_fields = 0;         // number of fields supported in fsc panel
   bool dpu_dma_enabled = false;        // DPU dma mode is enabled
+  bool panel_shift_enabled = false;    // Panel shift calibration enabled
+  bool illumination_enabled = false;   // ellumination calibration is enabled
 
   bool operator !=(const HWPanelInfo &panel_info) {
     return ((port != panel_info.port) || (mode != panel_info.mode) ||
