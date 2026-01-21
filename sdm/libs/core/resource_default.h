@@ -74,7 +74,7 @@ class ResourceDefault : public ResourceInterface {
   DisplayError ValidateAndSetCursorPosition(Handle display_ctx, DispLayerStack *disp_layer_stack,
                                             int x, int y, DisplayConfigVariableInfo *fb_config);
   DisplayError SetMaxBandwidthMode(HWBwModes mode);
-  virtual DisplayError SetAIScalerMode(uint32_t mode_id) { return kErrorNone; }
+  virtual DisplayError SetAIScalerMode(Handle display_ctx, uint32_t mode_id) { return kErrorNone; }
   virtual DisplayError GetAIScalerMode(uint32_t *mode_id) { return kErrorNone; }
 
   virtual DisplayError SetDetailEnhancerData(Handle display_ctx,

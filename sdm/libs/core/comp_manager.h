@@ -70,7 +70,7 @@ class CompManager : public CwbCallback {
                                std::map<uint32_t, HWQosData> *default_qos_data,
                                CompManagerEventHandler *event_handler);
   DisplayError UnregisterDisplay(Handle display_ctx);
-  DisplayError SetAIScalerMode(uint32_t mode_id);
+  DisplayError SetAIScalerMode(Handle comp_handle, uint32_t mode_id);
   DisplayError GetAIScalerMode(uint32_t *mode_id);
   DisplayError ReconfigureDisplay(Handle display_ctx, DisplayDeviceContext &device_ctx,
                                   DisplayClientContext &client_ctx,
@@ -161,6 +161,9 @@ class CompManager : public CwbCallback {
                                       const SDMDisplayDeviceConfig &display_device_config);
   DisplayError SetPoseConfig(Handle display_ctx, const LayerBuffer &buffer);
   DisplayError CanTakeDPUScreenshot(Handle display_ctx);
+  DisplayError GetIllumination(uint32_t eye, const IlluminationConfig &in_config,
+                               IlluminationConfig *out_config);
+  DisplayError GetPixelShiftData(std::vector<PixelShiftConfig> *pixel_shift_config);
 
  private:
   static const int kMaxThermalLevel = 3;

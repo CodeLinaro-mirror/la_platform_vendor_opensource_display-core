@@ -542,6 +542,30 @@ DisplayError DPUMultiCore::SetPanelBrightness(int level, bool apply_immediately)
   return kErrorNone;
 }
 
+DisplayError DPUMultiCore::SetIllumination(const uint32_t eye, const IlluminationConfig &config) {
+  if (hw_intf_.empty()) {
+    return kErrorUndefined;
+  }
+
+  return hw_intf_[hw_intf_.begin()->first]->SetIllumination(eye, config);
+}
+
+DisplayError DPUMultiCore::SetPixelShift(const uint32_t eye, const PixelShiftConfig &config) {
+  if (hw_intf_.empty()) {
+    return kErrorUndefined;
+  }
+
+  return hw_intf_[hw_intf_.begin()->first]->SetPixelShift(eye, config);
+}
+
+DisplayError DPUMultiCore::IsLedDriverUp(bool *is_led_driver_up) {
+  if (hw_intf_.empty()) {
+    return kErrorUndefined;
+  }
+
+  return hw_intf_[hw_intf_.begin()->first]->IsLedDriverUp(is_led_driver_up);
+}
+
 DisplayError DPUMultiCore::GetHWScanInfo(HWScanInfo *scan_info) {
   std::vector<HWScanInfo> scan_info_list;
   HWScanInfo scan_info_val;

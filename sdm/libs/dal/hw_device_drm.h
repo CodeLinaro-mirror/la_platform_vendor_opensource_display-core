@@ -192,6 +192,9 @@ class HWDeviceDRM : public HWInterface {
   virtual DisplayError GetFeatureSupportStatus(const HWFeature feature, uint32_t *status);
   virtual void FlushConcurrentWriteback();
   virtual DisplayError UpdateTransferTime(uint32_t transfer_time);
+  virtual DisplayError IsLedDriverUp(bool *is_led_driver_up) {
+    return kErrorNotSupported;
+  }
   virtual DisplayError SetAlternateDisplayConfig(uint32_t *alt_config) {
     return kErrorNotSupported;
   }
@@ -214,6 +217,12 @@ class HWDeviceDRM : public HWInterface {
   }
   virtual void SetSSRState(bool active);
   virtual bool IsEPTSupported();
+  virtual DisplayError SetIllumination(uint32_t eye, const IlluminationConfig &config) {
+    return kErrorNotSupported;
+  }
+  virtual DisplayError SetPixelShift(uint32_t eye, const PixelShiftConfig &config) {
+    return kErrorNotSupported;
+  }
 
   enum {
     kHWEventVSync,
