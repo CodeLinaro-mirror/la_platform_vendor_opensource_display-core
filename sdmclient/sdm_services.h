@@ -114,6 +114,7 @@ enum {
   SDM_SERVICE_SET_STANDBY_MODE = 66,          // Set standby mode
   SDM_SERVICE_SET_PRIVACY_REGIONS = 67,       // Set PrivacyRegions on given layers in frame
   SDM_SERVICE_GET_PANEL_FEATURE_CONFIG = 68,  // Get panel feature configuration
+  SDM_SERVICE_SET_FRAME_DUMP_STREAMING_CONFIG = 69,  // Set continuous frame dump streaming config
   SDM_SERVICE_COMMAND_LIST_END = 400,
 };
 
@@ -213,6 +214,7 @@ private:
                                   uint32_t bit_mask_layer_type,
                                   int32_t processable_cwb_requests,
                                   int32_t output_format, CwbConfig cwb_config);
+  DisplayError ConfigureFrameDumpStreaming(int disp_id, CWBPacketData &data);
   DisplayError SetMaxMixerStages(std::bitset<32> bit_mask_display_type,
                                  int max_mixer_stages);
   DisplayError SetDisplayMode(int mode);
@@ -252,6 +254,7 @@ private:
   DisplayError SetIdleTimeout(SDMParcel *input_parcel);
   DisplayError SetRGBASplit(SDMParcel *input_parcel);
   DisplayError SetFrameDumpConfig(SDMParcel *input_parcel);
+  DisplayError SetFrameDumpStreamingConfig(SDMParcel *input_parcel);
   DisplayError SetMaxMixerStages(SDMParcel *input_parcel);
   DisplayError SetDisplayMode(SDMParcel *input_parcel);
   DisplayError ConfigureRefreshRate(SDMParcel *input_parcel);
@@ -337,6 +340,7 @@ private:
       {SDM_SERVICE_SET_IDLE_TIMEOUT, &SDMServices::SetIdleTimeout},
       {SDM_SERVICE_RGBA_SPLIT, &SDMServices::SetRGBASplit},
       {SDM_SERVICE_SET_FRAME_DUMP_CONFIG, &SDMServices::SetFrameDumpConfig},
+      {SDM_SERVICE_SET_FRAME_DUMP_STREAMING_CONFIG, &SDMServices::SetFrameDumpStreamingConfig},
       {SDM_SERVICE_SET_MAX_PIPES_PER_MIXER, &SDMServices::SetMaxMixerStages},
       {SDM_SERVICE_SET_DISPLAY_MODE, &SDMServices::SetDisplayMode},
       {SDM_SERVICE_CONFIGURE_DYN_REFRESH_RATE, &SDMServices::ConfigureRefreshRate},

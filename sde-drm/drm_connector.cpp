@@ -1570,6 +1570,21 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       }
     } break;
 
+    case DRMOps::CONNECTOR_WB_NUM_BUFFERS: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::WB_NUM_BUFFERS)) {
+        return;
+      }
+      uint64_t wb_num_buffers = va_arg(args, uint32_t);
+      uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::WB_NUM_BUFFERS);
+      int ret = drmModeAtomicAddProperty(req, obj_id, prop_id, wb_num_buffers);
+      if (ret < 0) {
+        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, wb_num_buffers %d ret %d",
+                 obj_id, prop_id, wb_num_buffers, ret);
+      } else {
+        DRM_LOGD("Connector %d: Setting wb_num_buffers %d", obj_id, wb_num_buffers);
+      }
+    } break;
+
     case DRMOps::CONNECTOR_WB_CSC_CONFIG: {
       if (!prop_mgr_.IsPropertyAvailable(DRMProperty::WB_CSC_CONFIG)) {
         return;

@@ -1686,6 +1686,12 @@ class DisplayInterface {
   */
   virtual DisplayError SetIllumination(uint32_t eye, const IlluminationConfig &config) = 0;
 
+  /*! @brief Method to check if lsr is supported on this display
+
+    @return \link bool \endlink
+  */
+  virtual bool IsLSRSupported() = 0;
+
  protected:
   virtual ~DisplayInterface() { }
 };

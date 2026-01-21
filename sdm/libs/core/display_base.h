@@ -337,6 +337,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError SetIllumination(uint32_t eye, const IlluminationConfig &config) {
     return kErrorNotSupported;
   }
+  virtual bool IsLSRSupported();
 
  protected:
   struct DisplayMutex {

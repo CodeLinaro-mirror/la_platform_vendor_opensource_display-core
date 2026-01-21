@@ -1356,6 +1356,74 @@ DisplayError SDMServices::SetFrameDumpConfig(SDMParcel *input_parcel) {
                             output_format, cwb_config);
 }
 
+DisplayError SDMServices::ConfigureFrameDumpStreaming(int disp_id, CWBPacketData &data) {
+  int disp_idx = disp_->GetDisplayIndex(disp_id);
+  if (disp_idx == -1) {
+    DLOGE("Invalid display = %d", disp_id);
+    return kErrorNotSupported;
+  }
+
+  SEQUENCE_WAIT_SCOPE_LOCK(locker_[disp_idx]);
+  auto sdm_display = cb_->GetDisplayFromClientId(disp_idx);
+  if (!sdm_display) {
+    DLOGW("Display = %d is not connected.", disp_idx);
+    return kErrorHardware;
+  }
+
+  return sdm_display->ConfigureFCM(data);
+}
+
+DisplayError SDMServices::SetFrameDumpStreamingConfig(SDMParcel *input_parcel) {
+  int disp_id = input_parcel->readInt32();
+  CWBPacketData data = {};
+
+  // Optional streaming control parameters
+  if (input_parcel->dataPosition() == input_parcel->dataSize()) {
+    data.stop_cwb = 1;
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    data.eye_index = static_cast<CWBEyeIndex>(input_parcel->readInt32());
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    data.field_index = static_cast<CWBField>(input_parcel->readInt32());
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    data.frame_dump_count = input_parcel->readInt32();
+  }
+
+  // Optional CWB configuration similar to SetFrameDumpConfig
+  CwbConfig &cwb_config = data.cwb_config;
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    cwb_config.num_parallel_buffers = input_parcel->readInt32();
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    cwb_config.tap_point = static_cast<CwbTapPoint>(input_parcel->readInt32());
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    auto cflag = UINT32(input_parcel->readInt32());
+    cwb_config.pu_as_cwb_roi = BIT_TO_BOOL(cflag, kCwbFlagPuAsCwbROI);
+    cwb_config.avoid_refresh = BIT_TO_BOOL(cflag, kCwbFlagAvoidRefresh);
+    cwb_config.cwb_control_params.value = cflag;
+    cwb_config.cwb_control_params.internal_control_flags = 0;
+  }
+
+  LayerRect &cwb_roi = cwb_config.cwb_roi;
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    cwb_roi.left = static_cast<float>(input_parcel->readInt32());
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    cwb_roi.top = static_cast<float>(input_parcel->readInt32());
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    cwb_roi.right = static_cast<float>(input_parcel->readInt32());
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    cwb_roi.bottom = static_cast<float>(input_parcel->readInt32());
+  }
+
+  return ConfigureFrameDumpStreaming(disp_id, data);
+}
+
 DisplayError SDMServices::SetMixerResolution(SDMParcel *input_parcel) {
   int dpy = INT(input_parcel->readInt32());
   uint32_t width = UINT32(input_parcel->readInt32());

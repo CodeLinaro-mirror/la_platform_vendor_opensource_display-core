@@ -37,6 +37,7 @@
 #define __SDM_DISPLAY_H__
 
 #include "display_event_handler.h"
+#include "frame_capture_intf.h"
 #include "sdm_layers.h"
 #include <algorithm>
 #include <bitset>
@@ -218,6 +219,8 @@ public:
   virtual DisplayError GetReadbackBufferFence(shared_ptr<Fence> *release_fence);
   virtual void ReleaseFrameDumpResources();
   virtual DisplayError TeardownConcurrentWriteback();
+  // Configure Frame Capture Manager (libframecapture) streaming via FCM
+  virtual DisplayError ConfigureFCM(CWBPacketData &data);
   // Captures frame output in the buffer specified by output_buffer_info. The
   // API is non-blocking and the client is expected to check operation status
   // later on. Returns -1 if the input is invalid.
@@ -761,6 +764,7 @@ public:
   uint32_t frame_interval_ns_ = 0;  // FrameInterval for current frame
   bool is_poms_mode_ = false;
   bool pending_privregions_update_ = false;
+  FrameCaptureIntf *fcm_ = nullptr;
 };
 
 inline DisplayError SDMDisplay::Perform(uint32_t operation, ...) {

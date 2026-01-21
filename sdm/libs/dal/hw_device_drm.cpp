@@ -2243,7 +2243,8 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
         drm_atomic_intf_->Perform(DRMOps::PLANE_SET_FB_ID, pipe_id, fb_id[pipe_info->cac_color]);
         drm_atomic_intf_->Perform(DRMOps::PLANE_SET_CRTC, pipe_id, token_.crtc_id);
 
-        if (!validate && input_buffer->acquire_fence) {
+        if (!validate && input_buffer->acquire_fence &&
+            !(hw_panel_info_.is_lsr_display && hw_layers_info->lsr_commit)) {
           drm_atomic_intf_->Perform(DRMOps::PLANE_SET_INPUT_FENCE, pipe_id,
                                     scoped_ref.Get(input_buffer->acquire_fence));
         }
@@ -4105,7 +4106,8 @@ void HWDeviceDRM::ConfigureConcurrentWriteback(const HWLayersInfo &hw_layer_info
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, vitual_conn_id, token_.crtc_id);
   // Set WB usage type as CWB
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_WB_USAGE_TYPE, vitual_conn_id, cwb_usage);
-
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_WB_NUM_BUFFERS, vitual_conn_id,
+                            cwb_config->num_parallel_buffers);
   // Set CRTC Capture Mode
   DRMCWbCaptureMode capture_mode = DRMCWbCaptureMode::MIXER_OUT;
   if (cwb_config->tap_point == CwbTapPoint::kDsppTapPoint) {

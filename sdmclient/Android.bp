@@ -22,6 +22,7 @@ cc_library_shared {
         "libsdmutils",
         "libdrm",
         "libtinyxml2",
+        "libframecapture",
     ],
     cflags: [
         "-DLOG_TAG=\"SDM\"",
