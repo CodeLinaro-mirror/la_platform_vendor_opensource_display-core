@@ -28,9 +28,9 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
-  SPDX-License-Identifier: BSD-3-Clause-Clear
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
 #ifndef __UTILS_H__
@@ -69,7 +69,8 @@ const char *GetCompositionName(const LayerComposition &composition);
 
 const char* GetSocName();
 bool IsXRVariant();
+uint16_t float_2_FP16(const float in);
+float FP16_2_float(const uint16_t in);
 }  // namespace sdm
 
 #endif  // __UTILS_H__
-
