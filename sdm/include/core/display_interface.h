@@ -512,6 +512,16 @@ class DisplayEventHandler {
 struct PPDisplayAPIPayload;
 struct PPPendingParams;
 
+/*! @brief This struct stores the data of Illumination
+
+  @sa DisplayInterface::IlluminationConfig
+*/
+struct IlluminationConfig {
+  uint32_t r_value;  //!< R field illumination value
+  uint32_t g_value;  //!< G field illumination value
+  uint32_t b_value;  //!< B field illumination value
+};
+
 /*! @brief Display device interface.
 
   @details This class defines display device interface. It contains methods which client shall use
@@ -1663,6 +1673,15 @@ class DisplayInterface {
     @return \link bool \endlink
   */
   virtual bool IsEPTSupported() = 0;
+
+  /*! @brief Method to set illuminance of the builtin display.
+
+    @param[in] eye value denotes the left(eye = 0) and right(eye = 1) eye.
+    @param[in] config has the configuration required to set illumination.
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetIllumination(uint32_t eye, const IlluminationConfig &config) = 0;
 
  protected:
   virtual ~DisplayInterface() { }

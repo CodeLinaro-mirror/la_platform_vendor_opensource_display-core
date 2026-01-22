@@ -202,6 +202,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(SetClientTargetCapability(const std::bitset<kClientCapabilityMax> &));
   MAKE_NO_OP(SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config))
   MAKE_NO_OP(SetPoseConfig(const LayerBuffer &buffer))
+  MAKE_NO_OP(SetIllumination(uint32_t eye, const IlluminationConfig &config))
 
  protected:
   DisplayConfigVariableInfo default_variable_config_ = {};

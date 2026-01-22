@@ -42,6 +42,20 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace sdm {
 
+struct FieldFd {
+  int32_t r_fd = -1;          // eye r illuminance node fd
+  int32_t g_fd = -1;          // eye g illuminance node fd
+  int32_t b_fd = -1;          // eye b illuminance node fd
+  int32_t led_staus_fd = -1;  // Node to check eye leds up status
+};
+
+struct PanelShiftFd {
+  int32_t l_fd = -1;  // panel left shift node fd
+  int32_t t_fd = -1;  // panel top shift node fd
+  int32_t r_fd = -1;  // panel right shift node fd
+  int32_t b_fd = -1;  // panel bottom shift node fd
+};
+
 class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
  public:
   explicit HWPeripheralDRM(int32_t display_id, BufferAllocator *buffer_allocator,
@@ -55,6 +69,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
 
  protected:
   virtual DisplayError Init();
+  virtual DisplayError Deinit();
   virtual DisplayError Validate(HWLayersInfo *hw_layers_info);
   virtual DisplayError Commit(HWLayersInfo *hw_layers_info);
   virtual DisplayError Flush(HWLayersInfo *hw_layers_info);
@@ -88,6 +103,9 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   virtual bool IsVRRSupported();
   virtual DisplayError setDriverCommitPath(DriverCommitPath path);
   virtual uint32_t GetMaxPrivacyRegionsSupported();
+  virtual DisplayError SetIllumination(uint32_t eye, const IlluminationConfig &config);
+  virtual DisplayError SetPixelShift(uint32_t eye, const PixelShiftConfig &config);
+  virtual DisplayError IsLedDriverUp(bool *is_led_driver_up);
 
  private:
   void InitDestScaler();
@@ -109,6 +127,10 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   bool IsCACEnabled(const HWLayersInfo *hw_layers_info);
   DisplayError UpdateLoopBackConnector();
   DisplayError ConfigureLoopbackCAC(const bool cac_enabled);
+  DisplayError WriteToNode(const std::string node_name, int32_t *fd, uint32_t data);
+  DisplayError ReadFromNode(const std::string node_name, int32_t *fd, uint32_t *data);
+  void InitCalibrationNodes();
+  DisplayError OpenNode(std::string node_name, int32_t *fd);
 
   struct DestScalarCache {
     SDEScaler scalar_data = {};
@@ -125,6 +147,10 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   uint32_t ai_scaler_current_mode_id_ = 0;
 #endif
 
+  const std::string kPathLeftEyeIllumination = "/sys/bus/i2c/devices/4-0028/";
+  const std::string kPathRightEyeIllumination = "/sys/bus/i2c/devices/4-0029/";
+  const std::string kPathLeftEyePanelShift = "/sys/kernel/rtimd/rtimd_eye/left_eye_shift_";
+  const std::string kPathRightEyePanelShift = "/sys/kernel/rtimd/rtimd_eye/right_eye_shift_";
   sde_drm_dest_scaler_data sde_dest_scalar_data_ = {};
   std::vector<SDEScaler> scalar_data_ = {};
   sde_drm::DRMIdlePCState idle_pc_state_ = sde_drm::DRMIdlePCState::NONE;
@@ -136,6 +162,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   void PopulateBitClkRates();
   std::vector<uint64_t> bitclk_rates_;
   std::string brightness_base_path_ = "";
+  std::string offload_path_ = "";
   SelfRefreshState self_refresh_state_ = kSelfRefreshNone;
   bool ltm_hist_en_ = false;
   bool aba_hist_en_ = false;
@@ -143,6 +170,11 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   bool use_hfi_path_ = false;
   bool hwio_path_switch_pending_ = false;
   bool set_tui_none_ = false;
+  sde_drm::DRMCacheState lsr_cache_state_ = sde_drm::DRMCacheState::DISABLED;
+  FieldFd left_field_fds_;
+  FieldFd right_field_fds_;
+  PanelShiftFd left_panel_shifts_;
+  PanelShiftFd right_panel_shifts_;
 };
 
 }  // namespace sdm

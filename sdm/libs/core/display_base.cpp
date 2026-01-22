@@ -1639,24 +1639,45 @@ DisplayError DisplayBase::CommitOrPrepare(LayerStack *layer_stack) {
   return async_commit ? kErrorNone : kErrorNeedsCommit;
 }
 
+bool DisplayBase::IsPrimaryCommitNeeded() {
+  if (!client_ctx_.hw_panel_info.is_lsr_display) {
+    lsr_first_commit_ = true;
+    return true;
+  }
+
+  bool lsr_enabled = (disp_layer_stack_->stack_info.iwe_repro_left_index != -1) ||
+                     (disp_layer_stack_->stack_info.iwe_repro_right_index != -1);
+  bool is_cwb_commit = (disp_layer_stack_->stack_info.output_buffer != nullptr);
+  if (!lsr_enabled) {
+    lsr_first_commit_ = true;
+    cwb_with_lsr_active_ = is_cwb_commit;
+    return true;
+  }
+
+  if (is_cwb_commit || lsr_first_commit_) {
+    lsr_first_commit_ = false;
+    cwb_with_lsr_active_ = is_cwb_commit;
+    return true;
+  }
+
+  // CWB teardown commit needed as we are not doing commit on primary for LSR.
+  if (!is_cwb_commit && cwb_with_lsr_active_) {
+    cwb_with_lsr_active_ = is_cwb_commit;
+    return true;
+  }
+
+  return false;
+}
+
 void DisplayBase::HandleAsyncCommit() {
   // Do not acquire mutexes here.
   // Perform hw commit here.
-
-  if ((disp_layer_stack_->stack_info.iwe_repro_left_index == -1) &&
-      (disp_layer_stack_->stack_info.iwe_repro_right_index == -1)) {
-    primary_commit_needed_ = true;
-  }
+  primary_commit_needed_ = IsPrimaryCommitNeeded();
 
   DisplayError error = PerformHwCommit(disp_layer_stack_->info);
   if (error != kErrorNone) {
     DLOGW("HwCommit failed %d", error);
     CleanupOnError();
-  }
-
-  if ((disp_layer_stack_->stack_info.iwe_repro_left_index != -1) ||
-      (disp_layer_stack_->stack_info.iwe_repro_right_index != -1)) {
-    primary_commit_needed_ = false;
   }
 }
 
@@ -1766,8 +1787,8 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
   // Regiser for power events on first cycle in unified draw.
   if (first_cycle_ && display_type_ == kBuiltIn) {
     // Register for panel dead for all the cores since notification is sent at any time
-    for (int i = 0; i < hw_events_intf_.size(); i++) {
-      hw_events_intf_[i]->SetEventState(HWEvent::PANEL_DEAD, true);
+    for (auto &hw_event : hw_events_intf_) {
+      hw_events_intf_[hw_event.first]->SetEventState(HWEvent::PANEL_DEAD, true);
     }
   }
 
@@ -1897,17 +1918,8 @@ DisplayError DisplayBase::CommitLocked(LayerStack *layer_stack) {
     return error;
   }
 
-  if ((disp_layer_stack_->stack_info.iwe_repro_left_index == -1) &&
-      (disp_layer_stack_->stack_info.iwe_repro_right_index == -1)) {
-    primary_commit_needed_ = true;
-  }
-
+  primary_commit_needed_ = IsPrimaryCommitNeeded();
   error = PerformHwCommit(disp_layer_stack_->info);
-
-  if ((disp_layer_stack_->stack_info.iwe_repro_left_index != -1) ||
-      (disp_layer_stack_->stack_info.iwe_repro_right_index != -1)) {
-    primary_commit_needed_ = false;
-  }
 
   if (error != kErrorNone) {
     DLOGE("HwCommit failed %d", error);
@@ -2196,7 +2208,8 @@ DisplayError DisplayBase::GetConfig(DisplayConfigFixedInfo *fixed_info) {
   fixed_info->hdr_eotf = client_ctx_.hw_panel_info.hdr_eotf;
   fixed_info->hdr_metadata_type_one = client_ctx_.hw_panel_info.hdr_metadata_type_one;
   fixed_info->partial_update = client_ctx_.hw_panel_info.partial_update;
-  fixed_info->readback_supported = has_concurrent_writeback;
+  fixed_info->readback_supported =
+      has_concurrent_writeback && !(kQuadSplit == client_ctx_.mixer_attributes.split_type);
   fixed_info->supports_unified_draw = unified_draw_supported_;
 
   return kErrorNone;
@@ -2329,9 +2342,9 @@ DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
 
     case kStateOn:
       if (comp_manager_->GetDefaultQosData(display_comp_ctx_, &qos_data) == kErrorNone) {
-        for (int i = 0; i < cached_qos_data_.size(); i++) {
-          if (!cached_qos_data_[i].valid)
-            cached_qos_data_[i] = qos_data[i];
+        for (auto &cached_qos : cached_qos_data_) {
+          if (!cached_qos_data_[cached_qos.first].valid)
+            cached_qos_data_[cached_qos.first] = qos_data[cached_qos.first];
         }
       }
       error = dpu_core_mux_->PowerOn(cached_qos_data_, &sync_points);
@@ -2457,8 +2470,10 @@ DisplayError DisplayBase::PostSetDisplayState(DisplayState state, bool active,
       if (state == kStateOn) {
         HandlePendingVSyncEnable(nullptr /* retire fence */);
       }
+      comp_manager_->SetDisplayState(display_comp_ctx_, state, sync_points);
+    } else if (first_cycle_) {
+      comp_manager_->SetDisplayState(display_comp_ctx_, state, sync_points);
     }
-    comp_manager_->SetDisplayState(display_comp_ctx_, state, sync_points);
     DLOGI("active %d-%d state %d-%d pending_power_state_ %d", active, active_, state, state_,
           pending_power_state_);
   }
@@ -3743,8 +3758,10 @@ void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
     return;
   }
 
+  bool is_lsr_commit = (disp_layer_stack_->stack_info.iwe_repro_left_index != -1);
   // Copy the acquire fence from clients layers  to HWLayers
   for (auto& info : disp_layer_stack_->info) {
+    info.second.lsr_commit = is_lsr_commit;
     uint32_t hw_layers_count = UINT32(info.second.hw_layers.size());
 
     for (uint32_t i = 0; i < hw_layers_count; i++) {
@@ -4271,6 +4288,10 @@ DisplayError DisplayBase::ResetPendingPowerState(const shared_ptr<Fence> &retire
 
     state_ = pending_state;
     active_ = true;
+
+    if (!first_cycle_) {
+      comp_manager_->SetDisplayState(display_comp_ctx_, pending_state, sync_points);
+    }
 
     pending_power_state_ = kPowerStateNone;
   }

@@ -1166,7 +1166,9 @@ DisplayError SDMDisplayBuiltIn::SetDynamicDSIClock() {
   DTRACE_SCOPED();
 
   DisplayError error = display_intf_->SetDynamicDSIClock(scheduled_dynamic_dsi_clk_);
-  if (error != kErrorNone) {
+  if (error == kErrorDeferred) {
+    return error;
+  } else if (error != kErrorNone) {
     DLOGE(" failed: Clk: %" PRIu64 " Error: %d", scheduled_dynamic_dsi_clk_, error);
   }
 

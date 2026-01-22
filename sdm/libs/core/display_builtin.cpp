@@ -49,6 +49,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <chrono>
 
 #include "drm_interface.h"
 #include "drm_master.h"
@@ -485,6 +486,12 @@ DisplayError DisplayBuiltIn::Init() {
 
   left_frame_roi_.resize(core_count_);
   right_frame_roi_.resize(core_count_);
+
+  // initialize the illumination for both eye to max
+  left_illum_data_.r_value = kMaxIllumination;
+  left_illum_data_.g_value = kMaxIllumination;
+  left_illum_data_.b_value = kMaxIllumination;
+  right_illum_data_ = left_illum_data_;
 
   return error;
 }
@@ -1635,7 +1642,16 @@ DisplayError DisplayBuiltIn::CommitLocked(LayerStack *layer_stack) {
 
 DisplayError DisplayBuiltIn::PostCommit() {
   DisplayError err = kErrorNone;
+  bool program_calibration =
+      (pending_power_state_ == kPowerStateOn) && client_ctx_.hw_panel_info.illumination_enabled;
   DisplayBase::PostCommit();
+  {
+    if (program_calibration) {
+      Fence::Wait(retire_fence_);
+      UpdateCalibration(state_);
+    }
+  }
+
   // Mutex scope
   {
     lock_guard<recursive_mutex> obj(brightness_lock_);
@@ -1752,6 +1768,61 @@ void DisplayBuiltIn::UpdateDisplayModeParams() {
   }
 }
 
+void DisplayBuiltIn::PollLedDriver() {
+  bool is_led_driver_up = false;
+  // Assuming driver should be up with in 5 sec.
+  const uint32_t max_iteration = 500;
+  for (uint32_t i = 1; i <= max_iteration; i++) {
+    if (dpu_core_mux_->IsLedDriverUp(&is_led_driver_up) != kErrorNone) {
+      DLOGW("Not able to either open node or read Led status");
+      return;
+    }
+    if (is_led_driver_up) {
+      break;
+    }
+    if (i == max_iteration) {
+      DLOGE("Exceeding Max Iteration. Not able to program the calibration node");
+      return;
+    }
+    usleep(10 * 1000);
+  }
+
+  {
+    ClientLock lock(disp_mutex_);
+
+    if (state_ != kStateOn) {
+      DLOGW("Display is not Powered on, Can't program calibration");
+      return;
+    }
+    ProgramCalibrationNodes();
+  }
+}
+
+void DisplayBuiltIn::UpdateCalibration(DisplayState state) {
+  if (!client_ctx_.hw_panel_info.illumination_enabled || state != kStateOn ||
+      pending_power_state_ != kPowerStateNone) {
+    return;
+  }
+
+  bool led_driver_up = false;
+  // check whether node is present or not
+  // Don't create async thread if node is not present
+  if (dpu_core_mux_->IsLedDriverUp(&led_driver_up) == kErrorFileDescriptor) {
+    DLOGW("Not able to open Led status node");
+    return;
+  }
+
+  if (calibration_future_.valid()) {
+    std::future_status status = calibration_future_.wait_for(std::chrono::milliseconds(0));
+    if (status != std::future_status::ready) {
+      DLOGI("Not triggering async task as previous async task is not ready yet");
+      return;
+    }
+  }
+
+  calibration_future_ = std::async(std::launch::async, [&]() { PollLedDriver(); });
+}
+
 DisplayError DisplayBuiltIn::SetDisplayState(DisplayState state, bool teardown,
                                              shared_ptr<Fence> *release_fence) {
   ClientLock lock(disp_mutex_);
@@ -1792,6 +1863,7 @@ DisplayError DisplayBuiltIn::SetDisplayState(DisplayState state, bool teardown,
   if (error != kErrorNone) {
     return error;
   }
+  UpdateCalibration(state);
 
   if (secure_event_ == kTUITransitionEnd && state == kStateOff) {
     error = SetPanelBrightness(cached_brightness_, true);
@@ -1839,6 +1911,7 @@ DisplayError DisplayBuiltIn::SetDisplayState(DisplayState state, bool teardown,
 }
 
 DisplayError DisplayBuiltIn::SetOffloadMode(bool enable) {
+  Fence::Wait(retire_fence_);
   return hw_intf_->SetOffloadMode(enable);
 }
 
@@ -1939,7 +2012,18 @@ DisplayError DisplayBuiltIn::SetPanelBrightness(float brightness, bool apply_imm
     }
 
     abc_brightness_level_ = level;
-    err = dpu_core_mux_->SetPanelBrightness(level, apply_immediately);
+    if (client_ctx_.hw_panel_info.illumination_enabled) {
+      // calibration library expects illumination range to (0-123)
+      auto value = brightness * 1023;
+      IlluminationConfig config;
+      config.r_value = value;
+      config.g_value = value;
+      config.b_value = value;
+      err = SetIllumination(kEyeLeft, config);
+      err = SetIllumination(kEyeRight, config);
+    } else {
+      err = dpu_core_mux_->SetPanelBrightness(level, apply_immediately);
+    }
     if (err == kErrorNone) {
       level_remainder_ = level_remainder;
       pending_brightness_ = false;
@@ -3475,7 +3559,8 @@ DisplayError DisplayBuiltIn::GetConfig(DisplayConfigFixedInfo *fixed_info) {
   fixed_info->hdr_eotf = client_ctx_.hw_panel_info.hdr_eotf;
   fixed_info->hdr_metadata_type_one = client_ctx_.hw_panel_info.hdr_metadata_type_one;
   fixed_info->partial_update = client_ctx_.hw_panel_info.partial_update;
-  fixed_info->readback_supported = has_concurrent_writeback;
+  fixed_info->readback_supported =
+      has_concurrent_writeback && !(kQuadSplit == client_ctx_.mixer_attributes.split_type);
   fixed_info->supports_unified_draw = unified_draw_supported_;
 
   return kErrorNone;
@@ -3642,6 +3727,22 @@ int DisplayBuiltIn::SetDemuraIntfStatus(bool enable, int current_idx) {
 
 DisplayError DisplayBuiltIn::SetDppsFeatureLocked(void *payload, size_t size) {
   return dpu_core_mux_->SetDppsFeature(payload, size);
+}
+
+void DisplayBuiltIn::ProgramCalibrationNodes() {
+  DLOGV_IF(kTagDisplay, "Programming Calibration nodes");
+
+  if (SetPixelShiftData() != kErrorNone) {
+    DLOGW("Failed to set pixel shift data");
+  }
+
+  if (SetIllumination(kEyeLeft, left_illum_data_) != kErrorNone) {
+    DLOGW("Failed to set left eye illumination");
+  }
+
+  if (SetIllumination(kEyeRight, right_illum_data_) != kErrorNone) {
+    DLOGW("Failed to set right eye illumination");
+  }
 }
 
 void DisplayBuiltIn::HandlePowerEvent() {
@@ -3915,12 +4016,36 @@ void DisplayBuiltIn::InitCWBBuffer() {
     return;
   }
 
+  bool is_wb_ubwc_supported = true;
+
+  for (auto hw_info = hw_info_intf_.Begin(); hw_info != hw_info_intf_.End(); hw_info++) {
+    HWDisplaysInfo display_infos;
+    DisplayError error = hw_info->second->GetDisplaysStatus(&display_infos);
+    if (error)
+      continue;
+
+    bool is_cur_core_wb_ubwc_supported = false;
+    for (auto &iter : display_infos) {
+      auto &info = iter.second;
+      if (info.display_type == kVirtual && info.is_wb_ubwc_supported) {
+        is_cur_core_wb_ubwc_supported = true;
+        break;
+      }
+    }
+    is_wb_ubwc_supported &= is_cur_core_wb_ubwc_supported;
+  }
+
   // Initialize CWB buffer with display resolution to get full size buffer
   // as mixer or fb can init with custom values based on property
   output_buffer_info_.buffer_config.width = client_ctx_.display_attributes.x_pixels;
   output_buffer_info_.buffer_config.height = client_ctx_.display_attributes.y_pixels;
 
-  output_buffer_info_.buffer_config.format = kFormatRGBX8888Ubwc;
+  if (is_wb_ubwc_supported) {
+    output_buffer_info_.buffer_config.format = kFormatRGBX8888Ubwc;
+  } else {
+    output_buffer_info_.buffer_config.format = kFormatRGB888;
+  }
+
   output_buffer_info_.buffer_config.buffer_count = 1;
   if (buffer_allocator_->AllocateBuffer(&output_buffer_info_) != 0) {
     DLOGE("Buffer allocation failed");
@@ -4921,7 +5046,7 @@ DisplayError DisplayBuiltIn::SetAIScalerMode(uint32_t mode_id) {
   DisplayError ret = kErrorParameters;
 
   if (IsPrimaryDisplay()) {
-    ret = comp_manager_->SetAIScalerMode(mode_id);
+    ret = comp_manager_->SetAIScalerMode(display_comp_ctx_, mode_id);
   }
 
   if (ret) {
@@ -5773,6 +5898,62 @@ DisplayError DisplayBuiltIn::SetDisplayDeviceConfig(
 
 DisplayError DisplayBuiltIn::SetPoseConfig(const LayerBuffer &buffer) {
   return comp_manager_->SetPoseConfig(display_comp_ctx_, buffer);
+}
+
+DisplayError DisplayBuiltIn::SetIllumination(uint32_t eye, const IlluminationConfig &config) {
+  lock_guard<recursive_mutex> obj(brightness_lock_);
+  if (!client_ctx_.hw_panel_info.illumination_enabled) {
+    return kErrorNone;
+  }
+
+  IlluminationConfig out_config;
+  IlluminationConfig &cached_config = (eye == kEyeLeft) ? left_illum_data_ : right_illum_data_;
+  cached_config = config;
+  bool is_led_driver_up = false;
+  dpu_core_mux_->IsLedDriverUp(&is_led_driver_up);
+  if (!is_led_driver_up) {
+    DLOGV_IF(kTagDisplay, "LED driver is not up, Nodes will be programmed on power on");
+    return kErrorNone;
+  }
+
+  DisplayError error = comp_manager_->GetIllumination(eye, config, &out_config);
+  if (error != kErrorNone) {
+    DLOGW("Failed to get illumination");
+    return error;
+  }
+
+  error = dpu_core_mux_->SetIllumination(eye, out_config);
+  if (error != kErrorNone) {
+    DLOGW("Failed to set illumination");
+    return error;
+  }
+
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetPixelShiftData() {
+  if (!client_ctx_.hw_panel_info.panel_shift_enabled) {
+    return kErrorNone;
+  }
+
+  DisplayError error = kErrorNone;
+
+  std::vector<PixelShiftConfig> pixel_shift_configs;
+  error = comp_manager_->GetPixelShiftData(&pixel_shift_configs);
+  if (error != kErrorNone) {
+    DLOGW("Failed to Get panel calibration data");
+    return error;
+  }
+
+  for (int32_t eye = 0; eye < pixel_shift_configs.size(); eye++) {
+    error = dpu_core_mux_->SetPixelShift(eye, pixel_shift_configs[eye]);
+    if (error != kErrorNone) {
+      DLOGW("Failed to set panel shift");
+      return error;
+    }
+  }
+
+  return kErrorNone;
 }
 
 }  // namespace sdm

@@ -119,7 +119,6 @@ void DRMPanelFeatureMgr::Init(int fd, drmModeRes* res) {
   drm_property_map_[kDRMPanelFeatureDemuraCfg0Param2] = DRMProperty::DEMURA_CFG0_PARAM2;
   drm_property_map_[kDRMPanelFeatureAiqeSSRCConfig] = DRMProperty::SDE_DSPP_AIQE_SSRC_CONFIG_V1;
   drm_property_map_[kDRMPanelFeatureAiqeSSRCData] = DRMProperty::SDE_DSPP_AIQE_SSRC_DATA_V1;
-  drm_property_map_[kDRMPanelFeatureAIScalerCfg] = DRMProperty::AI_SCALER_CFG_V1;
   drm_property_map_[kDRMPanelFeatureAiqeMdnieArt] = DRMProperty::SDE_DSPP_AIQE_MDNIE_ART_V1;
   drm_property_map_[kDRMPanelFeatureAiqeMdnieIPC] = DRMProperty::SDE_DSPP_AIQE_MDNIE_IPC_V1;
   drm_property_map_[kDRMPanelFeatureAiqeCopr] = DRMProperty::SDE_DSPP_AIQE_COPR_V1;
@@ -191,12 +190,6 @@ void DRMPanelFeatureMgr::Init(int fd, drmModeRes* res) {
                           1,
                           sizeof(drm_msm_ssrc_data),
                           0};
-  feature_info_tbl_[kDRMPanelFeatureAIScalerCfg] = DRMPanelFeatureInfo{kDRMPanelFeatureAIScalerCfg,
-                                                                       DRM_MODE_OBJECT_CRTC,
-                                                                       UINT32_MAX,
-                                                                       1,
-                                                                       sizeof(drm_msm_ai_scaler),
-                                                                       0};
   feature_info_tbl_[kDRMPanelFeatureAiqeMdnieArt] = DRMPanelFeatureInfo{
       kDRMPanelFeatureAiqeMdnieArt, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, sizeof(uint64_t), 0};
   feature_info_tbl_[kDRMPanelFeatureAiqeMdnieIPC] = DRMPanelFeatureInfo{
@@ -319,6 +312,24 @@ int DRMPanelFeatureMgr::InitObjectProps(int obj_id, int obj_type) {
       drm_property_map_[kDRMPanelFeatureAiqeMdnie] = DRMProperty::SDE_DSPP_AIQE_MDNIE_V2;
       feature_info_tbl_[kDRMPanelFeatureAiqeMdnie] = DRMPanelFeatureInfo{
           kDRMPanelFeatureAiqeMdnie, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, sizeof(uint64_t), 0};
+    } else if (prop_enum == DRMProperty::AI_SCALER_CFG_V1) {
+      drm_property_map_[kDRMPanelFeatureAIScalerCfg] = DRMProperty::AI_SCALER_CFG_V1;
+      feature_info_tbl_[kDRMPanelFeatureAIScalerCfg] =
+          DRMPanelFeatureInfo{kDRMPanelFeatureAIScalerCfg,
+                              DRM_MODE_OBJECT_CRTC,
+                              UINT32_MAX,
+                              1,
+                              sizeof(drm_msm_ai_scaler),
+                              0};
+    } else if (prop_enum == DRMProperty::AI_SCALER_CFG_V2) {
+      drm_property_map_[kDRMPanelFeatureAIScalerCfg] = DRMProperty::AI_SCALER_CFG_V2;
+      feature_info_tbl_[kDRMPanelFeatureAIScalerCfg] =
+          DRMPanelFeatureInfo{kDRMPanelFeatureAIScalerCfg,
+                              DRM_MODE_OBJECT_CRTC,
+                              UINT32_MAX,
+                              1,
+                              sizeof(drm_msm_ai_scaler),
+                              0};
     }
 
     prop_mgr_.SetPropertyId(prop_enum, info->prop_id);

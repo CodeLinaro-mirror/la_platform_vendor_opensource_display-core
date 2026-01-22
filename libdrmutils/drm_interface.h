@@ -508,11 +508,11 @@ enum struct DRMOps {
    */
   CRTC_SET_FLUSH_SYNC_EN,
   /*
-   * Op: Sets CRTC to offload mode (offload to co-processor)
-   * Arg: uint32_t - CRTC ID
-   *      uint32_t - offload mode ON or Off
-  */
-  CRTC_SET_OFFLOAD_MODE,
+   * Op: Indicates input buffers holds reprojection output buffers
+   * Args: uint32_t CRTC ID
+   *       uin32_t - lsr_mode (0 / 1)
+   */
+  CRTC_SET_LSR_MODE,
   /*
    * Op: Returns retire fence for this commit. Should be called after Commit()
    * on DRMAtomicReqInterface. Arg: uint32_t - Connector ID int * - Pointer to
@@ -889,11 +889,6 @@ enum struct DRMPowerMode {
   DOZE,
   DOZE_SUSPEND,
   OFF,
-};
-
-enum struct DRMOffloadMode {
-  OFF,
-  ON,
 };
 
 enum struct DRMBlendType {
