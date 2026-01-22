@@ -144,6 +144,9 @@ DisplayError SDMLayerBuilder::CreateLayer(uint64_t display_id,
     }
     layer = new SDMLayer(display_id, layer_id, buffer_allocator_);
   } else {
+    // If execution comes here, means composer has to create layer ID, auto ID creation
+    // must be enabled.
+    SDMLayer::SetAutoLayerIdCreation(true);
     layer = new SDMLayer(display_id, buffer_allocator_);
   }
 
