@@ -128,6 +128,8 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError Deinit();
   void RegisterCompositorCallback(SDMCompositorCbIntf *cb, bool enable);
 
+  void GetSdmId(int64_t clientId, int64_t &sdmID);
+
   DisplayError AcceptDisplayChanges(Display display_id);
 
   bool GetComposerStatus() override;
