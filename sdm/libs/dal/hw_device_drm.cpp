@@ -2395,7 +2395,10 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_MODE, token_.crtc_id, &current_mode.mode);
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_DSC_MODE, token_.conn_id,
                               current_mode.curr_compression_mode);
-    update_mode_ = false;
+    // Only reset update_mode_ after real commit, not after validate
+    if (!validate) {
+      update_mode_ = false;
+    }
   }
 
   if (!validate && (hw_layers_info->common_info->set_idle_time_ms >= 0)) {
