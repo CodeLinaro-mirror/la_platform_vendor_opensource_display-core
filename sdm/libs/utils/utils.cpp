@@ -253,6 +253,8 @@ const char* GetSocName() {
     case kShikraSocId2:
     case kShikraSocId3:
       return kShikraSocName;
+    case kHamoaSocId:
+      return kHamoaSocName;
     default:
       return "";
   }
