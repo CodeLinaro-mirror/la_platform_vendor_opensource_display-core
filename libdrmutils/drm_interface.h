@@ -1296,6 +1296,7 @@ struct DRMConnectorInfo {
   bool emsync_switch_enabled = false;
   bool is_privacy_layers_supported = false;
   bool is_ept_supported = true;
+  bool is_dsi_to_hdmi_bridge = false;
 };
 
 // All DRM Connectors as map<Connector_id , connector_info>

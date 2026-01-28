@@ -711,7 +711,7 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
   const string dpu_dma_enabled = "dpu_dma_enabled=";
   const string emsync_switch_enabled = "emsync_switch_enabled=";
   const string privacy_layer_support = "privacy layer support=";
-
+  const string ext_bridge = "ext bridge hpd support=";
   while (std::getline(stream, line)) {
     if (line.find(pixel_formats) != string::npos) {
       vector<pair<uint32_t, uint64_t>> formats_supported;
@@ -781,6 +781,8 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
       info->emsync_switch_enabled = (string(line, emsync_switch_enabled.length()) == "true");
     } else if (line.find(privacy_layer_support) != string::npos) {
       info->is_privacy_layers_supported = (string(line, privacy_layer_support.length()) == "true");
+    } else if (line.find(ext_bridge) != string::npos) {
+      info->is_dsi_to_hdmi_bridge = (string(line, ext_bridge.length()) == "true");
     }
   }
 
