@@ -141,6 +141,7 @@ class SDMDisplayBuilder {
 
   bool null_display_active_ = false;
   SDMDisplay *null_display_ = nullptr;
+  bool pluggable_is_primary_ = false;
 };
 
 }  // namespace sdm
