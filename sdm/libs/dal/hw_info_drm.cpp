@@ -1112,6 +1112,7 @@ DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
     switch (iter.second.type) {
       case DRM_MODE_CONNECTOR_DSI:
       case DRM_MODE_CONNECTOR_eDP:
+      case DRM_MODE_CONNECTOR_SPI:
         hw_info.display_type = kBuiltIn;
         break;
       case DRM_MODE_CONNECTOR_TV:

@@ -1342,6 +1342,10 @@ void HWDeviceDRM::GetHWDisplayPortAndMode() {
       hw_panel_info_.port = kPortDP;
       interface_str_ = "DisplayPort";
       break;
+    case DRM_MODE_CONNECTOR_SPI:
+      hw_panel_info_.port = kPortSPI;
+      interface_str_ = "SPI";
+      break;
   }
 
   return;

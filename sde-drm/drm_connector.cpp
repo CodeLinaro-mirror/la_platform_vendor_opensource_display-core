@@ -486,7 +486,8 @@ int DRMConnectorManager::Reserve(DRMDisplayType disp_type, DRMDisplayToken *toke
       uint32_t conn_type;
       conn.second->GetType(&conn_type);
       if ((disp_type == DRMDisplayType::PERIPHERAL &&
-           (conn_type == DRM_MODE_CONNECTOR_DSI || conn_type == DRM_MODE_CONNECTOR_eDP)) ||
+           (conn_type == DRM_MODE_CONNECTOR_DSI || conn_type == DRM_MODE_CONNECTOR_eDP ||
+            conn_type == DRM_MODE_CONNECTOR_SPI)) ||
           (disp_type == DRMDisplayType::VIRTUAL && conn_type == DRM_MODE_CONNECTOR_VIRTUAL) ||
           (disp_type == DRMDisplayType::TV && IsTVConnector(conn_type))) {
         if (conn.second->IsConnected()) {
@@ -550,7 +551,7 @@ int DRMConnectorManager::GetPreferredModeLMCounts(std::map<uint32_t, uint8_t> *l
     uint32_t conn_type;
     const uint32_t &id = conn.first;
     conn.second->GetType(&conn_type);
-    if (conn_type == DRM_MODE_CONNECTOR_DSI) {
+    if (conn_type == DRM_MODE_CONNECTOR_DSI || conn_type == DRM_MODE_CONNECTOR_SPI) {
       DRMConnectorInfo info = {};
       connector_pool_[id]->GetInfo(&info);
       uint8_t lm_cnt = 0;
