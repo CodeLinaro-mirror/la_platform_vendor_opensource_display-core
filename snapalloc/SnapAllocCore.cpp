@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <utils/CallStack.h>
 #include <iostream>
+#include <inttypes.h>
 
 #include <dlfcn.h>
 #include "SnapAllocCore.h"
@@ -62,7 +63,7 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
 
     err = mem_alloc_intf_->AllocateMem(&ad, out_desc.usage, out_desc.format);
     if (err != Error::NONE) {
-      ALOGE("Failed to allocate memory for format %d usage %d", out_desc.format, out_desc.usage);
+      ALOGE("Failed to allocate memory for format %" PRIu32 " usage %" PRIu64, out_desc.format, out_desc.usage);
       return err;
     }
 
@@ -98,8 +99,8 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
     hnd->flags = out_priv_flags;
     hnd->id = ++next_id_;
     ALOGD_IF(DEBUG,
-             "id %lu aligned width %d aligned height %d, input width %d  input height %d "
-             "format out %d format in %d, size %d, usage %lu",
+             "id %" PRIu64 "aligned width %d aligned height %d, input width %d  input height %d "
+             "format out %" PRIu32 " format in %d, size %d, usage %" PRIu64,
              hnd->id, layout.aligned_width_in_bytes, layout.aligned_height, desc.width, desc.height,
              out_desc.format, desc.format, ad.size, desc.usage);
 
@@ -112,7 +113,7 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
 
     err = metadata_mgr_->InitializeMetadata(hnd, desc, out_desc, ad, &layout);
     if (err != Error::NONE) {
-      ALOGE("Failed to initialize metadata for hnd %lu", hnd->id);
+      ALOGE("Failed to initialize metadata for hnd %" PRIu64, hnd->id);
     }
 
     handles->emplace_back(hnd);
@@ -174,17 +175,17 @@ Error SnapAllocCore::Retain(SnapHandle *hnd) {
   auto buf = GetBufferFromHandleLocked(hnd);
   if (buf != nullptr) {
     buf->IncRef();
-    ALOGD_IF(DEBUG, "%s: line %d buf %p id %lu increased ref count to %d", __FUNCTION__, __LINE__,
+    ALOGD_IF(DEBUG, "%s: line %d buf %p id %" PRIu64 "increased ref count to %d", __FUNCTION__, __LINE__,
              buf, buf->id, buf->GetRefCount());
   } else {
     err = ImportHandleLocked(hnd);
-    ALOGD_IF(DEBUG, "%s: line %d: handles_map_ size %d", __FUNCTION__, __LINE__,
+    ALOGD_IF(DEBUG, "%s: line %d: handles_map_ size %zu", __FUNCTION__, __LINE__,
              handles_map_.size());
   }
   ALOGD_IF(DEBUG, "===============");
 
   for (auto &entry : handles_map_) {
-    ALOGD_IF(DEBUG, "SnapAllocCore::Retain: handles_map: buf->id %lu", entry.second->id);
+    ALOGD_IF(DEBUG, "SnapAllocCore::Retain: handles_map: buf->id %" PRIu64, entry.second->id);
   }
   ALOGD_IF(DEBUG, "===============");
   return err;
@@ -197,7 +198,7 @@ Error SnapAllocCore::Release(SnapHandle *hnd) {
   std::lock_guard<std::mutex> lock(buffer_lock_);
   SnapHandleInternal *snap_hnd_cast = static_cast<SnapHandleInternal *>(hnd);
   auto buf = GetBufferFromHandleLocked(hnd);
-  ALOGD_IF(DEBUG, "line %d snap_hnd_cast id %lu ref count %d vs buf ref count %d", __LINE__,
+  ALOGD_IF(DEBUG, "line %d snap_hnd_cast id %" PRIu64 "ref count %d vs buf ref count %d", __LINE__,
            snap_hnd_cast->id, snap_hnd_cast->GetRefCount(), buf->GetRefCount());
 
   if (buf == nullptr) {
@@ -206,7 +207,7 @@ Error SnapAllocCore::Release(SnapHandle *hnd) {
   }
 
   if (buf->DecRef()) {
-    ALOGD_IF(DEBUG, "line %d snap_hnd_cast id %lu ref count %d vs buf ref count %d", __LINE__,
+    ALOGD_IF(DEBUG, "line %d snap_hnd_cast id %" PRIu64 "ref count %d vs buf ref count %d", __LINE__,
              snap_hnd_cast->id, snap_hnd_cast->GetRefCount(), buf->GetRefCount());
 
     // TODO: buffer dump support
@@ -215,7 +216,7 @@ Error SnapAllocCore::Release(SnapHandle *hnd) {
     }*/
     if (FreeBuffer(buf) == Error::NONE) {
       handles_map_.erase(hnd);
-      ALOGD_IF(DEBUG, "%s: line %d: handles_map_ size after freeing  %d", __FUNCTION__, __LINE__,
+      ALOGD_IF(DEBUG, "%s: line %d: handles_map_ size after freeing  %zu", __FUNCTION__, __LINE__,
                handles_map_.size());
     } else {
       ALOGE("Failed to free buffer %p", buf);
@@ -246,7 +247,7 @@ Error SnapAllocCore::Lock(SnapHandle *hnd, vendor_qti_hardware_display_common_Bu
     return Error::BAD_BUFFER;
   }
   ALOGD_IF(DEBUG,
-           "SnapAllocCore lock format %d usage %lu uwidth %d uheight %d, access region right %d "
+           "SnapAllocCore lock format %d usage %" PRIu64 "uwidth %d uheight %d, access region right %d "
            "bottom %d",
            buf->format, buf->usage, buf->unaligned_width, buf->unaligned_height,
            access_region.right, access_region.bottom);
@@ -276,7 +277,7 @@ Error SnapAllocCore::Lock(SnapHandle *hnd, vendor_qti_hardware_display_common_Bu
 
   if (err == Error::NONE) {
     *base_addr = buf->base;
-    ALOGD_IF(DEBUG, "SnapAllocCore::lock buf->base %lu", buf->base);
+    ALOGD_IF(DEBUG, "SnapAllocCore::lock buf->base %" PRIu64, buf->base);
 
     // Mark the buffer to be flushed after CPU write.
     if (CpuCanWrite(usage)) {
@@ -415,21 +416,21 @@ Error SnapAllocCore::ImportHandleLocked(SnapHandle *hnd) {
   SnapHandleInternal *snap_hnd = static_cast<SnapHandleInternal *>(hnd);
 
   ALOGD_IF(DEBUG,
-           "id %lu aligned width %d aligned height %d, input width %d  input height %d "
-           "format out %d size %d, usage %lu",
+           "id %" PRIu64 " aligned width %d aligned height %d, input width %d  input height %d "
+           "format out %d size %d, usage %" PRIu64,
            snap_hnd->id, snap_hnd->aligned_width_in_bytes, snap_hnd->aligned_height,
            snap_hnd->unaligned_width, snap_hnd->unaligned_height, snap_hnd->format, snap_hnd->size,
            snap_hnd->usage);
 
-  ALOGD_IF(DEBUG, "Importing handle with id %lu", snap_hnd->id);
+  ALOGD_IF(DEBUG, "Importing handle with id %" PRIu64, snap_hnd->id);
   if (mem_alloc_intf_->ImportBuffer(snap_hnd->fd) < 0) {
-    ALOGE("Failed to import buffer: hnd: %p, fd:%d, id:%lu", snap_hnd, snap_hnd->fd, snap_hnd->id);
+    ALOGE("Failed to import buffer: hnd: %p, fd:%d, id:%" PRIu64, snap_hnd, snap_hnd->fd, snap_hnd->id);
     FreeBuffer(snap_hnd);
     return Error::BAD_BUFFER;
   }
 
   if (mem_alloc_intf_->ImportBuffer(snap_hnd->fd_metadata) < 0) {
-    ALOGE("Failed to import metadata buffer: hnd: %p, fd:%d, id:%lu", snap_hnd,
+    ALOGE("Failed to import metadata buffer: hnd: %p, fd:%d, id:%" PRIu64, snap_hnd,
           snap_hnd->fd_metadata, snap_hnd->id);
     FreeBuffer(snap_hnd);
     return Error::BAD_BUFFER;
@@ -442,7 +443,7 @@ Error SnapAllocCore::ImportHandleLocked(SnapHandle *hnd) {
   snap_hnd->IncRef();
   ALOGD_IF(DEBUG, "snap_hnd ref count in ImportHandleLocked %d", snap_hnd->GetRefCount());
   if (metadata_mgr_->ValidateAndMap(snap_hnd)) {
-    ALOGE("Failed to map metadata: hnd: %p, fd:%d, id:%lu", snap_hnd, snap_hnd->fd, snap_hnd->id);
+    ALOGE("Failed to map metadata: hnd: %p, fd:%d, id:%" PRIu64, snap_hnd, snap_hnd->fd, snap_hnd->id);
     FreeBuffer(snap_hnd);
     return Error::BAD_BUFFER;
   }
