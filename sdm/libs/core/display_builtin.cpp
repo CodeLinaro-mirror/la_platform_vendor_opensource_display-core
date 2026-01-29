@@ -470,11 +470,12 @@ DisplayError DisplayBuiltIn::Init() {
   value = 0;
   Debug::Get()->GetProperty(ENABLE_PRIVACY_LAYERS, &value);
   // TODO(user): Enable privacy filter for dual dpu, then update this check
-  if (value == 1 && core_count_ == 1) {
+  if ((value == 1 || value == 2) && core_count_ == 1) {
     uint32_t max_privacy_regions = hw_intf_->GetMaxPrivacyRegionsSupported();
 
     if (max_privacy_regions > 0) {
-      privacy_region_mgr_ = new PrivacyRegionManager(max_privacy_regions);
+      PrivacyRegionMode mode = (value == 1) ? PrivacyRegionMode::LAYER : PrivacyRegionMode::AREA;
+      privacy_region_mgr_ = new PrivacyRegionManager(max_privacy_regions, mode);
     }
   }
 
@@ -5886,7 +5887,7 @@ void DisplayBuiltIn::SetPrivacyRegions() {
     disp_layer_stack_->stack_info.common_info.updates_mask.set(kUpdatePrivacyRegions);
     for (int i = 0; i < hw_resource_info_.size(); i++) {
       uint32_t core_id = hw_resource_info_[i].core_id;
-      disp_layer_stack_->info.at(core_id).privacy_regions_ = regions;
+      disp_layer_stack_->info.at(core_id).privacy_regions = regions;
     }
   }
 }

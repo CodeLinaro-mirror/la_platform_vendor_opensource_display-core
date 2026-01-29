@@ -194,7 +194,8 @@ class SDMLayer {
   static bool IsLayerIdExisting(LayerId id) { return id_mgr_.IsIdExisting(id); }
   static void SetAutoLayerIdCreation(bool flag) { auto_create_layer_id_ = flag; }
   DisplayError TranslateToNV12Y(LayerBuffer *layer_buffer);
-  DisplayError SetLayerPrivacyRegions(const std::vector<PrivacyRegion> &privacy_regions);
+  DisplayError SetLayerPrivacyRegions(const std::vector<PrivacyRegion> &privacy_regions,
+                                      PrivacyRegionMode mode);
   DisplayError SetLayerCornerRadius(CornerRadius corner_radius);
   bool IsPrivacyRegionUpdated();
   bool HasPrivacyRegions();
