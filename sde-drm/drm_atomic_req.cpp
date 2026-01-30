@@ -203,7 +203,8 @@ int DRMAtomicReq::Perform(DRMOps opcode, uint32_t obj_id, ...) {
     case DRMOps::CONNECTOR_SET_REPROJ_TILE_SIZE:
     case DRMOps::CONNECTOR_SET_REPROJ_MIN_BBOX_SIZE:
     case DRMOps::CONNECTOR_SET_REPROJ_MODE:
-    case DRMOps::CONNECTOR_SET_POSE_FB_ID: {
+    case DRMOps::CONNECTOR_SET_POSE_FB_ID:
+    case DRMOps::CONNECTOR_SET_PRIVACY_REGIONS_V2: {
       drm_mgr_->GetConnectorMgr()->Perform(opcode, obj_id, drm_atomic_req_, args);
     } break;
     case DRMOps::DPPS_CACHE_FEATURE: {
