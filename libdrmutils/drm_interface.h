@@ -1002,6 +1002,7 @@ enum struct DDRVersion {
   kDDRVersion4,
   kDDRVersion5,
   kDDRVersion5x,
+  kDDRVersion6,
 };
 
 /* Type for panel feature resource reservation info */
