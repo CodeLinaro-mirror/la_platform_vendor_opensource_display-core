@@ -174,7 +174,12 @@ DisplayError SDMTrustedUI::TUITransitionPrepare(int disp_id) {
             std::back_inserter(map_info));
 
   for (auto &info : map_info) {
-    SEQUENCE_WAIT_SCOPE_LOCK(locker_[info.client_id]);
+    { SEQUENCE_WAIT_SCOPE_LOCK(locker_[info.client_id]); }
+
+    // Wait until all commands are flushed.
+    std::lock_guard<std::mutex> tui_lock(cb_->tui_mutex_);
+    SCOPE_LOCK(locker_[info.client_id]);
+
     auto display = cb_->GetDisplayFromClientId(info.client_id);
     if (!display) {
       continue;
