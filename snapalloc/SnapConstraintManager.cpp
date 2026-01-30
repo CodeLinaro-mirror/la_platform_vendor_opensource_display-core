@@ -510,6 +510,11 @@ Error SnapConstraintManager::AlignmentToAlignedConstraints(BufferDescriptor desc
       plane.components = alignment.planes[i].components;
       plane.alignment_type = ALIGNED_OUTPUT;
 
+      if (desc.format == vendor_qti_hardware_display_common_PixelFormat::RAW10 &&
+          desc.usage == vendor_qti_hardware_display_common_BufferUsage::CPU_READ_OFTEN) {
+        alignment.planes[i].stride.horizontal_stride_align = 80;
+      }
+
       // TODO: factor in subsampling from format data here for CbCr
       DLOGD_IF(enable_logs, "alignment.planes[i].stride.horizontal_stride_align %d",
                alignment.planes[i].stride.horizontal_stride_align);
