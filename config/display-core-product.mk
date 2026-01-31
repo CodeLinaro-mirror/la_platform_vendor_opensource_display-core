@@ -35,6 +35,7 @@ ifeq ($(TARGET_BOARD_PLATFORM),malabar)
 	PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_ft8726_lcd_video_mode_dsi_focaltech_panel_with_DSC_malabar.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_ft8726_lcd_video_mode_dsi_focaltech_panel_with_DSC.json
 else
 	PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_ft8726_lcd_video_mode_dsi_focaltech_panel_with_DSC.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_ft8726_lcd_video_mode_dsi_focaltech_panel_with_DSC.json
+	PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_ft8726_fhd_plus_120Hz_Video_panel.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_ft8726_fhd_plus_120Hz_Video_panel.json
 endif
 
 #QDCM calibration json file for nt37802 video PSR amoled VHM panels
