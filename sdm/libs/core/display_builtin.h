@@ -414,6 +414,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetDemuraTnAodHandlerCtrl(void *data);
   DisplayError SetDemuraTnAgingSurfTransfer(void *data);
   DisplayError SwitchToDAC(void *data);
+  DisplayError SetDemuraTnCompRatio(void *data);
   void AppendCWBLayerWithFBT(LayerStack *layer_stack);
   void UpdateCWBLayer(LayerBuffer &layer_buffer);
   void ClearDemuraMultiCfgParsers();
