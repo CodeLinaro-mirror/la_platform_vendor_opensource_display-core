@@ -570,7 +570,7 @@ int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buff
       if (itr != it->second.end()) {
         FrameBufferObject *fb_obj = static_cast<FrameBufferObject *>(itr->second[kColorNone].get());
         if (fb_obj->IsEqual(buffer.format, buffer.width, buffer.height, secure_present) &&
-            (it->second.size() >= fb_id_size)) {
+            (itr->second.size() >= fb_id_size)) {
           // Found fb_id for given handle_id key
           return 0;
         } else {

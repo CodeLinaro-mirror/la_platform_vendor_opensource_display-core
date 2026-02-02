@@ -199,6 +199,18 @@ DisplayError DPUSingleCore::SetPanelBrightness(int level, bool apply_immediately
   return hw_intf_->SetPanelBrightness(level, apply_immediately);
 }
 
+DisplayError DPUSingleCore::SetIllumination(const uint32_t eye, const IlluminationConfig &config) {
+  return hw_intf_->SetIllumination(eye, config);
+}
+
+DisplayError DPUSingleCore::SetPixelShift(const uint32_t eye, const PixelShiftConfig &config) {
+  return hw_intf_->SetPixelShift(eye, config);
+}
+
+DisplayError DPUSingleCore::IsLedDriverUp(bool *is_led_driver_up) {
+  return hw_intf_->IsLedDriverUp(is_led_driver_up);
+}
+
 DisplayError DPUSingleCore::GetHWScanInfo(HWScanInfo *scan_info) {
   return hw_intf_->GetHWScanInfo(scan_info);
 }

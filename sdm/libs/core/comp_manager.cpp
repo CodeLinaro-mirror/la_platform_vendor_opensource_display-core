@@ -213,8 +213,10 @@ DisplayError CompManager::UnregisterDisplay(Handle display_ctx) {
   return kErrorNone;
 }
 
-DisplayError CompManager::SetAIScalerMode(uint32_t mode_id) {
-  return resource_intf_->SetAIScalerMode(mode_id);
+DisplayError CompManager::SetAIScalerMode(Handle comp_handle, uint32_t mode_id) {
+  DisplayCompositionContext *display_comp_ctx =
+      reinterpret_cast<DisplayCompositionContext *>(comp_handle);
+  return resource_intf_->SetAIScalerMode(display_comp_ctx->display_resource_ctx, mode_id);
 }
 
 DisplayError CompManager::GetAIScalerMode(uint32_t *mode_id) {
@@ -1241,6 +1243,18 @@ DisplayError CompManager::SetPoseConfig(Handle display_ctx, const LayerBuffer &b
   }
 
   return kErrorNone;
+}
+
+DisplayError CompManager::GetIllumination(uint32_t eye, const IlluminationConfig &in_config,
+                                          IlluminationConfig *out_config) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+  return resource_intf_->Perform(ResourceInterface::kCmdGetEyeIlluminance, eye, in_config,
+                                 out_config);
+}
+
+DisplayError CompManager::GetPixelShiftData(std::vector<PixelShiftConfig> *pixel_shift_config) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+  return resource_intf_->Perform(ResourceInterface::kCmdGetPixelShiftData, pixel_shift_config);
 }
 
 DisplayError CompManager::CanTakeDPUScreenshot(Handle display_ctx) {

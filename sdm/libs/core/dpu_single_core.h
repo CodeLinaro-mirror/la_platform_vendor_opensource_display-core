@@ -43,6 +43,9 @@ class DPUSingleCore : public DPUCoreMux {
   DisplayError SetDisplayMode(const HWDisplayMode hw_display_mode);
   DisplayError SetRefreshRate(uint32_t refresh_rate);
   DisplayError SetPanelBrightness(int level, bool apply_immediately);
+  DisplayError SetIllumination(const uint32_t eye, const IlluminationConfig &config);
+  DisplayError SetPixelShift(const uint32_t eye, const PixelShiftConfig &config);
+  DisplayError IsLedDriverUp(bool *is_led_driver_up);
   DisplayError GetHWScanInfo(HWScanInfo *scan_info);
   DisplayError GetVideoFormat(uint32_t config_index, uint32_t *video_format);
   DisplayError GetMaxCEAFormat(uint32_t *max_cea_format);
