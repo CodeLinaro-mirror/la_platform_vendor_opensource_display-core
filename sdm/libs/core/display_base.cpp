@@ -200,6 +200,12 @@ DisplayError DisplayBase::Init() {
   int hw_recovery_threshold = 1;
   int32_t prop = 0;
   uint32_t inactive_ms = 0;
+
+  // Check if current display is SPI type before loading extension library
+  int value = 0;
+  Debug::Get()->GetProperty(SPI_DISPLAY_PRESENT, &value);
+  bool is_spi_display = (value == 1);
+
   dpu_core_mux_->GetActiveConfig(&active_index);
   dpu_core_mux_->GetDisplayAttributes(active_index, &device_ctx_,
                                       &client_ctx_);
@@ -297,8 +303,8 @@ DisplayError DisplayBase::Init() {
   }
   DisplayBase::SetMaxMixerStages(max_mixer_stages);
 
-  // Open extension lib
-  if (!extension_lib_) {
+  // Open extension lib only if it is not SPI display
+  if (!is_spi_display && !extension_lib_) {
     if (!extension_lib_.Open(EXTENSION_LIBRARY_NAME)) {
       DLOGW("Unable to open lib %s, error = %s", EXTENSION_LIBRARY_NAME,
             extension_lib_.Error());

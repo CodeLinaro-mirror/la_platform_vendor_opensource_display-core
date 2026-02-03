@@ -75,8 +75,12 @@ DisplayError CoreImpl::Init() {
   SCOPE_LOCK(locker_);
   DisplayError error = kErrorNone;
 
-  // Try to load extension library & get handle to its interface.
-  if (extension_lib_.Open(EXTENSION_LIBRARY_NAME)) {
+  int value = 0;
+  Debug::Get()->GetProperty(SPI_DISPLAY_PRESENT, &value);
+  bool is_spi_display = (value == 1);
+
+  // Try to load extension library & get handle to its interface, if it not a SPI Display.
+  if (!is_spi_display && extension_lib_.Open(EXTENSION_LIBRARY_NAME)) {
     if (!extension_lib_.Sym(CREATE_EXTENSION_INTERFACE_NAME,
                             reinterpret_cast<void **>(&create_extension_intf_)) ||
         !extension_lib_.Sym(DESTROY_EXTENSION_INTERFACE_NAME,
@@ -100,7 +104,7 @@ DisplayError CoreImpl::Init() {
 #endif
   }
 
-  int value = 0;
+  value = 0;
   Debug::Get()->GetProperty(ENABLE_NULL_DISPLAY_PROP, &value);
   enable_null_display_ = (value == 1);
   DLOGI("property: enable_null_display_ = %d", enable_null_display_);

@@ -159,6 +159,9 @@
 #define DISABLE_SPR_PRIMARY                  DISPLAY_PROP("disable_spr_primary")
 #define DISABLE_SPR_SECONDARY                DISPLAY_PROP("disable_spr_secondary")
 
+//SPI Display
+#define SPI_DISPLAY_PRESENT                  DISPLAY_PROP("has_spi_display")
+
 // Panel Feature Demura Properties
 #define ENABLE_DEMURA                        DISPLAY_PROP("enable_demura")
 #define DISABLE_DEMURA_PRIMARY               DISPLAY_PROP("disable_demura_primary")
