@@ -514,6 +514,7 @@ class DisplayBuiltIn : public DisplayBase,
 
   bool avr_step_enabled_ = false;
   bool vrr_enabled_ = false;
+  std::string avf_obs_name_ = "DisplayBuiltIn";
   std::shared_ptr<TvmDispServiceManagerIntf> service_manager_intf_ = nullptr;
   std::shared_ptr<DemuraParserManagerIntf> pm_intf_ = nullptr;
   std::shared_ptr<VMFileXferIntf> vm_file_xfer_intf_ = nullptr;
