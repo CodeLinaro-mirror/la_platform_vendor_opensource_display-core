@@ -40,6 +40,13 @@ endif
 #QDCM calibration json file for nt37802 video PSR amoled VHM panels
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_nt37802_video_PSR_amoled_VHM_120hz_dsi_panel_with_DSC.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_nt37802_video_PSR_amoled_VHM_120hz_dsi_panel_with_DSC.json
 
+ifneq (,$(filter art, $(TARGET_BOARD_PLATFORM)))
+#QDCM calibration json file for nt37802 panel
+PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_nt37802_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_nt37802_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY.json
+PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_nt37802_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY_using_I2C.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_nt37802_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY_using_I2C.json
+PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_nt37802_amoled_video_i2c_mode_dsi_csot_panel_with_DSC.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_nt37802_amoled_video_i2c_mode_dsi_csot_panel_with_DSC.json
+endif
+
 #QDCM calibration json file for RaonTech panels
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_RaonTech_Non-FSC_mode_video_1440x1440@60_mode_dsi_panel.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_RaonTech_Non-FSC_mode_video_1440x1440@60_mode_dsi_panel.json
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_RaonTech_RDP340x_LCoS_RGB_video_mode_1200x1200_90Hz_dual_dsi_panel.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_RaonTech_RDP340x_LCoS_RGB_video_mode_1200x1200_90Hz_dual_dsi_panel.json
@@ -68,6 +75,13 @@ PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/backlight_calib
 #Backlight calibration xml file for nt37802 video PSR amoled VHM panels
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/backlight_calib_nt37801_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY.xml:$(TARGET_COPY_OUT_VENDOR)/etc/display/backlight_calib_nt37802_video_PSR_amoled_VHM_120hz_dsi_panel_with_DSC.xml
 
+ifneq (,$(filter art, $(TARGET_BOARD_PLATFORM)))
+#Backlight calibration xml file for nt37802 amoled panels
+PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/backlight_calib_nt37801_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY.xml:$(TARGET_COPY_OUT_VENDOR)/etc/display/backlight_calib_nt37802_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY.xml
+PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/backlight_calib_nt37801_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY.xml:$(TARGET_COPY_OUT_VENDOR)/etc/display/backlight_calib_nt37802_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY_using_I2C.xml
+PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/backlight_calib_nt37801_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY.xml:$(TARGET_COPY_OUT_VENDOR)/etc/display/backlight_calib_nt37802_amoled_video_i2c_mode_dsi_csot_panel_with_DSC.xml
+endif
+
 #SDR Dimming config file for nt37801, display id is 4630946916234099603
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/display_id_4630946916234099603.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_4630946916234099603.xml
 
@@ -80,6 +94,12 @@ PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/display_id_4630
 
 #SDR Dimming config file for nt37802 video PSR VHM, display id is 4630946850534658451
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/display_id_4630946916234099603.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_4630946850534658451.xml
+
+ifneq (,$(filter art, $(TARGET_BOARD_PLATFORM)))
+#SDR Dimming config file for nt37802, display id is 4630946699836970132
+PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/display_id_4630946916234099603.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_4630946699836970132.xml
+endif
+
 
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/display_id_4630947249835489681.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_4630947249835489681.xml
 
