@@ -157,6 +157,9 @@ void ApplyCwbRoiRestrictions(LayerRect &roi, const LayerRect &cwb_full_frame,
 uint32_t GetCwbRequestedMixerCount(CwbConfig *config, uint32_t num_split, uint32_t display_width,
                                    uint32_t mixer_width, bool &roi_block_partial);
 const char *GetCompositionName(const LayerComposition &composition);
+const char *GetCompositionLayerTypeName(const SDMCompositionLayerType &type);
+const char *GetRenderLayerReferenceSpaceName(const SDMRenderLayerReferenceSpaceType &type);
+const char *GetLayerVisibilityName(const SDMLayerVisibilityType &type);
 const char* GetSocName();
 bool IsXRVariant();
 uint16_t float_2_FP16(const float in);
