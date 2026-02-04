@@ -1169,7 +1169,7 @@ DisplayError SDMDisplayBuilder::GetDisplayHwId(uint64_t disp_id,
   // Supported for Built-In displays only.
   auto &map_info = GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_PRIMARY)[0];
   if ((map_info.client_id == disp_id) &&
-      (map_info.disp_type == sdm::kBuiltIn)) {
+      ((map_info.disp_type == sdm::kBuiltIn) || pluggable_is_primary_)) {
     if (map_info.sdm_id >= 0) {
       uint32_t base_core_id = DisplayId::GetBaseCoreId(map_info.sdm_id);
       uint32_t conn_id = DisplayId::GetConnId(map_info.sdm_id, base_core_id);
