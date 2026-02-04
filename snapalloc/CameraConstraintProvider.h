@@ -54,6 +54,17 @@ typedef enum : unsigned int {
   CAMERA_PIXEL_FORMAT_YCbCr_420_NV12_MIPMAP = 0x224,       // NV12 MIPMAP
   CAMERA_PIXEL_FORMAT_YCbCr_420_TP10_UBWC_MIPMAP = 0x225,  // UBWCTP10 MIPMAP
   CAMERA_PIXEL_FORMAT_YCbCr_420_P010_MIPMAP = 0x226,       // P010 MIPMAP
+  CAMERA_PIXEL_FORMAT_TP10_UBWC_FLEX = 0x154,  // YUV format with fliexible alignment defined by
+                                               // individual APIs
+  CAMERA_PIXEL_FORMAT_TP10_UBWC_FLEX_2_BATCH =
+      0x155,  // YUV format with fliexible alignment defined by
+              // individual APIs
+  CAMERA_PIXEL_FORMAT_TP10_UBWC_FLEX_4_BATCH =
+      0x156,  // YUV format with fliexible alignment defined by
+              // individual APIs
+  CAMERA_PIXEL_FORMAT_TP10_UBWC_FLEX_8_BATCH =
+      0x157,  // YUV format with fliexible alignment defined by
+              // individual APIs
 } CamxPixelFormat;
 
 // Camera Result Codes
@@ -265,7 +276,19 @@ class CameraConstraintProvider : public SnapConstraintProvider {
            CAMERA_PIXEL_FORMAT_YCbCr_420_TP10_UBWC_MIPMAP},
           {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_P010,
             .modifier = PIXEL_FORMAT_MODIFIER_MIPMAP},
-           CAMERA_PIXEL_FORMAT_YCbCr_420_P010_MIPMAP}};
+           CAMERA_PIXEL_FORMAT_YCbCr_420_P010_MIPMAP},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::TP10,
+            .modifier = PIXEL_FORMAT_MODIFIER_UBWC_FLEX},
+           CAMERA_PIXEL_FORMAT_TP10_UBWC_FLEX},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::TP10,
+            .modifier = PIXEL_FORMAT_MODIFIER_UBWC_FLEX_2_BATCH},
+           CAMERA_PIXEL_FORMAT_TP10_UBWC_FLEX_2_BATCH},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::TP10,
+            .modifier = PIXEL_FORMAT_MODIFIER_UBWC_FLEX_4_BATCH},
+           CAMERA_PIXEL_FORMAT_TP10_UBWC_FLEX_4_BATCH},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::TP10,
+            .modifier = PIXEL_FORMAT_MODIFIER_UBWC_FLEX_8_BATCH},
+           CAMERA_PIXEL_FORMAT_TP10_UBWC_FLEX_8_BATCH}};
 };
 }  // namespace snapalloc
 
