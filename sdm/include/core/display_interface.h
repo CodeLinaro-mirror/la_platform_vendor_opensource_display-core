@@ -447,6 +447,20 @@ enum PanelFeatureVendorServiceType {
   PanelFeatureVendorServiceTypeMax,
 };
 
+/*! @brief This enum represents the panel feature cmd types supported by the vendService cmd.
+
+  @sa DisplayInterface::PanelFeatureVendorServiceType
+*/
+enum QrtcVendorServiceType {
+  /* Setter: int */
+  kTypeQrtcState = 0,
+  /* Setter: int */
+  kTypeQrtcSubsample = 1,
+  /* Setter: int */
+  kTypeQrtcDumpBuffer = 2,
+  KQrtcVendorServiceTypeMax,
+};
+
 enum ClientCapability {
   kPunchholeSupported,
   kHDRSupported,
@@ -1713,6 +1727,14 @@ class DisplayInterface {
    @return \link DisplayError \endlink
   */
   virtual DisplayError SetRgbHistObserverConfig(bool state, void *data) = 0;
+
+  /*! @brief Method to configure QRTC feature
+   @param[in] state: Enable/Disable   @param[in] type : Operation type
+   @param[in] data : Configuration or operation data
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetQrtcFeatureConfig(int32_t type, void *data) = 0;
 
  protected:
   virtual ~DisplayInterface() { }

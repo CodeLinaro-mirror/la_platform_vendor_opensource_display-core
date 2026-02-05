@@ -278,7 +278,6 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual bool HandleCwbTeardown();
   virtual uint32_t GetAvailableMixerCount();
   virtual DisplayError SetDemuraState(int state, int demura_idx) { return kErrorNotSupported; }
-  virtual DisplayError SetQrtcState(int state) { return kErrorNotSupported; }
   virtual DisplayError SetDemuraConfig(int demura_idx) { return kErrorNotSupported; }
   virtual DisplayError SetABCState(bool state) { return kErrorNotSupported; }
   virtual DisplayError SetABCReconfig() { return kErrorNotSupported; }
@@ -320,6 +319,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size) {
     return kErrorNotSupported;
   }
+  virtual DisplayError SetQrtcFeatureConfig(int32_t type, void *data) { return kErrorNotSupported; }
 
   virtual DisplayError PanelBacklightInfo(const std::string &client_name, bool enable,
                                           SdmDisplayCbInterface<PanelBacklightPayload> *cb_intf) {

@@ -269,7 +269,6 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError UpdateTransferTime(uint32_t transfer_time) override;
   DisplayError RetrieveDemuraTnFiles() override;
   DisplayError SetDemuraState(int state, int demura_idx) override;
-  DisplayError SetQrtcState(int state) override;
   DisplayError SetDemuraConfig(int demura_idx) override;
   DisplayError PerformCacConfig(CacConfig config, bool enable) override;
   bool IsCacV2Supported() override;
@@ -367,7 +366,11 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetupABCFeature();
   DisplayError SetupABC();
   DisplayError SetupQrtc();
-  DisplayError SetupQrtcConfig();
+  DisplayError SetupQrtcConfig(qrtc::QrtcFeatureConfig &config);
+  DisplayError SetQrtcState(int state);
+  DisplayError SetQrtcSubsample(int subsample);
+  DisplayError DumpQrtcBuffer(int count);
+  DisplayError SetQrtcFeatureConfig(int32_t type, void *data) override;
   DisplayError SetDisplayStateForDemuraTn(DisplayState state);
   DisplayError BuildLayerStackStats(LayerStack *layer_stack) override;
   void UpdateDisplayModeParams();
@@ -529,6 +532,7 @@ class DisplayBuiltIn : public DisplayBase,
   qrtc::QrtcScreenRefreshIntf *qrtc_refresh_intf_ = nullptr;
   std::unique_ptr<qrtc::QrtcFeatureIntf> qrtc_ = nullptr;
   std::vector<Layer> qrtc_layer_ = {};
+  qrtc::QrtcFeatureConfig qrtc_config_;
 
   friend class PuSubjectIntfImpl;
   std::unique_ptr<PuSubjectIntf> pu_subject_ = nullptr;

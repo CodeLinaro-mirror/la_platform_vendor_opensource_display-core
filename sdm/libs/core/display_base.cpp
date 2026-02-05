@@ -632,7 +632,6 @@ DisplayError DisplayBase::SetupPanelFeatureFactory() {
       }
     } else {
       DLOGW("Unable to load = %s, error = %s", QRTC_LIBRARY_NAME, qrtc_feature_impl_lib_.Error());
-      DLOGW("Qrtc Library is not supported");
       return kErrorNone;
     }
 
