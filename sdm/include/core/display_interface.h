@@ -443,7 +443,6 @@ enum PanelFeatureVendorServiceType {
   kTypeSwitchToDAC = 12,
   /* Getter: char* */
   kTypeGetDemuraTnAgingValue = 13,
-  kTypeRgbHistConfig = 14,
   PanelFeatureVendorServiceTypeMax,
 };
 
