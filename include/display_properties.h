@@ -233,6 +233,8 @@
 #define SCALING_SOURCE_OPT_MODE              DISPLAY_PROP("scaling_source_opt_mode")
 // Property to set desired libscale optimization mode on destination
 #define SCALING_DEST_OPT_MODE                DISPLAY_PROP("scaling_dest_opt_mode")
+// Property to override libscale version
+#define LIBSCALE_VERSION_OVERRIDE            DISPLAY_PROP("libscale_version_override")
 
 //AIQE Properties
 #define AIQE_SSRC_ENABLE               DISPLAY_PROP("enable_aiqe_ssrc")
