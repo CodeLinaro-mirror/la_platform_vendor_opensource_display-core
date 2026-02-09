@@ -524,6 +524,18 @@ struct CwbConfig {
   uint32_t downscale_y = 1;                          //!< Downscale factor for CWB output height.
 };
 
+// intermediate struct to hold some color metadata values which will be queried
+// individually only used here for ease of access / convenience in populating
+// each metadata member
+struct ColorMetadata {
+  Dataspace dataspace;
+  QtiMatrixCoEfficients matrixCoefficients;
+  QtiMasteringDisplay masteringDisplayInfo;
+  QtiContentLightLevel contentLightLevel;
+  QtiColorRemappingInfo cRI;
+  QtiDynamicMetadata dynamicMetadata;
+};
+
 class LayerBufferObject {
  public:
   virtual ~LayerBufferObject() {}
