@@ -560,6 +560,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool mixer_resolution_updated_ = false;
   bool primary_commit_needed_ = true;
   bool is_ssr_active_ = false;
+  bool is_lsr_ssr_active_ = false;
+  bool lsr_first_commit_ = true;
 
  private:
   // Max tolerable power-state-change wait-times in milliseconds.
@@ -628,7 +630,6 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool wb_downscale_supports_ = false;
   bool enable_ai_scaler_ = false;
   uint64_t next_expected_present_ = 0;
-  bool lsr_first_commit_ = true;
   bool cwb_with_lsr_active_ = false;
 };
 

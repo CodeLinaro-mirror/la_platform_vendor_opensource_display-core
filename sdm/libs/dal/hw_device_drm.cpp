@@ -1622,7 +1622,7 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   }
   int ret = NullCommit(is_synchronous, false /* retain_planes */);
   if (ret) {
-    if (is_ssr_active_) {
+    if (is_ssr_active_ || is_lsr_ssr_active_) {
       DLOGW(
           "Failed with error: %d, dynamic_fps=%d, seamless_mode_switch_=%d, vrefresh_=%d,"
           "panel_mode_changed_=%d bit_clk_rate_=%" PRIu64
@@ -1655,7 +1655,7 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
     bpp_mode_changed_ = 0;
   }
 
-  if (is_ssr_active_) {
+  if (is_ssr_active_ || is_lsr_ssr_active_) {
     DLOGI("SSR Active, close Power-Off Retire fence %" PRId64, retire_fence_fd);
     close(retire_fence_fd);
     retire_fence_fd = -1;
@@ -2613,7 +2613,7 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
 
   int ret = drm_atomic_intf_->Commit(sync_commit, false /* retain_planes*/);
 
-  if (is_ssr_active_) {
+  if (is_ssr_active_ || is_lsr_ssr_active_) {
     DLOGI("SSR Active, close Retire %" PRId64 " and Release %" PRId64 " fence of Commit!",
           retire_fence_fd, release_fence_fd);
     close(release_fence_fd);
@@ -2625,7 +2625,7 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
   shared_ptr<Fence> release_fence = Fence::Create(INT(release_fence_fd), "release");
   shared_ptr<Fence> retire_fence = Fence::Create(INT(retire_fence_fd), "retire");
   if (ret) {
-    if (is_ssr_active_) {
+    if (is_ssr_active_ || is_lsr_ssr_active_) {
       DLOGW("%s failed with error %d crtc %d while SSR is active, ignore failure", __FUNCTION__,
             ret, token_.crtc_id);
     } else {
@@ -2732,7 +2732,7 @@ DisplayError HWDeviceDRM::Flush(HWLayersInfo *hw_layers_info) {
     DLOGI("Tearing down the CWB topology");
   }
 
-  if (!is_ssr_active_) {
+  if (!is_ssr_active_ && !is_lsr_ssr_active_) {
     int ret = NullCommit(sync_commit /* synchronous */, false /* retain_planes*/);
     if (ret) {
       DLOGE("failed with error %d", ret);
@@ -3652,10 +3652,11 @@ DisplayError HWDeviceDRM::NullCommit(bool synchronous, bool retain_planes) {
   if (hw_panel_info_.dpu_ctl_op_sync) {
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_FLUSH_SYNC_EN, token_.crtc_id, 0);
   }
+  drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_LSR_MODE, token_.crtc_id, 0);
 
   int ret = drm_atomic_intf_->Commit(synchronous , retain_planes);
   if (ret) {
-    if (is_ssr_active_) {
+    if (is_ssr_active_ || is_lsr_ssr_active_) {
       DLOGW("failed with error %d, crtc=%u while SSR is active, ignore failure", ret,
             token_.crtc_id);
     } else {
@@ -4532,8 +4533,12 @@ void HWDeviceDRM::SetDrmPlaneEquation(const uint32_t &pipe_id,
   drm_atomic_intf_->Perform(DRMOps::PLANE_SET_PLANE_EQUATION, pipe_id, &drm_plane_equation);
 }
 
-void HWDeviceDRM::SetSSRState(bool active) {
-  is_ssr_active_ = active;
+void HWDeviceDRM::SetSSRState(bool active, HWSSRType type) {
+  if (type == kSSR) {
+    is_ssr_active_ = active;
+  } else if (type == kSSRLsr) {
+    is_lsr_ssr_active_ = active;
+  }
 }
 
 bool HWDeviceDRM::IsEPTSupported() {

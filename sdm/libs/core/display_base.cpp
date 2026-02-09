@@ -1818,6 +1818,7 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
     master_hw_events_intf_->SetEventState(HWEvent::VM_RELEASE_EVENT, true);
     master_hw_events_intf_->SetEventState(HWEvent::VM_RECLAIM_EVENT, true);
     master_hw_events_intf_->SetEventState(HWEvent::SSR, true);
+    master_hw_events_intf_->SetEventState(HWEvent::LSR_SSR, true);
     registered_hw_events_ = true;
   }
 
@@ -1847,7 +1848,7 @@ DisplayError DisplayBase::PerformCommit(std::map<uint32_t, HWLayersInfo> &hw_lay
   }
   DisplayError error = dpu_core_mux_->Commit(hw_layers_info);
   if (error != kErrorNone) {
-    if (is_ssr_active_) {
+    if (is_ssr_active_ || is_lsr_ssr_active_) {
       DLOGW("COMMIT failed: %d while SSR is active, ignore failure", error);
     } else {
       DLOGE("COMMIT failed: %d ", error);
@@ -1932,7 +1933,7 @@ DisplayError DisplayBase::CommitLocked(LayerStack *layer_stack) {
 DisplayError DisplayBase::PerformHwCommit(std::map<uint32_t, HWLayersInfo> &hw_layers_info) {
   DTRACE_SCOPED();
 
-  if (is_ssr_active_) {
+  if (is_ssr_active_ || is_lsr_ssr_active_) {
     return HandleCommitDuringSSR();
   }
 
@@ -1944,7 +1945,7 @@ DisplayError DisplayBase::PerformHwCommit(std::map<uint32_t, HWLayersInfo> &hw_l
 
   error = PerformCommit(hw_layers_info);
   if (error != kErrorNone) {
-    if (is_ssr_active_) {
+    if (is_ssr_active_ || is_lsr_ssr_active_) {
       DLOGW("Commit IOCTL failed %d while SSR is active, ignore failure", error);
     } else {
       DLOGE("Commit IOCTL failed %d", error);
@@ -2322,10 +2323,16 @@ DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
         if (error == kErrorDeferred) {
           pending_power_state_ = kPowerStateOff;
           error = kErrorNone;
-        } else if (error == kErrorHardware && is_ssr_active_) {
-          DLOGI("PowerOff returned %d while SSR is active %d, ignore failure", error,
-                is_ssr_active_);
-          error = kErrorNone;
+        } else if (error == kErrorHardware) {
+          if (is_ssr_active_) {
+            DLOGI("PowerOff returned %d while SSR is active %d, ignore failure", error,
+                  is_ssr_active_);
+            error = kErrorNone;
+          } else if (is_lsr_ssr_active_) {
+            DLOGI("PowerOff returned %d while SSR is active %d, ignore failure", error,
+                  is_lsr_ssr_active_);
+            error = kErrorNone;
+          }
         } else {
           return error;
         }

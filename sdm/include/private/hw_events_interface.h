@@ -58,6 +58,7 @@ enum HWEvent {
   VM_RELEASE_EVENT,
   VM_RECLAIM_EVENT,
   SSR,
+  LSR_SSR,
   HW_EVENT_MAX,
 };
 
