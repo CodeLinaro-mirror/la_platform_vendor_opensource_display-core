@@ -1020,22 +1020,44 @@ DisplayError DisplayBase::PrePrepare(LayerStack *layer_stack) {
   return error;
 }
 
+void DisplayBase::GetHDRLayerIndexForGPUTarget(LayerStack *layer_stack, uint32_t *layer_index) {
+  if (display_type_ != kPluggable && display_type_ != kVirtual) {
+    return;
+  }
+
+  uint32_t index = 0;
+  for (auto &layer : layer_stack->layers) {
+    if (layer->input_buffer.flags.hdr) {
+      *layer_index = index;
+      break;
+    }
+    index++;
+  }
+}
+
 DisplayError DisplayBase::ForceToneMapUpdate (LayerStack *layer_stack) {
   DTRACE_SCOPED();
   DisplayError error = kErrorNotSupported;
 
   for (auto& info : disp_layer_stack_->info) {
-    for (size_t hw_index = 0; hw_index < info.second.index.size(); hw_index++) {
-      size_t layer_index = info.second.index.at(hw_index);
+    for (uint32_t hw_index = 0; hw_index < info.second.index.size(); hw_index++) {
+      uint32_t layer_index = info.second.index.at(hw_index);
 
       if (layer_index >= layer_stack->layers.size()) {
         DLOGE("Error forcing TM update. Layer stack appears to have changed");
         return error;
       }
 
-      Layer *stack_layer = layer_stack->layers.at(layer_index);
       Layer &cached_layer = info.second.hw_layers.at(hw_index);
       HWLayerConfig &hw_config = info.second.config[hw_index];
+
+      if (cached_layer.composition == kCompositionGPUTarget &&
+          cached_layer.input_buffer.flags.hdr) {
+        // if cached gpu target has hdr, metadata needs to be updated from hdr layer for tonemap
+        GetHDRLayerIndexForGPUTarget(layer_stack, &layer_index);
+      }
+
+      Layer *stack_layer = layer_stack->layers.at(layer_index);
 
       cached_layer.input_buffer.hist_data = stack_layer->input_buffer.hist_data;
       cached_layer.input_buffer.dataspace = stack_layer->input_buffer.dataspace;
