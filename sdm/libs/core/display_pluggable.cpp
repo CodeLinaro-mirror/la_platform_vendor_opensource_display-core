@@ -178,7 +178,7 @@ DisplayError DisplayPluggable::Init() {
     int rc_prop_value = 0;
     Debug::GetProperty(ENABLE_ROUNDED_CORNER, &rc_prop_value);
 
-    if (rc_prop_value && EnableRC() && client_ctx_.hw_panel_info.is_rc_supported) {
+    if (rc_prop_value && client_ctx_.hw_panel_info.is_rc_supported && EnableRC()) {
       rc_enable_prop_ = true;
     }
   }
