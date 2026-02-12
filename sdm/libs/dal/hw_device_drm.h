@@ -224,6 +224,11 @@ class HWDeviceDRM : public HWInterface {
     return kErrorNotSupported;
   }
 
+  virtual DisplayError SetHdrCapabilities(const std::vector<Hdr> &hdr_types,
+                                          float max_avg_luminance, float min_luminance) {
+    return kErrorNotSupported;
+  }
+
   enum {
     kHWEventVSync,
     kHWEventBlank,

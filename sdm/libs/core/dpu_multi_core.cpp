@@ -1082,4 +1082,17 @@ bool DPUMultiCore::IsEPTSupported() {
   return ept_supported;
 }
 
+DisplayError DPUMultiCore::SetHdrCapabilities(const std::vector<Hdr> &hdr_types,
+                                              float max_avg_luminance, float min_luminance) {
+  for (auto hw_intf : hw_intf_) {
+    DisplayError error =
+        hw_intf.second->SetHdrCapabilities(hdr_types, max_avg_luminance, min_luminance);
+    if (error != kErrorNone) {
+      return error;
+    }
+  }
+
+  return kErrorNone;
+}
+
 }  // namespace sdm

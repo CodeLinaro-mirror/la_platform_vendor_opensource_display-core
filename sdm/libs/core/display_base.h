@@ -435,6 +435,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   uint32_t GetSelfRefreshRefCount();
   DisplayError ValidateExtendedDisplayResolutions(vector<pair<uint32_t, uint32_t>> ext_disp_res,
                                                   vector<pair<uint32_t, uint32_t>> *fin_disp_res);
+  void UpdateColorModes();
 
   DisplayMutex disp_mutex_;
   bool need_async_poweroff_wait_ = false;

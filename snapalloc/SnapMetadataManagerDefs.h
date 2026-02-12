@@ -106,6 +106,11 @@ struct SnapMetadata {
   vendor_qti_hardware_display_common_ThreeDimensionalRefInfo three_dimensional_ref_info;
   uint32_t viewId;
 };
+
+struct FrameMetadata {
+  vendor_qti_hardware_display_common_QtiDynamicMetadata dynamicMetadata;
+};
+
 }  // namespace snapalloc
 
 #endif  // __SNAP_METADATA_MANAGER_DEFS_H__

@@ -51,16 +51,15 @@ static DRMDppsManagerDummyImp dpps_dummy_mgr;
 
 DRMDppsManagerIntf* GetDppsManagerIntf()
 {
-#if (defined(__ANDROID__))
-    int disable_power_features = 0;
-    sdm::Debug::Get()->GetProperty(DISABLE_DPPS_FEATURES, \
-                          &disable_power_features);
+#if defined(__ANDROID__) || defined(SUPPORT_DPPS)
+  int disable_power_features = 0;
+  sdm::Debug::Get()->GetProperty(DISABLE_DPPS_FEATURES, &disable_power_features);
 
-    if (disable_power_features) {
-      return &dpps_dummy_mgr;
-    }
+  if (disable_power_features) {
+    return &dpps_dummy_mgr;
+  }
 
-    return &dpps_mgr;
+  return &dpps_mgr;
 #else
     return &dpps_dummy_mgr;
 #endif
