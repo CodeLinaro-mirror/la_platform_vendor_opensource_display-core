@@ -1186,7 +1186,8 @@ DisplayError SDMDisplay::SetPowerMode(SDMPowerMode mode, bool teardown) {
 
   PostPowerMode();
 
-  if (scheduled_dynamic_dsi_clk_ && mode == SDMPowerMode::POWER_MODE_ON) {
+  if (scheduled_dynamic_dsi_clk_ &&
+      (mode == SDMPowerMode::POWER_MODE_ON || mode == SDMPowerMode::POWER_MODE_DOZE)) {
     uint64_t dsi_clk = scheduled_dynamic_dsi_clk_;
     scheduled_dynamic_dsi_clk_ = 0;
     ScheduleDynamicDSIClock(dsi_clk);
@@ -3783,7 +3784,7 @@ DisplayError SDMDisplay::SetReadbackBuffer(void *buffer,
   CwbTapPoint &tap_point = config.tap_point;
 
   DisplayError error = kErrorNone;
-  error = display_intf_->CaptureCwb(output_buffer, config);
+  error = display_intf_->CaptureCwb(output_buffer, config, client);
   if (error) {
     if (error == kErrorParameters) {
       DLOGE("Invalid input parameter detected (display %d-%d)!", sdm_id_,
@@ -4431,6 +4432,10 @@ DisplayError SDMDisplay::ClearBuffersMappedToLayer(LayerId layer_id,
   for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
     Layer *layer = sdm_layer->GetSDMLayer();
     if (layer->layer_id == layer_id) {
+      if (!layer->buffer_map) {
+        // nothing to erase; just treat as already cleared
+        continue;
+      }
       auto it = layer->buffer_map->buffer_map.find(buffer_id);
       if (it != layer->buffer_map->buffer_map.end()) {
         DLOGV_IF(kTagClient, "Buffer_id %d exists in fbid buffermap of layer - %d.Erasing it.",

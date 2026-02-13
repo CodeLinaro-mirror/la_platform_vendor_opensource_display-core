@@ -236,6 +236,7 @@ Error SnapConstraintManager::GetAllocationData(
 
   bool ubwc_disabled_prop = debug_->IsUBWCDisabled();
   bool ubwc_enabled = !ubwc_disabled_prop && ubwc_policy_->IsUBWCAlloc(*out_desc);
+  bool used_adreno_for_size = false;
   SetSnapPrivateFlags(out_desc->format, out_desc->usage, ubwc_enabled, out_priv_flags);
   out_ad->uncached = UseUncached(out_desc->format, out_desc->usage, ubwc_enabled);
   vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
@@ -254,7 +255,8 @@ Error SnapConstraintManager::GetAllocationData(
       }
     }
     ubwc_caps_.version = ubwc_version;
-    err = ubwc_policy_->GetUBWCAlloc(*out_desc, cap_map, ubwc_caps_, out_ad, out_layout);
+    err = ubwc_policy_->GetUBWCAlloc(*out_desc, cap_map, ubwc_caps_, out_ad, out_layout,
+                                     &used_adreno_for_size);
   } else {
     if (ubwc_disabled_prop) {
       // Reset UBWC bit for UBWC disabled case
@@ -277,8 +279,11 @@ Error SnapConstraintManager::GetAllocationData(
 
   // Final buffer size must be aligned at minimum to page size
   auto align = GetDataAlignment(out_desc->format, out_desc->usage, pixel_format_modifier);
-  OVERFLOW_ERR_RETURN(ALIGN(out_ad->size, align), out_desc->layerCount, OverflowType::MUL);
-  out_ad->size = ALIGN(out_ad->size, align) * out_desc->layerCount;
+
+  if (!used_adreno_for_size) {
+    OVERFLOW_ERR_RETURN(ALIGN(out_ad->size, align), out_desc->layerCount, OverflowType::MUL);
+    out_ad->size = ALIGN(out_ad->size, align) * out_desc->layerCount;
+  }
   out_layout->size_in_bytes = out_ad->size;
 
   return err;

@@ -845,14 +845,7 @@ void ConcurrencyMgr::RegisterCompositorCallback(SDMCompositorCbIntf *cb, bool en
   vector<Display> pending_hotplugs;
 
   client_connected_ = enable;
-  if (!enable) {
-    DLOGI("Unregister AidlComposerClient's callback");
-    if (hpd_) {
-      hpd_->Deinit();
-      hpd_ = nullptr;
-    }
-
-  } else {
+  if (enable) {
     GetPendingHotplug(pending_hotplugs);
 
     if (sdm_display_[SDM_DISPLAY_PRIMARY]) {
@@ -1657,11 +1650,6 @@ ConcurrencyMgr::SetReadbackBuffer(uint64_t display, void *buffer,
   }
 
   if (display != SDM_DISPLAY_PRIMARY) {
-    return kErrorNotSupported;
-  }
-
-  int virtual_dpy_index = disp_->GetDisplayIndex(qdutilsDisplayType::DISPLAY_VIRTUAL);
-  if ((virtual_dpy_index != -1) && sdm_display_[virtual_dpy_index]) {
     return kErrorNotSupported;
   }
 
@@ -2690,7 +2678,7 @@ DisplayError ConcurrencyMgr::SetABCState(uint64_t display_id, bool state) {
     return kErrorResources;
   }
 
-  SCOPE_LOCK(locker_[disp_idx]);
+  SEQUENCE_WAIT_SCOPE_LOCK(locker_[disp_idx]);
   if (!sdm_display_[disp_idx]) {
     DLOGW("Display %" PRIu64 " is not connected.", display_id);
     return kErrorResources;
@@ -2706,7 +2694,7 @@ DisplayError ConcurrencyMgr::SetABCReconfig(uint64_t display_id) {
     return kErrorResources;
   }
 
-  SCOPE_LOCK(locker_[disp_idx]);
+  SEQUENCE_WAIT_SCOPE_LOCK(locker_[disp_idx]);
   if (!sdm_display_[disp_idx]) {
     DLOGW("Display %" PRIu64 " is not connected.", display_id);
     return kErrorResources;
@@ -2722,7 +2710,7 @@ DisplayError ConcurrencyMgr::SetABCMode(uint64_t display_id, string mode_name) {
     return kErrorResources;
   }
 
-  SCOPE_LOCK(locker_[disp_idx]);
+  SEQUENCE_WAIT_SCOPE_LOCK(locker_[disp_idx]);
   if (!sdm_display_[disp_idx]) {
     DLOGW("Display %" PRIu64 " is not connected.", display_id);
     return kErrorResources;

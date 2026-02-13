@@ -2143,7 +2143,8 @@ DisplayError DisplayBase::GetConfig(DisplayConfigFixedInfo *fixed_info) {
   fixed_info->hdr_eotf = client_ctx_.hw_panel_info.hdr_eotf;
   fixed_info->hdr_metadata_type_one = client_ctx_.hw_panel_info.hdr_metadata_type_one;
   fixed_info->partial_update = client_ctx_.hw_panel_info.partial_update;
-  fixed_info->readback_supported = has_concurrent_writeback;
+  fixed_info->readback_supported =
+      has_concurrent_writeback && !(kQuadSplit == client_ctx_.mixer_attributes.split_type);
   fixed_info->supports_unified_draw = unified_draw_supported_;
 
   return kErrorNone;
@@ -2400,8 +2401,10 @@ DisplayError DisplayBase::PostSetDisplayState(DisplayState state, bool active,
       if (state == kStateOn) {
         HandlePendingVSyncEnable(nullptr /* retire fence */);
       }
+      comp_manager_->SetDisplayState(display_comp_ctx_, state, sync_points);
+    } else if (first_cycle_) {
+      comp_manager_->SetDisplayState(display_comp_ctx_, state, sync_points);
     }
-    comp_manager_->SetDisplayState(display_comp_ctx_, state, sync_points);
     DLOGI("active %d-%d state %d-%d pending_power_state_ %d", active, active_, state, state_,
           pending_power_state_);
   }
@@ -4208,6 +4211,10 @@ DisplayError DisplayBase::ResetPendingPowerState(const shared_ptr<Fence> &retire
     state_ = pending_state;
     active_ = true;
 
+    if (!first_cycle_) {
+      comp_manager_->SetDisplayState(display_comp_ctx_, pending_state, sync_points);
+    }
+
     pending_power_state_ = kPowerStateNone;
   }
   return kErrorNone;
@@ -5259,8 +5266,16 @@ DisplayError DisplayBase::OnCwbValidation(const LayerBuffer &output_buffer, CwbC
   return kErrorNone;
 }
 
-DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config) {
+DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config,
+                                     const CWBClient &client) {
   ClientLock lock(disp_mutex_);
+
+  if (client == kCWBClientComposer) {
+    auto error = comp_manager_->CanTakeDPUScreenshot(display_comp_ctx_);
+    if (error == kErrorResources) {
+      return error;
+    }
+  }
 
   auto error = comp_manager_->CaptureCwb(display_comp_ctx_, output_buffer, config);
   if (error != kErrorNone) {
