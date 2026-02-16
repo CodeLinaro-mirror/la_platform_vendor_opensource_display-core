@@ -495,6 +495,7 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
   string ddr_version = "DDR version=";
   string ai_scaler_count = "ai_scaler_count=";
   string is_udc_supported = "is_udc_supported=";
+  string qrtc_count = "qrtc_count=";
 
   while (std::getline(stream, line)) {
     if (line.find(max_blendstages) != string::npos) {
@@ -625,6 +626,8 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
     } else if (line.find(abc_count) != string::npos) {
       crtc_info_.abc_count = std::stoi(string(line, abc_count.length()));
       crtc_info_.is_udc_supported = (crtc_info_.abc_count > 0) ? true : false;
+    } else if (line.find(qrtc_count) != string::npos) {
+      crtc_info_.qrtc_count = std::stoi(string(line, qrtc_count.length()));
     } else if (line.find(dspp_count) != string::npos) {
       crtc_info_.dspp_count = std::stoi(string(line, dspp_count.length()));
     } else if (line.find(skip_inline_rot_threshold) != string::npos) {

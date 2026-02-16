@@ -126,6 +126,8 @@ void DRMPanelFeatureMgr::Init(int fd, drmModeRes* res) {
   drm_property_map_[kDRMPanelFeatureAiqeCopr] = DRMProperty::SDE_DSPP_AIQE_COPR_V1;
   drm_property_map_[kDRMPanelFeatureABC] = DRMProperty::AIQE_ABC_V1;
   drm_property_map_[kDRMPanelFeatureDemuraBacklight] = DRMProperty::DEMURA_BACKLIGHT_V1;
+  drm_property_map_[kDRMPanelFeatureQrtcConfig] = DRMProperty::SDE_QRTC_CFG_V1;
+  drm_property_map_[kDRMPanelFeatureQrtcBufferConfig] = DRMProperty::SDE_QRTC_BUFFER_V1;
 
   drm_prop_type_map_[kDRMPanelFeatureDemuraResources] = DRMPropType::kPropBitmask;
   drm_prop_type_map_[kDRMPanelFeatureDemuraInit] = DRMPropType::kPropBlob;
@@ -149,6 +151,8 @@ void DRMPanelFeatureMgr::Init(int fd, drmModeRes* res) {
   drm_prop_type_map_[kDRMPanelFeatureAiqeCopr] = DRMPropType::kPropRange;
   drm_prop_type_map_[kDRMPanelFeatureABC] = DRMPropType::kPropRange;
   drm_prop_type_map_[kDRMPanelFeatureDemuraBacklight] = DRMPropType::kPropRange;
+  drm_prop_type_map_[kDRMPanelFeatureQrtcConfig] = DRMPropType::kPropBlob;
+  drm_prop_type_map_[kDRMPanelFeatureQrtcBufferConfig] = DRMPropType::kPropBlob;
 
   feature_info_tbl_[kDRMPanelFeatureDemuraResources] = DRMPanelFeatureInfo {
     kDRMPanelFeatureDemuraResources, DRM_MODE_OBJECT_CRTC, UINT32_MAX, 1, 0, 0};
@@ -331,6 +335,24 @@ int DRMPanelFeatureMgr::InitObjectProps(int obj_id, int obj_type) {
                               UINT32_MAX,
                               1,
                               sizeof(drm_msm_ai_scaler),
+                              0};
+    } else if (prop_enum == DRMProperty::SDE_QRTC_CFG_V1) {
+      drm_property_map_[kDRMPanelFeatureQrtcConfig] = DRMProperty::SDE_QRTC_CFG_V1;
+      feature_info_tbl_[kDRMPanelFeatureQrtcConfig] =
+          DRMPanelFeatureInfo{kDRMPanelFeatureQrtcConfig,
+                              DRM_MODE_OBJECT_CRTC,
+                              UINT32_MAX,
+                              1,
+                              sizeof(drm_msm_qrtc_config),
+                              0};
+    } else if (prop_enum == DRMProperty::SDE_QRTC_BUFFER_V1) {
+      drm_property_map_[kDRMPanelFeatureQrtcBufferConfig] = DRMProperty::SDE_QRTC_BUFFER_V1;
+      feature_info_tbl_[kDRMPanelFeatureQrtcBufferConfig] =
+          DRMPanelFeatureInfo{kDRMPanelFeatureQrtcBufferConfig,
+                              DRM_MODE_OBJECT_CRTC,
+                              UINT32_MAX,
+                              1,
+                              sizeof(drm_msm_qrtc_buffer),
                               0};
     }
 

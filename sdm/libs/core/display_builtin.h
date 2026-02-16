@@ -171,7 +171,7 @@ class DisplayIPCVmCallbackImpl : public IPCVmCallbackIntf {
   virtual ~DisplayIPCVmCallbackImpl() {}
 
  private:
-  BufferAllocator *buffer_allocator_ {};
+  BufferAllocator *buffer_allocator_{};
   int *cb_hnd_out_ = nullptr;
   std::shared_ptr<IPCIntf> ipc_intf_ = nullptr;
   BufferInfo buffer_info_hfc_ = {};
@@ -180,6 +180,19 @@ class DisplayIPCVmCallbackImpl : public IPCVmCallbackIntf {
   uint32_t hfc_buffer_width_ = 0;
   uint32_t hfc_buffer_height_ = 0;
   recursive_mutex cb_mutex_;
+};
+
+class QrtcScreenRefreshImp : public qrtc::QrtcScreenRefreshIntf {
+ public:
+  QrtcScreenRefreshImp(DisplayInterface *display_intf);
+  int TriggerUpdate();
+  int ScreenRefreshControl(bool enable);
+  virtual ~QrtcScreenRefreshImp();
+
+ private:
+  bool enabled_ = false;
+  DisplayInterface *display_intf_ = nullptr;
+  std::mutex lock_;
 };
 
 class DisplayBuiltIn : public DisplayBase,
@@ -256,6 +269,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError UpdateTransferTime(uint32_t transfer_time) override;
   DisplayError RetrieveDemuraTnFiles() override;
   DisplayError SetDemuraState(int state, int demura_idx) override;
+  DisplayError SetQrtcState(int state) override;
   DisplayError SetDemuraConfig(int demura_idx) override;
   DisplayError PerformCacConfig(CacConfig config, bool enable) override;
   bool IsCacV2Supported() override;
@@ -345,12 +359,15 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetupCorrectionLayer();
   DisplayError SetupDemuraLayer();
   DisplayError SetupABCLayer();
+  DisplayError SetupQrtcLayer();
   DisplayError SetupDemuraTn();
   DisplayError EnableDemuraTn(bool enable);
   DisplayError SetupDemuraT0AndTn();
   DisplayError SetupDemuraT0(int current_idx = kDemuraDefaultIdx);
   DisplayError SetupABCFeature();
   DisplayError SetupABC();
+  DisplayError SetupQrtc();
+  DisplayError SetupQrtcConfig();
   DisplayError SetDisplayStateForDemuraTn(DisplayState state);
   DisplayError BuildLayerStackStats(LayerStack *layer_stack) override;
   void UpdateDisplayModeParams();
@@ -368,6 +385,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetPartialUpdateControl(bool enable);
   DisplayError SetDppsFeatureLocked(void *payload, size_t size);
   DisplayError HandleDemuraLayer(LayerStack *layer_stack);
+  DisplayError HandleQrtcLayer(LayerStack *layer_stack);
   void NotifyDppsHdrPresent(LayerStack *layer_stack);
   bool IdleFallbackLowerFps(bool idle_screen);
   void HandleUpdateTransferTime(QSyncMode mode);
@@ -404,6 +422,8 @@ class DisplayBuiltIn : public DisplayBase,
   void PollLedDriver();
   void UpdateCalibration(DisplayState state);
   DisplayError SetIlluminationInternal(uint32_t eye, const IlluminationConfig &config);
+  DisplayError CreateDisplayEventProxyIntf(const std::string &panel_name, DisplayInterface *intf,
+                                           PanelFeaturePropertyIntf *prop_intf);
   DisplayError SetupRgbHistogram();
 
   const uint32_t kPuTimeOutMs = 1000;
@@ -503,6 +523,12 @@ class DisplayBuiltIn : public DisplayBase,
   bool double_buffer_codebook_supported_ = false;
   bool previous_frame_default_strategy_ = false;
   PrivacyRegionManager *privacy_region_mgr_ = nullptr;
+
+  bool qrtc_enabled_ = false;
+  std::shared_ptr<DisplayEventProxyIntf> event_proxy_intf_;
+  qrtc::QrtcScreenRefreshIntf *qrtc_refresh_intf_ = nullptr;
+  std::unique_ptr<qrtc::QrtcFeatureIntf> qrtc_ = nullptr;
+  std::vector<Layer> qrtc_layer_ = {};
 
   friend class PuSubjectIntfImpl;
   std::unique_ptr<PuSubjectIntf> pu_subject_ = nullptr;

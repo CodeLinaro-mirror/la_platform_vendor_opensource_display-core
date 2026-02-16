@@ -200,6 +200,9 @@
 
 // Panel Feature Qrtc Properties
 #define PANEL_FEATURE_RECT_MODE_SELECT       DISPLAY_PROP("panel_feature_rect_mode")
+#define ENABLE_QRTC                          DISPLAY_PROP("enable_qrtc")
+#define DISABLE_QRTC_PRIMARY                 DISPLAY_PROP("disable_qrtc_primary")
+#define DISABLE_QRTC_SECONDARY               DISPLAY_PROP("disable_qrtc_secondary")
 
 // PERF hint properties
 #define ENABLE_PERF_HINT_LARGE_COMP_CYCLE    DISPLAY_PROP("enable_perf_hint_large_comp_cycle")

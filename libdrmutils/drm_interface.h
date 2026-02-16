@@ -1063,6 +1063,7 @@ struct DRMCrtcInfo {
   uint64_t rc_total_mem_size = 0;
   uint32_t demura_count = 0;
   uint32_t abc_count = 0;
+  uint32_t qrtc_count = 0;
   uint32_t dspp_count = 0;
   bool skip_inline_rot_threshold = false;
   bool has_noise_layer = false;
@@ -1178,6 +1179,7 @@ struct DRMPlaneTypeInfo {
   bool block_sec_ui = false;
   int32_t pipe_idx = -1;
   int32_t demura_block_capability = -1;
+  int32_t qrtc_block_capability = -1;
   std::bitset<4> cac_mode;
   int32_t cac_parent_rect = -1;
 };
@@ -1473,6 +1475,8 @@ enum DRMPanelFeatureID {
   kDRMPanelFeatureAiqeCopr,
   kDRMPanelFeatureABC,
   kDRMPanelFeatureDemuraBacklight,
+  kDRMPanelFeatureQrtcConfig,
+  kDRMPanelFeatureQrtcBufferConfig,
   // This prop is used for user space only, it is not an actual drm property
   kDRMPanelFeatureDemuraDoubleBufferCbFlags,
   kDRMPanelFeatureDemuraBrgtInvAdjExpFlag,

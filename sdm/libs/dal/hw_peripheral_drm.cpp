@@ -1387,6 +1387,9 @@ void HWPeripheralDRM::CreatePanelFeaturePropertyMap() {
       sde_drm::kDRMPanelFeatureDemuraBrgtInvAdjExpFlag;
   panel_feature_property_map_[kPanelFeatureDemuraSupportSingleRecFlags] =
       sde_drm::kDRMPanelFeatureDemuraSupportSingleRecFlags;
+  panel_feature_property_map_[kPanelFeatureQrtcConfig] = sde_drm::kDRMPanelFeatureQrtcConfig;
+  panel_feature_property_map_[kPanelFeatureQrtcBufferConfig] =
+      sde_drm::kDRMPanelFeatureQrtcBufferConfig;
 }
 
 int HWPeripheralDRM::GetPanelFeature(PanelFeaturePropertyInfo *feature_info) {
@@ -1426,6 +1429,8 @@ int HWPeripheralDRM::GetPanelFeature(PanelFeaturePropertyInfo *feature_info) {
     case kPanelFeatureAiqeCopr:
     case kPanelFeatureABCCfg:
     case kPanelFeatureDemuraBacklight:
+    case kPanelFeatureQrtcConfig:
+    case kPanelFeatureQrtcBufferConfig:
       drm_feature.obj_type = DRM_MODE_OBJECT_CRTC;
       drm_feature.obj_id = token_.crtc_id;
       break;
@@ -1475,6 +1480,8 @@ int HWPeripheralDRM::SetPanelFeature(const PanelFeaturePropertyInfo &feature_inf
     case kPanelFeatureAiqeCopr:
     case kPanelFeatureABCCfg:
     case kPanelFeatureDemuraBacklight:
+    case kPanelFeatureQrtcConfig:
+    case kPanelFeatureQrtcBufferConfig:
       drm_feature.obj_type = DRM_MODE_OBJECT_CRTC;
       drm_feature.obj_id = token_.crtc_id;
       break;
