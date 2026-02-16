@@ -4187,6 +4187,13 @@ void HWDeviceDRM::ConfigureConcurrentWriteback(const HWLayersInfo &hw_layer_info
   } else if (has_cwb_crop_) {  // If CWB ROI feature is supported, then set WB connector's roi_v1
     // property to PU ROI and DST_* properties to CWB ROI. Else, set DST_* properties to full
     // frame ROI.
+
+    // To avoid driver error on downscale resource starvation, downscale rectangle configuration
+    // treats as CWB ROI configuration.
+    if (cwb_config->cwb_control_params.needs_downscale) {
+      cwb_config->cwb_roi = cwb_config->cwb_downscaled_rect;
+    }
+
     // Set WB connector's roi_v1 property to PU_ROI.
     if (is_full_frame_update) {
       drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_ROI, vitual_conn_id, 0, nullptr);

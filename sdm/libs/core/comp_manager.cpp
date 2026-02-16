@@ -1115,6 +1115,25 @@ DisplayError CompManager::CaptureCwb(Handle display_ctx, const LayerBuffer &outp
   return error;
 }
 
+DisplayError CompManager::ReserveWBForDisplay(Handle display_ctx, int32_t *wb_id) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+
+  DisplayCompositionContext *display_comp_ctx =
+      reinterpret_cast<DisplayCompositionContext *>(display_ctx);
+  DisplayError error = kErrorNone;
+  error = cwb_mgr_intf_->ReserveWBForDisplay(display_comp_ctx->display_id.GetDisplayId(), wb_id);
+  return error;
+}
+
+void CompManager::ReleaseWBFromDisplay(Handle display_ctx, int32_t wb_id) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+
+  DisplayCompositionContext *display_comp_ctx =
+      reinterpret_cast<DisplayCompositionContext *>(display_ctx);
+
+  cwb_mgr_intf_->ReleaseWBFromDisplay(display_comp_ctx->display_id.GetDisplayId(), wb_id);
+}
+
 void CompManager::NotifyCwbDone(int32_t display_id, int32_t status, const LayerBuffer &buffer) {
   if (callback_map_[display_id]) {
     callback_map_[display_id]->NotifyCwbDone(status, buffer);
