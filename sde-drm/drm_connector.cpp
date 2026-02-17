@@ -486,7 +486,8 @@ int DRMConnectorManager::Reserve(DRMDisplayType disp_type, DRMDisplayToken *toke
       uint32_t conn_type;
       conn.second->GetType(&conn_type);
       if ((disp_type == DRMDisplayType::PERIPHERAL &&
-           (conn_type == DRM_MODE_CONNECTOR_DSI || conn_type == DRM_MODE_CONNECTOR_eDP)) ||
+           (conn_type == DRM_MODE_CONNECTOR_DSI || conn_type == DRM_MODE_CONNECTOR_eDP ||
+            conn_type == DRM_MODE_CONNECTOR_SPI)) ||
           (disp_type == DRMDisplayType::VIRTUAL && conn_type == DRM_MODE_CONNECTOR_VIRTUAL) ||
           (disp_type == DRMDisplayType::TV && IsTVConnector(conn_type))) {
         if (conn.second->IsConnected()) {
@@ -550,7 +551,7 @@ int DRMConnectorManager::GetPreferredModeLMCounts(std::map<uint32_t, uint8_t> *l
     uint32_t conn_type;
     const uint32_t &id = conn.first;
     conn.second->GetType(&conn_type);
-    if (conn_type == DRM_MODE_CONNECTOR_DSI) {
+    if (conn_type == DRM_MODE_CONNECTOR_DSI || conn_type == DRM_MODE_CONNECTOR_SPI) {
       DRMConnectorInfo info = {};
       connector_pool_[id]->GetInfo(&info);
       uint8_t lm_cnt = 0;
@@ -711,7 +712,7 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
   const string dpu_dma_enabled = "dpu_dma_enabled=";
   const string emsync_switch_enabled = "emsync_switch_enabled=";
   const string privacy_layer_support = "privacy layer support=";
-
+  const string ext_bridge = "ext bridge hpd support=";
   while (std::getline(stream, line)) {
     if (line.find(pixel_formats) != string::npos) {
       vector<pair<uint32_t, uint64_t>> formats_supported;
@@ -781,6 +782,8 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
       info->emsync_switch_enabled = (string(line, emsync_switch_enabled.length()) == "true");
     } else if (line.find(privacy_layer_support) != string::npos) {
       info->is_privacy_layers_supported = (string(line, privacy_layer_support.length()) == "true");
+    } else if (line.find(ext_bridge) != string::npos) {
+      info->is_dsi_to_hdmi_bridge = (string(line, ext_bridge.length()) == "true");
     }
   }
 
@@ -1946,6 +1949,21 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       }
       uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::PRIVACY_REGIONS);
       sde_drm_privacy_layer_v1 *privacy_layers = va_arg(args, sde_drm_privacy_layer_v1 *);
+      int ret = drmModeAtomicAddProperty(req, obj_id, prop_id,
+                                         reinterpret_cast<uint64_t>(privacy_layers));
+      if (ret < 0) {
+        DLOGW("Failed to configure privacy layer to DRM");
+      }
+#endif
+    } break;
+
+    case DRMOps::CONNECTOR_SET_PRIVACY_REGIONS_V2: {
+#if defined(MAX_PRIVACY_LAYERS) && defined(PRIVACY_LAYERS_AREA_MODE)
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::PRIVACY_REGIONS_V2)) {
+        return;
+      }
+      uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::PRIVACY_REGIONS_V2);
+      sde_drm_privacy_layer_v2 *privacy_layers = va_arg(args, sde_drm_privacy_layer_v2 *);
       int ret = drmModeAtomicAddProperty(req, obj_id, prop_id,
                                          reinterpret_cast<uint64_t>(privacy_layers));
       if (ret < 0) {

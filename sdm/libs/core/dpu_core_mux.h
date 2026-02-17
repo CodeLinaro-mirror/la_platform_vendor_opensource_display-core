@@ -111,6 +111,8 @@ class DPUCoreMux {
                                    DisplayClientContext *client_ctx) = 0;
   virtual void SetSSRState(bool active) = 0;
   virtual bool IsEPTSupported() = 0;
+  virtual DisplayError SetHdrCapabilities(const std::vector<Hdr> &hdr_types,
+                                          float max_avg_luminance, float min_luminance) = 0;
 };
 
 }  // namespace sdm

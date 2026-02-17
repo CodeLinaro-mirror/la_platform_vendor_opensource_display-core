@@ -28,9 +28,10 @@
 */
 
 /*
-* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
-  SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include <errno.h>
 
@@ -51,9 +52,11 @@ mutex DRMResMgr::s_lock;
 static bool GetConnector(int dev_fd, drmModeRes *res, drmModeConnector **connector) {
   for (auto i = 0; i < res->count_connectors; i++) {
     drmModeConnector *conn = drmModeGetConnector(dev_fd, res->connectors[i]);
-    if (conn && (conn->connector_type == DRM_MODE_CONNECTOR_DSI ||
-                 conn->connector_type == DRM_MODE_CONNECTOR_eDP)
-        && conn->count_modes && conn->connection == DRM_MODE_CONNECTED) {
+    if (conn &&
+        (conn->connector_type == DRM_MODE_CONNECTOR_DSI ||
+         conn->connector_type == DRM_MODE_CONNECTOR_eDP ||
+         conn->connector_type == DRM_MODE_CONNECTOR_SPI) &&
+        conn->count_modes && conn->connection == DRM_MODE_CONNECTED) {
       *connector = conn;
       DRM_LOGI("Found connector %d", conn->connector_id);
       return true;

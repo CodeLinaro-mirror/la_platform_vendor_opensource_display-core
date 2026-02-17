@@ -28,9 +28,8 @@
 */
 
 /*
- * ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -343,6 +342,18 @@ class CoreInterface {
     @return \link DisplayError \endlink
   */
   virtual DisplayError RequestVirtualDisplayId(int32_t *vdisp_id) = 0;
+
+  /*! @brief Method to set the HDR capabilities of a given display type.
+
+    @param[in] display display ID
+    @param[in] hdr_types vector of hdr types supported by display
+    @param[in] max_avg_luminance maximum average luminance
+    @param[in] min_luminance minimum luminance
+
+    @return \link DisplayError \endlink
+  */
+  virtual void SetHdrCapabilities(Display display, const std::vector<Hdr> &hdr_types,
+                                  float max_avg_luminance, float min_luminance) = 0;
 
  protected:
   virtual ~CoreInterface() { }

@@ -59,7 +59,8 @@ class SnapAllocCore {
   Error ImportHandleLocked(SnapHandle *hnd);
   int GetPrivateFlags(vendor_qti_hardware_display_common_BufferUsage usage);
   Error AllocateBuffer(AllocData *ad, AllocData *m_data, unsigned custom_content_md_size,
-                       BufferDescriptor *desc, BufferDescriptor *out_desc, bool test_alloc);
+                       unsigned batch_mode_dyn_md_size, BufferDescriptor *desc,
+                       BufferDescriptor *out_desc, bool test_alloc);
 
   static std::mutex snapalloc_core_mutex_;
   static SnapAllocCore *instance_;

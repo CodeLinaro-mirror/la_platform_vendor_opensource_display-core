@@ -342,6 +342,48 @@ DisplayError HWVirtualDRM::Validate(HWLayersInfo *hw_layers_info) {
   return HWDeviceDRM::Validate(hw_layers_info);
 }
 
+void HWVirtualDRM::PopulateHWPanelInfo() {
+  hw_panel_info_ = {};
+
+  HWDeviceDRM::PopulateHWPanelInfo();
+  UpdateHWPanelHDRInfo();
+}
+
+void HWVirtualDRM::UpdateHWPanelHDRInfo() {
+  if (set_max_lum_ != -1.0 || set_min_lum_ != -1.0) {
+    hw_panel_info_.peak_luminance = set_max_lum_;
+    hw_panel_info_.blackness_level = set_min_lum_;
+    hw_panel_info_.average_luminance = hw_panel_info_.peak_luminance;
+  }
+
+  if (!set_hdr_types_.empty()) {
+    hw_panel_info_.hdr_enabled = true;
+    hw_panel_info_.hdr_eotf = kHdrEOTFSDR;
+
+    auto it = std::find(set_hdr_types_.begin(), set_hdr_types_.end(), Hdr::HDR10_PLUS);
+    if (it != set_hdr_types_.end()) {
+      hw_panel_info_.hdr_plus_enabled = true;
+      hw_panel_info_.hdr_eotf |= kHdrEOTFHDR10;
+    } else {
+      it = std::find(set_hdr_types_.begin(), set_hdr_types_.end(), Hdr::HDR10);
+      if (it != set_hdr_types_.end()) {
+        hw_panel_info_.hdr_eotf |= kHdrEOTFHDR10;
+      }
+    }
+
+    it = std::find(set_hdr_types_.begin(), set_hdr_types_.end(), Hdr::HLG);
+    if (it != set_hdr_types_.end()) {
+      hw_panel_info_.hdr_eotf |= kHdrEOTFHLG;
+    }
+  }
+
+  DLOGI("Virtual Panel: %s%s, eotf = %d, luminance[max = %f, min = %f, avg = %f]",
+        hw_panel_info_.hdr_enabled ? "HDR" : "Non-HDR",
+        hw_panel_info_.hdr_plus_enabled ? "10+" : "", hw_panel_info_.hdr_eotf,
+        hw_panel_info_.peak_luminance, hw_panel_info_.blackness_level,
+        hw_panel_info_.average_luminance);
+}
+
 DisplayError HWVirtualDRM::SetDisplayAttributes(const HWDisplayAttributes &display_attributes) {
   if (display_attributes.x_pixels == 0 || display_attributes.y_pixels == 0) {
     return kErrorParameters;
@@ -425,6 +467,16 @@ DisplayError HWVirtualDRM::GetDisplayIdentificationData(uint8_t *out_port, uint3
                                                         uint8_t *out_data) {
   *out_data_size = 0;
   *out_port = token_.hw_port;
+
+  return kErrorNone;
+}
+
+DisplayError HWVirtualDRM::SetHdrCapabilities(const std::vector<Hdr> &hdr_types,
+                                              float max_avg_luminance, float min_luminance) {
+  set_hdr_types_ = hdr_types;
+  set_max_lum_ = max_avg_luminance;
+  set_min_lum_ = min_luminance;
+  UpdateHWPanelHDRInfo();
 
   return kErrorNone;
 }

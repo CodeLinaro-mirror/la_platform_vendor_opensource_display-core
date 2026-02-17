@@ -263,6 +263,7 @@ struct FormatTraits {
   bool ubwc_supported;
   bool width_even;
   bool height_even;
+  bool camera_custom_format;
 };
 
 bool IsUbwcSupported(SnapPixelFormat format);
@@ -274,6 +275,7 @@ bool IsGpuDepthStencil(SnapPixelFormat format);
 bool CheckWidthConstraints(SnapPixelFormat format, int width);
 bool CheckHeightConstraints(SnapPixelFormat format, int height);
 bool IsCameraCustomFormat(SnapPixelFormat format, SnapPixelFormatModifier modifier);
+int GetBatchSize(SnapPixelFormatModifier modifier);
 
 #define QTI_VT_TIMESTAMP 10000
 #define IS_VENDOR_METADATA_TYPE(x) (x >= QTI_VT_TIMESTAMP)

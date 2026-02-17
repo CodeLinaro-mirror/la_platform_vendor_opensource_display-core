@@ -81,10 +81,12 @@ class DisplayVirtual : public DisplayBase {
  public:
   DisplayVirtual(DisplayEventHandler *event_handler,
                  sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> hw_info_intf,
-                 BufferAllocator *buffer_allocator, CompManager *comp_manager);
+                 BufferAllocator *buffer_allocator, CompManager *comp_manager,
+                 const std::vector<Hdr> &hdr_types, float max_lum, float min_lum);
   DisplayVirtual(DisplayId display_id, DisplayEventHandler *event_handler,
                  sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> hw_info_intf,
-                 BufferAllocator *buffer_allocator, CompManager *comp_manager);
+                 BufferAllocator *buffer_allocator, CompManager *comp_manager,
+                 const std::vector<Hdr> &hdr_types, float max_lum, float min_lum);
   virtual DisplayError Init();
   virtual DisplayError Deinit();
   virtual DisplayError Prepare(LayerStack *layer_stack);
@@ -131,9 +133,13 @@ class DisplayVirtual : public DisplayBase {
   virtual DisplayError GetColorModeAttr(const std::string &color_mode, AttrVal *attr);
   virtual DisplayError SetColorMode(const std::string &color_mode);
 
- protected:
-  float set_max_lum_ = -1.0;
-  float set_min_lum_ = -1.0;
+ private:
+  DisplayError SetHdrCapabilities(const std::vector<Hdr> &hdr_types, float max_avg_luminance,
+                                  float min_luminance);
+
+  std::vector<Hdr> hdr_types_ = {};
+  float max_lum_ = -1.0;
+  float min_lum_ = -1.0;
 };
 
 }  // namespace sdm

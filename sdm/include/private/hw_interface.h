@@ -233,6 +233,8 @@ class HWInterface {
   virtual DisplayError SetIllumination(uint32_t eye, const IlluminationConfig &config) = 0;
   virtual DisplayError SetPixelShift(uint32_t eye, const PixelShiftConfig &config) = 0;
   virtual DisplayError IsLedDriverUp(bool *is_led_driver_up) = 0;
+  virtual DisplayError SetHdrCapabilities(const std::vector<Hdr> &hdr_types,
+                                          float max_avg_luminance, float min_luminance) = 0;
 
  protected:
   virtual ~HWInterface() { }

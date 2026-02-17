@@ -438,6 +438,8 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                                   int32_t *out_types, float *out_max_luminance,
                                   float *out_max_average_luminance,
                                   float *out_min_luminance);
+  DisplayError SetHdrCapabilities(Display display, const std::vector<Hdr> &hdr_types,
+                                  float max_avg_luminance, float min_luminance);
   DisplayError GetDisplayName(Display display, uint32_t *out_size,
                               char *out_name);
   DisplayError SetActiveConfig(Display display, int32_t config);

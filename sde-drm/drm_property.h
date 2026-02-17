@@ -318,6 +318,7 @@ enum struct DRMProperty {
   REPROJ_MIN_BBOX_W,
   REPROJ_MIN_BBOX_H,
   LSR_MODE,
+  PRIVACY_REGIONS_V2,
 
   // Insert above
   MAX

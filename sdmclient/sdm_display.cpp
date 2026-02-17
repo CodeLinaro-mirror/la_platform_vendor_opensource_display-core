@@ -4463,8 +4463,7 @@ void SDMDisplay::SetPrivacyRegionsData(uint32_t layer_id, float corner_radius,
 
   CornerRadius radius = {corner_radius, corner_radius};
   const auto layer = map_layer->second;
-  DLOGI("Set PrivacyRegions data on Layer %d", layer_id);
-  layer->SetLayerPrivacyRegions(privacy_regions);
+  layer->SetLayerPrivacyRegions(privacy_regions, sdm_layer_stack_->privacy_region_mode);
   layer->SetLayerCornerRadius(radius);
 }
 

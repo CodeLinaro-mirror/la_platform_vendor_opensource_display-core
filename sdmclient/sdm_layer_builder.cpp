@@ -35,8 +35,15 @@ DisplayError SDMLayerBuilder::Init(BufferAllocator *buffer_allocator,
   Debug::Get()->GetProperty(DISABLE_LLCBC_SUPPORT_PROP, &prop_value);
   SDMLayer::SetAutoLayerIdCreation(!!prop_value);
 
+  prop_value = 0;
+  Debug::Get()->GetProperty(ENABLE_PRIVACY_LAYERS, &prop_value);
+  privacy_region_mode_ = (prop_value == 1)   ? PrivacyRegionMode::LAYER
+                         : (prop_value == 2) ? PrivacyRegionMode::AREA
+                                             : PrivacyRegionMode::PR_NONE;
+
   // initialize layer stack
   display_layer_stack_[display_id];
+  display_layer_stack_[display_id].privacy_region_mode = privacy_region_mode_;
 
   return kErrorNone;
 }
@@ -144,6 +151,9 @@ DisplayError SDMLayerBuilder::CreateLayer(uint64_t display_id,
     }
     layer = new SDMLayer(display_id, layer_id, buffer_allocator_);
   } else {
+    // If execution comes here, means composer has to create layer ID, auto ID creation
+    // must be enabled.
+    SDMLayer::SetAutoLayerIdCreation(true);
     layer = new SDMLayer(display_id, buffer_allocator_);
   }
 
@@ -444,7 +454,7 @@ DisplayError SDMLayerBuilder::SetLayerPrivacyRegions(
     return kErrorNotSupported;
   }
 
-  return sdm_layer->SetLayerPrivacyRegions(privacy_regions);
+  return sdm_layer->SetLayerPrivacyRegions(privacy_regions, privacy_region_mode_);
 }
 DisplayError SDMLayerBuilder::SetLayerCornerRadius(uint64_t display, int64_t layer,
                                                    CornerRadius corner_radius) {
