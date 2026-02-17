@@ -1464,6 +1464,7 @@ enum DRMPanelFeatureID {
   kDRMPanelFeatureDemuraBacklight,
   // This prop is used for user space only, it is not an actual drm property
   kDRMPanelFeatureDemuraDoubleBufferCbFlags,
+  kDRMPanelFeatureDemuraBrgtInvAdjExpFlag,
   kDRMPanelFeatureMax,
 };
 
