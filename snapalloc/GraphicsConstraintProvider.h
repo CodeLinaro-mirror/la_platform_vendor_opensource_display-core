@@ -406,6 +406,18 @@ class GraphicsConstraintProvider : public SnapConstraintProvider {
           {{.format = vendor_qti_hardware_display_common_PixelFormat::TP10,
             .modifier = PIXEL_FORMAT_MODIFIER_UBWC_FLEX_8_BATCH},
            ADRENO_PIXELFORMAT_TP10},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_P210,
+            .modifier = PIXEL_FORMAT_MODIFIER_UBWC_FLEX},
+           ADRENO_PIXELFORMAT_P210},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_P210,
+            .modifier = PIXEL_FORMAT_MODIFIER_UBWC_FLEX_2_BATCH},
+           ADRENO_PIXELFORMAT_P210},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_P210,
+            .modifier = PIXEL_FORMAT_MODIFIER_UBWC_FLEX_4_BATCH},
+           ADRENO_PIXELFORMAT_P210},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_P210,
+            .modifier = PIXEL_FORMAT_MODIFIER_UBWC_FLEX_8_BATCH},
+           ADRENO_PIXELFORMAT_P210},
       };
 };
 }  // namespace snapalloc
