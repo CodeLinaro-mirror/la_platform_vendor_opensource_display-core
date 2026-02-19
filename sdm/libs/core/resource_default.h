@@ -150,6 +150,10 @@ class ResourceDefault : public ResourceInterface {
     return kErrorNone;
   }
   virtual DisplayError CanTakeDPUScreenshot(uint32_t display_id) { return kErrorNone; };
+  virtual DisplayError ConfigureDynamicCaCConfig(Handle display_ctx,
+                                                 DispLayerStack *disp_layer_stack) {
+    return kErrorNone;
+  }
 
  private:
   enum PipeOwner {

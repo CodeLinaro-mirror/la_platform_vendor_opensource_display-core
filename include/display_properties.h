@@ -337,6 +337,8 @@
 
 // Enable RGB Histogram
 #define ENABLE_RGB_HISTOGRAM              DISPLAY_PROP("enable_rgb_histogram")
+// Enable Dynamic CAC
+#define DYNAMIC_CAC_FILE_PATH             DISPLAY_PROP("dynamic_cac_file_path")
 
 // Enable composer driven HDCP path
 #define COMPOSER_DRIVEN_HDCP              DISPLAY_PROP("composer_driven_hdcp")

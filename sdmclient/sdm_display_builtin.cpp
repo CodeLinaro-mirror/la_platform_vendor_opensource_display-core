@@ -1774,6 +1774,7 @@ DisplayError SDMDisplayBuiltIn::IsCacV2Supported(bool *supported) {
 }
 
 DisplayError SDMDisplayBuiltIn::PerformCacConfig(CacConfig config, bool enable) {
+  DTRACE_SCOPED();
   DLOGV("Display ID: %" PRId64 " cac_enable: %d", id_, enable);
   DisplayError error = display_intf_->PerformCacConfig(config, enable);
 
@@ -1796,6 +1797,19 @@ DisplayError SDMDisplayBuiltIn::SetDemuraState(int state, int demura_idx) {
   callbacks_->OnRefresh(id_);
 
   return kErrorNone;
+}
+
+DisplayError SDMDisplayBuiltIn::PerformDynamicCac(DynamicCacV2Config config, bool enable) {
+  DTRACE_SCOPED();
+  DLOGV("Display ID: %" PRId64 " cac_enable: %d", id_, enable);
+
+  DisplayError error = display_intf_->SetDynamicCacConfig(config, enable);
+  if (error != kErrorNone) {
+    DLOGE("Failed to set dynamic CAC Config: %d error = %d", enable, error);
+    return error;
+  }
+
+  return error;
 }
 
 DisplayError SDMDisplayBuiltIn::SetDemuraConfig(int demura_idx) {

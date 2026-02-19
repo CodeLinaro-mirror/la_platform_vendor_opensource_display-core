@@ -633,6 +633,9 @@ private:
   DisplayError PerformCacConfig(uint64_t disp_id, CacConfig cac_config, bool enable) {
     return CallDisplayFunction(disp_id, &SDMDisplay::PerformCacConfig, cac_config, enable);
   }
+  DisplayError PerformDynamicCac(uint64_t disp_id, DynamicCacV2Config cac_config, bool enable) {
+    return CallDisplayFunction(disp_id, &SDMDisplay::PerformDynamicCac, cac_config, enable);
+  }
   // Internal methods
   void HandleSecureSession();
   void HandlePendingPowerMode(Display display,

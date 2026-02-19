@@ -123,6 +123,7 @@ enum DisplayError {
   kErrorNeedsQosRecalc,   //!< QoS data recalculation is needed for this draw cycle.
   kErrorNeedsQosRecalcAndLutRegen,  //!< QoS data recalculation and Tonemapping LUT regen is needed
                                     //   for this draw cycle.
+  kErrorNeedsDynamicCac,  //!< Configure dynamic CAC.
   kSeamlessNotAllowed,    //!< Seemless switch between configs not allowed.
   kErrorDeviceBusy,       //!< Device is currently busy with other tasks.
   kErrorTryAgain,         //!< Try the task again.
