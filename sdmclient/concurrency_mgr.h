@@ -667,6 +667,7 @@ private:
   DisplayError TUIEventHandler(uint64_t disp_id, SDMTUIEventType event_type);
   void GetPendingHotplug(vector<Display> &pending_hotplugs);
   bool IsEPTSupported();
+  void SendFeatenablerCommand(FeatenablerCommand cmd);
 
   CoreInterface *core_intf_ = nullptr;
   SDMCompositorCallbacks callbacks_{};
