@@ -731,8 +731,8 @@
                                             "component_type": "Y"
                                         }
                                     ],
-                                    "horiz_stride_align_bytes": 64,
-                                    "scanline_align": 64,
+                                    "horiz_stride_align_bytes": 128,
+                                    "scanline_align": 32,
                                     "size_align_bytes": 4096
                                 },
                                 {
@@ -745,7 +745,7 @@
                                         }
                                     ],
                                     "horiz_stride_align_bytes": 64,
-                                    "scanline_align": 64,
+                                    "scanline_align": 32,
                                     "size_align_bytes": 4096
                                 }
                             ]
