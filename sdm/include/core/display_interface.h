@@ -148,6 +148,7 @@ enum DisplayPort {
   kPortLVDS,       // Display is connected to LVDS port
   kPortEDP,        // Display is connected to EDP port
   kPortDP,         // Display is connected to DP port.
+  kPortSPI,        // Display is connected to SPI.
 };
 
 /*! @brief This enum represents the events received by Display HAL. */
