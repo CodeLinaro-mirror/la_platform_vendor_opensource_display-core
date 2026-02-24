@@ -591,6 +591,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   std::chrono::system_clock::time_point WaitUntilForSelfRefresh(uint64_t *srEPT);
   DisplayError HandleCommitDuringSSR();
   bool IsPrimaryCommitNeeded();
+  void GetHDRLayerIndexForGPUTarget(LayerStack *layer_stack, uint32_t *layer_index);
 
   unsigned int rc_cached_res_width_ = 0;
   unsigned int rc_cached_res_height_ = 0;
