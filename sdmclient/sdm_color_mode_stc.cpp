@@ -86,6 +86,7 @@ SDMColorModeStc::SDMColorModeStc(DisplayInterface *display_intf)
     : SDMColorModeMgr(display_intf) {}
 
 DisplayError SDMColorModeStc::Init() {
+  int prop = 0;
   DisplayError error = display_intf_->GetStcColorModes(&stc_mode_list_);
   if (error != kErrorNone) {
     DLOGW("Failed to get Stc color modes, error %d", error);
@@ -95,6 +96,10 @@ DisplayError SDMColorModeStc::Init() {
   }
 
   PopulateColorModes();
+  if (Debug::Get()->GetProperty(FORCE_SRGB_TO_P3, &prop) == kErrorNone) {
+    force_srgb_to_p3_ = (prop == 1);
+  }
+
   return kErrorNone;
 }
 
@@ -280,6 +285,10 @@ DisplayError SDMColorModeStc::SetColorTransform(const float *matrix, SDMColorTra
 DisplayError
 SDMColorModeStc::CacheColorModeWithRenderIntent(SDMColorMode mode,
                                                 SDMRenderIntent intent) {
+  if (force_srgb_to_p3_ && (mode == COLOR_MODE_SRGB)) {
+    mode = COLOR_MODE_DISPLAY_P3;
+  }
+
   if (current_color_mode_ == mode && current_render_intent_ == intent) {
     return kErrorNone;
   }
