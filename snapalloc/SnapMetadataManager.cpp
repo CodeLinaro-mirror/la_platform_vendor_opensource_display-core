@@ -286,6 +286,21 @@ Error SnapMetadataManager::ViewIdHelper(SnapMetadata *metadata, SnapHandleIntern
   return Error::BAD_VALUE;
 }
 
+Error SnapMetadataManager::CWBMetadataHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                                             void *in_set, void *out_get,
+                                             BufferDescriptor *buf_des) {
+  if (out_get != nullptr) {
+    *static_cast<vendor_qti_hardware_display_common_cwb_metadata *>(out_get) =
+        metadata->cwb_metadata;
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    metadata->cwb_metadata =
+        *static_cast<vendor_qti_hardware_display_common_cwb_metadata *>(in_set);
+    return Error::NONE;
+  }
+  return Error::BAD_VALUE;
+}
+
 Error SnapMetadataManager::ProtectedContentHelper(SnapMetadata *metadata,
                                                   SnapHandleInternal *handle, void *in_set,
                                                   void *out_get, BufferDescriptor *buf_des) {
