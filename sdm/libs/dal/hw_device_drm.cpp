@@ -1904,6 +1904,7 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
     // Used in 1 cases:
     // 1. Since driver doesnt clear the SSPP luts during the adb shell stop/start, clear once
     drm_atomic_intf_->Perform(sde_drm::DRMOps::PLANES_RESET_LUT, token_.crtc_id);
+    reset_planes_luts_ = false;
   }
 
   if (enable_brightness_drm_prop_ && cached_brightness_level_ != -1) {
@@ -2693,7 +2694,6 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
   }
 
   panel_compression_changed_ = 0;
-  reset_planes_luts_ = false;
   first_cycle_ = false;
   pending_power_state_ = kPowerStateNone;
   pending_cwb_teardown_ = false;
