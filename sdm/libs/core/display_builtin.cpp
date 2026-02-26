@@ -1416,6 +1416,10 @@ DisplayError DisplayBuiltIn::ValidateDemuraLicense() {
   } else {
     demuratn_allowed_ = *allowed;
   }
+
+  // close featenabler TA reference
+  GenericPayload in, out;
+  feat_license_intf_->ProcessOps(kCloseFeatenabler, in, &out);
 #endif
 
   DLOGI("Demura enable allowed %d, Anti-aging enable allowed %d", demura_allowed_,
