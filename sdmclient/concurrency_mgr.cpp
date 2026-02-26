@@ -791,16 +791,6 @@ void ConcurrencyMgr::GetPendingHotplug(vector<Display> &pending_hotplugs) {
   }
 }
 
-void ConcurrencyMgr::GetSdmId(int64_t clientId, int64_t &sdmID) {
-  if (clientId < 0 || clientId >= kNumDisplays || (sdm_display_[clientId] == nullptr)) {
-    // display may come as -1  from VTS test case
-    DLOGW("Invalid Display %d ", UINT32(clientId));
-    return;
-  }
-
-  sdmID = sdm_display_[clientId]->GetSdmId();
-}
-
 void ConcurrencyMgr::RegisterCompositorCallback(SDMCompositorCbIntf *cb, bool enable) {
   SCOPE_LOCK(client_lock_);
   callbacks_.RegisterCallback(cb, enable);
