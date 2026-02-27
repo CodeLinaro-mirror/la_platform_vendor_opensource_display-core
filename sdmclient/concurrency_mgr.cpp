@@ -1820,7 +1820,12 @@ DisplayError ConcurrencyMgr::GetDisplayConnectionType(Display display,
     DLOGW("Expected valid sdm_display");
     return kErrorParameters;
   }
-  *type = sdm_display_[display]->GetDisplayClass();
+
+  if (display == SDM_DISPLAY_PRIMARY) {
+    *type = DISPLAY_CLASS_BUILTIN;
+  } else {
+    *type = sdm_display_[display]->GetDisplayClass();
+  }
 
   return kErrorNone;
 }
