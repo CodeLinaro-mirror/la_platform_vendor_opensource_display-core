@@ -409,6 +409,7 @@ enum DDRVersion {
   kDDRVersion4,
   kDDRVersion5,
   kDDRVersion5x,
+  kDDRVersion6,
 };
 
 struct InlineRotationInfo {

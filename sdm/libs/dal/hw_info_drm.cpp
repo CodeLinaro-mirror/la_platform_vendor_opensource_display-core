@@ -403,6 +403,8 @@ void HWInfoDRM::GetSystemInfo(HWResourceInfo *hw_resource) {
     hw_resource->ddr_version = kDDRVersion5;
   } else if (info.ddr_version == sde_drm::DDRVersion::kDDRVersion5x) {
     hw_resource->ddr_version = kDDRVersion5x;
+  } else if (info.ddr_version == sde_drm::DDRVersion::kDDRVersion6) {
+    hw_resource->ddr_version = kDDRVersion6;
   } else {
     hw_resource->ddr_version = kDDRVersionNone;
   }
