@@ -1325,6 +1325,10 @@ enum SSREventType {
   kSSREnd = 1,
 };
 
+enum LSR_SSREventType {
+  kLSR_SSRStart = 0,
+  kLSR_SSREnd = 1,
+};
 #define CONN_ID_SIZE 24
 #define CONN_1_SHIFT_BITS 12
 #define CONN_BIT_MASK 0x000FFFFFF
