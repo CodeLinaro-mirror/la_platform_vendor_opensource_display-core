@@ -198,6 +198,9 @@
 #define ANTI_AGING_DISABLE_CWB_DOWNSCALING_PRIMARY    DISPLAY_PROP("antiaging_disable_cwb_downscaling_primary")
 #define ANTI_AGING_DISABLE_CWB_DOWNSCALING_SECONDARY  DISPLAY_PROP("antiaging_disable_cwb_downscaling_secondary")
 
+// Panel Feature Qrtc Properties
+#define PANEL_FEATURE_RECT_MODE_SELECT       DISPLAY_PROP("panel_feature_rect_mode")
+
 // PERF hint properties
 #define ENABLE_PERF_HINT_LARGE_COMP_CYCLE    DISPLAY_PROP("enable_perf_hint_large_comp_cycle")
 #define LARGE_COMP_HINT_THRESHOLD            DISPLAY_PROP("large_comp_hint_threshold")
