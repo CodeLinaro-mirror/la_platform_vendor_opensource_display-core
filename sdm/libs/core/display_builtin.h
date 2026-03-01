@@ -323,6 +323,7 @@ class DisplayBuiltIn : public DisplayBase,
   void HandleVmReclaimEvent() override;
   void GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) override;
   bool IsPrimaryDisplay() override;
+  void UpdateFrameBufferForCWB() override;
   DisplayError GetPanelBrightnessBasePath(std::string *base_path) override;
   void HandleSSREvent(SSREventType ssr_event) override;
   void HandleLSR_SSREvent(LSR_SSREventType lsr_ssr_event) override;
@@ -413,6 +414,8 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetDemuraTnAodHandlerCtrl(void *data);
   DisplayError SetDemuraTnAgingSurfTransfer(void *data);
   DisplayError SwitchToDAC(void *data);
+  void AppendCWBLayerWithFBT(LayerStack *layer_stack);
+  void UpdateCWBLayer(LayerBuffer &layer_buffer);
   void ClearDemuraMultiCfgParsers();
   int StartVmFileServiceAndExportFiles();
   int CreateServiceManager();
@@ -525,6 +528,10 @@ class DisplayBuiltIn : public DisplayBase,
   VmFileXferClientFactIntfExtn *factory_extn_ = nullptr;
   std::shared_ptr<FeatureLicenseIntf> feat_license_intf_ = nullptr;
   bool hfi_path_supported_ = false;
+  bool disable_fbt_for_cwb_fallback_ = false;
+  LayerBuffer prev_framebuffer_ = {};
+  LayerBuffer curr_framebuffer_ = {};
+  bool is_wb_ubwc_supported_ = true;
   bool double_buffer_codebook_supported_ = false;
   bool previous_frame_default_strategy_ = false;
   PrivacyRegionManager *privacy_region_mgr_ = nullptr;

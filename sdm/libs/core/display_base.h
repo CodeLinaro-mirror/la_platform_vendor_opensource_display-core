@@ -446,6 +446,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   DisplayError DisableDestinationScalar();
   void SetSelfRefreshRefCount(uint32_t sr_ref_count);
   uint32_t GetSelfRefreshRefCount();
+  bool IsFrameBufferPresent();
+  virtual void UpdateFrameBufferForCWB() {}
   DisplayError ValidateExtendedDisplayResolutions(vector<pair<uint32_t, uint32_t>> ext_disp_res,
                                                   vector<pair<uint32_t, uint32_t>> *fin_disp_res);
   void UpdateColorModes();
