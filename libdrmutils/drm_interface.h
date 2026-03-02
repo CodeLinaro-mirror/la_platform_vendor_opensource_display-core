@@ -1002,6 +1002,7 @@ enum struct DDRVersion {
   kDDRVersion4,
   kDDRVersion5,
   kDDRVersion5x,
+  kDDRVersion6,
 };
 
 /* Type for panel feature resource reservation info */
@@ -1464,6 +1465,7 @@ enum DRMPanelFeatureID {
   kDRMPanelFeatureDemuraBacklight,
   // This prop is used for user space only, it is not an actual drm property
   kDRMPanelFeatureDemuraDoubleBufferCbFlags,
+  kDRMPanelFeatureDemuraBrgtInvAdjExpFlag,
   kDRMPanelFeatureMax,
 };
 

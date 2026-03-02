@@ -51,6 +51,11 @@ enum HWScanSupport {
   kScanBoth,
 };
 
+enum HWSSRType {
+  kSSR,    // Standard full subsystem restart
+  kSSRLsr  // Late Stage Reprojection subsystem restart
+};
+
 struct HWScanInfo {
   HWScanSupport pt_scan_support;    // Scan support for preferred timing
   HWScanSupport it_scan_support;    // Scan support for digital monitor or industry timings
@@ -139,6 +144,7 @@ class HWEventHandler {
   virtual bool IsPrimaryDisplay() = 0;
   virtual DisplayError GetPanelBrightnessBasePath(std::string *base_path) = 0;
   virtual void HandleSSREvent(SSREventType ssr_event) = 0;
+  virtual void HandleLSR_SSREvent(LSR_SSREventType lsr_ssr_event) = 0;
 
  protected:
   virtual ~HWEventHandler() { }
@@ -228,7 +234,7 @@ class HWInterface {
   virtual DisplayError SetDisplayDeviceConfig(SDMDisplayDeviceConfig sdm_display_device_config) = 0;
   virtual DisplayError SetReprojectionConfig(
       const struct ReprojectionConfig &reprojection_config) = 0;
-  virtual void SetSSRState(bool active) = 0;
+  virtual void SetSSRState(bool active, HWSSRType type = kSSR) = 0;
   virtual bool IsEPTSupported() = 0;
   virtual DisplayError SetIllumination(uint32_t eye, const IlluminationConfig &config) = 0;
   virtual DisplayError SetPixelShift(uint32_t eye, const PixelShiftConfig &config) = 0;

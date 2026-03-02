@@ -238,6 +238,7 @@ const char* GetSocName() {
     case kNiobeSocId2:
       return kNiobeSocName;
     case kCanoeSocId:
+    case kAlorSocId:
     case kCanoeSocId1:
     case kCanoeSocId2:
     case kCanoeSocId3:
@@ -253,6 +254,8 @@ const char* GetSocName() {
     case kShikraSocId2:
     case kShikraSocId3:
       return kShikraSocName;
+    case kHamoaSocId:
+      return kHamoaSocName;
     default:
       return "";
   }
