@@ -73,9 +73,8 @@ DisplayError SDMDisplayVirtualGPU::Deinit() {
 
   delete client_target_;
 
-  for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
-    delete sdm_layer;
-  }
+  layer_builder_->DeInit(id_);
+  layer_builder_ = nullptr;
 
   return kErrorNone;
 }

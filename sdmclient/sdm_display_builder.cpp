@@ -103,8 +103,8 @@ bool SDMDisplayBuilder::HasHDRSupport(SDMDisplay *sdm_display) {
   return (out_num_types > 0);
 }
 
-int32_t SDMDisplayBuilder::GetVirtualDisplayId(HWDisplayInfo& info) {
-  for (auto& map_info : map_info_virtual_) {
+int32_t SDMDisplayBuilder::GetVirtualDisplayId(HWDisplayInfo &info) {
+  for (auto &map_info : map_info_virtual_) {
     if (map_info.sdm_id == info.display_id) {
       return -1;
     }
@@ -445,7 +445,7 @@ void SDMDisplayBuilder::GetVirtualDisplayList() {
   }
 }
 
-void SDMDisplayBuilder::AddGpuBasedVirtualDisplay(const HWDisplaysInfo* const hw_displays_info) {
+void SDMDisplayBuilder::AddGpuBasedVirtualDisplay(const HWDisplaysInfo *const hw_displays_info) {
   HWDisplayInfo hw_info = {};
   hw_info.display_type = kVirtual;
   hw_info.is_connected = true;
