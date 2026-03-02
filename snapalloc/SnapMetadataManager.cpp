@@ -921,6 +921,21 @@ Error SnapMetadataManager::CustomContentMetadataHelper(SnapMetadata *metadata,
   return Error::BAD_VALUE;
 }
 
+Error SnapMetadataManager::CustomTuningMetadataHelper(SnapMetadata *metadata,
+                                                      SnapHandleInternal *handle, void *in_set,
+                                                      void *out_get, BufferDescriptor *buf_des) {
+  if (out_get != nullptr) {
+    *static_cast<vendor_qti_hardware_display_common_CustomTuningMetadata *>(out_get) =
+        metadata->custom_tuning_metadata;
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    metadata->custom_tuning_metadata =
+        *static_cast<vendor_qti_hardware_display_common_CustomTuningMetadata *>(in_set);
+    return Error::NONE;
+  }
+  return Error::BAD_VALUE;
+}
+
 Error SnapMetadataManager::SMPTE2094_10Helper(SnapMetadata *metadata, SnapHandleInternal *handle,
                                               void *in_set, void *out_get,
                                               BufferDescriptor *buf_des) {
@@ -1719,6 +1734,9 @@ Error SnapMetadataManager::Set(SnapHandleInternal *hnd,
         break;
       case vendor_qti_hardware_display_common_MetadataType::ROI_RECT_METADATA:
         metadata->roiRectMetadata.size = 0;
+        break;
+      case vendor_qti_hardware_display_common_MetadataType::CUSTOM_TUNING_METADATA:
+        metadata->custom_tuning_metadata.size = 0;
         break;
       default:
         DLOGE("Input is null when setting metadata type %d", type);
