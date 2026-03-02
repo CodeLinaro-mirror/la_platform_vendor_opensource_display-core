@@ -16,6 +16,7 @@
 #include <utils/multi_core_instantiator.h>
 #include <core/sdm_types.h>
 #include <drm_interface.h>
+#include "private/hw_interface.h"
 
 #include <iomanip>
 #include <map>
@@ -109,7 +110,7 @@ class DPUCoreMux {
   virtual DisplayError GetFbConfig(uint32_t width, uint32_t height,
                                    DisplayDeviceContext *device_ctx,
                                    DisplayClientContext *client_ctx) = 0;
-  virtual void SetSSRState(bool active) = 0;
+  virtual void SetSSRState(bool active, HWSSRType type = kSSR) = 0;
   virtual bool IsEPTSupported() = 0;
   virtual DisplayError SetHdrCapabilities(const std::vector<Hdr> &hdr_types,
                                           float max_avg_luminance, float min_luminance) = 0;

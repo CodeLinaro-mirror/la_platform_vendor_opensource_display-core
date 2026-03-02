@@ -164,6 +164,8 @@ enum DisplayEvent {
   kVmReclaimDone,           // Event triggered after acquiring the mdp hw from secondary vm.
   kSsrStart,                // Event triggered at the start of subsystem restart(SSR).
   kSsrEnd,                  // Event triggered at the end of subsystem restart (SSR).
+  kLsr_SsrStart,            // Event triggered at the start of LSR subsystem restart(SSR).
+  kLsr_SsrEnd,              // Event triggered at the end of LSR subsystem restart (SSR).
 };
 
 /*! @brief This enum represents the secure events received by Display HAL. */

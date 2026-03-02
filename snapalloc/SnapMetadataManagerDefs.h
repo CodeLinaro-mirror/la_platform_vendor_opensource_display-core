@@ -105,6 +105,7 @@ struct SnapMetadata {
   std::vector<uint8_t> custom_content_metadata;
   vendor_qti_hardware_display_common_ThreeDimensionalRefInfo three_dimensional_ref_info;
   uint32_t viewId;
+  vendor_qti_hardware_display_common_cwb_metadata cwb_metadata;
 };
 
 struct FrameMetadata {

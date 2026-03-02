@@ -256,7 +256,8 @@ DisplayError DisplayBuiltIn::Init() {
             HWEvent::MMRM,
             HWEvent::VM_RELEASE_EVENT,
             HWEvent::VM_RECLAIM_EVENT,
-            HWEvent::SSR};
+            HWEvent::SSR,
+            HWEvent::LSR_SSR};
   if ((client_ctx_.hw_panel_info.mode == kModeCommand) || client_ctx_.hw_panel_info.vhm_support) {
     events.push_back(HWEvent::IDLE_POWER_COLLAPSE);
   }
@@ -3760,10 +3761,43 @@ void DisplayBuiltIn::HandleVmReclaimEvent() {
     event_handler_->HandleEvent(kVmReclaimDone);
 }
 
+void DisplayBuiltIn::HandleLSR_SSREvent(LSR_SSREventType lsr_ssr_event) {
+  DTRACE_SCOPED();
+
+  DisplayEvent event =
+      (lsr_ssr_event == LSR_SSREventType::kLSR_SSRStart) ? kLsr_SsrStart : kLsr_SsrEnd;
+  if (event == kLsr_SsrEnd) {
+    lsr_first_commit_ = true;
+  }
+  DLOGI("Handle %s event", (event == kLsr_SsrStart) ? "LSR SSR Start" : "LSR SSR End");
+  is_lsr_ssr_active_ = (event == kLsr_SsrStart);
+  dpu_core_mux_->SetSSRState(is_lsr_ssr_active_);
+
+  if (!event_handler_) {
+    DLOGW("Event handler is null");
+    return;
+  }
+
+  event_handler_->HandleEvent(event);
+
+  {
+    ClientLock lock(disp_mutex_);
+    reset_panel_ = true;
+    validated_ = false;
+  }
+
+  if (event == kLsr_SsrEnd) {
+    event_handler_->Refresh();
+  }
+}
+
 void DisplayBuiltIn::HandleSSREvent(SSREventType ssr_event) {
   DTRACE_SCOPED();
 
   DisplayEvent event = (ssr_event == SSREventType::kSSRStart) ? kSsrStart : kSsrEnd;
+  if (event == kSsrEnd) {
+    lsr_first_commit_ = true;
+  }
   DLOGI("Handle %s event", (event == kSsrStart) ? "SSR Start" : "SSR End");
   is_ssr_active_ = (event == kSsrStart);
   dpu_core_mux_->SetSSRState(is_ssr_active_);

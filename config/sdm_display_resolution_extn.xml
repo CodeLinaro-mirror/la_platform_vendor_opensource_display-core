@@ -71,4 +71,11 @@ SPDX-License-Identifier: BSD-3-Clause-Clear
       <ScalingFactor x="2.5" y="2.5"/>
     </PanelResolution>
   </Target>
+
+  <Target name="hamoa">
+    <PanelResolution width="2880" height="1800">
+      <ScalingFactor x="1.5" y="1.5"/>
+      <ScalingFactor x="2" y="2"/>
+    </PanelResolution>
+ </Target>
 </Targets>

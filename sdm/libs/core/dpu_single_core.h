@@ -86,7 +86,7 @@ class DPUSingleCore : public DPUCoreMux {
   DisplayError SetPPConfig(void *payload, size_t size);
   DisplayError GetFbConfig(uint32_t width, uint32_t height, DisplayDeviceContext *device_ctx,
                            DisplayClientContext *client_ctx);
-  void SetSSRState(bool active);
+  void SetSSRState(bool active, HWSSRType type = kSSR);
   bool IsEPTSupported();
   DisplayError SetHdrCapabilities(const std::vector<Hdr> &hdr_types, float max_avg_luminance,
                                   float min_luminance);
