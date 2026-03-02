@@ -170,6 +170,7 @@ DisplayError DisplayPluggable::Init() {
     if (error != kErrorNone) {
       DLOGW("Failed to initialize event proxy info");
       event_proxy_info_.Deinit();
+      error = kErrorNone;
     }
   }
 
