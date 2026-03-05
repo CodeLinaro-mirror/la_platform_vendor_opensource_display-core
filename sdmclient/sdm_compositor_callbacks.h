@@ -10,6 +10,8 @@
 #include "sdm_compositor_sideband_cb_intf.h"
 
 #include <core/sdm_types.h>
+#include <unordered_map>
+#include <mutex>
 
 namespace sdm {
 
@@ -17,6 +19,8 @@ class SDMCompositorCallbacks {
  public:
   void RegisterCallback(SDMCompositorCbIntf *cb, bool enable);
   void RegisterSideband(SDMSideBandCompositorCbIntf *cb, bool enable);
+  void RegisterSideband(SDMSideBandCompositorCbIntf *cb, bool enable,
+                        SideBandCallbackClient intf_type);
 
   // compositor callbacks
   void OnHotplug(uint64_t display, bool connected);
@@ -39,6 +43,10 @@ class SDMCompositorCallbacks {
   void NotifyIdleStatus(bool status);
 
   void NotifyCWBStatus(int32_t status, void *buffer);
+
+  // Buffer ownership tracking for CWB
+  DisplayError RegisterCWBBufferOwner(void *buffer, SDMSideBandCompositorCbIntf *owner);
+  void UnregisterCWBBufferOwner(void *buffer);
 
   void NotifyContentFps(const std::string &name, int32_t fps);
 
@@ -80,6 +88,13 @@ class SDMCompositorCallbacks {
   // non-owning reference - must always be reset to null on/before client deinit
   SDMCompositorCbIntf *callbacks_ = nullptr;
   SDMSideBandCompositorCbIntf *sideband_ = nullptr;
+  // AmbientDataCapture callback for CWB callbacks
+  SDMSideBandCompositorCbIntf *adc_callback_ = nullptr;
+  bool is_adc_active_ = false;
+
+  // Buffer ownership tracking: buffer_handle -> owning_callback
+  std::unordered_map<void *, SDMSideBandCompositorCbIntf *> cwb_buffer_owners_;
+  std::mutex cwb_buffer_lock_;
 };
 
 }  // namespace sdm

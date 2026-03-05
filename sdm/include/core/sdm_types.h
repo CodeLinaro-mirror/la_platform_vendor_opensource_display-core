@@ -743,6 +743,13 @@ enum CWBClient {
   kCWBClientComposer,  // Client to SDM i.e. SurfaceFlinger
 };
 
+// Client for the SDM SideBandCallback
+enum SideBandCallbackClient {
+  kDefaultIntf,        // No client connected
+  kDisplayConfig,      // IDisplayConfig
+  kAmbientDataCapture, // IAmbientDataCapture
+};
+
 }  // namespace sdm
 
 #endif  // __SDM_TYPES_H__
