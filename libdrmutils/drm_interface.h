@@ -690,6 +690,11 @@ enum struct DRMOps {
    */
   CONNECTOR_WB_USAGE_TYPE,
   /*
+   * Op: WB side by side buffer count
+   * Arg: drmModeAtomicReq - Atomic request
+   */
+  CONNECTOR_WB_NUM_BUFFERS,
+  /*
    * Op: WB csc config (BT2020/BT601)
    * Arg: drmModeAtomicReq - Atomic request
    */

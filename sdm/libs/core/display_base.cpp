@@ -1661,6 +1661,10 @@ DisplayError DisplayBase::CommitOrPrepare(LayerStack *layer_stack) {
   return async_commit ? kErrorNone : kErrorNeedsCommit;
 }
 
+bool DisplayBase::IsLSRSupported() {
+  return client_ctx_.hw_panel_info.is_lsr_display;
+}
+
 bool DisplayBase::IsPrimaryCommitNeeded() {
   if (!client_ctx_.hw_panel_info.is_lsr_display) {
     lsr_first_commit_ = true;

@@ -259,6 +259,7 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "early_fence_line") { return DRMProperty::EARLY_FENCE_LINE; }
   if (name == "dnsc_blur") { return DRMProperty::DNSC_BLR; }
   if (name == "wb_usage_type") { return DRMProperty::WB_USAGE_TYPE; }
+  if (name == "num_buffers") { return DRMProperty::WB_NUM_BUFFERS; }
   if (name == "wb_csc_config") { return DRMProperty::WB_CSC_CONFIG; }
   if (name == "SDE_SSPP_FP16_IGC_V1") { return DRMProperty::SDE_SSPP_FP16_IGC_V1; }
   if (name == "SDE_SSPP_FP16_GC_V1") { return DRMProperty::SDE_SSPP_FP16_GC_V1; }
