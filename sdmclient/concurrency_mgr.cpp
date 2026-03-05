@@ -769,6 +769,11 @@ DisplayError ConcurrencyMgr::Hotplug(Display display, bool state) {
 }
 
 void ConcurrencyMgr::GetPendingHotplug(vector<Display> &pending_hotplugs) {
+  if (!disp_) {
+    DLOGW("SDM Display Builder is not initialized");
+    return;
+  }
+
   for (auto &map_info : disp_->GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_BUILTIN_2)) {
     SCOPE_LOCK(locker_[map_info.client_id]);
 
