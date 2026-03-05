@@ -45,6 +45,7 @@ ifneq (,$(filter art, $(TARGET_BOARD_PLATFORM)))
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_nt37802_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_nt37802_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY.json
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_nt37802_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY_using_I2C.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_nt37802_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY_using_I2C.json
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_nt37802_amoled_video_i2c_mode_dsi_csot_panel_with_DSC.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_nt37802_amoled_video_i2c_mode_dsi_csot_panel_with_DSC.json
+PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_nt37802_VHM_amoled_video_mode_dsi_csot_panel_with_DSC.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_nt37802_VHM_amoled_video_mode_dsi_csot_panel_with_DSC.json
 endif
 
 #QDCM calibration json file for RaonTech panels
