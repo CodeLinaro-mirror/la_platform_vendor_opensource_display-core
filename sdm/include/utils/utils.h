@@ -42,8 +42,6 @@
 #include <mutex>
 #include <set>
 
-#define EMERGENCY_INTEGER_BANDWIDTH_FOR_ID 8
-
 namespace sdm {
 
 constexpr size_t get_page_size() {
