@@ -13,6 +13,7 @@ cc_library_shared {
         "snapalloc_interface_headers",
         "common_interface_headers",
         "sdmclient_interface_headers",
+        "display_color_headers",
     ],
     shared_libs: [
         "libutils",

@@ -2889,4 +2889,8 @@ void ConcurrencyMgr::PerformSubsystemRestart(bool start) {
   DLOGI("Perform Subsystem Restart done!");
 }
 
+DisplayError ConcurrencyMgr::SetRgbHistObserverConfig(Display display, bool state, void *data) {
+  return CallDisplayFunction(display, &SDMDisplay::SetRgbHistObserverConfig, state, data);
+}
+
 }  // namespace sdm

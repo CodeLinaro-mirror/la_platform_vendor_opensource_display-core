@@ -541,6 +541,9 @@ public:
   virtual DisplayError ClearBuffersMappedToLayer(LayerId layer_id, const SnapHandle *layerBuffer);
   virtual DisplayError SetPoseConfig(void *buffer) { return kErrorNotSupported; }
   virtual bool IsEPTSupported();
+  virtual DisplayError SetRgbHistObserverConfig(bool state, void *data) {
+    return kErrorNotSupported;
+  }
 
  protected:
   static uint32_t throttling_refresh_rate_;

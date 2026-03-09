@@ -40,6 +40,7 @@
 #include "sdm_debugger.h"
 #include "sdm_display_intf_parcel.h"
 #include "sdm_services.h"
+#include "rgb_hist_feature_intf.h"
 
 #define __CLASS__ "SDMServices"
 
@@ -2200,6 +2201,84 @@ DisplayError SDMServices::SetPrivacyRegions(SDMParcel *input_parcel) {
 
   cb_->Refresh(display_id);
   return kErrorNone;
+}
+
+DisplayError SDMServices::SetRgbHistObserverConfig(SDMParcel *input_parcel,
+                                                   SDMParcel *output_parcel) {
+  rgb_histogram::ObserverConfig config = {};
+  std::string msg;
+  bool state = 0;
+
+  msg.reserve(256);
+
+  int disp_id = input_parcel->readInt32();
+  msg += "Disp ID: " + std::to_string(disp_id);
+
+  // State: enable/disable
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    state = input_parcel->readInt32() ? true : false;
+    msg += " RGBHist state: " + std::to_string(state);
+  }
+
+  // tap_point
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    int tap_point = input_parcel->readInt32();
+    if (tap_point > rgb_histogram::kHistogramTapPointsMax) {
+      DLOGE("Invalid tap_point %d", tap_point);
+      return kErrorNotSupported;
+    }
+    config.tap_point = static_cast<rgb_histogram::HistogramTapPoints>(tap_point);
+    msg += " tap_point: " + std::to_string(config.tap_point);
+  }
+
+  // Hist type
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    int type = input_parcel->readInt32();
+    if (type > rgb_histogram::kHistogramTypeMax) {
+      DLOGE("Invalid type %d", type);
+      return kErrorNotSupported;
+    }
+    config.type = static_cast<rgb_histogram::HistogramType>(type);
+    msg += " type: " + std::to_string(config.type);
+  }
+
+  // ROI config
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    config.is_roi_valid = input_parcel->readInt32();
+    msg += " roi_valid: " + std::to_string(config.is_roi_valid);
+
+    // Default within mode
+    config.capture_within_roi = true;
+    msg += " capture_within_roi: " + std::to_string(config.capture_within_roi);
+  }
+
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    config.x = input_parcel->readInt32();
+    msg += " ROI [" + std::to_string(config.x) + " ";
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    config.y = input_parcel->readInt32();
+    msg += std::to_string(config.y) + " ";
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    config.width = input_parcel->readInt32();
+    msg += std::to_string(config.width) + " ";
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    config.height = input_parcel->readInt32();
+    msg += std::to_string(config.height) + "]";
+  }
+
+  DLOGI("%s", msg.c_str());
+
+  auto ret = cb_->SetRgbHistObserverConfig(disp_id, state, &config);
+  if (ret != kErrorNone) {
+    output_parcel->write("FAILED", strlen("FAILED"));
+  } else {
+    output_parcel->writeInt32(ret);
+  }
+
+  return ret;
 }
 
 } // namespace sdm
