@@ -28,40 +28,9 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following
- * license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted (subject to the limitations in the
- * disclaimer below) provided that the following conditions are met:
- *
- *    * Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
- *
- *    * Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
- *      disclaimer in the documentation and/or other materials provided
- *      with the distribution.
- *
- *    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of
- * its contributors may be used to endorse or promote products derived from this
- * software without specific prior written permission.
- *
- * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
- * GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
- * HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
- * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #ifdef PP_DRM_ENABLE
@@ -265,6 +234,50 @@ void DRMPPManager::Init(const DRMPropertyManager &pm , uint32_t object_type) {
       pp_prop_map_[kFeaturePaHistIrq].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeaturePaHistIrq].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeaturePaHistIrq].version = i - (uint32_t)DRMProperty::SDE_DSPP_ABA_HIST_IRQ;
+    } else if (i >= (uint32_t)DRMProperty::SDE_RGB_HIST_SET_BUFFER_V2 &&
+               i <= (uint32_t)DRMProperty::SDE_RGB_HIST_SET_BUFFER_V2) {
+      pp_prop_map_[kFeatureRgbHistBufferCtrl].prop_enum = (DRMProperty)i;
+      pp_prop_map_[kFeatureRgbHistBufferCtrl].prop_id = pm.GetPropertyId((DRMProperty)i);
+      pp_prop_map_[kFeatureRgbHistBufferCtrl].version =
+          i - (uint32_t)DRMProperty::SDE_RGB_HIST_SET_BUFFER_V2 + 2;
+      DRM_LOGI("RGB HIST set buffer version %d, prop_id %d",
+               pp_prop_map_[kFeatureRgbHistBufferCtrl].version,
+               pp_prop_map_[kFeatureRgbHistBufferCtrl].prop_id);
+    } else if (i >= (uint32_t)DRMProperty::SDE_RGB_HIST_QUEUE_BUFFER_V2 &&
+               i <= (uint32_t)DRMProperty::SDE_RGB_HIST_QUEUE_BUFFER_V2) {
+      pp_prop_map_[kFeatureRgbHistQueueBuffer].prop_enum = (DRMProperty)i;
+      pp_prop_map_[kFeatureRgbHistQueueBuffer].prop_id = pm.GetPropertyId((DRMProperty)i);
+      pp_prop_map_[kFeatureRgbHistQueueBuffer].version =
+          i - (uint32_t)DRMProperty::SDE_RGB_HIST_QUEUE_BUFFER_V2 + 2;
+      DRM_LOGI("RGB HIST queue buffer version %d, prop_id %d",
+               pp_prop_map_[kFeatureRgbHistQueueBuffer].version,
+               pp_prop_map_[kFeatureRgbHistQueueBuffer].prop_id);
+    } else if (i >= (uint32_t)DRMProperty::SDE_RGB_HIST_QUEUE_BUFFER2_V2 &&
+               i <= (uint32_t)DRMProperty::SDE_RGB_HIST_QUEUE_BUFFER2_V2) {
+      pp_prop_map_[kFeatureRgbHistQueueBuffer2].prop_enum = (DRMProperty)i;
+      pp_prop_map_[kFeatureRgbHistQueueBuffer2].prop_id = pm.GetPropertyId((DRMProperty)i);
+      pp_prop_map_[kFeatureRgbHistQueueBuffer2].version =
+          i - (uint32_t)DRMProperty::SDE_RGB_HIST_QUEUE_BUFFER2_V2 + 2;
+      DRM_LOGI("RGB HIST queue buffer2 version %d, prop_id %d",
+               pp_prop_map_[kFeatureRgbHistQueueBuffer2].version,
+               pp_prop_map_[kFeatureRgbHistQueueBuffer2].prop_id);
+    } else if (i >= (uint32_t)DRMProperty::SDE_RGB_HIST_QUEUE_BUFFER3_V2 &&
+               i <= (uint32_t)DRMProperty::SDE_RGB_HIST_QUEUE_BUFFER3_V2) {
+      pp_prop_map_[kFeatureRgbHistQueueBuffer3].prop_enum = (DRMProperty)i;
+      pp_prop_map_[kFeatureRgbHistQueueBuffer3].prop_id = pm.GetPropertyId((DRMProperty)i);
+      pp_prop_map_[kFeatureRgbHistQueueBuffer3].version =
+          i - (uint32_t)DRMProperty::SDE_RGB_HIST_QUEUE_BUFFER3_V2 + 2;
+      DRM_LOGI("RGB HIST queue buffer3 version %d, prop_id %d",
+               pp_prop_map_[kFeatureRgbHistQueueBuffer3].version,
+               pp_prop_map_[kFeatureRgbHistQueueBuffer3].prop_id);
+    } else if (i >= (uint32_t)DRMProperty::SDE_RGB_HIST_CTRL_V2 &&
+               i <= (uint32_t)DRMProperty::SDE_RGB_HIST_CTRL_V2) {
+      pp_prop_map_[kFeatureRgbHistCtrl].prop_enum = (DRMProperty)i;
+      pp_prop_map_[kFeatureRgbHistCtrl].prop_id = pm.GetPropertyId((DRMProperty)i);
+      pp_prop_map_[kFeatureRgbHistCtrl].version =
+          i - (uint32_t)DRMProperty::SDE_RGB_HIST_CTRL_V2 + 2;
+      DRM_LOGI("RGB HIST ctrl version %d, prop_id %d", pp_prop_map_[kFeatureRgbHistCtrl].version,
+               pp_prop_map_[kFeatureRgbHistCtrl].prop_id);
     }
   }
   return;
