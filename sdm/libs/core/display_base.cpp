@@ -4913,9 +4913,18 @@ DisplayError DisplayBase::SetPPConfig(void *payload, size_t size) {
   }
 
   DLOGI_IF(kTagDisplay, "PP Event is set successfully");
-  struct sde_drm::DRMPPFeatureInfo *info = reinterpret_cast<sde_drm::DRMPPFeatureInfo *>(payload);
-  if (info->id != sde_drm::kFeaturePaHistIrq) {
-    HandleSelfRefresh();
+
+  auto info = reinterpret_cast<sde_drm::DRMPPFeatureInfo *>(payload);
+  switch (info->id) {
+    case sde_drm::kFeaturePaHistIrq:
+    case sde_drm::kFeatureRgbHistQueueBuffer:
+    case sde_drm::kFeatureRgbHistQueueBuffer2:
+    case sde_drm::kFeatureRgbHistQueueBuffer3:
+      // No action needed for these cases
+      break;
+    default:
+      HandleSelfRefresh();
+      break;
   }
   return kErrorNone;
 }

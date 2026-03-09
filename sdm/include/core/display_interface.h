@@ -400,6 +400,17 @@ struct PanelFeatureInfo {
   uint32_t fps = 0;
 };
 
+/*! @brief This struct stores the disp info
+
+  @sa DisplayInterface::RgbHistFeatureInitInfo
+*/
+struct RgbHistFeatureInitInfo {
+  DisplayInterface *disp_intf = nullptr;
+  uint32_t display_type = 0;
+  int32_t display_id = -1;
+  bool is_primary = false;
+};
+
 /*! @brief This enum represents the panel feature cmd types supported by the vendService cmd.
 
   @sa DisplayInterface::PanelFeatureVendorServiceType

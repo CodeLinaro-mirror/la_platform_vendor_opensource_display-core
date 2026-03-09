@@ -53,6 +53,7 @@
 
 #include "drm_interface.h"
 #include "drm_master.h"
+#include "rgb_hist_data_dumper.h"
 
 #define __CLASS__ "DisplayBuiltIn"
 
@@ -486,6 +487,13 @@ DisplayError DisplayBuiltIn::Init() {
   SetupAiqe();
 #endif
 
+  value = 0;
+  DebugHandler::Get()->GetProperty(ENABLE_RGB_HISTOGRAM, &value);
+  rgb_histogram_enable_ = (value == 1);
+  if (rgb_histogram_enable_) {
+    SetupRgbHistogram();
+  }
+
   left_frame_roi_.resize(core_count_);
   right_frame_roi_.resize(core_count_);
 
@@ -554,6 +562,16 @@ DisplayError DisplayBuiltIn::Deinit() {
       feat_license_intf_->Deinit();
       feat_license_intf_.reset();
       feat_license_intf_ = nullptr;
+    }
+
+    if (rgb_hist_manager_intf_) {
+      rgb_hist_manager_intf_.reset();
+      rgb_hist_manager_intf_ = nullptr;
+    }
+
+    if (rgb_hist_fact_intf_) {
+      rgb_hist_fact_intf_->Cleanup(display_id_);
+      rgb_hist_fact_intf_ = nullptr;
     }
   }
 
@@ -5993,6 +6011,41 @@ DisplayError DisplayBuiltIn::SetPixelShiftData() {
   }
 
   return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetupRgbHistogram() {
+  // Necessary init information
+  RgbHistFeatureInitInfo info = {};
+  info.disp_intf = this;
+  info.display_type = display_type_;
+  info.display_id = display_id_;
+  info.is_primary = IsPrimaryDisplayLocked();
+
+  // Get factory intf, singleton pattern.
+  rgb_hist_fact_intf_ = rgb_histogram::GetRgbHistFactIntf();
+  if (!rgb_hist_fact_intf_) {
+    DLOGE("Failed to get RGB hist factory intf");
+    return kErrorUndefined;
+  }
+
+  // Get rgb hist manager intf, distinguished by display_id.
+  auto intf = rgb_hist_fact_intf_->CreateRgbHistManagerIntf(&info);
+  if (!intf) {
+    DLOGE("Failed to create RGB hist manager intf");
+    return kErrorUndefined;
+  }
+
+  // Cache the manager intf
+  rgb_hist_manager_intf_ = intf;
+  DLOGI("RGB histogram manager intf created successfully");
+  return kErrorNone;
+}
+
+int DisplayBuiltIn::Notify(const HistData &data) {
+  // Dump rgb histogram data
+  rgb_histogram::RgbHistDataDumper Dumper;
+  Dumper.DumpHistData(data);
+  return 0;
 }
 
 }  // namespace sdm
