@@ -323,6 +323,8 @@
 #define ENABLE_HFI_PATH                   DISPLAY_PROP("enable_hfi_path")
 // Disable client querying luts
 #define DISABLE_QUERY_LUTS                DISPLAY_PROP("disable_query_luts")
+// Disable publishing luts support to client
+#define DISABLE_LUTS_OVERLAY_SUPPORT      DISPLAY_PROP("disable_luts_overlay_support")
 
 #define ENABLE_PRIVACY_LAYERS             DISPLAY_PROP("enable_privacy_layers")
 

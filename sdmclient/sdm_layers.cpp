@@ -1225,4 +1225,12 @@ bool SDMLayer::HasPrivacyRegions() {
   return (layer_->privacy_regions.size() > 0);
 }
 
+DisplayError SDMLayer::SetLayerLuts(Lut3d *luts) {
+  // TODO(user): Populate layer_->lut_3d once supported, we need to clear previous luts first
+  // and ensure client luts don't get overriden by hwc luts and is used correctly by planes
+  luts_set_ = luts->validLutEntries;
+
+  return kErrorNone;
+}
+
 } // namespace sdm
