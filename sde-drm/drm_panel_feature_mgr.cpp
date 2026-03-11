@@ -481,6 +481,17 @@ void DRMPanelFeatureMgr::GetPanelFeatureInfo(DRMPanelFeatureInfo *info) {
     *double_buffer_codebook_supported =
         (feature_info_tbl_[kDRMPanelFeatureDemuraInit].version >= 4 ? true : false);
     return;
+  } else if (info->prop_id == kDRMPanelFeatureDemuraBrgtInvAdjExpFlag) {
+    if (!info->prop_ptr) {
+      DRM_LOGE("Invalid prop_ptr is nullptr, prop_id %d", info->prop_id);
+      return;
+    }
+
+    // Starting from version 4, Expansion for Inverse Brightness Adjustment is supported
+    bool *brgt_inv_adj_exp_supported = reinterpret_cast<bool *>(info->prop_ptr);
+    *brgt_inv_adj_exp_supported =
+        (feature_info_tbl_[kDRMPanelFeatureDemuraInit].version >= 4 ? true : false);
+    return;
   }
 
   DRMProperty prop_enum = drm_property_map_[info->prop_id];
