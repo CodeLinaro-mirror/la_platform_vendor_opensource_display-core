@@ -58,8 +58,13 @@
 #include "display_base.h"
 #include "drm_interface.h"
 #include "pu_subject_intf_impl.h"
+#include "rgb_hist_feature_intf.h"
+#include "rgb_hist_manager_intf.h"
+#include "rgb_hist_fact_intf_impl.h"
 
 namespace sdm {
+
+using rgb_histogram::HistData;
 
 struct DeferFpsConfig {
   uint32_t frame_count = 0;
@@ -180,7 +185,8 @@ class DisplayIPCVmCallbackImpl : public IPCVmCallbackIntf {
 class DisplayBuiltIn : public DisplayBase,
                        HWEventHandler,
                        DppsPropIntf,
-                       SdmDisplayCbInterface<TvmServiceCbEvent> {
+                       SdmDisplayCbInterface<TvmServiceCbEvent>,
+                       rgb_histogram::NotifyInterface<HistData> {
  public:
   DisplayBuiltIn(DisplayEventHandler *event_handler,
                  sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> hw_info_intf,
@@ -282,6 +288,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError GetScalerCount(uint32_t *scaler_count) override;
   DisplayError DumpDemuraSurface(const char *dir_path, uint32_t frame_index) override;
   DisplayError SetIllumination(uint32_t eye, const IlluminationConfig &config) override;
+  DisplayError SetRgbHistObserverConfig(bool state, void *data) override;
 
   // Implement the HWEventHandlers
   DisplayError VSync(int64_t timestamp) override;
@@ -318,6 +325,9 @@ class DisplayBuiltIn : public DisplayBase,
 
   // Implement SdmDisplayCbInterface
   int Notify(const TvmServiceCbEvent &) override;
+
+  // Implement rgb histogram callback interface
+  int Notify(const HistData &data) override;
 
   DisplayError SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config) override;
   DisplayError SetPoseConfig(const LayerBuffer &buffer) override;
@@ -394,6 +404,7 @@ class DisplayBuiltIn : public DisplayBase,
   void PollLedDriver();
   void UpdateCalibration(DisplayState state);
   DisplayError SetIlluminationInternal(uint32_t eye, const IlluminationConfig &config);
+  DisplayError SetupRgbHistogram();
 
   const uint32_t kPuTimeOutMs = 1000;
   std::map<uint32_t, std::vector<HWEvent>> event_list_;
@@ -501,6 +512,12 @@ class DisplayBuiltIn : public DisplayBase,
   IlluminationConfig left_illum_data_;
   IlluminationConfig right_illum_data_;
   std::future<void> calibration_future_;
+
+  // RGB Histogram
+  bool rgb_histogram_enable_ = false;
+  rgb_histogram::RgbHistFactIntf *rgb_hist_fact_intf_ = nullptr;
+  std::shared_ptr<rgb_histogram::RgbHistManagerIntf> rgb_hist_manager_intf_ = nullptr;
+  std::string kRgbHistogramClient_ = "rgb_histogram_client";
 };
 
 }  // namespace sdm

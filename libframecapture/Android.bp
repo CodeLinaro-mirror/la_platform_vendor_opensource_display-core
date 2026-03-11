@@ -18,8 +18,8 @@ cc_library_shared {
         "libsdmcore",
         "libdisplaydebug",
         "libsdmutils",
+        "liblz4",
     ],
-    static_libs: ["liblz4"],
     cflags: [
         "-DLOG_TAG=\"SDM\"",
         "-Wall",

@@ -176,6 +176,7 @@ int DRMAtomicReq::Perform(DRMOps opcode, uint32_t obj_id, ...) {
     case DRMOps::CONNECTOR_EARLY_FENCE_LINE:
     case DRMOps::CONNECTOR_DNSC_BLR:
     case DRMOps::CONNECTOR_WB_USAGE_TYPE:
+    case DRMOps::CONNECTOR_WB_NUM_BUFFERS:
     case DRMOps::CONNECTOR_WB_CSC_CONFIG:
     case DRMOps::CONNECTOR_SET_CACHE_STATE:
     case DRMOps::CONNECTOR_SET_EPT:

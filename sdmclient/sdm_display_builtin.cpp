@@ -1953,6 +1953,10 @@ DisplayError SDMDisplayBuiltIn::GetPanelFeatureConfig(int32_t type, void *data,
   return display_intf_->GetPanelFeatureConfig(type, data, data_size);
 }
 
+DisplayError SDMDisplayBuiltIn::SetRgbHistObserverConfig(bool state, void *data) {
+  return display_intf_->SetRgbHistObserverConfig(state, data);
+}
+
 DisplayError SDMDisplayBuiltIn::EnableCopr(bool en) {
   return display_intf_->EnableCopr(en);
 }

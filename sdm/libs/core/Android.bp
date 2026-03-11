@@ -10,6 +10,7 @@ cc_library_shared {
         "qti_kernel_headers",
         "qti_display_kernel_headers",
         "device_kernel_headers",
+        "display_color_headers",
     ],
     cflags: [
         "-fno-operator-names",
@@ -25,6 +26,7 @@ cc_library_shared {
         "libsdedrm",
         "libsdmdal",
         "libtinyxml2",
+        "librgbhistogram",
     ],
 
     srcs: [

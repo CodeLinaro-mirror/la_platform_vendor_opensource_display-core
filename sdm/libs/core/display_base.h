@@ -309,6 +309,9 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data) {
     return kErrorNotSupported;
   }
+  virtual DisplayError SetRgbHistObserverConfig(bool state, void *data) {
+    return kErrorNotSupported;
+  }
 
   virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size) {
     return kErrorNotSupported;
@@ -337,6 +340,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError SetIllumination(uint32_t eye, const IlluminationConfig &config) {
     return kErrorNotSupported;
   }
+  virtual bool IsLSRSupported();
 
  protected:
   struct DisplayMutex {
