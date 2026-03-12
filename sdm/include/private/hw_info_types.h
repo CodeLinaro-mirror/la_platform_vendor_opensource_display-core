@@ -359,13 +359,13 @@ enum HWQseedStepVersion {
   kQseed3v2,
   kQseed3v3,
   kQseed3v4,
-  kQseed3litev4,
-  kQseed3litev5,
-  kQseed3litev7,
-  kQseed3litev8,
-  kQseed3litev9,
-  kQseed3litev10,
-  kQseed3litev11,
+  kQseed3litev4,   // qseed 4
+  kQseed3litev5,   // qseed 4
+  kQseed3litev7,   // qseed 5
+  kQseed3litev8,   // qseed 5
+  kQseed3litev9,   // qseed 6
+  kQseed3litev10,  // qseed 6
+  kQseed3litev11,  // qseed 7
 };
 
 struct HWDestScalarInfo {
