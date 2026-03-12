@@ -29,17 +29,17 @@ struct SnapHandleInternal::SnapHandleProperties {
   uint64_t fb_id;
   unsigned reserved_size;
   unsigned custom_content_md_reserved_size;
+  unsigned batch_mode_dyn_md_reserved_size;
   uint64_t pixel_format_modifier;
   uint64_t reserved_region_base;
   uint64_t custom_content_md_region_base;
+  uint64_t batch_mode_dyn_md_region_base;
   //static const int kNumFds = 2;
   unsigned flush = false;
   // Lock count to ensure nested lock/unlock situations are handled correctly
   int lock_count = 0;
 
   int ref_count = 0;
-  unsigned batch_mode_dyn_md_reserved_size;
-  uint64_t batch_mode_dyn_md_region_base;
 };
 
 #define DEFINE_FD_ACCESSOR(cls, type, var) \
