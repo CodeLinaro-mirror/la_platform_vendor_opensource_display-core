@@ -4336,6 +4336,8 @@ uint32_t DisplayBuiltIn::SanitizeRefreshRate(uint32_t req_refresh_rate, uint32_t
 DisplayError DisplayBuiltIn::SetDemuraState(int state, int demura_idx) {
   int ret = 0;
   DisplayError error = kErrorNone;
+  GenericPayload idx_pl;
+  uConfigIdx *idx = nullptr;
 
   if (!comp_manager_->GetDemuraStatus()) {
     DLOGI("Demura status is not ready, failed to set state %d", state);
@@ -4407,6 +4409,17 @@ DisplayError DisplayBuiltIn::SetDemuraState(int state, int demura_idx) {
   }
 
   if (state && !comp_manager_->GetDemuraStatusForDisplay(display_id_)) {
+    // Set config index before setup demura layer
+    if ((ret = idx_pl.CreatePayload<uConfigIdx>(idx))) {
+      DLOGE("Failed to create payload for config_idx, error = %d", ret);
+      return kErrorUndefined;
+    }
+    idx->modeinfo = demura_idx;
+    if ((ret = demura_->SetParameter(kDemuraFeatureParamConfigIdx, idx_pl))) {
+      DLOGE("Failed to update demura config, error = %d", ret);
+      return kErrorUndefined;
+    }
+
     if (SetupCorrectionLayer() != kErrorNone) {
       DLOGE("Unable to setup Demura layer on Display %d", display_id_);
       return kErrorUndefined;
