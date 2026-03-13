@@ -489,7 +489,8 @@ int SDMDisplayBuilder::CreatePrimaryDisplay() {
         is_hdr_display_[UINT32(client_id)] = HasHDRSupport(sdm_display);
       }
 
-      map_info_primary_[0].disp_type = info.display_type;
+      // Force the primary display as primary type, even the it's plugable
+      map_info_primary_[0].disp_type = sdm::kPrimary;
       map_info_primary_[0].sdm_id = info.display_id;
 
       map_active_displays_.insert(
