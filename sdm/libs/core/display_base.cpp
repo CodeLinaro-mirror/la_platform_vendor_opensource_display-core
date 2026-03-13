@@ -239,7 +239,8 @@ DisplayError DisplayBase::Init() {
   dpu_core_mux_->GetFbConfig(client_ctx_.mixer_attributes.width,
                              client_ctx_.mixer_attributes.height, &device_ctx_, &client_ctx_);
 
-  if (IsPrimaryDisplayLocked()) {
+  Debug::GetProperty(ENABLE_SCALE_FOR_ALL_DISPLAYS, &enable_scale_for_all_displays_);
+  if (enable_scale_for_all_displays_ || IsPrimaryDisplayLocked()) {
     HWScaleLutInfo lut_info = {};
     error = comp_manager_->GetScaleLutConfig(&lut_info);
     if (error == kErrorNone) {
