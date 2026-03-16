@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -10,6 +10,14 @@
 #define __CLASS__ "SDMCompositorCallbacks"
 
 namespace sdm {
+
+#define SIDEBAND_LOGW_ONCE(...)   \
+  do {                            \
+    if (!log_once_[__LINE__]) {   \
+      DLOGW(__VA_ARGS__);         \
+      log_once_[__LINE__] = true; \
+    }                             \
+  } while (0)
 
 void SDMCompositorCallbacks::RegisterCallback(SDMCompositorCbIntf *cb, bool enable) {
   if (!enable || !cb) {
@@ -88,7 +96,7 @@ void SDMCompositorCallbacks::OnVsyncPeriodTimingChanged(uint64_t display,
 void SDMCompositorCallbacks::NotifyQsyncChange(uint64_t display_id, bool qsync_enabled,
                                                uint32_t refresh_rate, uint32_t qsync_refresh_rate) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initialized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initialized!");
     return;
   }
 
@@ -96,7 +104,7 @@ void SDMCompositorCallbacks::NotifyQsyncChange(uint64_t display_id, bool qsync_e
 }
 void SDMCompositorCallbacks::NotifyCameraSmoothInfo(SDMCameraSmoothOp op, int32_t fps) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return;
   }
 
@@ -106,7 +114,7 @@ void SDMCompositorCallbacks::NotifyCameraSmoothInfo(SDMCameraSmoothOp op, int32_
 void SDMCompositorCallbacks::NotifyResolutionChange(uint64_t display_id,
                                                     SDMConfigAttributes &attr) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return;
   }
 
@@ -116,7 +124,7 @@ void SDMCompositorCallbacks::NotifyResolutionChange(uint64_t display_id,
 void SDMCompositorCallbacks::NotifyTUIEventDone(uint32_t ret, uint32_t disp_id,
                                                 SDMTUIEventType type) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return;
   }
 
@@ -125,7 +133,7 @@ void SDMCompositorCallbacks::NotifyTUIEventDone(uint32_t ret, uint32_t disp_id,
 
 void SDMCompositorCallbacks::NotifyIdleStatus(bool status) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return;
   }
 
@@ -134,7 +142,7 @@ void SDMCompositorCallbacks::NotifyIdleStatus(bool status) {
 
 void SDMCompositorCallbacks::NotifyCWBStatus(int32_t status, void *buffer) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return;
   }
 
@@ -143,7 +151,7 @@ void SDMCompositorCallbacks::NotifyCWBStatus(int32_t status, void *buffer) {
 
 void SDMCompositorCallbacks::NotifyContentFps(const std::string &name, int32_t fps) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initialized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initialized!");
     return;
   }
 
@@ -152,7 +160,7 @@ void SDMCompositorCallbacks::NotifyContentFps(const std::string &name, int32_t f
 
 void SDMCompositorCallbacks::OnHdmiHotplug(bool connected) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return;
   }
 
@@ -161,7 +169,7 @@ void SDMCompositorCallbacks::OnHdmiHotplug(bool connected) {
 
 int SDMCompositorCallbacks::GetDemuraFilePaths(const GenericPayload &in, GenericPayload *out) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return -1;
   }
 
@@ -170,7 +178,7 @@ int SDMCompositorCallbacks::GetDemuraFilePaths(const GenericPayload &in, Generic
 
 void SDMCompositorCallbacks::OnCECMessageReceived(char *message, int len) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return;
   }
 
@@ -180,7 +188,7 @@ void SDMCompositorCallbacks::OnCECMessageReceived(char *message, int len) {
 // gl color convert callbacks
 void SDMCompositorCallbacks::InitColorConvert(uint64_t display, bool secure) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return;
   }
 
@@ -189,7 +197,7 @@ void SDMCompositorCallbacks::InitColorConvert(uint64_t display, bool secure) {
 
 void SDMCompositorCallbacks::ColorConvertBlit(uint64_t display, ColorConvertBlitContext *ctx) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return;
   }
 
@@ -198,7 +206,7 @@ void SDMCompositorCallbacks::ColorConvertBlit(uint64_t display, ColorConvertBlit
 
 void SDMCompositorCallbacks::ResetColorConvert(uint64_t display) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return;
   }
 
@@ -207,7 +215,7 @@ void SDMCompositorCallbacks::ResetColorConvert(uint64_t display) {
 
 void SDMCompositorCallbacks::DestroyColorConvert(uint64_t display) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return;
   }
 
@@ -217,7 +225,7 @@ void SDMCompositorCallbacks::DestroyColorConvert(uint64_t display) {
 // Histogram callbacks
 void SDMCompositorCallbacks::StartHistogram(uint64_t display, int max_frames) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return;
   }
 
@@ -226,7 +234,7 @@ void SDMCompositorCallbacks::StartHistogram(uint64_t display, int max_frames) {
 
 void SDMCompositorCallbacks::StopHistogram(uint64_t display, bool teardown) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return;
   }
 
@@ -236,7 +244,7 @@ void SDMCompositorCallbacks::StopHistogram(uint64_t display, bool teardown) {
 void SDMCompositorCallbacks::NotifyHistogram(uint64_t display, int fd, uint64_t blob_id,
                                              uint32_t panel_width, uint32_t panel_height) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return;
   }
 
@@ -245,7 +253,7 @@ void SDMCompositorCallbacks::NotifyHistogram(uint64_t display, int fd, uint64_t 
 
 std::string SDMCompositorCallbacks::DumpHistogram(uint64_t display) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return "";
   }
 
@@ -258,7 +266,7 @@ void SDMCompositorCallbacks::CollectHistogram(uint64_t display, uint64_t max_fra
                                               uint64_t *samples[NUM_HISTOGRAM_COLOR_COMPONENTS],
                                               uint64_t *numFrames) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return;
   }
 
@@ -268,7 +276,7 @@ DisplayError SDMCompositorCallbacks::GetHistogramAttributes(uint64_t display, in
                                                             int32_t *dataspace,
                                                             uint8_t *supported_components) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return kErrorResources;
   }
 
@@ -278,7 +286,7 @@ DisplayError SDMCompositorCallbacks::GetHistogramAttributes(uint64_t display, in
 // gl layer stitch
 void SDMCompositorCallbacks::StitchLayers(uint64_t display, LayerStitchContext *params) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return;
   }
 
@@ -287,7 +295,7 @@ void SDMCompositorCallbacks::StitchLayers(uint64_t display, LayerStitchContext *
 
 void SDMCompositorCallbacks::InitLayerStitch(uint64_t display) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return;
   }
 
@@ -296,7 +304,7 @@ void SDMCompositorCallbacks::InitLayerStitch(uint64_t display) {
 
 void SDMCompositorCallbacks::DestroyLayerStitch(uint64_t display) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initalized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initalized!");
     return;
   }
 
@@ -305,7 +313,7 @@ void SDMCompositorCallbacks::DestroyLayerStitch(uint64_t display) {
 
 nsecs_t SDMCompositorCallbacks::SystemTime(int clock) {
   if (!sideband_) {
-    DLOGW("Sideband intf is not initialized!");
+    SIDEBAND_LOGW_ONCE("Sideband intf is not initialized!");
     return 0;
   }
 
