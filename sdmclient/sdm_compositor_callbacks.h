@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -96,6 +96,7 @@ class SDMCompositorCallbacks {
   // Buffer ownership tracking: buffer_handle -> owning_callback
   std::unordered_map<void *, SDMSideBandCompositorCbIntf *> cwb_buffer_owners_;
   std::mutex cwb_buffer_lock_;
+  std::unordered_map<uint32_t, bool> log_once_ = {};
 };
 
 }  // namespace sdm
