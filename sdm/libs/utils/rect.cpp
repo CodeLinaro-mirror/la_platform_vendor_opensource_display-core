@@ -429,5 +429,9 @@ void SplitFromBottom(float split_factor, const Layer &layer,
                start_index};
 }
 
+bool IsZeroRoi(const LayerRect &rect) {
+  return (rect.left == 0 && rect.top == 0 && rect.right == 0 && rect.bottom == 0);
+}
+
 }  // namespace sdm
 

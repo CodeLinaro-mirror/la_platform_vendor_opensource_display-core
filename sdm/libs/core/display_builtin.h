@@ -429,6 +429,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError CreateDisplayEventProxyIntf(const std::string &panel_name, DisplayInterface *intf,
                                            PanelFeaturePropertyIntf *prop_intf);
   DisplayError SetupRgbHistogram();
+  DisplayError UpdateRgbHistogramRoi(const void *data) override;
 
   const uint32_t kPuTimeOutMs = 1000;
   std::map<uint32_t, std::vector<HWEvent>> event_list_;
@@ -549,6 +550,7 @@ class DisplayBuiltIn : public DisplayBase,
   bool rgb_histogram_enable_ = false;
   rgb_histogram::RgbHistFactIntf *rgb_hist_fact_intf_ = nullptr;
   std::shared_ptr<rgb_histogram::RgbHistManagerIntf> rgb_hist_manager_intf_ = nullptr;
+  LayerRect rgb_hist_roi_ = {};
   std::string kRgbHistogramClient_ = "rgb_histogram_client";
 };
 

@@ -2118,6 +2118,7 @@ DisplayError DisplayBase::PostCommit() {
   }
 
   mixer_resolution_updated_ = false;
+  pending_rgb_histogram_roi_ = false;
   return error;
 }
 

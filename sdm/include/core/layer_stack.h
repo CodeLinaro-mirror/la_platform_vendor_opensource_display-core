@@ -414,6 +414,7 @@ struct LayerStackFlags {
                                             //!< layer in the stack has been updated.
       uint32_t qrtc_present : 1;  //!< This flag shall be set to true to indicate stack has qrtc
 
+      uint32_t rgb_histogram_updated : 1;
     };
 
     uint32_t flags = 0;               //!< For initialization purpose only.
@@ -652,6 +653,8 @@ struct LayerStack {
   uint64_t expected_present_time = 0;  //!< Expected Present timestamp for current frame.
 
   uint32_t frame_interval_ns = 0;  //!< Frame Interval for current frame.
+
+  LayerRect rgb_histogram_roi = {};  //!< RGB Histogram ROI
 };
 
 enum PrivacyRegionState {
