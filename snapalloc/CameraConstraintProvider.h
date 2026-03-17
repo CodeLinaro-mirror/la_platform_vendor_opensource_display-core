@@ -112,10 +112,10 @@ enum PlaneComponent {
   PLANE_COMPONENT_B = 1 << 12,
 
   /* alpha */
-  PLANE_COMPONENT_A = 1 << 20,
+  PLANE_COMPONENT_A = 1 << 30,
 
   /* raw data plane */
-  PLANE_COMPONENT_RAW = 1 << 30,
+  PLANE_COMPONENT_RAW = 1 << 20,
 
   /* meta information plane */
   PLANE_COMPONENT_META = 1 << 31,
