@@ -531,6 +531,7 @@ int SDMDisplayBuilder::CreatePrimaryDisplay() {
       map_info_primary_[0].sdm_id = info.display_id;
 
       cb_->SetDisplayByClientId(client_id, sdm_display);
+      cb_->SetPrimaryConnected(true);
     } else {
       DLOGE("Primary display creation has failed! status = %d", status);
       return status;
@@ -769,6 +770,7 @@ DisplayError SDMDisplayBuilder::HandleConnectedPrimaryDisplays(const HWDisplayIn
         is_hdr_display_[UINT32(client_id)] = HasHDRSupport(sdm_display);
       }
       cb_->SetDisplayByClientId(client_id, sdm_display);
+      cb_->SetPrimaryConnected(true);
       callbacks_->OnHotplug(client_id, true);
     }
   } else {
@@ -802,6 +804,7 @@ DisplayError SDMDisplayBuilder::HandleConnectedPrimaryDisplays(const HWDisplayIn
       null_display_ = null_display;
       null_display_active_ = true;
       cb_->SetDisplayByClientId(client_id, null_display);
+      cb_->SetPrimaryConnected(false);
       callbacks_->OnHotplug(client_id, true);
     }
   }
