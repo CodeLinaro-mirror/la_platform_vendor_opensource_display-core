@@ -1949,10 +1949,10 @@ DisplayError ConcurrencyMgr::SetDisplayBrightness(Display display, float brightn
 
 void ConcurrencyMgr::NotifyClientStatus(bool connected) {
   for (uint32_t i = 0; i < kNumDisplays; i++) {
+    SCOPE_LOCK(locker_[i]);
     if (!sdm_display_[i]) {
       continue;
     }
-    SCOPE_LOCK(locker_[i]);
     sdm_display_[i]->NotifyClientStatus(connected);
     sdm_display_[i]->SetVsyncEnabled(false);
   }

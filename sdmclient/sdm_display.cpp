@@ -1123,7 +1123,12 @@ DisplayError SDMDisplay::SetVsyncEnabled(bool enabled) {
   SDMDebugHandler::ATRACE_INT("SetVsyncState ", enabled);
   DisplayError error = kErrorNone;
 
-  if (shutdown_pending_ || !event_handler_->VsyncCallbackRegistered()) {
+  if (shutdown_pending_ || !event_handler_ || !event_handler_->VsyncCallbackRegistered()) {
+    return kErrorNone;
+  }
+
+  if (!display_intf_) {
+    DLOGW("display_intf_ is null, cannot set VSync state.");
     return kErrorNone;
   }
 
