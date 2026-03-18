@@ -873,6 +873,14 @@ DisplayError SDMLayer::SetMetaData(const SnapHandle *handle, Layer *layer) {
     }
   }
 
+  uint32_t disparity_phase = 0;
+  if (GetMetadata(handle, MetadataType::DISPARITY_PHASE, &disparity_phase, snapmapper_) ==
+      Error::NONE) {
+    layer_buffer->disparity_phase = disparity_phase;
+  } else {
+    layer_buffer->disparity_phase = 0;
+  }
+
   if (!ignore_sdr_histogram_md_ || IsHdr(layer_buffer->dataspace.transfer)) {
     VideoHistogramMetadata histogram = {};
     if (layer_->update_mask.test(kContentMetadata) == false &&

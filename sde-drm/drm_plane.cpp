@@ -1712,6 +1712,16 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       DRM_LOGD("Plane %d: Setting layer_gamma %d", obj_id, layer_gamma);
     } break;
 
+    case DRMOps::PLANE_SET_DISPARITY_PHASE: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::DISPARITY_PHASE)) {
+        return;
+      }
+      uint32_t disparity_phase = va_arg(args, uint32_t);
+      prop_id = prop_mgr_.GetPropertyId(DRMProperty::DISPARITY_PHASE);
+      AddProperty(req, obj_id, prop_id, disparity_phase, true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("Plane %d: Setting disparity_phase %d", obj_id, disparity_phase);
+    } break;
+
 #ifdef UCSC_SUPPORTED
     case DRMOps::PLANE_SET_UCSC_UNMULT_CONFIG: {
       prop_id = prop_mgr_.GetPropertyId(DRMProperty::SDE_SSPP_UCSC_UNMULT_V1);

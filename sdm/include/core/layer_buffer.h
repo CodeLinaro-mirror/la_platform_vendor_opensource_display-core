@@ -389,6 +389,7 @@ struct LayerBuffer {
   QtiColorRemappingInfo cRI;
   QtiDynamicMetadata dynamicMetadata = { .dynamicMetaDataValid = false, .dynamicMetaDataLen = 0 };
   QtiAnamorphicMetadata anamorphicMetadata;
+  uint32_t disparity_phase = 0;  //!< Phase of the disparity buffer. Default value is 0.
 };
 
 // This enum represents buffer layout types.
