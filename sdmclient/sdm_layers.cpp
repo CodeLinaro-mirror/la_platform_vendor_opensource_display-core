@@ -151,9 +151,11 @@ SDMLayer::~SDMLayer() {
     // Delete luts if they are still valid
     if (layer_->lut_3d.lutEntries != nullptr) {
       delete[] layer_->lut_3d.lutEntries;
+      layer_->lut_3d.lutEntries = nullptr;
     }
     if (layer_->lut_3d.gridEntries != nullptr) {
       delete[] layer_->lut_3d.gridEntries;
+      layer_->lut_3d.gridEntries = nullptr;
     }
 
     delete layer_;
