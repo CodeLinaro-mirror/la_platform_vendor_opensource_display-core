@@ -3517,6 +3517,28 @@ DisplayError DisplayBuiltIn::SetActiveConfig(uint32_t index) {
     sleep(1);
     SetDisplayState(kStateOn, 0, &release_fence);
   }
+
+  if (refresh_rate_mgr_ && qrtc_) {
+    int ret = 0;
+    GenericPayload fps_payload;
+    qrtc::QrtcFeatureFps *qrtc_fps_ptr = nullptr;
+
+    ret = fps_payload.CreatePayload(qrtc_fps_ptr);
+    if (ret != 0 || !qrtc_fps_ptr) {
+      DLOGE("Failed to create the payload for QrtcFeatureFps. Error:%d", ret);
+      return error;
+    }
+
+    qrtc_fps_ptr->panel_fps = refresh_rate_mgr_->GetPanelRefreshRate();
+    qrtc_fps_ptr->avg_fps = refresh_rate_mgr_->GetAverageRefreshRate();
+
+    ret = qrtc_->SetParameter(qrtc::kQrtcFps, fps_payload);
+    if (ret) {
+      DLOGE("Failed to set Qrtc FPS, ret %d", ret);
+      return error;
+    }
+  }
+
   return error;
 }
 
