@@ -151,9 +151,11 @@ SDMLayer::~SDMLayer() {
     // Delete luts if they are still valid
     if (layer_->lut_3d.lutEntries != nullptr) {
       delete[] layer_->lut_3d.lutEntries;
+      layer_->lut_3d.lutEntries = nullptr;
     }
     if (layer_->lut_3d.gridEntries != nullptr) {
       delete[] layer_->lut_3d.gridEntries;
+      layer_->lut_3d.gridEntries = nullptr;
     }
 
     delete layer_;
@@ -1181,12 +1183,13 @@ DisplayError SDMLayer::SetLayerPrivacyRegions(const std::vector<PrivacyRegion> &
       if (Contains(dst_rect_, layer_rect) && (!is_area_mode || is_valid_index)) {
         layer_->privacy_regions.push_back(region);
       } else {
-        DLOGV_IF(
-            kTagClient,
-            "Invalid layer %d: region %f %f %f %f, dest_rect %f %f %f %f, privacy_region_mode %d "
-            "index %d",
-            id_, layer_rect.left, layer_rect.top, layer_rect.right, layer_rect.bottom,
-            dst_rect_.left, dst_rect_.top, dst_rect_.right, dst_rect_.bottom, mode, region.index);
+        DLOGV_IF(kTagClient,
+                 "Invalid layer %" PRIu64
+                 ": region %f %f %f %f, dest_rect %f %f %f %f, privacy_region_mode %d "
+                 "index %d",
+                 id_, layer_rect.left, layer_rect.top, layer_rect.right, layer_rect.bottom,
+                 dst_rect_.left, dst_rect_.top, dst_rect_.right, dst_rect_.bottom, mode,
+                 region.index);
       }
     }
   } else {

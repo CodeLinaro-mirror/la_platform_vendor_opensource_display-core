@@ -205,7 +205,7 @@
 #define ENABLE_QSYNC_IDLE                    DISPLAY_PROP("enable_qsync_idle")
 #define ENHANCE_IDLE_TIME                    DISPLAY_PROP("enhance_idle_time")
 #define CPU_CLUSTER_BOOST_MASK               DISPLAY_PROP("cpu_cluster_boost_mask")
-#define PERF_VERSION_PROP                    DISPLAY_PROP("perf_version")
+#define PERF_VERSION_PROP                    DISPLAY_PROP("perf.version")
 #define MINIMUM_LARGE_COMP_FPS               DISPLAY_PROP("minimum_large_comp_fps")
 
 #define MMRM_FLOOR_CLK_VOTE                  DISPLAY_PROP("mmrm_floor_vote")
@@ -233,6 +233,8 @@
 #define SCALING_SOURCE_OPT_MODE              DISPLAY_PROP("scaling_source_opt_mode")
 // Property to set desired libscale optimization mode on destination
 #define SCALING_DEST_OPT_MODE                DISPLAY_PROP("scaling_dest_opt_mode")
+// Property to override libscale version
+#define LIBSCALE_VERSION_OVERRIDE            DISPLAY_PROP("libscale_version_override")
 
 //AIQE Properties
 #define AIQE_SSRC_ENABLE               DISPLAY_PROP("enable_aiqe_ssrc")
