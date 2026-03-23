@@ -49,6 +49,7 @@ class HWTVDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   virtual PanelFeaturePropertyIntf *GetPanelFeaturePropertyIntf() { return this; }
   virtual int GetPanelFeature(PanelFeaturePropertyInfo *feature_info);
   virtual int SetPanelFeature(const PanelFeaturePropertyInfo &feature_info);
+  virtual DisplayError GetPanelBrightnessBasePath(std::string *base_path) const;
   virtual DisplayError GetQsyncFps(uint32_t *qsync_fps);
 
  protected:
@@ -61,6 +62,9 @@ class HWTVDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   virtual DisplayError Standby(SyncPoints *sync_points);
   virtual DisplayError Commit(HWLayersInfo *hw_layers_info);
   virtual void PopulateHWPanelInfo();
+  virtual DisplayError SetPanelBrightness(int level);
+  virtual DisplayError GetPanelBrightness(int *level);
+  virtual void GetHWPanelMaxBrightness();
   virtual DisplayError GetDefaultConfig(uint32_t *default_config);
   virtual DisplayError PowerOn(const HWQosData &qos_data, SyncPoints *sync_points);
   virtual DisplayError Deinit();
@@ -106,6 +110,7 @@ class HWTVDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   bool in_multiset_ = false;
   std::map<PanelFeaturePropertyID, sde_drm::DRMPanelFeatureID> panel_feature_property_map_ {};
   sde_drm::DRMIdlePCState idle_pc_state_ = sde_drm::DRMIdlePCState::NONE;
+  std::string brightness_base_path_ = "";
   SelfRefreshState self_refresh_state_ = kSelfRefreshNone;
 };
 

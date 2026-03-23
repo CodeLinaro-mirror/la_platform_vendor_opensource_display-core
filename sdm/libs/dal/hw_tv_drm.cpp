@@ -839,6 +839,162 @@ bool HWTVDRM::IsVRRSupported() {
   return false;
 }
 
+DisplayError HWTVDRM::SetPanelBrightness(int level) {
+  DTRACE_SCOPED();
+  if (pending_power_state_ != kPowerStateNone) {
+    DLOGI("Power state %d pending!! Skip for now", pending_power_state_);
+    return kErrorDeferred;
+  }
+
+#ifdef TRUSTED_VM
+  if (first_cycle_) {
+    DLOGI("First cycle is not done yet!! Skip for now");
+    return kErrorDeferred;
+  }
+#endif
+
+  if (!active_) {
+    return kErrorNone;
+  }
+
+  if (enable_brightness_drm_prop_) {
+    // set brightness through drm property
+    cached_brightness_level_ = level;
+    return kErrorNone;
+  }
+
+  // set brightness through sysfs node
+  char buffer[kMaxSysfsCommandLength] = {0};
+
+  if (brightness_base_path_.empty()) {
+    return kErrorHardware;
+  }
+
+  std::string brightness_node(brightness_base_path_ + "brightness");
+  int fd = Sys::open_(brightness_node.c_str(), O_RDWR);
+  if (fd < 0) {
+    if (connector_info_.backlight_type != "dcs") {
+      DLOGW("Failed to open node = %s, error = %s ", brightness_node.c_str(),
+          strerror(errno));
+      return kErrorFileDescriptor;
+    } else {
+    DLOGE("Failed to open node = %s, error = %s ", brightness_node.c_str(),
+          strerror(errno));
+    return kErrorFileDescriptor;
+    }
+  }
+
+  int32_t bytes = snprintf(buffer, kMaxSysfsCommandLength, "%d\n", level);
+  ssize_t ret = Sys::pwrite_(fd, buffer, static_cast<size_t>(bytes), 0);
+  if (ret <= 0) {
+    DLOGE("Failed to write to node = %s, error = %s ", brightness_node.c_str(),
+          strerror(errno));
+    Sys::close_(fd);
+    return kErrorHardware;
+  }
+
+  Sys::close_(fd);
+
+  return kErrorNone;
+}
+
+DisplayError HWTVDRM::GetPanelBrightness(int *level) {
+  DTRACE_SCOPED();
+  char value[kMaxStringLength] = {0};
+
+  if (!level) {
+    DLOGE("Invalid input, null pointer.");
+    return kErrorParameters;
+  }
+
+  if (enable_brightness_drm_prop_) {
+    *level = current_brightness_;
+    return kErrorNone;
+  }
+
+  if (brightness_base_path_.empty()) {
+    return kErrorHardware;
+  }
+
+  std::string brightness_node(brightness_base_path_ + "brightness");
+  int fd = Sys::open_(brightness_node.c_str(), O_RDWR);
+  if (fd < 0) {
+    if (connector_info_.backlight_type != "dcs") {
+      DLOGW("Failed to open brightness node = %s, error = %s", brightness_node.c_str(),
+             strerror(errno));
+      return kErrorFileDescriptor;
+    } else {
+    DLOGE("Failed to open brightness node = %s, error = %s", brightness_node.c_str(),
+           strerror(errno));
+    return kErrorFileDescriptor;
+    }
+  }
+
+  if (Sys::pread_(fd, value, sizeof(value), 0) > 0) {
+    *level = atoi(value);
+  } else {
+    DLOGE("Failed to read panel brightness");
+    Sys::close_(fd);
+    return kErrorHardware;
+  }
+
+  Sys::close_(fd);
+
+  return kErrorNone;
+}
+
+void HWTVDRM::GetHWPanelMaxBrightness() {
+  DTRACE_SCOPED();
+  char value[kMaxStringLength] = {0};
+  hw_panel_info_.panel_max_brightness = 255.0f;
+
+  // Panel nodes, driver connector creation, and DSI probing all occur in sync, for each DSI. This
+  // means that the connector_type_id - 1 will reflect the same # as the panel # for panel node.
+  char s[kMaxStringLength] = {};
+  snprintf(s, sizeof(s), "/sys/class/backlight/panel%d-backlight/",
+           static_cast<int>(connector_info_.type_id - 1));
+  brightness_base_path_.assign(s);
+
+  std::string brightness_node(brightness_base_path_ + "max_brightness");
+  int fd = Sys::open_(brightness_node.c_str(), O_RDONLY);
+  if (fd < 0) {
+    if (connector_info_.backlight_type != "dcs") {
+    DLOGW("Failed to open max brightness node = %s, error = %s", brightness_node.c_str(),
+          strerror(errno));
+    return;
+  } else {
+    DLOGE("Failed to open max brightness node = %s, error = %s", brightness_node.c_str(),
+          strerror(errno));
+    return;
+    }
+  }
+
+  if (Sys::pread_(fd, value, sizeof(value), 0) > 0) {
+    hw_panel_info_.panel_max_brightness = static_cast<float>(atof(value));
+    DLOGI_IF(kTagDriverConfig, "Max brightness = %f", hw_panel_info_.panel_max_brightness);
+  } else {
+    DLOGE("Failed to read max brightness. error = %s", strerror(errno));
+  }
+
+  Sys::close_(fd);
+  return;
+}
+
+DisplayError HWTVDRM::GetPanelBrightnessBasePath(std::string *base_path) const {
+  if (!base_path) {
+    DLOGE("Invalid base_path is null pointer");
+    return kErrorParameters;
+  }
+
+  if (brightness_base_path_.empty()) {
+    DLOGE("brightness_base_path_ is empty");
+    return kErrorHardware;
+  }
+
+  *base_path = brightness_base_path_;
+  return kErrorNone;
+}
+
 void HWTVDRM::SetSelfRefreshState() {
   if (self_refresh_state_ != kSelfRefreshNone) {
     if (self_refresh_state_ == kSelfRefreshReadAlloc) {
@@ -866,4 +1022,3 @@ DisplayError HWTVDRM::GetQsyncFps(uint32_t *qsync_fps) {
 
 
 }  // namespace sdm
-
