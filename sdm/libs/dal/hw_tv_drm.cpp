@@ -109,6 +109,8 @@ using sde_drm::DRMDisplayType;
 using sde_drm::DRMDisplayToken;
 using sde_drm::DRMConnectorInfo;
 using sde_drm::DRMPPFeatureInfo;
+using sde_drm::DppsFeaturePayload;
+using sde_drm::DRMDppsFeatureInfo;
 using sde_drm::DRMOps;
 using sde_drm::DRMTopology;
 using sde_drm::DRMPowerMode;
@@ -837,6 +839,70 @@ bool HWTVDRM::IsVRRSupported() {
   }
 
   return false;
+}
+
+DisplayError HWTVDRM::SetDppsFeature(void *payload, size_t size) {
+  uint32_t obj_id = 0, object_type = 0, feature_id = 0;
+  uint64_t value = 0;
+
+  if (size != sizeof(DppsFeaturePayload)) {
+    DLOGE("invalid payload size %zu, expected %zu", size, sizeof(DppsFeaturePayload));
+    return kErrorParameters;
+  }
+
+  DppsFeaturePayload *feature_payload = reinterpret_cast<DppsFeaturePayload *>(payload);
+  object_type = feature_payload->object_type;
+  feature_id = feature_payload->feature_id;
+  value = feature_payload->value;
+
+  if (feature_id == sde_drm::kFeatureAd4Roi) {
+    if (feature_payload->value) {
+      DisplayDppsAd4RoiCfg *params = reinterpret_cast<DisplayDppsAd4RoiCfg *>
+                                                      (feature_payload->value);
+      if (!params) {
+        DLOGE("invalid playload value %" PRIu64, feature_payload->value);
+        return kErrorNotSupported;
+      }
+
+      ad4_roi_cfg_.h_x = params->h_start;
+      ad4_roi_cfg_.h_y = params->h_end;
+      ad4_roi_cfg_.v_x = params->v_start;
+      ad4_roi_cfg_.v_y = params->v_end;
+      ad4_roi_cfg_.factor_in = params->factor_in;
+      ad4_roi_cfg_.factor_out = params->factor_out;
+
+      value = (uint64_t)&ad4_roi_cfg_;
+    }
+  }
+
+  if (feature_id == sde_drm::kFeatureLtmHistCtrl)
+    ltm_hist_en_ = value;
+
+  if (feature_id == sde_drm::kFeatureAbaHistCtrl)
+    aba_hist_en_ = value;
+
+  if (object_type == DRM_MODE_OBJECT_CRTC) {
+    obj_id = token_.crtc_id;
+  } else if (object_type == DRM_MODE_OBJECT_CONNECTOR) {
+    obj_id = token_.conn_id;
+  } else {
+    DLOGE("invalid object type 0x%x", object_type);
+    return kErrorUndefined;
+  }
+
+  drm_atomic_intf_->Perform(DRMOps::DPPS_CACHE_FEATURE, obj_id, feature_id, value);
+  return kErrorNone;
+}
+
+DisplayError HWTVDRM::GetDppsFeatureInfo(void *payload, size_t size) {
+  if (size != sizeof(DRMDppsFeatureInfo)) {
+    DLOGE("invalid payload size %zu, expected %zu", size, sizeof(DRMDppsFeatureInfo));
+    return kErrorParameters;
+  }
+  DRMDppsFeatureInfo *feature_info = reinterpret_cast<DRMDppsFeatureInfo *>(payload);
+  feature_info->obj_id = token_.crtc_id;
+  drm_mgr_intf_->GetDppsFeatureInfo(feature_info);
+  return kErrorNone;
 }
 
 DisplayError HWTVDRM::SetPanelBrightness(int level) {

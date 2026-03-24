@@ -62,6 +62,8 @@ class HWTVDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   virtual DisplayError Standby(SyncPoints *sync_points);
   virtual DisplayError Commit(HWLayersInfo *hw_layers_info);
   virtual void PopulateHWPanelInfo();
+  virtual DisplayError SetDppsFeature(void *payload, size_t size);
+  virtual DisplayError GetDppsFeatureInfo(void *payload, size_t size);
   virtual DisplayError SetPanelBrightness(int level);
   virtual DisplayError GetPanelBrightness(int *level);
   virtual void GetHWPanelMaxBrightness();
@@ -99,6 +101,9 @@ class HWTVDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   std::vector<DestScalarCache> dest_scalar_cache_ = {};
   bool needs_ds_update_ = false;
 
+  drm_msm_ad4_roi_cfg ad4_roi_cfg_ = {};
+  bool ltm_hist_en_ = false;
+  bool aba_hist_en_ = false;
   const float kDefaultMinLuminance = 0.02f;
   const float kDefaultMaxLuminance = 500.0f;
   const float kMinPeakLuminance = 300.0f;
