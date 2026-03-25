@@ -438,6 +438,8 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                                   int32_t *out_types, float *out_max_luminance,
                                   float *out_max_average_luminance,
                                   float *out_min_luminance);
+  DisplayError SetHdrCapabilities(Display display, const std::vector<Hdr> &hdr_types,
+                                  float max_avg_luminance, float min_luminance);
   DisplayError GetDisplayName(Display display, uint32_t *out_size,
                               char *out_name);
   DisplayError SetActiveConfig(Display display, int32_t config);
@@ -554,6 +556,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError GetPanelFeatureConfig(Display display, int32_t type, void *data, uint32_t data_size);
   DisplayError ClearBuffersMappedToLayer(uint64_t display, LayerId layer_id,
                                          const SnapHandle *layerBuffer);
+  DisplayError SetRgbHistObserverConfig(Display display, bool state, void *data);
 
   static const int locker_count_ = pluggable_lock_index_ + 1;
   static Locker locker_[locker_count_];

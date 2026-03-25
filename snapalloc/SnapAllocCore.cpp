@@ -43,7 +43,8 @@ SnapAllocCore *SnapAllocCore::GetInstance() {
 }
 
 Error SnapAllocCore::AllocateBuffer(AllocData *ad, AllocData *m_data,
-                                    unsigned custom_content_md_size, BufferDescriptor *desc,
+                                    unsigned custom_content_md_size,
+                                    unsigned batch_mode_dyn_md_size, BufferDescriptor *desc,
                                     BufferDescriptor *out_desc, bool test_alloc) {
   auto err = mem_alloc_intf_->AllocateMem(ad, out_desc->usage, out_desc->format);
   if (err != Error::NONE) {
@@ -53,7 +54,8 @@ Error SnapAllocCore::AllocateBuffer(AllocData *ad, AllocData *m_data,
 
   uint64_t reserved_size = desc->reservedSize;
 
-  m_data->size = metadata_mgr_->GetMetaDataSize(reserved_size, custom_content_md_size);
+  m_data->size =
+      metadata_mgr_->GetMetaDataSize(reserved_size, custom_content_md_size, batch_mode_dyn_md_size);
   m_data->align = PAGE_SIZE;
   err = mem_alloc_intf_->AllocateMem(
       m_data, static_cast<vendor_qti_hardware_display_common_BufferUsage>(0),
@@ -104,8 +106,11 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
         &aligned_width_in_pixels);
     unsigned custom_content_md_size =
         metadata_mgr_->GetCustomContentMetadataSize(out_desc.format, out_desc.usage);
+    unsigned batch_mode_dyn_md_size =
+        metadata_mgr_->GetBatchModeDynamicMetadataSize(pixel_format_modifier);
 
-    AllocateBuffer(&ad, &m_data, custom_content_md_size, &desc, &out_desc, test_alloc);
+    AllocateBuffer(&ad, &m_data, custom_content_md_size, batch_mode_dyn_md_size, &desc, &out_desc,
+                   test_alloc);
 
     if ((desc.usage & QTI_PRIVATE_MULTI_VIEW_INFO) ||
         (desc.usage & QTI_PRIVATE_CLONED_MULTI_VIEW_INFO)) {
@@ -123,19 +128,20 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
           return err;
         }
       } else {
-        AllocateBuffer(&ad_2, &m_data_2, custom_content_md_size, &desc, &out_desc, test_alloc);
+        AllocateBuffer(&ad_2, &m_data_2, custom_content_md_size, batch_mode_dyn_md_size, &desc,
+                       &out_desc, test_alloc);
       }
       hnd = SnapHandleInternal::createMultiviewHandle(
           ad.fd, m_data.fd, ad_2.fd, m_data_2.fd, out_priv_flags, layout.aligned_width_in_bytes,
           aligned_width_in_pixels, layout.aligned_height, desc.width, desc.height, out_desc.format,
           buffer_type, id, ++next_id_, ad.size, desc.usage, pixel_format_modifier, desc.layerCount,
-          desc.reservedSize, custom_content_md_size);
+          desc.reservedSize, custom_content_md_size, batch_mode_dyn_md_size);
     } else {
       hnd = SnapHandleInternal::createSingleHandle(
           ad.fd, m_data.fd, out_priv_flags, layout.aligned_width_in_bytes, aligned_width_in_pixels,
           layout.aligned_height, desc.width, desc.height, out_desc.format, buffer_type, id, ad.size,
           desc.usage, pixel_format_modifier, desc.layerCount, desc.reservedSize,
-          custom_content_md_size);
+          custom_content_md_size, batch_mode_dyn_md_size);
     }
 
     if (hnd == nullptr) {
@@ -193,7 +199,8 @@ SnapHandleInternal *SnapAllocCore::GetBufferFromHandleLocked(SnapHandle *hnd) {
 
 Error SnapAllocCore::FreeBuffer(SnapHandleInternal *snap_hnd) {
   auto meta_size = metadata_mgr_->GetMetaDataSize(snap_hnd->reserved_size(),
-                                                  snap_hnd->custom_content_md_reserved_size());
+                                                  snap_hnd->custom_content_md_reserved_size(),
+                                                  snap_hnd->batch_mode_dyn_md_reserved_size());
   // TODO: Off-target tests - passing in buffer path string for shm unlink
   if (mem_alloc_intf_->FreeBuffer(reinterpret_cast<void *>(snap_hnd->base()), snap_hnd->size(),
                                   snap_hnd->fd(), "") != 0) {
@@ -586,6 +593,14 @@ void SnapAllocCore::RegisterHandleLocked(SnapHandle *public_hnd, SnapHandleInter
           snap_hnd->base_metadata() + sizeof(SnapMetadata) + snap_hnd->reserved_size());
     } else {
       snap_hnd->custom_content_md_region_base() = 0;
+    }
+
+    if (snap_hnd->batch_mode_dyn_md_reserved_size() > 0) {
+      snap_hnd->batch_mode_dyn_md_region_base() = reinterpret_cast<uint64_t>(
+          snap_hnd->base_metadata() + sizeof(SnapMetadata) + snap_hnd->reserved_size() +
+          snap_hnd->custom_content_md_reserved_size());
+    } else {
+      snap_hnd->batch_mode_dyn_md_region_base() = 0;
     }
   }
   std::lock_guard<std::mutex> lock(handles_map_lock_);

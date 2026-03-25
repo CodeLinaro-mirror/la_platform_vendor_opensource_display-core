@@ -1020,22 +1020,44 @@ DisplayError DisplayBase::PrePrepare(LayerStack *layer_stack) {
   return error;
 }
 
+void DisplayBase::GetHDRLayerIndexForGPUTarget(LayerStack *layer_stack, uint32_t *layer_index) {
+  if (display_type_ != kPluggable && display_type_ != kVirtual) {
+    return;
+  }
+
+  uint32_t index = 0;
+  for (auto &layer : layer_stack->layers) {
+    if (layer->input_buffer.flags.hdr) {
+      *layer_index = index;
+      break;
+    }
+    index++;
+  }
+}
+
 DisplayError DisplayBase::ForceToneMapUpdate (LayerStack *layer_stack) {
   DTRACE_SCOPED();
   DisplayError error = kErrorNotSupported;
 
   for (auto& info : disp_layer_stack_->info) {
-    for (size_t hw_index = 0; hw_index < info.second.index.size(); hw_index++) {
-      size_t layer_index = info.second.index.at(hw_index);
+    for (uint32_t hw_index = 0; hw_index < info.second.index.size(); hw_index++) {
+      uint32_t layer_index = info.second.index.at(hw_index);
 
       if (layer_index >= layer_stack->layers.size()) {
         DLOGE("Error forcing TM update. Layer stack appears to have changed");
         return error;
       }
 
-      Layer *stack_layer = layer_stack->layers.at(layer_index);
       Layer &cached_layer = info.second.hw_layers.at(hw_index);
       HWLayerConfig &hw_config = info.second.config[hw_index];
+
+      if (cached_layer.composition == kCompositionGPUTarget &&
+          cached_layer.input_buffer.flags.hdr) {
+        // if cached gpu target has hdr, metadata needs to be updated from hdr layer for tonemap
+        GetHDRLayerIndexForGPUTarget(layer_stack, &layer_index);
+      }
+
+      Layer *stack_layer = layer_stack->layers.at(layer_index);
 
       cached_layer.input_buffer.hist_data = stack_layer->input_buffer.hist_data;
       cached_layer.input_buffer.dataspace = stack_layer->input_buffer.dataspace;
@@ -1639,6 +1661,10 @@ DisplayError DisplayBase::CommitOrPrepare(LayerStack *layer_stack) {
   return async_commit ? kErrorNone : kErrorNeedsCommit;
 }
 
+bool DisplayBase::IsLSRSupported() {
+  return client_ctx_.hw_panel_info.is_lsr_display;
+}
+
 bool DisplayBase::IsPrimaryCommitNeeded() {
   if (!client_ctx_.hw_panel_info.is_lsr_display) {
     lsr_first_commit_ = true;
@@ -1818,6 +1844,7 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
     master_hw_events_intf_->SetEventState(HWEvent::VM_RELEASE_EVENT, true);
     master_hw_events_intf_->SetEventState(HWEvent::VM_RECLAIM_EVENT, true);
     master_hw_events_intf_->SetEventState(HWEvent::SSR, true);
+    master_hw_events_intf_->SetEventState(HWEvent::LSR_SSR, true);
     registered_hw_events_ = true;
   }
 
@@ -1847,7 +1874,7 @@ DisplayError DisplayBase::PerformCommit(std::map<uint32_t, HWLayersInfo> &hw_lay
   }
   DisplayError error = dpu_core_mux_->Commit(hw_layers_info);
   if (error != kErrorNone) {
-    if (is_ssr_active_) {
+    if (is_ssr_active_ || is_lsr_ssr_active_) {
       DLOGW("COMMIT failed: %d while SSR is active, ignore failure", error);
     } else {
       DLOGE("COMMIT failed: %d ", error);
@@ -1932,7 +1959,7 @@ DisplayError DisplayBase::CommitLocked(LayerStack *layer_stack) {
 DisplayError DisplayBase::PerformHwCommit(std::map<uint32_t, HWLayersInfo> &hw_layers_info) {
   DTRACE_SCOPED();
 
-  if (is_ssr_active_) {
+  if (is_ssr_active_ || is_lsr_ssr_active_) {
     return HandleCommitDuringSSR();
   }
 
@@ -1944,7 +1971,7 @@ DisplayError DisplayBase::PerformHwCommit(std::map<uint32_t, HWLayersInfo> &hw_l
 
   error = PerformCommit(hw_layers_info);
   if (error != kErrorNone) {
-    if (is_ssr_active_) {
+    if (is_ssr_active_ || is_lsr_ssr_active_) {
       DLOGW("Commit IOCTL failed %d while SSR is active, ignore failure", error);
     } else {
       DLOGE("Commit IOCTL failed %d", error);
@@ -2322,10 +2349,16 @@ DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
         if (error == kErrorDeferred) {
           pending_power_state_ = kPowerStateOff;
           error = kErrorNone;
-        } else if (error == kErrorHardware && is_ssr_active_) {
-          DLOGI("PowerOff returned %d while SSR is active %d, ignore failure", error,
-                is_ssr_active_);
-          error = kErrorNone;
+        } else if (error == kErrorHardware) {
+          if (is_ssr_active_) {
+            DLOGI("PowerOff returned %d while SSR is active %d, ignore failure", error,
+                  is_ssr_active_);
+            error = kErrorNone;
+          } else if (is_lsr_ssr_active_) {
+            DLOGI("PowerOff returned %d while SSR is active %d, ignore failure", error,
+                  is_lsr_ssr_active_);
+            error = kErrorNone;
+          }
         } else {
           return error;
         }
@@ -4880,9 +4913,18 @@ DisplayError DisplayBase::SetPPConfig(void *payload, size_t size) {
   }
 
   DLOGI_IF(kTagDisplay, "PP Event is set successfully");
-  struct sde_drm::DRMPPFeatureInfo *info = reinterpret_cast<sde_drm::DRMPPFeatureInfo *>(payload);
-  if (info->id != sde_drm::kFeaturePaHistIrq) {
-    HandleSelfRefresh();
+
+  auto info = reinterpret_cast<sde_drm::DRMPPFeatureInfo *>(payload);
+  switch (info->id) {
+    case sde_drm::kFeaturePaHistIrq:
+    case sde_drm::kFeatureRgbHistQueueBuffer:
+    case sde_drm::kFeatureRgbHistQueueBuffer2:
+    case sde_drm::kFeatureRgbHistQueueBuffer3:
+      // No action needed for these cases
+      break;
+    default:
+      HandleSelfRefresh();
+      break;
   }
   return kErrorNone;
 }
@@ -5618,6 +5660,21 @@ DisplayError DisplayBase::HandleCommitDuringSSR() {
 
 bool DisplayBase::IsEPTSupported() {
   return dpu_core_mux_->IsEPTSupported();
+}
+
+void DisplayBase::UpdateColorModes() {
+  uint32_t i = 0;
+  num_color_modes_ = UINT32(color_mode_attr_map_.size());
+  color_modes_.resize(num_color_modes_);
+  for (ColorModeAttrMap::iterator it = color_mode_attr_map_.begin();
+       ((i < num_color_modes_) && (it != color_mode_attr_map_.end())); i++, it++) {
+    color_modes_[i].id = INT32(i);
+    std::size_t length = (it->first).copy(color_modes_[i].name, sizeof(SDEDisplayMode::name) - 1);
+    color_modes_[i].name[length] = '\0';
+    color_mode_map_.insert(std::make_pair(color_modes_[i].name, &color_modes_[i]));
+    DLOGI("Color mode = %s", color_modes_[i].name);
+  }
+  return;
 }
 
 }  // namespace sdm

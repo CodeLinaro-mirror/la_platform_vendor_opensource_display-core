@@ -522,6 +522,20 @@ struct CwbConfig {
   CwbControlParams cwb_control_params;               //!< More control parameters for CWB.
   uint32_t downscale_x = 1;                          //!< Downscale factor for CWB output width.
   uint32_t downscale_y = 1;                          //!< Downscale factor for CWB output height.
+  uint32_t num_parallel_buffers = 1;                 //!< number of parallel buffer of cwb ROI
+                                                     //!< in output buffer
+};
+
+// intermediate struct to hold some color metadata values which will be queried
+// individually only used here for ease of access / convenience in populating
+// each metadata member
+struct ColorMetadata {
+  Dataspace dataspace;
+  QtiMatrixCoEfficients matrixCoefficients;
+  QtiMasteringDisplay masteringDisplayInfo;
+  QtiContentLightLevel contentLightLevel;
+  QtiColorRemappingInfo cRI;
+  QtiDynamicMetadata dynamicMetadata;
 };
 
 class LayerBufferObject {

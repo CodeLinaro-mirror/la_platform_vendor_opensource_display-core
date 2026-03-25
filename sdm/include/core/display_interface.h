@@ -148,6 +148,7 @@ enum DisplayPort {
   kPortLVDS,       // Display is connected to LVDS port
   kPortEDP,        // Display is connected to EDP port
   kPortDP,         // Display is connected to DP port.
+  kPortSPI,        // Display is connected to SPI.
 };
 
 /*! @brief This enum represents the events received by Display HAL. */
@@ -163,6 +164,8 @@ enum DisplayEvent {
   kVmReclaimDone,           // Event triggered after acquiring the mdp hw from secondary vm.
   kSsrStart,                // Event triggered at the start of subsystem restart(SSR).
   kSsrEnd,                  // Event triggered at the end of subsystem restart (SSR).
+  kLsr_SsrStart,            // Event triggered at the start of LSR subsystem restart(SSR).
+  kLsr_SsrEnd,              // Event triggered at the end of LSR subsystem restart (SSR).
 };
 
 /*! @brief This enum represents the secure events received by Display HAL. */
@@ -397,6 +400,19 @@ struct PanelFeatureInfo {
   uint32_t fps = 0;
 };
 
+/*! @brief This struct stores the rgb hist feature info
+
+  @sa DisplayInterface::RgbHistConfigWrapper
+*/
+struct RgbHistConfigWrapper {
+  bool enable = false;
+  uint32_t disp_width = 0;
+  uint32_t disp_height = 0;
+  void *payload = nullptr;
+  void *observer = nullptr;
+  std::string observer_id;
+};
+
 /*! @brief This enum represents the panel feature cmd types supported by the vendService cmd.
 
   @sa DisplayInterface::PanelFeatureVendorServiceType
@@ -427,6 +443,7 @@ enum PanelFeatureVendorServiceType {
   kTypeSwitchToDAC = 12,
   /* Getter: char* */
   kTypeGetDemuraTnAgingValue = 13,
+  kTypeRgbHistConfig = 14,
   PanelFeatureVendorServiceTypeMax,
 };
 
@@ -1682,6 +1699,20 @@ class DisplayInterface {
     @return \link DisplayError \endlink
   */
   virtual DisplayError SetIllumination(uint32_t eye, const IlluminationConfig &config) = 0;
+
+  /*! @brief Method to check if lsr is supported on this display
+
+    @return \link bool \endlink
+  */
+  virtual bool IsLSRSupported() = 0;
+
+  /*! @brief Method to set rgb hist observer configurations
+   @param[in] state: Enable/Disable
+   @param[in] data : Configuration or operation data
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetRgbHistObserverConfig(bool state, void *data) = 0;
 
  protected:
   virtual ~DisplayInterface() { }

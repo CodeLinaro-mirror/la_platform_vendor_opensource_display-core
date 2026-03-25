@@ -580,6 +580,13 @@ DisplayError SDMDisplay::Init() {
     return kErrorNotSupported;
   }
 
+  if (display_intf_->IsLSRSupported()) {
+    FrameCaptureIntf::Create(display_intf_, buffer_allocator_, &fcm_);
+    if (fcm_ == nullptr) {
+      DLOGW("Failed to create framecapture");
+    }
+  }
+
   SDMDebugHandler::Get()->GetProperty(DISABLE_HDR, &disable_hdr_handling_);
   if (disable_hdr_handling_) {
     DLOGI("HDR Handling disabled");
@@ -802,6 +809,11 @@ DisplayError SDMDisplay::Deinit(bool deinit_layer_builder) {
   if (deinit_layer_builder) {
     layer_builder_->DeInit(id_);
     layer_builder_ = nullptr;
+  }
+
+  if (fcm_) {
+    FrameCaptureIntf::Destroy(fcm_);
+    fcm_ = nullptr;
   }
 
   return kErrorNone;
@@ -1659,6 +1671,18 @@ DisplayError SDMDisplay::HandleEvent(DisplayEvent event) {
     event_handler_->PerformSubsystemRestart(true);
   } break;
   case kSsrEnd: {
+    event_handler_->PerformSubsystemRestart(false);
+    DLOGI("Reset Display Pause state!");
+    display_pause_pending_ = false;
+    display_paused_ = false;
+  } break;
+  case kLsr_SsrStart: {
+    DLOGI("Set Display Pause state!");
+    display_paused_ = true;
+    display_pause_pending_ = true;
+    event_handler_->PerformSubsystemRestart(true);
+  } break;
+  case kLsr_SsrEnd: {
     event_handler_->PerformSubsystemRestart(false);
     DLOGI("Reset Display Pause state!");
     display_pause_pending_ = false;
@@ -3639,6 +3663,19 @@ DisplayError SDMDisplay::TeardownConcurrentWriteback() {
   return kErrorNone;
 }
 
+DisplayError SDMDisplay::ConfigureFCM(CWBPacketData &data) {
+  if (!fcm_) {
+    DLOGW("Frame capture manager is not initialized");
+    return kErrorNotSupported;
+  }
+  int ret = fcm_->ConfigureFCM(data);
+  if (ret == 0) {
+    return kErrorNone;
+  }
+  DLOGW("ConfigureFCM returned error %d", ret);
+  return kErrorNotSupported;
+}
+
 void SDMDisplay::MMRMEvent(bool restricted) {
   mmrm_restricted_ = restricted;
   callbacks_->OnRefresh(id_);
@@ -4161,7 +4198,10 @@ void SDMDisplay::NotifyCwbDone(int32_t status, const LayerBuffer &buffer) {
     std::unique_lock<std::mutex> lock(cwb_mutex_);
 
     const auto map_cwb_buffer = cwb_buffer_map_.find(handle_id);
-    if (map_cwb_buffer == cwb_buffer_map_.end()) {
+    if (map_cwb_buffer == cwb_buffer_map_.end() && fcm_) {
+      fcm_->NotifyCwbDone(status, buffer);
+      return;
+    } else if (map_cwb_buffer == cwb_buffer_map_.end()) {
       DLOGV_IF(kTagClient, "CWB Buffer(id = %" PRIu64 ") not found in buffer-client map",
                handle_id);
       return;

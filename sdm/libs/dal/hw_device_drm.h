@@ -215,12 +215,17 @@ class HWDeviceDRM : public HWInterface {
   virtual DisplayError SetReprojectionConfig(const struct ReprojectionConfig &reprojection_config) {
     return kErrorNone;
   }
-  virtual void SetSSRState(bool active);
+  virtual void SetSSRState(bool active, HWSSRType type);
   virtual bool IsEPTSupported();
   virtual DisplayError SetIllumination(uint32_t eye, const IlluminationConfig &config) {
     return kErrorNotSupported;
   }
   virtual DisplayError SetPixelShift(uint32_t eye, const PixelShiftConfig &config) {
+    return kErrorNotSupported;
+  }
+
+  virtual DisplayError SetHdrCapabilities(const std::vector<Hdr> &hdr_types,
+                                          float max_avg_luminance, float min_luminance) {
     return kErrorNotSupported;
   }
 
@@ -432,6 +437,7 @@ class HWDeviceDRM : public HWInterface {
 #endif
 #endif
   bool is_ssr_active_ = false;
+  bool is_lsr_ssr_active_ = false;
 
  private:
   void GetCWBCapabilities();

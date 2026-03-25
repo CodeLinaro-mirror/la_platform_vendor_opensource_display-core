@@ -210,6 +210,15 @@ DisplayError HWEventsDRM::InitializePollFd() {
         poll_fds_[i].events = POLLIN | POLLPRI | POLLERR;
         ssr_event_index_ = i;
       } break;
+      case HWEvent::LSR_SSR: {
+        HandleDRMOpen(poll_fds_[i].fd);
+        if (poll_fds_[i].fd < 0) {
+          DLOGE("drmOpen failed with error %d for LSR_SSR", poll_fds_[i].fd);
+          return kErrorResources;
+        }
+        poll_fds_[i].events = POLLIN | POLLPRI | POLLERR;
+        lsr_ssr_event_index_ = i;
+      } break;
       default:
         break;
     }
@@ -267,6 +276,9 @@ DisplayError HWEventsDRM::SetEventParser() {
         break;
       case HWEvent::SSR:
         event_data.event_parser = &HWEventsDRM::HandleSSREvent;
+        break;
+      case HWEvent::LSR_SSR:
+        event_data.event_parser = &HWEventsDRM::HandleLSR_SSREvent;
         break;
       default:
         error = kErrorParameters;
@@ -349,6 +361,7 @@ DisplayError HWEventsDRM::Deinit() {
   SetEventState(HWEvent::VM_RECLAIM_EVENT, false);
   SetEventState(HWEvent::VSYNC, false);
   SetEventState(HWEvent::SSR, false);
+  SetEventState(HWEvent::LSR_SSR, false);
 
   Sys::pthread_cancel_(event_thread_);
   WakeUpEventThread();
@@ -437,6 +450,9 @@ DisplayError HWEventsDRM::SetEventState(HWEvent event, bool enable, void *arg) {
     case HWEvent::SSR: {
       RegisterSSREvents(enable);
     } break;
+    case HWEvent::LSR_SSR: {
+      RegisterLSR_SSREvents(enable);
+    } break;
     default:
       DLOGE("Event not supported");
       return kErrorNotSupported;
@@ -486,9 +502,11 @@ void HWEventsDRM::CloseFds() {
       case HWEvent::VM_RELEASE_EVENT:
       case HWEvent::VM_RECLAIM_EVENT:
       case HWEvent::SSR:
+      case HWEvent::LSR_SSR: {
         drmClose(poll_fds_[i].fd);
         poll_fds_[i].fd = -1;
         break;
+      }
       case HWEvent::CEC_READ_MESSAGE:
       case HWEvent::SHOW_BLANK_EVENT:
       case HWEvent::THERMAL_LEVEL:
@@ -543,10 +561,12 @@ void *HWEventsDRM::DisplayEventHandler() {
         case HWEvent::VM_RELEASE_EVENT:
         case HWEvent::VM_RECLAIM_EVENT:
         case HWEvent::SSR:
+        case HWEvent::LSR_SSR: {
           if (poll_fd.revents & (POLLIN | POLLPRI | POLLERR)) {
             (this->*(event_data_list_[i]).event_parser)(nullptr);
           }
           break;
+        }
         case HWEvent::EXIT:
           if ((poll_fd.revents & POLLIN) &&
               (Sys::read_(poll_fd.fd, data, kMaxStringLength) > 0)) {
@@ -1145,6 +1165,36 @@ void HWEventsDRM::HandleVmReclaimEvent(char * /*data*/) {
   event_handler_->HandleVmReclaimEvent();
 }
 
+DisplayError HWEventsDRM::RegisterLSR_SSREvents(bool enable) {
+  DTRACE_SCOPED();
+  if (lsr_ssr_event_index_ == UINT32_MAX) {
+    DLOGI("LSR_SSR event is not supported");
+    return kErrorNone;
+  }
+
+  struct drm_msm_event_req req = {};
+  int ret = 0;
+  req.object_id = token_.conn_id;
+  req.object_type = DRM_MODE_OBJECT_CONNECTOR;
+  req.event = DRM_EVENT_LSR_SSR;
+  if (enable) {
+    ret = drmIoctl(poll_fds_[lsr_ssr_event_index_].fd, DRM_IOCTL_MSM_REGISTER_EVENT, &req);
+  } else {
+    ret = drmIoctl(poll_fds_[lsr_ssr_event_index_].fd, DRM_IOCTL_MSM_DEREGISTER_EVENT, &req);
+  }
+
+  if (ret) {
+    DLOGW("Failed to register for LSR_SSR events (enable %d) for connector %d", enable,
+          token_.conn_id);
+  } else {
+    DLOGI(
+        "Successfully registered for LSR_SSR events - conn_id %d object_type %x event 0x%x "
+        "lsr_ssr_event_index_ %d",
+        req.object_id, req.object_type, req.event, lsr_ssr_event_index_);
+  }
+  return kErrorNone;
+}
+
 DisplayError HWEventsDRM::RegisterSSREvents(bool enable) {
   DTRACE_SCOPED();
   if (ssr_event_index_ == UINT32_MAX) {
@@ -1206,6 +1256,51 @@ void HWEventsDRM::HandleSSREvent(char *data) {
           SSREventType type = *event_payload == 0 ? SSREventType::kSSRStart : SSREventType::kSSREnd;
           DLOGI("Received SSR event type %d", type);
           event_handler_->HandleSSREvent(type);
+        }
+        break;
+      }
+      default: {
+        DLOGE("Received an unexpected event %d", event_resp->base.type);
+        break;
+      }
+    }
+    i += event_resp->base.length;
+  }
+}
+
+void HWEventsDRM::HandleLSR_SSREvent(char *data) {
+  DTRACE_SCOPED();
+  char event_data[kMaxStringLength];
+  int32_t size;
+  struct drm_msm_event_resp *event_resp = NULL;
+
+  size = (int32_t)Sys::pread_(poll_fds_[lsr_ssr_event_index_].fd, event_data, kMaxStringLength, 0);
+  if (size < 0) {
+    DLOGE("Size is invalid!");
+    return;
+  }
+
+  if (size > kMaxStringLength) {
+    DLOGE("Event size %d is greater than event buffer size %d\n", size, kMaxStringLength);
+    return;
+  }
+
+  if (size < (int32_t)sizeof(*event_resp)) {
+    DLOGE("Size %d exp %zd\n", size, sizeof(*event_resp));
+    return;
+  }
+
+  int32_t i = 0;
+  while (i < size) {
+    event_resp = (struct drm_msm_event_resp *)&event_data[i];
+    switch (event_resp->base.type) {
+      case DRM_EVENT_LSR_SSR: {
+        uint32_t *event_payload = reinterpret_cast<uint32_t *>(event_resp->data);
+        if (event_payload) {
+          LSR_SSREventType type =
+              *event_payload == 0 ? LSR_SSREventType::kLSR_SSRStart : LSR_SSREventType::kLSR_SSREnd;
+          DLOGI("Received LSR_SSR event type %d", type);
+          event_handler_->HandleLSR_SSREvent(type);
         }
         break;
       }

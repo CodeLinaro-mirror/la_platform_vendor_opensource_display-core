@@ -94,8 +94,25 @@ class IdManager {
   }
 
   uint64_t GetFirstFreeId() {
-    // Check for emergency integer band first.
-    // If not found, check for any free integer in the range [0, max_id].
+    if (active_ids_.empty()) {
+      return 0;
+    }
+
+    // Find first disposed ID in the active IDs set.
+    uint64_t possible_id = 0;
+    for (uint64_t id : active_ids_) {
+      // If we have reached the emergency integer band, stop searching.
+      if (id == EMERGENCY_INTEGER_START_FOR_ID) {
+        break;
+      }
+      if (possible_id < id) {
+        return possible_id;
+      }
+      ++possible_id;
+    }
+
+    // Check for emergency integer band.
+    // If no disposed ID was found before, allocate ID from emergency band.
     for (uint64_t id = EMERGENCY_INTEGER_START_FOR_ID;; ++id) {
       if (active_ids_.find(id) == active_ids_.end()) {
         return id;
@@ -103,14 +120,6 @@ class IdManager {
       if (id == UINT64_MAX) {
         break;
       }
-    }
-
-    uint64_t possible_id = 0;
-    for (uint64_t id : active_ids_) {
-      if (possible_id < id) {
-        return possible_id;
-      }
-      ++possible_id;
     }
 
     return 0;
@@ -125,6 +134,16 @@ float lcm(float a, float b);
 void CloseFd(int *fd);
 uint64_t GetSystemTimeInNs();
 void SetRealTimePriority();
+
+template <typename T1, typename T2>
+void CopyColorMetadata(T1 &input, T2 &output) {
+  output.dataspace = input.dataspace;
+  output.matrixCoefficients = input.matrixCoefficients;
+  output.masteringDisplayInfo = input.masteringDisplayInfo;
+  output.contentLightLevel = input.contentLightLevel;
+  output.cRI = input.cRI;
+  output.dynamicMetadata = input.dynamicMetadata;
+}
 
 template<class T>
 bool SameConfig(T *t1, T *t2, unsigned int size) {

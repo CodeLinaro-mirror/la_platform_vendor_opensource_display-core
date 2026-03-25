@@ -486,7 +486,8 @@ int DRMConnectorManager::Reserve(DRMDisplayType disp_type, DRMDisplayToken *toke
       uint32_t conn_type;
       conn.second->GetType(&conn_type);
       if ((disp_type == DRMDisplayType::PERIPHERAL &&
-           (conn_type == DRM_MODE_CONNECTOR_DSI || conn_type == DRM_MODE_CONNECTOR_eDP)) ||
+           (conn_type == DRM_MODE_CONNECTOR_DSI || conn_type == DRM_MODE_CONNECTOR_eDP ||
+            conn_type == DRM_MODE_CONNECTOR_SPI)) ||
           (disp_type == DRMDisplayType::VIRTUAL && conn_type == DRM_MODE_CONNECTOR_VIRTUAL) ||
           (disp_type == DRMDisplayType::TV && IsTVConnector(conn_type))) {
         if (conn.second->IsConnected()) {
@@ -550,7 +551,7 @@ int DRMConnectorManager::GetPreferredModeLMCounts(std::map<uint32_t, uint8_t> *l
     uint32_t conn_type;
     const uint32_t &id = conn.first;
     conn.second->GetType(&conn_type);
-    if (conn_type == DRM_MODE_CONNECTOR_DSI) {
+    if (conn_type == DRM_MODE_CONNECTOR_DSI || conn_type == DRM_MODE_CONNECTOR_SPI) {
       DRMConnectorInfo info = {};
       connector_pool_[id]->GetInfo(&info);
       uint8_t lm_cnt = 0;
@@ -1566,6 +1567,21 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
                  obj_id, prop_id, wb_usage_mode, ret);
       } else {
         DRM_LOGD("Connector %d: Setting wb_usage_mode %" PRIu64, obj_id, wb_usage_mode);
+      }
+    } break;
+
+    case DRMOps::CONNECTOR_WB_NUM_BUFFERS: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::WB_NUM_BUFFERS)) {
+        return;
+      }
+      uint64_t wb_num_buffers = va_arg(args, uint32_t);
+      uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::WB_NUM_BUFFERS);
+      int ret = drmModeAtomicAddProperty(req, obj_id, prop_id, wb_num_buffers);
+      if (ret < 0) {
+        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, wb_num_buffers %d ret %d",
+                 obj_id, prop_id, wb_num_buffers, ret);
+      } else {
+        DRM_LOGD("Connector %d: Setting wb_num_buffers %d", obj_id, wb_num_buffers);
       }
     } break;
 

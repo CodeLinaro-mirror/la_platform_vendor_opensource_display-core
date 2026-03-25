@@ -96,6 +96,7 @@ class DisplayNull : public DisplayInterface {
   }
   virtual bool IsDpuDmaModeEnabled() { return false; }
   virtual bool IsEPTSupported() { return false; }
+  virtual bool IsLSRSupported() { return false; }
 
   MAKE_NO_OP(CommitOrPrepare(LayerStack *))
   MAKE_NO_OP(PrePrepare(LayerStack *))
@@ -203,6 +204,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config))
   MAKE_NO_OP(SetPoseConfig(const LayerBuffer &buffer))
   MAKE_NO_OP(SetIllumination(uint32_t eye, const IlluminationConfig &config))
+  MAKE_NO_OP(SetRgbHistObserverConfig(bool, void *))
 
  protected:
   DisplayConfigVariableInfo default_variable_config_ = {};

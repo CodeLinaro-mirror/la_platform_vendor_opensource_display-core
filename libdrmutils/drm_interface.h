@@ -690,6 +690,11 @@ enum struct DRMOps {
    */
   CONNECTOR_WB_USAGE_TYPE,
   /*
+   * Op: WB side by side buffer count
+   * Arg: drmModeAtomicReq - Atomic request
+   */
+  CONNECTOR_WB_NUM_BUFFERS,
+  /*
    * Op: WB csc config (BT2020/BT601)
    * Arg: drmModeAtomicReq - Atomic request
    */
@@ -1002,6 +1007,7 @@ enum struct DDRVersion {
   kDDRVersion4,
   kDDRVersion5,
   kDDRVersion5x,
+  kDDRVersion6,
 };
 
 /* Type for panel feature resource reservation info */
@@ -1353,6 +1359,11 @@ enum DRMPPFeatureID {
   kFeatureDimmingMinBl,
   kFeaturePaHistCtrl,
   kFeaturePaHistIrq,
+  kFeatureRgbHistBufferCtrl,
+  kFeatureRgbHistQueueBuffer,
+  kFeatureRgbHistQueueBuffer2,
+  kFeatureRgbHistQueueBuffer3,
+  kFeatureRgbHistCtrl,
   kPPFeaturesMax,
 };
 
@@ -1464,6 +1475,7 @@ enum DRMPanelFeatureID {
   kDRMPanelFeatureDemuraBacklight,
   // This prop is used for user space only, it is not an actual drm property
   kDRMPanelFeatureDemuraDoubleBufferCbFlags,
+  kDRMPanelFeatureDemuraBrgtInvAdjExpFlag,
   kDRMPanelFeatureMax,
 };
 
@@ -1638,6 +1650,15 @@ struct DRMFp16Config {
   uint32_t unmult_en = 0;
   DRMFp16CscConfig csc_config = {};
   drm_msm_fp16_gc gc_config = {.flags = 0, .mode = FP16_GC_MODE_INVALID};
+};
+
+struct DRMRgbHistBuffers {
+  uint32_t num_of_buffers;
+  uint32_t buffer_size;
+  int ion_buffer_fd[RGB_HISTOGRAM_BUFFER_SIZE][RGB_COMPONENT_SIZE];
+  int drm_fb_id[RGB_HISTOGRAM_BUFFER_SIZE][RGB_COMPONENT_SIZE];
+  void *uva[RGB_HISTOGRAM_BUFFER_SIZE][RGB_COMPONENT_SIZE];
+  int status = -1;
 };
 
 enum struct DRMCacheWBState {

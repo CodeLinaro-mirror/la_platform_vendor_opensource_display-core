@@ -403,6 +403,8 @@ void HWInfoDRM::GetSystemInfo(HWResourceInfo *hw_resource) {
     hw_resource->ddr_version = kDDRVersion5;
   } else if (info.ddr_version == sde_drm::DDRVersion::kDDRVersion5x) {
     hw_resource->ddr_version = kDDRVersion5x;
+  } else if (info.ddr_version == sde_drm::DDRVersion::kDDRVersion6) {
+    hw_resource->ddr_version = kDDRVersion6;
   } else {
     hw_resource->ddr_version = kDDRVersionNone;
   }
@@ -1112,6 +1114,7 @@ DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
     switch (iter.second.type) {
       case DRM_MODE_CONNECTOR_DSI:
       case DRM_MODE_CONNECTOR_eDP:
+      case DRM_MODE_CONNECTOR_SPI:
         hw_info.display_type = kBuiltIn;
         break;
       case DRM_MODE_CONNECTOR_TV:

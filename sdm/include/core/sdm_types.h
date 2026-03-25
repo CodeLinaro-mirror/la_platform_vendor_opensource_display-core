@@ -164,6 +164,7 @@ enum DebugTag {
   kTagWbUsage,          //!< Debug log is tagged for writeback block usage Implementation.
   kTagSelfRefresh,      //!< Debug log is tagged for HAL Self-Refresh Implementation.
   kTagDemura,           //!< Debug log is tagged for Demura and DemuraTn Implementation.
+  kTagColorProc,        //!< Debug log is tagged for Color Processing Implementation.
 };
 
 typedef std::vector<std::pair<std::string, std::string>> ColorModeAttributeVal;

@@ -140,6 +140,7 @@
 // Allows color management(tonemapping) in native mode (native mode is considered BT709+sRGB)
 #define ALLOW_TONEMAP_NATIVE                 DISPLAY_PROP("allow_tonemap_native")
 #define ENABLE_METADATA_DUMPING              DISPLAY_PROP("enable_metadata_dump")
+#define FORCE_SRGB_TO_P3                     DISPLAY_PROP("force_srgb_to_p3")
 
 // Disable power saving features
 #define DISABLE_DPPS_FEATURES               DISPLAY_PROP("disable_dpps_features")
@@ -318,6 +319,9 @@
 #define DISABLE_PUNCHHOLE_LAYERS          DISPLAY_PROP("disable_punchhole_layers")
 
 #define FORCE_LSR_RENDER_MODE             DISPLAY_PROP("force_lsr_render_mode")
+
+// Enable RGB Histogram
+#define ENABLE_RGB_HISTOGRAM              DISPLAY_PROP("enable_rgb_histogram")
 
 // Add all other.properties above
 // End of property

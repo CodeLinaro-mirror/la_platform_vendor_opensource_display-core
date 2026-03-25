@@ -496,21 +496,6 @@ DisplayError DisplayPluggable::GetColorModeAttr(const std::string &color_mode, A
   return kErrorNone;
 }
 
-void DisplayPluggable::UpdateColorModes() {
-  uint32_t i = 0;
-  num_color_modes_ = UINT32(color_mode_attr_map_.size());
-  color_modes_.resize(num_color_modes_);
-  for (ColorModeAttrMap::iterator it = color_mode_attr_map_.begin();
-       ((i < num_color_modes_) && (it != color_mode_attr_map_.end())); i++, it++) {
-    color_modes_[i].id = INT32(i);
-    std::size_t length = (it->first).copy(color_modes_[i].name, sizeof(SDEDisplayMode::name) - 1);
-    color_modes_[i].name[length] = '\0';
-    color_mode_map_.insert(std::make_pair(color_modes_[i].name, &color_modes_[i]));
-    DLOGI("Color mode = %s", color_modes_[i].name);
-  }
-  return;
-}
-
 DisplayError DisplayPluggable::colorSamplingOn() {
   return kErrorNone;
 }
@@ -543,6 +528,10 @@ bool DisplayPluggable::IsPrimaryDisplay() {
 
 DisplayError DisplayPluggable::GetPanelBrightnessBasePath(std::string *base_path) {
   return dpu_core_mux_->GetPanelBrightnessBasePath(base_path);
+}
+
+void DisplayPluggable::HandleLSR_SSREvent(LSR_SSREventType lsr_ssr_event) {
+  DLOGW("LSR_SSR is not supported for pluggable displays");
 }
 
 void DisplayPluggable::HandleSSREvent(SSREventType ssr_event) {
