@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <inttypes.h>
 
 #include "SnapConstraintDefs.h"
 #include "SnapConstraintParser.h"
@@ -476,7 +477,7 @@ int CameraConstraintProvider::GetCapabilities(BufferDescriptor desc, CapabilityS
 int CameraConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferConstraints *data) {
   int format = static_cast<uint64_t>(desc.format);
   if (format_data_map_.find(desc.format) == format_data_map_.end()) {
-    ALOGE("Could not find entry for format ", static_cast<uint64_t>(format));
+    ALOGE("Could not find entry for format %" PRIu64, static_cast<uint64_t>(format));
     return -1;
   }
   uint64_t pixel_format_modifier = GetPixelFormatModifier(desc);
@@ -550,7 +551,7 @@ int CameraConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConstr
   if (constraint_set_map_.find(desc.format) != constraint_set_map_.end()) {
     *out = constraint_set_map_.at(desc.format);
   } else {
-    ALOGD_IF(DEBUG, "Camera could not find entry for format %lu",
+    ALOGD_IF(DEBUG, "Camera could not find entry for format %" PRIu64,
              static_cast<uint64_t>(desc.format));
   }
   return 0;

@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <inttypes.h>
 
 #include "SnapConstraintParser.h"
 #include "SnapUtils.h"
@@ -232,7 +233,7 @@ int GraphicsConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCo
   int format = static_cast<uint64_t>(snap_format);
   uint64_t pixel_format_modifier = GetPixelFormatModifier(desc);
   if (format_data_map_.find(snap_format) == format_data_map_.end()) {
-    ALOGE("%s: could not find entry for format %lu", __FUNCTION__, static_cast<uint64_t>(format));
+    ALOGE("%s: could not find entry for format %" PRIu64, __FUNCTION__, static_cast<uint64_t>(format));
     return -1;
   }
 
@@ -356,7 +357,7 @@ int GraphicsConstraintProvider::GetConstraints(BufferDescriptor desc, BufferCons
   if (constraint_set_map_.find(desc.format) != constraint_set_map_.end()) {
     *out = constraint_set_map_.at(desc.format);
   } else {
-    ALOGE("Graphics could not find entry for format %d", static_cast<uint64_t>(desc.format));
+    ALOGE("Graphics could not find entry for format %" PRIu64, static_cast<uint64_t>(desc.format));
     return -1;
   }
   return 0;

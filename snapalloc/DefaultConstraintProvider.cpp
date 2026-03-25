@@ -7,6 +7,7 @@
 #include <log/log.h>
 #include <fstream>
 #include <iostream>
+#include <inttypes.h>
 
 #include "SnapConstraintParser.h"
 
@@ -51,7 +52,7 @@ int DefaultConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConst
   if (constraint_set_map_.find(desc.format) != constraint_set_map_.end()) {
     *out = constraint_set_map_.at(desc.format);
   } else {
-    ALOGD_IF(DEBUG, "Default could not find entry for format %lu",
+    ALOGD_IF(DEBUG, "Default could not find entry for format %" PRIu64,
              static_cast<uint64_t>(desc.format));
   }
   return 0;
