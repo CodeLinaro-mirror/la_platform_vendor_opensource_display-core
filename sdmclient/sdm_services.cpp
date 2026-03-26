@@ -1045,6 +1045,25 @@ DisplayError SDMServices::SetDemuraConfig(SDMParcel *input_parcel,
   return kErrorNone;
 }
 
+DisplayError SDMServices::SetQrtcFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel) {
+  int disp_id = input_parcel->readInt32();
+  int type = input_parcel->readInt32();
+  int data = input_parcel->readInt32();
+
+  if (type >= KQrtcVendorServiceTypeMax) {
+    DLOGE("Invalid type %d", type);
+    return kErrorNotSupported;
+  }
+
+  auto ret = cb_->SetQrtcFeatureConfig(disp_id, type, &data);
+  if (ret != kErrorNone) {
+    output_parcel->write("FAILED", strlen("FAILED"));
+  } else {
+    output_parcel->writeInt32(ret);
+  }
+  return ret;
+}
+
 DisplayError SDMServices::GetDisplayPortId(SDMParcel *input_parcel, SDMParcel *output_parcel) {
   int disp_id = input_parcel->readInt32();
   int port_id = 0;

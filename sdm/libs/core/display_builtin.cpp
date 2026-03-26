@@ -6244,9 +6244,91 @@ int QrtcScreenRefreshImp::ScreenRefreshControl(bool enable) {
   return 0;
 }
 
+DisplayError DisplayBuiltIn::SetQrtcFeatureConfig(int32_t type, void *data) {
+  DisplayError ret = kErrorNone;
+  int val = 0;
+
+  if (!data || !qrtc_ || !qrtc_enabled_) {
+    DLOGE("data %pK qrtc_ %pK qrtc_enabled_ %d", data, qrtc_.get(), qrtc_enabled_);
+    return kErrorUndefined;
+  }
+
+  val = *(reinterpret_cast<int *>(data));
+  DLOGI("SetQrtcFeatureConfig with type %d value %d", type, val);
+  switch (type) {
+    case kTypeQrtcState:
+      ret = SetQrtcState(val);
+      break;
+    case kTypeQrtcSubsample:
+      ret = SetQrtcSubsample(val);
+      break;
+    case kTypeQrtcDumpBuffer:
+      ret = DumpQrtcBuffer(val);
+      break;
+    default:
+      DLOGE("Invalid type %d", type);
+      ret = kErrorParameters;
+      break;
+  }
+  return ret;
+}
+
+DisplayError DisplayBuiltIn::SetQrtcSubsample(int subsample) {
+  DisplayError error = kErrorNone;
+
+  if (subsample < qrtc::QRTC_SubSample_1X1 || subsample > qrtc::QRTC_SubSample_3X3) {
+    DLOGE("unsupported QRTC subsample %d", subsample);
+    return kErrorUndefined;
+  }
+
+  qrtc_config_.subsample = static_cast<qrtc::QrtcSubSample>(subsample);
+  qrtc_config_.max_subsample = static_cast<qrtc::QrtcSubSample>(subsample);
+
+  error = SetupQrtcConfig(qrtc_config_);
+  if (error != kErrorNone) {
+    DLOGE("Unable to setup Qrtc config on Display %d-%d", display_id_, display_type_);
+    return kErrorUndefined;
+  }
+
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::DumpQrtcBuffer(int count) {
+  int ret = 0;
+
+  if (!qrtc_ || !qrtc_enabled_) {
+    DLOGE("qrtc_ %pK qrtc_enabled_ %d", qrtc_.get(), qrtc_enabled_);
+    return kErrorUndefined;
+  }
+
+  if (count < 0 || count > 50) {
+    DLOGE("unsupported QRTC frame dump count %d", count);
+    return kErrorUndefined;
+  }
+
+  // Create payload with frame dump count
+  GenericPayload payload;
+  uint32_t *count_ptr = nullptr;
+  ret = payload.CreatePayload(count_ptr);
+  if (ret != 0 || !count_ptr) {
+    DLOGE("Failed to create the payload for frame dump count:%d", ret);
+    return kErrorResources;
+  }
+
+  *count_ptr = count;
+  ret = qrtc_->SetParameter(qrtc::kQrtcDumpBuffer, payload);
+  if (ret) {
+    DLOGE("Failed to Set Qrtc Dump buffer, ret %d", ret);
+    return kErrorNotSupported;
+  }
+
+  return kErrorNone;
+}
+
 DisplayError DisplayBuiltIn::SetupQrtc() {
   DisplayError error = kErrorNone;
   int ret = 0;
+
   if (!qrtc_factory_) {
     DLOGE("Failed to get qrtc feature Factory");
     return kErrorResources;
@@ -6290,7 +6372,20 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
 
   qrtc_ = std::move(qrtc_intf);
 
-  if (SetupQrtcConfig() != kErrorNone) {
+  // default setting
+  qrtc_config_.fetch_pipe = qrtc::QRTC_FETCH_DMA3;
+  /* TODO: currently only rect0 is verified, switch to RECT1 later */
+  qrtc_config_.rect_fetch_pipe = qrtc::QRTC_MULTI_RECT_0;
+  qrtc_config_.cwb_blk = qrtc::QRTC_CWB_BLK0;
+  qrtc_config_.wb_blk = qrtc::QRTC_WB_BLK0;
+  qrtc_config_.rect_wb_blk = qrtc::QRTC_MULTI_RECT_1;
+  qrtc_config_.subsample = qrtc::QRTC_SubSample_1X1;
+  qrtc_config_.max_subsample = qrtc::QRTC_SubSample_1X1;
+  qrtc_config_.panel_name = "sample";
+  qrtc_config_.panel_width = client_ctx_.display_attributes.x_pixels;
+  qrtc_config_.panel_height = client_ctx_.display_attributes.y_pixels;
+
+  if (SetupQrtcConfig(qrtc_config_) != kErrorNone) {
     DLOGE("Unable to setup Qrtc config on Display %d-%d", display_id_, display_type_);
     return kErrorUndefined;
   }
@@ -6310,28 +6405,14 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
   return kErrorNone;
 }
 
-DisplayError DisplayBuiltIn::SetupQrtcConfig() {
+DisplayError DisplayBuiltIn::SetupQrtcConfig(qrtc::QrtcFeatureConfig &config) {
   int ret = 0;
   if (!qrtc_) {
     DLOGI("Qrtc feature intf is not available");
     return kErrorUndefined;
   }
 
-  // Create proper QrtcFeatureConfig structure
-  qrtc::QrtcFeatureConfig feature_config;
-  feature_config.fetch_pipe = qrtc::QRTC_FETCH_DMA3;
-  /* TODO: currently only rect0 is verified, switch to RECT1 later */
-  feature_config.rect_fetch_pipe = qrtc::QRTC_MULTI_RECT_0;
-  feature_config.cwb_blk = qrtc::QRTC_CWB_BLK0;
-  feature_config.wb_blk = qrtc::QRTC_WB_BLK0;
-  feature_config.rect_wb_blk = qrtc::QRTC_MULTI_RECT_1;
-  feature_config.subsample = qrtc::QRTC_SubSample_1X1;
-  feature_config.max_subsample = qrtc::QRTC_SubSample_1X1;
-  feature_config.panel_name = "sample";
-  feature_config.panel_width = client_ctx_.display_attributes.x_pixels;
-  feature_config.panel_height = client_ctx_.display_attributes.y_pixels;
-
-  // Create configuration payload with proper struct
+  // Create configuration payload
   GenericPayload config_payload;
   qrtc::QrtcFeatureConfig *config_ptr = nullptr;
   ret = config_payload.CreatePayload(config_ptr);
@@ -6340,7 +6421,7 @@ DisplayError DisplayBuiltIn::SetupQrtcConfig() {
     return kErrorResources;
   }
 
-  *config_ptr = feature_config;
+  *config_ptr = config;
   ret = qrtc_->SetParameter(qrtc::kQrtcFeatureConfig, config_payload);
   if (ret) {
     DLOGE("Failed to set Qrtc config, ret %d", ret);
@@ -6357,7 +6438,7 @@ DisplayError DisplayBuiltIn::SetQrtcState(int state) {
     return kErrorUndefined;
   }
 
-  DLOGV("Setting the Qrtc State to %d", state);
+  DLOGI("Setting the Qrtc State to %d", state);
   GenericPayload enable_payload;
   bool *enable_ptr = nullptr;
   ret = enable_payload.CreatePayload(enable_ptr);

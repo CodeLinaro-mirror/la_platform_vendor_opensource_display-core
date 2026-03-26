@@ -1808,6 +1808,10 @@ DisplayError SDMDisplayBuiltIn::SetDemuraConfig(int demura_idx) {
   return kErrorNone;
 }
 
+DisplayError SDMDisplayBuiltIn::SetQrtcFeatureConfig(int32_t type, void *data) {
+  return display_intf_->SetQrtcFeatureConfig(type, data);
+}
+
 DisplayError SDMDisplayBuiltIn::SetABCState(bool state) {
   DLOGV("Display ID: %" PRId64 " state: %d", id_, state);
   DisplayError error = display_intf_->SetABCState(state);
