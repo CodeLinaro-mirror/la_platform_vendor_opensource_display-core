@@ -60,7 +60,7 @@
 #include "pu_subject_intf_impl.h"
 #include "rgb_hist_feature_intf.h"
 #include "rgb_hist_manager_intf.h"
-#include "rgb_hist_fact_intf_impl.h"
+#include "rgb_hist_fact_intf.h"
 
 namespace sdm {
 
