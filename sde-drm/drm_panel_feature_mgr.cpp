@@ -56,10 +56,12 @@
 
 namespace sde_drm {
 
-using std::map;
-using std::vector;
-using std::mutex;
 using std::lock_guard;
+using std::map;
+using std::mutex;
+using std::string;
+using std::stringstream;
+using std::vector;
 
 static DRMPanelFeatureMgr panel_feature_mgr;
 
@@ -333,6 +335,9 @@ int DRMPanelFeatureMgr::InitObjectProps(int obj_id, int obj_type) {
     }
 
     prop_mgr_.SetPropertyId(prop_enum, info->prop_id);
+    if (prop_enum == DRMProperty::CAPABILITIES) {
+      ParseCapabilities(props->prop_values[j]);
+    }
     drmModeFreeProperty(info);
   }
 
@@ -398,6 +403,35 @@ void DRMPanelFeatureMgr::ParseDemuraResources(drmModePropertyRes *prop, uint64_t
   }
 
   info->prop_size += frl->size();
+}
+
+void DRMPanelFeatureMgr::ParseCapabilities(uint32_t blob_id) {
+  drmModePropertyBlobRes *blob = drmModeGetPropertyBlob(dev_fd_, blob_id);
+  if (!blob) {
+    return;
+  }
+
+  if (!blob->data) {
+    return;
+  }
+
+  char *fmt_str = new char[blob->length + 1];
+  memcpy(fmt_str, blob->data, blob->length);
+  fmt_str[blob->length] = '\0';
+  stringstream stream(fmt_str);
+  DRM_LOGI("stream str %s len %zu blob str %s len %d", stream.str().c_str(), stream.str().length(),
+           blob->data, blob->length);
+  string line = {};
+  string has_demura_single_rect_support = "has_demura_single_rect_support=";
+
+  while (std::getline(stream, line)) {
+    if (line.find(has_demura_single_rect_support) != string::npos) {
+      has_demura_single_rect_support_ =
+          std::stoi(string(line, has_demura_single_rect_support.length()));
+    }
+  }
+  drmModeFreePropertyBlob(blob);
+  delete[] fmt_str;
 }
 
 void DRMPanelFeatureMgr::ParseDsppCapabilities(uint32_t blob_id, std::vector<int> *values,
@@ -504,6 +538,10 @@ void DRMPanelFeatureMgr::GetPanelFeatureInfo(DRMPanelFeatureInfo *info) {
     bool *brgt_inv_adj_exp_supported = reinterpret_cast<bool *>(info->prop_ptr);
     *brgt_inv_adj_exp_supported =
         (feature_info_tbl_[kDRMPanelFeatureDemuraInit].version >= 4 ? true : false);
+    return;
+  } else if (info->prop_id == kDRMPanelFeatureDemuraSupportSingleRecFlags) {
+    bool *supported = reinterpret_cast<bool *>(info->prop_ptr);
+    *supported = has_demura_single_rect_support_;
     return;
   }
 

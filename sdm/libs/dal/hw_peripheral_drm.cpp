@@ -1385,6 +1385,8 @@ void HWPeripheralDRM::CreatePanelFeaturePropertyMap() {
       sde_drm::kDRMPanelFeatureDemuraDoubleBufferCbFlags;
   panel_feature_property_map_[kPanelFeatureDemuraBrgtInvAdjExpFlag] =
       sde_drm::kDRMPanelFeatureDemuraBrgtInvAdjExpFlag;
+  panel_feature_property_map_[kPanelFeatureDemuraSupportSingleRecFlags] =
+      sde_drm::kDRMPanelFeatureDemuraSupportSingleRecFlags;
 }
 
 int HWPeripheralDRM::GetPanelFeature(PanelFeaturePropertyInfo *feature_info) {
@@ -1435,6 +1437,7 @@ int HWPeripheralDRM::GetPanelFeature(PanelFeaturePropertyInfo *feature_info) {
       break;
     case kPanelFeatureDemuraDoubleBufferCbFlags:
     case kPanelFeatureDemuraBrgtInvAdjExpFlag:
+    case kPanelFeatureDemuraSupportSingleRecFlags:
       break;
     default:
       DLOGE("obj id population for property %d not implemented", feature_info->prop_id);
