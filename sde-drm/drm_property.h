@@ -288,7 +288,8 @@ enum struct DRMProperty {
   SDE_RGB_HIST_QUEUE_BUFFER2_V2,
   SDE_RGB_HIST_QUEUE_BUFFER3_V2,
   SDE_RGB_HIST_CTRL_V2,
-
+  SDE_QRTC_CFG_V1,
+  SDE_QRTC_BUFFER_V1,
   // Insert above
   MAX
 };

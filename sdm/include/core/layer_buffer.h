@@ -284,6 +284,9 @@ struct LayerBufferFlags {
 
       uint32_t custom_tm : 1;       //!< This flag shall be set by client to indicate that the
                                     //!< buffer needs custom tonemap - 3D LUT / DE
+
+      uint32_t qrtc : 1;  //!< This flag shall be set to indicate that the
+                          //!< content is qrtc correction data
     };
 
     uint32_t flags = 0;             //!< For initialization purpose only.

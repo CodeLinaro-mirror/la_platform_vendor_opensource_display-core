@@ -766,6 +766,7 @@ void DRMPlane::GetTypeInfo(const PropertyMap &prop_map) {
   string cac_mode = "cac_mode=";
   string cac_parent_rect = "cac_parent_rec=";
   string plane_type = "plane_type=";
+  string qrtc_block = "qrtc_block=";
 
   while (std::getline(stream, line)) {
     if (line.find(inline_rot_pixel_formats) != string::npos) {
@@ -828,6 +829,8 @@ void DRMPlane::GetTypeInfo(const PropertyMap &prop_map) {
       } else if (string(line, plane_type.length()) == "repro") {
         info->type = DRMPlaneType::REPRO;
       }
+    } else if (line.find(qrtc_block) != string::npos) {
+      info->qrtc_block_capability = std::stoi(line.erase(0, qrtc_block.length()));
     }
   }
 

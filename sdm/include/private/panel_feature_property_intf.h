@@ -67,6 +67,8 @@ enum PanelFeaturePropertyID {
   kPanelFeatureDemuraDoubleBufferCbFlags,
   kPanelFeatureDemuraBrgtInvAdjExpFlag,
   kPanelFeatureDemuraSupportSingleRecFlags,
+  kPanelFeatureQrtcConfig,
+  kPanelFeatureQrtcBufferConfig,
   kPanelFeaturePropertyIDMax
 };
 
