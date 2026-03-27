@@ -4759,6 +4759,7 @@ DisplayError DisplayBuiltIn::GetScalerCount(uint32_t *scaler_count) {
 
 DisplayError EventProxyInfo::Init(const std::string &panel_name, DisplayInterface *intf,
                                   DynLib &extension_lib, PanelFeaturePropertyIntf *prop_intf) {
+#ifndef TRUSTED_VM
   std::lock_guard<std::mutex> guard(lock_);
 
   if (!intf || !prop_intf) {
@@ -4802,22 +4803,26 @@ DisplayError EventProxyInfo::Init(const std::string &panel_name, DisplayInterfac
   }
 
   event_proxy_intf_ = proxy_intf;
+#endif
   return kErrorNone;
 }
 
 DisplayError EventProxyInfo::Deinit() {
+#ifndef TRUSTED_VM
   std::lock_guard<std::mutex> guard(lock_);
   if (event_proxy_intf_) {
     event_proxy_intf_->Deinit();
     event_proxy_intf_.reset();
     event_proxy_intf_ = nullptr;
   }
+#endif
   return kErrorNone;
 }
 
 DisplayError
 EventProxyInfo::PanelOprInfo(const std::string &client_name, bool enable,
                              SdmDisplayCbInterface<PanelOprPayload> *cb_intf) {
+#ifndef TRUSTED_VM
   if (!event_proxy_intf_.get()) {
     DLOGW("Event proxy intf is not available");
     return kErrorParameters;
@@ -4840,13 +4845,14 @@ EventProxyInfo::PanelOprInfo(const std::string &client_name, bool enable,
     DLOGE("Failed to set panel Opr info enablement, ret %d", ret);
     return kErrorUndefined;
   }
-
+#endif
   return kErrorNone;
 }
 
 #ifndef TARGET_INCLUDES_NEO
 DisplayError EventProxyInfo::EnableCopr(const std::string &client_name, bool enable,
                                         SdmDisplayCbInterface<CoprEventPayload> *cb_intf) {
+#ifndef TRUSTED_VM
   if (!event_proxy_intf_.get()) {
     DLOGW("Event proxy intf is not available");
     return kErrorParameters;
@@ -4869,7 +4875,7 @@ DisplayError EventProxyInfo::EnableCopr(const std::string &client_name, bool ena
     DLOGE("Failed to set Copr info enablement, ret %d", ret);
     return kErrorUndefined;
   }
-
+#endif
   return kErrorNone;
 }
 
@@ -4902,6 +4908,7 @@ int CoprInfo::Notify(const CoprEventPayload &payload) {
 DisplayError EventProxyInfo::SetPaHistCollection(
     const std::string &client_name, bool enable,
     SdmDisplayCbInterface<PaHistCollectionPayload> *cb_intf) {
+#ifndef TRUSTED_VM
   if (!event_proxy_intf_.get()) {
     DLOGW("Event proxy intf is not available");
     return kErrorParameters;
@@ -4924,11 +4931,12 @@ DisplayError EventProxyInfo::SetPaHistCollection(
     DLOGE("Failed to set pa hist enablement, ret %d", ret);
     return kErrorUndefined;
   }
-
+#endif
   return kErrorNone;
 }
 
 DisplayError EventProxyInfo::GetPaHistBins(std::array<uint32_t, HIST_BIN_SIZE> *buf) {
+#ifndef TRUSTED_VM
   PaHistBinsParam *param = nullptr;
   GenericPayload payload;
 
@@ -4954,13 +4962,14 @@ DisplayError EventProxyInfo::GetPaHistBins(std::array<uint32_t, HIST_BIN_SIZE> *
     DLOGE("Failed to get pa hist bins, ret %d", ret);
     return kErrorUndefined;
   }
-
+#endif
   return kErrorNone;
 }
 
 DisplayError EventProxyInfo::PanelBacklightInfo(
     const std::string &client_name, bool enable,
     SdmDisplayCbInterface<PanelBacklightPayload> *cb_intf) {
+#ifndef TRUSTED_VM
   if (!event_proxy_intf_.get()) {
     DLOGW("Event proxy intf is not available");
     return kErrorParameters;
@@ -4983,7 +4992,7 @@ DisplayError EventProxyInfo::PanelBacklightInfo(
     DLOGE("Failed to set panel backlight info enablement, ret %d", ret);
     return kErrorUndefined;
   }
-
+#endif
   return kErrorNone;
 }
 
