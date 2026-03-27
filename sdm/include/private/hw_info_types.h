@@ -1161,6 +1161,7 @@ struct HWDisplayAttributes : DisplayConfigVariableInfo {
   uint32_t clock_khz = 0;      //!< Stores the pixel clock of panel in khz
   HWTopology topology = kUnknown;   //!< Stores the topology information.
   uint32_t topology_num_split = 1;  //!< Stores the topology split number information.
+  uint32_t num_blending_stages = 0;
 
   bool operator !=(const HWDisplayAttributes &display_attributes) {
     return ((is_device_split != display_attributes.is_device_split) ||
@@ -1178,7 +1179,8 @@ struct HWDisplayAttributes : DisplayConfigVariableInfo {
             (is_yuv != display_attributes.is_yuv) ||
             (clock_khz != display_attributes.clock_khz) ||
             (topology != display_attributes.topology) ||
-            (topology_num_split != display_attributes.topology_num_split));
+            (topology_num_split != display_attributes.topology_num_split) ||
+            (num_blending_stages != display_attributes.num_blending_stages));
   }
 
   bool operator ==(const HWDisplayAttributes &display_attributes) {
