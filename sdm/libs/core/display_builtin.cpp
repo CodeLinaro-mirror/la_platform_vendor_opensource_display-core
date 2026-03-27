@@ -258,10 +258,12 @@ DisplayError DisplayBuiltIn::Init() {
             HWEvent::MMRM,
             HWEvent::VM_RELEASE_EVENT,
             HWEvent::VM_RECLAIM_EVENT,
-            HWEvent::SSR,
-            HWEvent::LSR_SSR};
+            HWEvent::SSR};
   if ((client_ctx_.hw_panel_info.mode == kModeCommand) || client_ctx_.hw_panel_info.vhm_support) {
     events.push_back(HWEvent::IDLE_POWER_COLLAPSE);
+  }
+  if (client_ctx_.hw_panel_info.is_lsr_display) {
+    events.push_back(HWEvent::LSR_SSR);
   }
 #endif
   std::bitset<8> core_id_map = display_id_info_.GetCoreIdMap();
