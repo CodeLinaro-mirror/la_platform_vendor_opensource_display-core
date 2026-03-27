@@ -106,7 +106,6 @@ class HWTVDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   bool in_multiset_ = false;
   std::map<PanelFeaturePropertyID, sde_drm::DRMPanelFeatureID> panel_feature_property_map_ {};
   sde_drm::DRMIdlePCState idle_pc_state_ = sde_drm::DRMIdlePCState::NONE;
-  bool idle_pc_enabled_ = true;
   SelfRefreshState self_refresh_state_ = kSelfRefreshNone;
 };
 
