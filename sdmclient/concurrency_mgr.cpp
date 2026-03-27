@@ -1879,6 +1879,7 @@ DisplayError ConcurrencyMgr::GetDisplayConnectionType(Display display,
     return kErrorParameters;
   }
 
+  SCOPE_LOCK(locker_[display]);
   if (!sdm_display_[display]) {
     DLOGW("Expected valid sdm_display");
     return kErrorParameters;
