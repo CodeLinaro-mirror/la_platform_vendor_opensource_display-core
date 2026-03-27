@@ -2124,13 +2124,6 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
           SetDrmRenderPose(pipe_id, layer.layer_pose);
           SetDrmFrustum(pipe_id, layer.layer_frustum);
           SetDrmPlaneEquation(pipe_id, layer.plane_equation);
-          // TODO: Need to revisit
-          // + enum sde_drm_lsr_layer_type {
-          // +  SDE_LSR_LAYER_LOCAL = 0,
-          // +  SDE_LSR_LAYER_REMOTE
-          // +};
-          // driver has layer type structe as above (layer.comp_layer_type)
-          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_RENDER_TYPE, pipe_id, SDE_LSR_LAYER_LOCAL);
 
           // enum sde_drm_layer_gamma_type {
           // SDE_LAYER_GAMMA_NONE = 0,

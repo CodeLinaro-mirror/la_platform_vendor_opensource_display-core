@@ -1669,15 +1669,6 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       AddProperty(req, obj_id, prop_id, ref_space_type, true /* cache */, tmp_prop_val_map_);
       DRM_LOGD("Plane %d: Setting reference space type %d", obj_id, ref_space_type);
     } break;
-    case DRMOps::PLANE_SET_RENDER_TYPE: {
-      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::RENDER_TYPE)) {
-        return;
-      }
-      uint32_t render_type = va_arg(args, uint32_t);
-      prop_id = prop_mgr_.GetPropertyId(DRMProperty::RENDER_TYPE);
-      AddProperty(req, obj_id, prop_id, render_type, true /* cache */, tmp_prop_val_map_);
-      DRM_LOGD("Plane %d: Setting render_type %d", obj_id, render_type);
-    } break;
     case DRMOps::PLANE_SET_RENDER_POSE: {
       if (!prop_mgr_.IsPropertyAvailable(DRMProperty::RENDER_POSE)) {
         return;
