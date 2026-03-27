@@ -474,6 +474,16 @@ enum QrtcVendorServiceType {
   KQrtcVendorServiceTypeMax,
 };
 
+/*! @brief This struct stores QrtcSubsamplingSupport capability
+
+  @sa DisplayInterface::QrtcSubsamplingSupport
+*/
+struct QrtcSubsamplingSupport {
+  uint32_t subsample_h;
+  uint32_t subsample_v;
+  bool supported;
+};
+
 enum ClientCapability {
   kPunchholeSupported,
   kHDRSupported,
