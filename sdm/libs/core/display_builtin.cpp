@@ -53,8 +53,11 @@
 
 #include "drm_interface.h"
 #include "drm_master.h"
+
+#ifndef TRUSTED_VM
 #include "rgb_hist_data_dumper.h"
 #include "rgb_hist_feature_intf_impl.h"
+#endif
 
 #define __CLASS__ "DisplayBuiltIn"
 
@@ -584,6 +587,7 @@ DisplayError DisplayBuiltIn::Deinit() {
       feat_license_intf_ = nullptr;
     }
 
+#ifndef TRUSTED_VM
     if (rgb_hist_manager_intf_) {
       // Deregister observer
       rgb_histogram::ObserverConfig config;
@@ -597,6 +601,7 @@ DisplayError DisplayBuiltIn::Deinit() {
       rgb_hist_fact_intf_->Cleanup(display_id_);
       rgb_hist_fact_intf_ = nullptr;
     }
+#endif
   }
 
   dpps_info_.Deinit();
@@ -6479,6 +6484,7 @@ DisplayError DisplayBuiltIn::SetQrtcState(int state) {
 }
 
 DisplayError DisplayBuiltIn::SetupRgbHistogram() {
+#ifndef TRUSTED_VM
   // Necessary init information
   rgb_histogram::RgbHistFeatureInitInfo info = {};
   info.disp_intf = this;
@@ -6503,17 +6509,21 @@ DisplayError DisplayBuiltIn::SetupRgbHistogram() {
   // Cache the manager intf
   rgb_hist_manager_intf_ = intf;
   DLOGI("RGB histogram manager intf created successfully");
+#endif
   return kErrorNone;
 }
 
+#ifndef TRUSTED_VM
 int DisplayBuiltIn::Notify(const HistData &data) {
   // Dump rgb histogram data
   rgb_histogram::RgbHistDataDumper Dumper;
   Dumper.DumpHistData(data);
   return 0;
 }
+#endif
 
 DisplayError DisplayBuiltIn::SetRgbHistObserverConfig(bool state, void *data) {
+#ifndef TRUSTED_VM
   int ret = 0;
   DisplayState disp_state = kStateOff;
   GenericPayload payload = {};
@@ -6563,6 +6573,7 @@ DisplayError DisplayBuiltIn::SetRgbHistObserverConfig(bool state, void *data) {
   }
 
   DLOGI("RGB histogram observer configuration updated, state=%d", state);
+#endif
   return kErrorNone;
 }
 
