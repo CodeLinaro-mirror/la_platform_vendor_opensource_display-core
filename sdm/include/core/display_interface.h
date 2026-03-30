@@ -1523,6 +1523,14 @@ class DisplayInterface {
   */
   virtual DisplayError SetDemuraConfig(int demura_idx) = 0;
 
+  /*! @brief Method to set config for spr feature.
+
+   @param[in] spr_idx : spr config index
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetSPRState(int state) = 0;
+
   /*! @brief Method to handle CAC configuration.
 
     @param[in] config \link CacConfig \endlink

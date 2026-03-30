@@ -4650,6 +4650,11 @@ DisplayError DisplayBuiltIn::SetDemuraState(int state, int demura_idx) {
   GenericPayload idx_pl;
   uConfigIdx *idx = nullptr;
 
+  if (state && !isSPREnabled()) {
+    DLOGE("SPR is not Enabled!!!!!!");
+    return kErrorUndefined;
+  }
+
   if (!comp_manager_->GetDemuraStatus()) {
     DLOGI("Demura status is not ready, failed to set state %d", state);
     return kErrorUndefined;
@@ -6919,6 +6924,10 @@ DisplayError DisplayBuiltIn::SetQrtcState(int state) {
     return kErrorUndefined;
   }
 
+  if (state && !isSPREnabled()) {
+    DLOGE("SPR is not Enabled!!!!!!");
+    return kErrorUndefined;
+  }
   DLOGI("Setting the Qrtc State to %d", state);
   GenericPayload enable_payload;
   bool *enable_ptr = nullptr;
@@ -7094,6 +7103,71 @@ DisplayError DisplayBuiltIn::UpdateRgbHistogramRoi(const void *data) {
            rgb_hist_roi_.right, rgb_hist_roi_.bottom);
 
   return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetSPRState(int state) {
+  if (spr_ == nullptr) {
+    DLOGE("invalid SPR interface");
+    return kErrorUndefined;
+  }
+
+  if (spr_enable_ == (bool)state) {
+    DLOGI("same state transition");
+    return kErrorNone;
+  }
+
+  GenericPayload in;
+  bool *enable = nullptr;
+  int ret = in.CreatePayload(enable);
+  if (ret) {
+    DLOGE("Failed to create the payload. Error:%d", ret);
+    return kErrorUndefined;
+  }
+
+  *enable = (bool)state;
+  ret = spr_->SetParameter(kSPRFeatureEnable, in);
+  if (ret) {
+    DLOGE("Failed to set the spr status. Error:%d", ret);
+    return kErrorUndefined;
+  }
+
+  spr_enable_ = (bool)state;
+  DLOGI("SPR status %d\n", spr_enable_);
+
+  DisablePartialUpdateOneFrameInternal();
+
+  needs_validate_ = true;
+
+  return kErrorNone;
+}
+
+bool DisplayBuiltIn::isSPREnabled() {
+  if (spr_ == nullptr) {
+    DLOGE("invalid SPR interface");
+    return kErrorUndefined;
+  }
+
+  int value = 0;
+  Debug::Get()->GetProperty(ENABLE_SPR, &value);
+  if (value == 0) {
+    return false;
+  }
+
+  GenericPayload out;
+  uint32_t *enable = nullptr;
+  int ret = out.CreatePayload<uint32_t>(enable);
+  if (ret) {
+    DLOGE("Failed to create the payload. Error:%d", ret);
+    return false;
+  }
+
+  ret = spr_->GetParameter(kSPRFeatureEnable, &out);
+  if (ret) {
+    DLOGE("Failed to get the spr status. Error:%d", ret);
+    return false;
+  }
+
+  return enable ? true : false;
 }
 
 }  // namespace sdm

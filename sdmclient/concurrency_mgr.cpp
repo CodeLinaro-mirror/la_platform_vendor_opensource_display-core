@@ -1358,6 +1358,10 @@ DisplayError ConcurrencyMgr::SetDemuraState(Display display, int32_t state, int 
   return CallDisplayFunction(display, &SDMDisplay::SetDemuraState, state, demura_idx);
 }
 
+DisplayError ConcurrencyMgr::SetSPRState(Display display, int32_t state) {
+  return CallDisplayFunction(display, &SDMDisplay::SetSPRState, state);
+}
+
 DisplayError ConcurrencyMgr::SetDemuraConfig(Display display,
                                              int32_t demura_idx) {
   return CallDisplayFunction(display, &SDMDisplay::SetDemuraConfig, demura_idx);

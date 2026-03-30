@@ -1812,6 +1812,20 @@ DisplayError SDMDisplayBuiltIn::PerformDynamicCac(DynamicCacV2Config config, boo
   return error;
 }
 
+DisplayError SDMDisplayBuiltIn::SetSPRState(int state) {
+  DLOGV("Display ID: %" PRId64 " spr state: %d", state);
+  DisplayError error = display_intf_->SetSPRState(state);
+
+  if (error != kErrorNone) {
+    DLOGE("Failed to set spr state = %d, error = %d", state, error);
+    return kErrorParameters;
+  }
+
+  callbacks_->OnRefresh(id_);
+
+  return kErrorNone;
+}
+
 DisplayError SDMDisplayBuiltIn::SetDemuraConfig(int demura_idx) {
   DLOGV("Display ID: %" PRId64 " config: %d", id_, demura_idx);
   DisplayError error = display_intf_->SetDemuraConfig(demura_idx);
