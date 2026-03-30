@@ -58,18 +58,13 @@
 #include "display_base.h"
 #include "drm_interface.h"
 #include "pu_subject_intf_impl.h"
-
-#ifndef TRUSTED_VM
 #include "rgb_hist_feature_intf.h"
 #include "rgb_hist_manager_intf.h"
 #include "rgb_hist_fact_intf_impl.h"
-#endif
 
 namespace sdm {
 
-#ifndef TRUSTED_VM
 using rgb_histogram::HistData;
-#endif
 
 struct DeferFpsConfig {
   uint32_t frame_count = 0;
@@ -203,12 +198,8 @@ class QrtcScreenRefreshImp : public qrtc::QrtcScreenRefreshIntf {
 class DisplayBuiltIn : public DisplayBase,
                        HWEventHandler,
                        DppsPropIntf,
-                       SdmDisplayCbInterface<TvmServiceCbEvent>
-#ifndef TRUSTED_VM
-    ,
-                       rgb_histogram::NotifyInterface<HistData>
-#endif
-{
+                       SdmDisplayCbInterface<TvmServiceCbEvent>,
+                       rgb_histogram::NotifyInterface<HistData> {
  public:
   DisplayBuiltIn(DisplayEventHandler *event_handler,
                  sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> hw_info_intf,
@@ -348,10 +339,8 @@ class DisplayBuiltIn : public DisplayBase,
   // Implement SdmDisplayCbInterface
   int Notify(const TvmServiceCbEvent &) override;
 
-#ifndef TRUSTED_VM
   // Implement rgb histogram callback interface
   int Notify(const HistData &data) override;
-#endif
 
   DisplayError SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config) override;
   DisplayError SetPoseConfig(const LayerBuffer &buffer) override;
@@ -556,11 +545,9 @@ class DisplayBuiltIn : public DisplayBase,
 
   // RGB Histogram
   bool rgb_histogram_enable_ = false;
-#ifndef TRUSTED_VM
   rgb_histogram::RgbHistFactIntf *rgb_hist_fact_intf_ = nullptr;
   std::shared_ptr<rgb_histogram::RgbHistManagerIntf> rgb_hist_manager_intf_ = nullptr;
   std::string kRgbHistogramClient_ = "rgb_histogram_client";
-#endif
 };
 
 }  // namespace sdm
