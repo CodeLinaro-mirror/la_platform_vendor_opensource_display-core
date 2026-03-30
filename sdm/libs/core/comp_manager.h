@@ -118,6 +118,9 @@ class CompManager : public CwbCallback {
   DisplayError GetDemuraFetchResources(Handle display_ctx, std::vector<FetchResourceList> *frl);
   DisplayError ReserveABCFetchResources(const uint32_t &display_id, bool is_primary,
                                         const int8_t &req_cnt);
+  DisplayError ReserveQrtcFetchResources(const uint32_t &display_id, const int8_t &preferred_rect);
+  DisplayError FreeQrtcFetchResources(const uint32_t &display_id);
+
   void SetDemuraStatus(bool status);
   bool GetDemuraStatus();
   void SetDemuraStatusForDisplay(const int32_t &display_id, bool status);

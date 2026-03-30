@@ -53,8 +53,11 @@
 
 #include "drm_interface.h"
 #include "drm_master.h"
+
+#ifndef TRUSTED_VM
 #include "rgb_hist_data_dumper.h"
 #include "rgb_hist_feature_intf_impl.h"
+#endif
 
 #define __CLASS__ "DisplayBuiltIn"
 
@@ -258,10 +261,12 @@ DisplayError DisplayBuiltIn::Init() {
             HWEvent::MMRM,
             HWEvent::VM_RELEASE_EVENT,
             HWEvent::VM_RECLAIM_EVENT,
-            HWEvent::SSR,
-            HWEvent::LSR_SSR};
+            HWEvent::SSR};
   if ((client_ctx_.hw_panel_info.mode == kModeCommand) || client_ctx_.hw_panel_info.vhm_support) {
     events.push_back(HWEvent::IDLE_POWER_COLLAPSE);
+  }
+  if (client_ctx_.hw_panel_info.is_lsr_display) {
+    events.push_back(HWEvent::LSR_SSR);
   }
 #endif
   std::bitset<8> core_id_map = display_id_info_.GetCoreIdMap();
@@ -411,6 +416,23 @@ DisplayError DisplayBuiltIn::Init() {
       }
     }
 
+    int qrtc_prop = 0, qrtc_enable = 0;
+    Debug::Get()->GetProperty(ENABLE_QRTC, &qrtc_prop);
+    int disable_qrtc_prop = 0;
+    if (IsPrimaryDisplay()) {
+      Debug::Get()->GetProperty(DISABLE_QRTC_PRIMARY, &disable_qrtc_prop);
+    } else {
+      Debug::Get()->GetProperty(DISABLE_QRTC_SECONDARY, &disable_qrtc_prop);
+    }
+    qrtc_enable = qrtc_prop && (!disable_qrtc_prop);
+    if (qrtc_enable) {
+      error = SetupQrtc();
+      if (error != kErrorNone) {
+        DLOGE("Failed to setup Qrtc on display %d-%d, Error %d", display_id_, display_type_, error);
+        comp_manager_->FreeQrtcFetchResources(display_id_);
+        error = kErrorNone;
+      }
+    }
   } else {
     DLOGW("Skipping Panel Feature Setups!");
   }
@@ -565,6 +587,7 @@ DisplayError DisplayBuiltIn::Deinit() {
       feat_license_intf_ = nullptr;
     }
 
+#ifndef TRUSTED_VM
     if (rgb_hist_manager_intf_) {
       // Deregister observer
       rgb_histogram::ObserverConfig config;
@@ -578,10 +601,24 @@ DisplayError DisplayBuiltIn::Deinit() {
       rgb_hist_fact_intf_->Cleanup(display_id_);
       rgb_hist_fact_intf_ = nullptr;
     }
+#endif
   }
 
   dpps_info_.Deinit();
   event_proxy_info_.Deinit();
+  if (event_proxy_intf_) {
+    event_proxy_intf_.reset();
+    event_proxy_intf_ = nullptr;
+  }
+  if (qrtc_refresh_intf_) {
+    delete qrtc_refresh_intf_;
+    qrtc_refresh_intf_ = nullptr;
+  }
+
+  if (qrtc_) {
+    qrtc_.reset();
+    qrtc_ = nullptr;
+  }
   return DisplayBase::Deinit();
 }
 
@@ -597,6 +634,11 @@ DisplayError DisplayBuiltIn::PrePrepare(LayerStack *layer_stack) {
 #endif
 
   DisplayError error = HandleDemuraLayer(layer_stack);
+  if (error != kErrorNone) {
+    return error;
+  }
+
+  error = HandleQrtcLayer(layer_stack);
   if (error != kErrorNone) {
     return error;
   }
@@ -1140,6 +1182,64 @@ DisplayError DisplayBuiltIn::SetupABCLayer() {
     demura_layer.buffer_map = std::make_shared<LayerBufferMap>();
     demura_layer_.push_back(demura_layer);
   }
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetupQrtcLayer() {
+  int ret = 0;
+  GenericPayload pl;
+
+  qrtc::QrtcSurfaceInfo *qrtc_suf = nullptr;
+
+  if ((ret = pl.CreatePayload<qrtc::QrtcSurfaceInfo>(qrtc_suf))) {
+    DLOGE("Failed to create payload for QrtcSurfaceInfo, error = %d", ret);
+    return kErrorResources;
+  }
+
+  if ((ret = qrtc_->GetParameter(qrtc::kQrtcSurfaceInfo, &pl))) {
+    DLOGE("Failed to get QrtcSurfaceInfo, error = %d", ret);
+    return kErrorResources;
+  }
+  qrtc_layer_.clear();  // This will clear the old qrtc layers
+
+  Layer qrtc_layer = {};
+  qrtc_layer.input_buffer.size = qrtc_suf->buffer_info.alloc_buffer_info.size;
+  qrtc_layer.input_buffer.buffer_id = qrtc_suf->buffer_info.alloc_buffer_info.id;
+  qrtc_layer.input_buffer.handle_id = qrtc_suf->buffer_info.alloc_buffer_info.id;
+  qrtc_layer.input_buffer.format = qrtc_suf->buffer_info.alloc_buffer_info.format;
+  qrtc_layer.input_buffer.width = qrtc_suf->buffer_info.alloc_buffer_info.aligned_width;
+  qrtc_layer.input_buffer.unaligned_width = qrtc_suf->buffer_info.alloc_buffer_info.aligned_width;
+  qrtc_layer.input_buffer.height = qrtc_suf->buffer_info.alloc_buffer_info.aligned_height;
+  qrtc_layer.input_buffer.unaligned_height = qrtc_suf->buffer_info.alloc_buffer_info.aligned_height;
+  qrtc_layer.input_buffer.planes[0].fd = qrtc_suf->buffer_info.alloc_buffer_info.fd;
+  qrtc_layer.input_buffer.planes[0].stride = qrtc_suf->buffer_info.alloc_buffer_info.stride;
+  DLOGI("QRTC buffer fd %d stride %d\n", qrtc_layer.input_buffer.planes[0].fd,
+        qrtc_layer.input_buffer.planes[0].stride);
+  DLOGI("buffer_sz %d id %d width %d aligned_width %d height %d aligned_height %d",
+        qrtc_layer.input_buffer.size, qrtc_layer.input_buffer.buffer_id,
+        qrtc_suf->buffer_info.buffer_config.width,
+        qrtc_suf->buffer_info.alloc_buffer_info.aligned_width,
+        qrtc_suf->buffer_info.buffer_config.height,
+        qrtc_suf->buffer_info.alloc_buffer_info.aligned_height);
+  qrtc_layer.input_buffer.planes[0].offset = 0;
+  qrtc_layer.input_buffer.flags.qrtc = 1;
+  qrtc_layer.composition = kCompositionQrtc;
+  qrtc_layer.blending = kBlendingSkip;
+  qrtc_layer.flags.is_qrtc = 1;
+  // ROI must match input dimensions
+  qrtc_layer.src_rect.top = 0;
+  qrtc_layer.src_rect.left = 0;
+  qrtc_layer.src_rect.right = qrtc_suf->buffer_info.buffer_config.width;
+  qrtc_layer.src_rect.bottom = qrtc_suf->buffer_info.buffer_config.height;
+  LogI(kTagNone, "Qrtc src: ", qrtc_layer.src_rect);
+  qrtc_layer.dst_rect.top = 0;
+  qrtc_layer.dst_rect.left = 0;
+  qrtc_layer.dst_rect.right = qrtc_suf->buffer_info.buffer_config.width;
+  qrtc_layer.dst_rect.bottom = qrtc_suf->buffer_info.buffer_config.height;
+  LogI(kTagNone, "Qrtc dst: ", qrtc_layer.dst_rect);
+  qrtc_layer.buffer_map = std::make_shared<LayerBufferMap>();
+  qrtc_layer_.push_back(qrtc_layer);
+
   return kErrorNone;
 }
 
@@ -3109,6 +3209,8 @@ bool DisplayBuiltIn::CanCompareFrameROI(LayerStack *layer_stack) {
     stack_fudge_factor++;
   if (layer_stack->flags.demura_present)
     stack_fudge_factor++;
+  if (layer_stack->flags.qrtc_present)
+    stack_fudge_factor++;
 
   if (!client_ctx_.hw_panel_info.partial_update || (client_ctx_.hw_panel_info.left_roi_count != 1)
       || layer_stack->flags.geometry_changed || layer_stack->flags.skip_present ||
@@ -3204,6 +3306,8 @@ bool DisplayBuiltIn::CanSkipDisplayPrepare(LayerStack *layer_stack) {
       size_ff++;
     if (disp_layer_stack_->stack_info.common_info.flags.noise_present)
       size_ff++;
+    if (layer_stack->flags.qrtc_present)
+      size_ff++;
 
     for (uint32_t j = 0; j < (layer_stack->layers.size() - size_ff); j++) {
       layer_stack->layers.at(j)->composition = kCompositionSDE;
@@ -3238,6 +3342,34 @@ DisplayError DisplayBuiltIn::HandleDemuraLayer(LayerStack *layer_stack) {
     disp_layer_stack_->stack_info.demura_present = false;
     DLOGD_IF(kTagDisplay, "Demura layer to be removed on display %d-%d in this frame",
              display_id_, display_type_);
+  }
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::HandleQrtcLayer(LayerStack *layer_stack) {
+  if (!layer_stack) {
+    DLOGE("layer_stack is null");
+    return kErrorParameters;
+  }
+  std::vector<Layer *> &layers = layer_stack->layers;
+  if (qrtc_enabled_ && qrtc_layer_[0].input_buffer.planes[0].fd > 0) {
+    if (disp_layer_stack_->stack_info.qrtc_target_index == -1) {
+      // If qrtc layer added for first time, do not skip validate
+      needs_validate_ = true;
+    }
+
+    for (int buf_idx = 0; buf_idx < qrtc_layer_.size(); buf_idx++) {
+      layers.push_back(&qrtc_layer_.at(buf_idx));
+    }
+
+    DLOGI_IF(kTagDisplay, "Qrtc layer added to layer stack on display %d-%d", display_id_,
+             display_type_);
+  } else if (disp_layer_stack_->stack_info.qrtc_target_index != -1) {
+    // Qrtc was present last frame but is now disabled
+    needs_validate_ = true;
+    disp_layer_stack_->stack_info.qrtc_present = false;
+    DLOGD_IF(kTagDisplay, "Qrtc layer to be removed on display %d-%d in this frame", display_id_,
+             display_type_);
   }
   return kErrorNone;
 }
@@ -3292,6 +3424,7 @@ DisplayError DisplayBuiltIn::BuildLayerStackStats(LayerStack *layer_stack) {
   stack_info.demura_target_index = -1;
   stack_info.noise_layer_index = -1;
   stack_info.cwb_target_index = -1;
+  stack_info.qrtc_target_index = -1;
 
   disp_layer_stack_->stack = layer_stack;
   stack_info.common_info.flags = layer_stack->flags;
@@ -3331,6 +3464,12 @@ DisplayError DisplayBuiltIn::BuildLayerStackStats(LayerStack *layer_stack) {
     } else if (layer->composition == kCompositionCWBTarget) {
       stack_info.cwb_target_index = index;
       stack_info.cwb_present = true;
+    } else if (layer->composition == kCompositionQrtc && stack_info.qrtc_target_index == -1) {
+      stack_info.qrtc_target_index = index;
+      disp_layer_stack_->stack->flags.qrtc_present = true;
+      stack_info.qrtc_present = true;
+      DLOGD_IF(kTagDisplay, "Display %d-%d shall request Qrtc in this frame", display_id_,
+               display_type_);
     } else {
       stack_info.app_layer_count++;
     }
@@ -3344,13 +3483,15 @@ DisplayError DisplayBuiltIn::BuildLayerStackStats(LayerStack *layer_stack) {
     index++;
   }
 
-  DLOGI_IF(kTagDisplay, "LayerStack layer_count: %zu, app_layer_count: %d "
-            "gpu_target_index: %d, stitch_index: %d demura_index: %d cwb_target_index: %d "
-            "game_present: %d noise_present: %d display: %d-%d", layers.size(),
-            stack_info.app_layer_count, stack_info.gpu_target_index,
-            stack_info.stitch_target_index, stack_info.demura_target_index,
-            stack_info.cwb_target_index, stack_info.game_present,
-            stack_info.common_info.flags.noise_present, display_id_, display_type_);
+  DLOGI_IF(
+      kTagDisplay,
+      "LayerStack layer_count: %zu, app_layer_count: %d "
+      "gpu_target_index: %d, stitch_index: %d demura_index: %d cwb_target_index: %d qrtc_index: %d "
+      "game_present: %d noise_present: %d display: %d-%d",
+      layers.size(), stack_info.app_layer_count, stack_info.gpu_target_index,
+      stack_info.stitch_target_index, stack_info.demura_target_index, stack_info.cwb_target_index,
+      stack_info.qrtc_target_index, stack_info.game_present,
+      stack_info.common_info.flags.noise_present, display_id_, display_type_);
 
   if (!stack_info.app_layer_count) {
     DLOGW("Layer count is zero");
@@ -4623,6 +4764,7 @@ DisplayError DisplayBuiltIn::GetScalerCount(uint32_t *scaler_count) {
 
 DisplayError EventProxyInfo::Init(const std::string &panel_name, DisplayInterface *intf,
                                   DynLib &extension_lib, PanelFeaturePropertyIntf *prop_intf) {
+#ifndef TRUSTED_VM
   std::lock_guard<std::mutex> guard(lock_);
 
   if (!intf || !prop_intf) {
@@ -4666,22 +4808,26 @@ DisplayError EventProxyInfo::Init(const std::string &panel_name, DisplayInterfac
   }
 
   event_proxy_intf_ = proxy_intf;
+#endif
   return kErrorNone;
 }
 
 DisplayError EventProxyInfo::Deinit() {
+#ifndef TRUSTED_VM
   std::lock_guard<std::mutex> guard(lock_);
   if (event_proxy_intf_) {
     event_proxy_intf_->Deinit();
     event_proxy_intf_.reset();
     event_proxy_intf_ = nullptr;
   }
+#endif
   return kErrorNone;
 }
 
 DisplayError
 EventProxyInfo::PanelOprInfo(const std::string &client_name, bool enable,
                              SdmDisplayCbInterface<PanelOprPayload> *cb_intf) {
+#ifndef TRUSTED_VM
   if (!event_proxy_intf_.get()) {
     DLOGW("Event proxy intf is not available");
     return kErrorParameters;
@@ -4704,13 +4850,14 @@ EventProxyInfo::PanelOprInfo(const std::string &client_name, bool enable,
     DLOGE("Failed to set panel Opr info enablement, ret %d", ret);
     return kErrorUndefined;
   }
-
+#endif
   return kErrorNone;
 }
 
 #ifndef TARGET_INCLUDES_NEO
 DisplayError EventProxyInfo::EnableCopr(const std::string &client_name, bool enable,
                                         SdmDisplayCbInterface<CoprEventPayload> *cb_intf) {
+#ifndef TRUSTED_VM
   if (!event_proxy_intf_.get()) {
     DLOGW("Event proxy intf is not available");
     return kErrorParameters;
@@ -4733,7 +4880,7 @@ DisplayError EventProxyInfo::EnableCopr(const std::string &client_name, bool ena
     DLOGE("Failed to set Copr info enablement, ret %d", ret);
     return kErrorUndefined;
   }
-
+#endif
   return kErrorNone;
 }
 
@@ -4766,6 +4913,7 @@ int CoprInfo::Notify(const CoprEventPayload &payload) {
 DisplayError EventProxyInfo::SetPaHistCollection(
     const std::string &client_name, bool enable,
     SdmDisplayCbInterface<PaHistCollectionPayload> *cb_intf) {
+#ifndef TRUSTED_VM
   if (!event_proxy_intf_.get()) {
     DLOGW("Event proxy intf is not available");
     return kErrorParameters;
@@ -4788,11 +4936,12 @@ DisplayError EventProxyInfo::SetPaHistCollection(
     DLOGE("Failed to set pa hist enablement, ret %d", ret);
     return kErrorUndefined;
   }
-
+#endif
   return kErrorNone;
 }
 
 DisplayError EventProxyInfo::GetPaHistBins(std::array<uint32_t, HIST_BIN_SIZE> *buf) {
+#ifndef TRUSTED_VM
   PaHistBinsParam *param = nullptr;
   GenericPayload payload;
 
@@ -4818,13 +4967,14 @@ DisplayError EventProxyInfo::GetPaHistBins(std::array<uint32_t, HIST_BIN_SIZE> *
     DLOGE("Failed to get pa hist bins, ret %d", ret);
     return kErrorUndefined;
   }
-
+#endif
   return kErrorNone;
 }
 
 DisplayError EventProxyInfo::PanelBacklightInfo(
     const std::string &client_name, bool enable,
     SdmDisplayCbInterface<PanelBacklightPayload> *cb_intf) {
+#ifndef TRUSTED_VM
   if (!event_proxy_intf_.get()) {
     DLOGW("Event proxy intf is not available");
     return kErrorParameters;
@@ -4847,7 +4997,7 @@ DisplayError EventProxyInfo::PanelBacklightInfo(
     DLOGE("Failed to set panel backlight info enablement, ret %d", ret);
     return kErrorUndefined;
   }
-
+#endif
   return kErrorNone;
 }
 
@@ -6031,7 +6181,310 @@ DisplayError DisplayBuiltIn::SetPixelShiftData() {
   return kErrorNone;
 }
 
+DisplayError DisplayBuiltIn::CreateDisplayEventProxyIntf(const std::string &panel_name,
+                                                         DisplayInterface *intf,
+                                                         PanelFeaturePropertyIntf *prop_intf) {
+  if (!intf || !prop_intf) {
+    DLOGE("Invalid display_intf %pK prop_intf %pK", intf, prop_intf);
+    return kErrorParameters;
+  }
+
+  if (event_proxy_intf_.get()) {
+    DLOGV("Event proxy interface is already created");
+    return kErrorNone;
+  }
+
+  typedef DispEventProxyFactIntf *(*GetDispEventProxyFactFunc)();
+  GetDispEventProxyFactFunc get_disp_event_proxy_fact_func;
+
+  if (!extension_lib_.Sym("GetDispEventProxyFactIntf",
+                          reinterpret_cast<void **>(&get_disp_event_proxy_fact_func))) {
+    DLOGW("Fail to retrieve GetDispEventProxyFactIntf from %s", EXTENSION_LIBRARY_NAME);
+    return kErrorUndefined;
+  }
+
+  DispEventProxyFactIntf *factory_intf = get_disp_event_proxy_fact_func();
+  if (!factory_intf) {
+    DLOGW("Failed to get display event proxy factory interface");
+    return kErrorUndefined;
+  }
+
+  std::shared_ptr<DisplayEventProxyIntf> proxy_intf =
+      factory_intf->CreateDispEventProxyIntf(panel_name, intf, prop_intf);
+  if (!proxy_intf) {
+    DLOGW("Failed to create display event proxy interface");
+    return kErrorMemory;
+  }
+
+  int ret = proxy_intf->Init();
+  if (ret) {
+    DLOGW("Failed to initialize event proxy interface, ret %d", ret);
+    return kErrorUndefined;
+  }
+
+  event_proxy_intf_ = proxy_intf;
+
+  return kErrorNone;
+}
+
+QrtcScreenRefreshImp::QrtcScreenRefreshImp(DisplayInterface *display_intf) {
+  display_intf_ = display_intf;
+  enabled_ = true;
+}
+
+QrtcScreenRefreshImp::~QrtcScreenRefreshImp() {
+  display_intf_ = nullptr;
+  enabled_ = false;
+}
+
+int QrtcScreenRefreshImp::TriggerUpdate() {
+  std::lock_guard<std::mutex> guard(lock_);
+
+  if (!enabled_) {
+    return 0;
+  }
+
+  if (!display_intf_) {
+    DLOGI("invalid display intf for screen update %p", display_intf_);
+    return -EINVAL;
+  }
+
+  display_intf_->ScreenRefresh();
+
+  return 0;
+}
+
+int QrtcScreenRefreshImp::ScreenRefreshControl(bool enable) {
+  std::lock_guard<std::mutex> guard(lock_);
+  enabled_ = enable;
+  return 0;
+}
+
+DisplayError DisplayBuiltIn::SetQrtcFeatureConfig(int32_t type, void *data) {
+  DisplayError ret = kErrorNone;
+  int val = 0;
+
+  if (!data || !qrtc_ || !qrtc_enabled_) {
+    DLOGE("data %pK qrtc_ %pK qrtc_enabled_ %d", data, qrtc_.get(), qrtc_enabled_);
+    return kErrorUndefined;
+  }
+
+  val = *(reinterpret_cast<int *>(data));
+  DLOGI("SetQrtcFeatureConfig with type %d value %d", type, val);
+  switch (type) {
+    case kTypeQrtcState:
+      ret = SetQrtcState(val);
+      break;
+    case kTypeQrtcSubsample:
+      ret = SetQrtcSubsample(val);
+      break;
+    case kTypeQrtcDumpBuffer:
+      ret = DumpQrtcBuffer(val);
+      break;
+    default:
+      DLOGE("Invalid type %d", type);
+      ret = kErrorParameters;
+      break;
+  }
+  return ret;
+}
+
+DisplayError DisplayBuiltIn::SetQrtcSubsample(int subsample) {
+  DisplayError error = kErrorNone;
+
+  if (subsample < qrtc::QRTC_SubSample_1X1 || subsample > qrtc::QRTC_SubSample_3X3) {
+    DLOGE("unsupported QRTC subsample %d", subsample);
+    return kErrorUndefined;
+  }
+
+  qrtc_config_.subsample = static_cast<qrtc::QrtcSubSample>(subsample);
+  qrtc_config_.max_subsample = static_cast<qrtc::QrtcSubSample>(subsample);
+
+  error = SetupQrtcConfig(qrtc_config_);
+  if (error != kErrorNone) {
+    DLOGE("Unable to setup Qrtc config on Display %d-%d", display_id_, display_type_);
+    return kErrorUndefined;
+  }
+
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::DumpQrtcBuffer(int count) {
+  int ret = 0;
+
+  if (!qrtc_ || !qrtc_enabled_) {
+    DLOGE("qrtc_ %pK qrtc_enabled_ %d", qrtc_.get(), qrtc_enabled_);
+    return kErrorUndefined;
+  }
+
+  if (count < 0 || count > 50) {
+    DLOGE("unsupported QRTC frame dump count %d", count);
+    return kErrorUndefined;
+  }
+
+  // Create payload with frame dump count
+  GenericPayload payload;
+  uint32_t *count_ptr = nullptr;
+  ret = payload.CreatePayload(count_ptr);
+  if (ret != 0 || !count_ptr) {
+    DLOGE("Failed to create the payload for frame dump count:%d", ret);
+    return kErrorResources;
+  }
+
+  *count_ptr = count;
+  ret = qrtc_->SetParameter(qrtc::kQrtcDumpBuffer, payload);
+  if (ret) {
+    DLOGE("Failed to Set Qrtc Dump buffer, ret %d", ret);
+    return kErrorNotSupported;
+  }
+
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetupQrtc() {
+  DisplayError error = kErrorNone;
+  int ret = 0;
+
+  if (!qrtc_factory_) {
+    DLOGE("Failed to get qrtc feature Factory");
+    return kErrorResources;
+  }
+
+  std::string panel_name = std::string(client_ctx_.hw_panel_info.panel_name);
+  for (auto it = panel_name.begin(); it != panel_name.end(); ++it) {
+    if (*it == ' ') {
+      *it = '_';
+    }
+  }
+  std::string observer = "qrtc";
+  ControlPartialUpdateLocked(false, observer);
+  error = CreateDisplayEventProxyIntf(client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
+  if (error != kErrorNone) {
+    DLOGW("Failed to initialize event proxy info");
+    event_proxy_intf_.reset();
+    return error;
+  }
+
+  qrtc_refresh_intf_ = new QrtcScreenRefreshImp(this);
+
+  qrtc::qrtc_factory_info input_info;
+  input_info.panel_name = panel_name;
+  input_info.prop_intf = prop_intf_;
+  input_info.screen_refresh_intf = qrtc_refresh_intf_;
+  input_info.display_event_proxy = event_proxy_intf_;
+  input_info.buffer_allocator = buffer_allocator_;
+
+  std::unique_ptr<qrtc::QrtcFeatureIntf> qrtc_intf = qrtc_factory_->CreateQrtcFeature(input_info);
+  if (!qrtc_intf) {
+    DLOGE("Unable to create qrtc_intf on Display %d-%d", display_id_, display_type_);
+    return kErrorMemory;
+  }
+
+  ret = qrtc_intf->Init();
+  if (ret) {
+    DLOGE("Unable to initialize qrtc on Display %d-%d", display_id_, display_type_);
+    return kErrorUndefined;
+  }
+
+  qrtc_ = std::move(qrtc_intf);
+
+  // default setting
+  qrtc_config_.fetch_pipe = qrtc::QRTC_FETCH_DMA3;
+  /* TODO: currently only rect0 is verified, switch to RECT1 later */
+  qrtc_config_.rect_fetch_pipe = qrtc::QRTC_MULTI_RECT_0;
+  qrtc_config_.cwb_blk = qrtc::QRTC_CWB_BLK0;
+  qrtc_config_.wb_blk = qrtc::QRTC_WB_BLK0;
+  qrtc_config_.rect_wb_blk = qrtc::QRTC_MULTI_RECT_1;
+  qrtc_config_.subsample = qrtc::QRTC_SubSample_1X1;
+  qrtc_config_.max_subsample = qrtc::QRTC_SubSample_1X1;
+  qrtc_config_.panel_name = "sample";
+  qrtc_config_.panel_width = client_ctx_.display_attributes.x_pixels;
+  qrtc_config_.panel_height = client_ctx_.display_attributes.y_pixels;
+
+  if (SetupQrtcConfig(qrtc_config_) != kErrorNone) {
+    DLOGE("Unable to setup Qrtc config on Display %d-%d", display_id_, display_type_);
+    return kErrorUndefined;
+  }
+
+  if (SetupQrtcLayer() != kErrorNone) {
+    DLOGE("Unable to setup Qrtc layer on Display %d-%d", display_id_, display_type_);
+    return kErrorUndefined;
+  }
+
+  if (SetQrtcState(1) != kErrorNone) {
+    DLOGE("Unable to setup Qrtc state on Display %d-%d", display_id_, display_type_);
+    return kErrorUndefined;
+  }
+
+  qrtc_enabled_ = true;
+
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetupQrtcConfig(qrtc::QrtcFeatureConfig &config) {
+  int ret = 0;
+  if (!qrtc_) {
+    DLOGI("Qrtc feature intf is not available");
+    return kErrorUndefined;
+  }
+
+  // Create configuration payload
+  GenericPayload config_payload;
+  qrtc::QrtcFeatureConfig *config_ptr = nullptr;
+  ret = config_payload.CreatePayload(config_ptr);
+  if (ret != 0 || !config_ptr) {
+    DLOGE("Failed to create the payload for QrtcFeatureConfig. Error:%d", ret);
+    return kErrorResources;
+  }
+
+  *config_ptr = config;
+  ret = qrtc_->SetParameter(qrtc::kQrtcFeatureConfig, config_payload);
+  if (ret) {
+    DLOGE("Failed to set Qrtc config, ret %d", ret);
+    return kErrorNotSupported;
+  }
+
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetQrtcState(int state) {
+  int ret = 0;
+  if (!qrtc_) {
+    DLOGI("Qrtc feature intf is not available");
+    return kErrorUndefined;
+  }
+
+  DLOGI("Setting the Qrtc State to %d", state);
+  GenericPayload enable_payload;
+  bool *enable_ptr = nullptr;
+  ret = enable_payload.CreatePayload(enable_ptr);
+  if (ret) {
+    DLOGE("Failed to create the payload for enable_ptr. Error:%d", ret);
+    return kErrorResources;
+  }
+  *enable_ptr = state;
+
+  if (state) {
+    ret = qrtc_->SetParameter(qrtc::kQrtcOn, enable_payload);
+    if (ret) {
+      DLOGE("Failed to set Qrtc on, ret %d", ret);
+      return kErrorNotSupported;
+    }
+  } else {
+    ret = qrtc_->SetParameter(qrtc::kQrtcOff, enable_payload);
+    if (ret) {
+      DLOGE("Failed to set Qrtc off, ret %d", ret);
+      return kErrorNotSupported;
+    }
+  }
+  // Disable Partial Update for one frame.
+  DisablePartialUpdateOneFrameInternal();
+
+  return kErrorNone;
+}
+
 DisplayError DisplayBuiltIn::SetupRgbHistogram() {
+#ifndef TRUSTED_VM
   // Necessary init information
   rgb_histogram::RgbHistFeatureInitInfo info = {};
   info.disp_intf = this;
@@ -6056,17 +6509,21 @@ DisplayError DisplayBuiltIn::SetupRgbHistogram() {
   // Cache the manager intf
   rgb_hist_manager_intf_ = intf;
   DLOGI("RGB histogram manager intf created successfully");
+#endif
   return kErrorNone;
 }
 
+#ifndef TRUSTED_VM
 int DisplayBuiltIn::Notify(const HistData &data) {
   // Dump rgb histogram data
   rgb_histogram::RgbHistDataDumper Dumper;
   Dumper.DumpHistData(data);
   return 0;
 }
+#endif
 
 DisplayError DisplayBuiltIn::SetRgbHistObserverConfig(bool state, void *data) {
+#ifndef TRUSTED_VM
   int ret = 0;
   DisplayState disp_state = kStateOff;
   GenericPayload payload = {};
@@ -6116,6 +6573,7 @@ DisplayError DisplayBuiltIn::SetRgbHistObserverConfig(bool state, void *data) {
   }
 
   DLOGI("RGB histogram observer configuration updated, state=%d", state);
+#endif
   return kErrorNone;
 }
 

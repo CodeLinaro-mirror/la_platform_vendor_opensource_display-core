@@ -766,6 +766,7 @@ void DRMPlane::GetTypeInfo(const PropertyMap &prop_map) {
   string cac_mode = "cac_mode=";
   string cac_parent_rect = "cac_parent_rec=";
   string plane_type = "plane_type=";
+  string qrtc_block = "qrtc_block=";
 
   while (std::getline(stream, line)) {
     if (line.find(inline_rot_pixel_formats) != string::npos) {
@@ -828,6 +829,8 @@ void DRMPlane::GetTypeInfo(const PropertyMap &prop_map) {
       } else if (string(line, plane_type.length()) == "repro") {
         info->type = DRMPlaneType::REPRO;
       }
+    } else if (line.find(qrtc_block) != string::npos) {
+      info->qrtc_block_capability = std::stoi(line.erase(0, qrtc_block.length()));
     }
   }
 
@@ -1665,15 +1668,6 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       prop_id = prop_mgr_.GetPropertyId(DRMProperty::REFERENCE_SPACE_TYPE);
       AddProperty(req, obj_id, prop_id, ref_space_type, true /* cache */, tmp_prop_val_map_);
       DRM_LOGD("Plane %d: Setting reference space type %d", obj_id, ref_space_type);
-    } break;
-    case DRMOps::PLANE_SET_RENDER_TYPE: {
-      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::RENDER_TYPE)) {
-        return;
-      }
-      uint32_t render_type = va_arg(args, uint32_t);
-      prop_id = prop_mgr_.GetPropertyId(DRMProperty::RENDER_TYPE);
-      AddProperty(req, obj_id, prop_id, render_type, true /* cache */, tmp_prop_val_map_);
-      DRM_LOGD("Plane %d: Setting render_type %d", obj_id, render_type);
     } break;
     case DRMOps::PLANE_SET_RENDER_POSE: {
       if (!prop_mgr_.IsPropertyAvailable(DRMProperty::RENDER_POSE)) {

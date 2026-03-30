@@ -106,6 +106,7 @@ struct SnapMetadata {
   vendor_qti_hardware_display_common_ThreeDimensionalRefInfo three_dimensional_ref_info;
   uint32_t viewId;
   vendor_qti_hardware_display_common_cwb_metadata cwb_metadata;
+  uint32_t disparity_phase;
 };
 
 struct FrameMetadata {

@@ -342,6 +342,7 @@ struct HWPipeCaps {
   SplashType splash_type = kSplashNone;
   int32_t pipe_idx = -1;
   int32_t demura_block_capability = -1;
+  int32_t qrtc_block_capability = -1;
   HWPipeCacMode cac_mode = kModeDisabled;
   int32_t cac_parent_id = -1;
 };
@@ -498,6 +499,7 @@ struct HWResourceInfo {
   std::vector<uint32_t> initial_demura_planes = {};
   uint32_t demura_count = 0;
   uint32_t abc_count = 0;
+  uint32_t qrtc_count = 0;
   uint32_t dspp_count = 0;
   bool skip_inline_rot_threshold = false;
   bool has_noise_layer = false;
@@ -508,7 +510,9 @@ struct HWResourceInfo {
   std::vector<LayerBufferFormat> cac_supported_formats;
   bool has_cesta = false;
   uint32_t hw_ai_scaler_count = 0;
+  bool support_demura_with_single_rec = false;
   bool is_udc_supported = 0;
+  bool panel_feature_rect_mode_enabled_ = false;
 };
 
 struct HWSplitInfo {
@@ -1093,6 +1097,7 @@ struct LayerStackInfo {
   int32_t gpu_target_index = -1;     // GPU target layer index. -1 if not present.
   int32_t stitch_target_index = -1;  // Blit target layer index. -1 if not present.
   int32_t demura_target_index = -1;  // Demura target layer index. -1 if not present.
+  int32_t qrtc_target_index = -1;    // Qrtc target layer index. -1 if not present.
   int32_t noise_layer_index = -1;    // Noise layer index. -1 if not present.
   int32_t cwb_target_index = -1;     // CWB target layer index. -1 if not present.
   int32_t iwe_target_index = -1;     // IWE target layer index. -1 if not present.
@@ -1115,6 +1120,7 @@ struct LayerStackInfo {
 
   bool stitch_present = false;  // Indicates there is stitch layer or not
   bool demura_present = false;  // Indicates there is demura layer or not
+  bool qrtc_present = false;  // Indicates there is qrtc layer or not
   bool udc_present = false;  // Indicates there is udc layer or not
   bool cwb_present = false;  // Indicates there is cwb layer or not
   bool lower_fps = false;  // This field hints to lower the fps in case of idle fallback

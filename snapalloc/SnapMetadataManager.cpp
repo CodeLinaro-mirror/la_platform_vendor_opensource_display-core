@@ -301,6 +301,19 @@ Error SnapMetadataManager::CWBMetadataHelper(SnapMetadata *metadata, SnapHandleI
   return Error::BAD_VALUE;
 }
 
+Error SnapMetadataManager::DisparityPhaseHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                                                void *in_set, void *out_get,
+                                                BufferDescriptor *buf_des) {
+  if (out_get != nullptr) {
+    *static_cast<uint32_t *>(out_get) = metadata->disparity_phase;
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    metadata->disparity_phase = *static_cast<uint32_t *>(in_set);
+    return Error::NONE;
+  }
+  return Error::BAD_VALUE;
+}
+
 Error SnapMetadataManager::ProtectedContentHelper(SnapMetadata *metadata,
                                                   SnapHandleInternal *handle, void *in_set,
                                                   void *out_get, BufferDescriptor *buf_des) {

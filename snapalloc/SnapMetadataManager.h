@@ -256,6 +256,9 @@ class SnapMetadataManager {
   Error CWBMetadataHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
                           void *in_set = nullptr, void *out_get = nullptr,
                           BufferDescriptor *buf_des = nullptr);
+  Error DisparityPhaseHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                             void *in_set = nullptr, void *out_get = nullptr,
+                             BufferDescriptor *buf_des = nullptr);
 
   struct DRMFormatDescriptor {
     uint32_t drm_format;
@@ -494,6 +497,7 @@ class SnapMetadataManager {
           {THREE_DIMENSIONAL_REF_INFO, &SnapMetadataManager::ThreeDimensionalRefInfoHelper},
           {VIEW_ID, &SnapMetadataManager::ViewIdHelper},
           {CWB_METADATA, &SnapMetadataManager::CWBMetadataHelper},
+          {DISPARITY_PHASE, &SnapMetadataManager::DisparityPhaseHelper},
   };
   struct metadata_traits {
     bool is_settable;
@@ -567,6 +571,7 @@ class SnapMetadataManager {
           {THREE_DIMENSIONAL_REF_INFO, {true}},
           {VIEW_ID, {true}},
           {CWB_METADATA, {true}},
+          {DISPARITY_PHASE, {true}},
       };
 };
 }  // namespace snapalloc

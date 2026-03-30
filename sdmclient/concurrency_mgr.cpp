@@ -1879,6 +1879,7 @@ DisplayError ConcurrencyMgr::GetDisplayConnectionType(Display display,
     return kErrorParameters;
   }
 
+  SCOPE_LOCK(locker_[display]);
   if (!sdm_display_[display]) {
     DLOGW("Expected valid sdm_display");
     return kErrorParameters;
@@ -2879,6 +2880,10 @@ DisplayError ConcurrencyMgr::SetPanelFeatureConfig(Display display, int32_t type
 DisplayError ConcurrencyMgr::GetPanelFeatureConfig(Display display, int32_t type, void *data,
                                                    uint32_t data_size) {
   return CallDisplayFunction(display, &SDMDisplay::GetPanelFeatureConfig, type, data, data_size);
+}
+
+DisplayError ConcurrencyMgr::SetQrtcFeatureConfig(Display display, int32_t type, void *data) {
+  return CallDisplayFunction(display, &SDMDisplay::SetQrtcFeatureConfig, type, data);
 }
 
 DisplayError ConcurrencyMgr::ClearBuffersMappedToLayer(uint64_t display, LayerId layer_id,
