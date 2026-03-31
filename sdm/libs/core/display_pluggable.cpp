@@ -2318,8 +2318,6 @@ DisplayError DisplayPluggable::DppsProcessOps(enum DppsOps op, void *payload, si
 }
 
 DisplayError DisplayPluggable::PostCommit() {
-
-  DisplayError err = kErrorNone;
   DisplayBase::PostCommit();
 
   if (commit_event_enabled_) {
