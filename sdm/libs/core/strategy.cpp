@@ -250,15 +250,12 @@ DisplayError Strategy::Reconfigure(DisplayInfoContext &info_ctx,
     return kErrorNone;
   }
 
-  // TODO(user): PU Intf will not be created for video mode panels, hence re-evaluate if
-  // reconfigure is needed.
   if (partial_update_intf_) {
-    extension_intf_->DestroyPartialUpdate(partial_update_intf_);
-    partial_update_intf_ = NULL;
+    partial_update_intf_->Reconfigure(display_id_info_, display_type_, hw_resource_info_, info_ctx);
+  } else {
+    extension_intf_->CreatePartialUpdate(display_id_info_, display_type_, hw_resource_info_,
+                                         info_ctx, &partial_update_intf_);
   }
-
-  extension_intf_->CreatePartialUpdate(display_id_info_, display_type_, hw_resource_info_,
-                                       info_ctx, &partial_update_intf_);
 
   if (partial_update_intf_ && spr_intf_) {
     partial_update_intf_->SetSprIntf(spr_intf_);

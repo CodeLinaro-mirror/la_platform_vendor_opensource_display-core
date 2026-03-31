@@ -256,7 +256,8 @@ DisplayError DisplayBuiltIn::Init() {
             HWEvent::MMRM,
             HWEvent::VM_RELEASE_EVENT,
             HWEvent::VM_RECLAIM_EVENT,
-            HWEvent::SSR};
+            HWEvent::SSR,
+            HWEvent::LSR_SSR};
   if ((client_ctx_.hw_panel_info.mode == kModeCommand) || client_ctx_.hw_panel_info.vhm_support) {
     events.push_back(HWEvent::IDLE_POWER_COLLAPSE);
   }
@@ -470,11 +471,12 @@ DisplayError DisplayBuiltIn::Init() {
   value = 0;
   Debug::Get()->GetProperty(ENABLE_PRIVACY_LAYERS, &value);
   // TODO(user): Enable privacy filter for dual dpu, then update this check
-  if (value == 1 && core_count_ == 1) {
+  if ((value == 1 || value == 2) && core_count_ == 1) {
     uint32_t max_privacy_regions = hw_intf_->GetMaxPrivacyRegionsSupported();
 
     if (max_privacy_regions > 0) {
-      privacy_region_mgr_ = new PrivacyRegionManager(max_privacy_regions);
+      PrivacyRegionMode mode = (value == 1) ? PrivacyRegionMode::LAYER : PrivacyRegionMode::AREA;
+      privacy_region_mgr_ = new PrivacyRegionManager(max_privacy_regions, mode);
     }
   }
 
@@ -3759,10 +3761,43 @@ void DisplayBuiltIn::HandleVmReclaimEvent() {
     event_handler_->HandleEvent(kVmReclaimDone);
 }
 
+void DisplayBuiltIn::HandleLSR_SSREvent(LSR_SSREventType lsr_ssr_event) {
+  DTRACE_SCOPED();
+
+  DisplayEvent event =
+      (lsr_ssr_event == LSR_SSREventType::kLSR_SSRStart) ? kLsr_SsrStart : kLsr_SsrEnd;
+  if (event == kLsr_SsrEnd) {
+    lsr_first_commit_ = true;
+  }
+  DLOGI("Handle %s event", (event == kLsr_SsrStart) ? "LSR SSR Start" : "LSR SSR End");
+  is_lsr_ssr_active_ = (event == kLsr_SsrStart);
+  dpu_core_mux_->SetSSRState(is_lsr_ssr_active_);
+
+  if (!event_handler_) {
+    DLOGW("Event handler is null");
+    return;
+  }
+
+  event_handler_->HandleEvent(event);
+
+  {
+    ClientLock lock(disp_mutex_);
+    reset_panel_ = true;
+    validated_ = false;
+  }
+
+  if (event == kLsr_SsrEnd) {
+    event_handler_->Refresh();
+  }
+}
+
 void DisplayBuiltIn::HandleSSREvent(SSREventType ssr_event) {
   DTRACE_SCOPED();
 
   DisplayEvent event = (ssr_event == SSREventType::kSSRStart) ? kSsrStart : kSsrEnd;
+  if (event == kSsrEnd) {
+    lsr_first_commit_ = true;
+  }
   DLOGI("Handle %s event", (event == kSsrStart) ? "SSR Start" : "SSR End");
   is_ssr_active_ = (event == kSsrStart);
   dpu_core_mux_->SetSSRState(is_ssr_active_);
@@ -5886,7 +5921,7 @@ void DisplayBuiltIn::SetPrivacyRegions() {
     disp_layer_stack_->stack_info.common_info.updates_mask.set(kUpdatePrivacyRegions);
     for (int i = 0; i < hw_resource_info_.size(); i++) {
       uint32_t core_id = hw_resource_info_[i].core_id;
-      disp_layer_stack_->info.at(core_id).privacy_regions_ = regions;
+      disp_layer_stack_->info.at(core_id).privacy_regions = regions;
     }
   }
 }

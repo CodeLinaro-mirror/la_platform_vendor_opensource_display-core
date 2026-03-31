@@ -37,15 +37,9 @@
 /* This class translates SDM3 Layer functions to the SDM LayerStack
  */
 
-#include <Dataspace.h>
 #include <Error.h>
 #include <ISnapMapper.h>
-#include <QtiColorRemappingInfo.h>
-#include <QtiContentLightLevel.h>
-#include <QtiDynamicMetadata.h>
 #include <QtiGammaTransfer.h>
-#include <QtiMasteringDisplay.h>
-#include <QtiMatrixCoEfficients.h>
 #include <SnapHandle.h>
 #include <UBWCStats.h>
 #include <VideoHistogramMetadata.h>
@@ -63,41 +57,18 @@ namespace sdm {
 
 using PerFrameMetadataKey = uint32_t;
 using BufferUsage = vendor_qti_hardware_display_common_BufferUsage;
-using Dataspace = vendor_qti_hardware_display_common_Dataspace;
 using Error = vendor::qti::hardware::display::snapalloc::Error;
 using ISnapMapper = vendor::qti::hardware::display::snapalloc::ISnapMapper;
 using MetadataType = vendor_qti_hardware_display_common_MetadataType;
 using QtiColorPrimaries = vendor_qti_hardware_display_common_QtiColorPrimaries;
 using QtiColorRange = vendor_qti_hardware_display_common_QtiColorRange;
-using QtiColorRemappingInfo =
-    vendor_qti_hardware_display_common_QtiColorRemappingInfo;
-using QtiContentLightLevel =
-    vendor_qti_hardware_display_common_QtiContentLightLevel;
-using QtiDynamicMetadata =
-    vendor_qti_hardware_display_common_QtiDynamicMetadata;
 using QtiGammaTransfer = vendor_qti_hardware_display_common_QtiGammaTransfer;
-using QtiMatrixCoEfficients =
-    vendor_qti_hardware_display_common_QtiMatrixCoEfficients;
-using QtiMasteringDisplay =
-    vendor_qti_hardware_display_common_QtiMasteringDisplay;
 using SnapHandle = ::vendor::qti::hardware::display::snapalloc::SnapHandle;
 using UBWCStats = vendor_qti_hardware_display_common_UBWCStats;
 using VideoHistogramMetadata =
     vendor_qti_hardware_display_common_VideoHistogramMetadata;
 using VideoTimestampInfo =
     vendor_qti_hardware_display_common_VideoTimestampInfo;
-
-// intermediate struct to hold some color metadata values which will be queried
-// individually only used here for ease of access / convenience in populating
-// each metadata member
-struct ColorMetadata {
-  Dataspace dataspace;
-  QtiMatrixCoEfficients matrixCoefficients;
-  QtiMasteringDisplay masteringDisplayInfo;
-  QtiContentLightLevel contentLightLevel;
-  QtiColorRemappingInfo cRI;
-  QtiDynamicMetadata dynamicMetadata;
-};
 
 Error SetCSC(const SnapHandle *handle, ColorMetadata *color_metadata, std::shared_ptr<ISnapMapper> snapmapper_);
 Error GetMetadata(const SnapHandle *handle, MetadataType type, void *out,
@@ -194,7 +165,8 @@ class SDMLayer {
   static bool IsLayerIdExisting(LayerId id) { return id_mgr_.IsIdExisting(id); }
   static void SetAutoLayerIdCreation(bool flag) { auto_create_layer_id_ = flag; }
   DisplayError TranslateToNV12Y(LayerBuffer *layer_buffer);
-  DisplayError SetLayerPrivacyRegions(const std::vector<PrivacyRegion> &privacy_regions);
+  DisplayError SetLayerPrivacyRegions(const std::vector<PrivacyRegion> &privacy_regions,
+                                      PrivacyRegionMode mode);
   DisplayError SetLayerCornerRadius(CornerRadius corner_radius);
   bool IsPrivacyRegionUpdated();
   bool HasPrivacyRegions();

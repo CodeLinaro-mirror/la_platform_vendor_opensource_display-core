@@ -1664,6 +1664,18 @@ DisplayError SDMDisplay::HandleEvent(DisplayEvent event) {
     display_pause_pending_ = false;
     display_paused_ = false;
   } break;
+  case kLsr_SsrStart: {
+    DLOGI("Set Display Pause state!");
+    display_paused_ = true;
+    display_pause_pending_ = true;
+    event_handler_->PerformSubsystemRestart(true);
+  } break;
+  case kLsr_SsrEnd: {
+    event_handler_->PerformSubsystemRestart(false);
+    DLOGI("Reset Display Pause state!");
+    display_pause_pending_ = false;
+    display_paused_ = false;
+  } break;
   default:
     DLOGW("Unknown event: %d", event);
     break;
@@ -4463,8 +4475,7 @@ void SDMDisplay::SetPrivacyRegionsData(uint32_t layer_id, float corner_radius,
 
   CornerRadius radius = {corner_radius, corner_radius};
   const auto layer = map_layer->second;
-  DLOGI("Set PrivacyRegions data on Layer %d", layer_id);
-  layer->SetLayerPrivacyRegions(privacy_regions);
+  layer->SetLayerPrivacyRegions(privacy_regions, sdm_layer_stack_->privacy_region_mode);
   layer->SetLayerCornerRadius(radius);
 }
 

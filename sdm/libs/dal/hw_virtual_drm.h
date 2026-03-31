@@ -96,6 +96,7 @@ class HWVirtualDRM : public HWDeviceDRM {
   virtual DisplayError Validate(HWLayersInfo *hw_layers_info);
   virtual DisplayError Commit(HWLayersInfo *hw_layers_info);
   virtual DisplayError Flush(HWLayersInfo *hw_layers_info);
+  virtual void PopulateHWPanelInfo();
   virtual DisplayError GetPPFeaturesVersion(PPFeatureVersion *vers);
   virtual DisplayError PowerOn(const HWQosData &qos_data, SyncPoints *sync_points);
   virtual DisplayError SetScaleLutConfig(HWScaleLutInfo *lut_info) {
@@ -108,6 +109,12 @@ class HWVirtualDRM : public HWDeviceDRM {
                                                     uint8_t *out_data);
   virtual DisplayError SetDisplayDeviceConfig(SDMDisplayDeviceConfig sdm_display_device_config);
   virtual DisplayError SetReprojectionConfig(const struct ReprojectionConfig &reprojection_config);
+  virtual DisplayError SetHdrCapabilities(const std::vector<Hdr> &hdr_types,
+                                          float max_avg_luminance, float min_luminance);
+
+  std::vector<Hdr> set_hdr_types_;
+  float set_max_lum_ = -1.0;
+  float set_min_lum_ = -1.0;
 
  private:
   void ConfigureWbConnectorFbId(uint32_t fb_id, vector<uint32_t> lsr_fb_ids);
@@ -116,6 +123,7 @@ class HWVirtualDRM : public HWDeviceDRM {
   void ConfigureWbConnectorDestRect(bool reset = false);
   void ConfigureWbConnectorSecureMode(bool secure);
   void SetWbCSC();
+  void UpdateHWPanelHDRInfo();
   void InitializeConfigs();
   DisplayError SetWbConfigs(const HWDisplayAttributes &display_attributes);
   void GetModeIndex(const HWDisplayAttributes &display_attributes, int *mode_index);

@@ -277,7 +277,29 @@ DisplayError SDMDisplayVirtualDPU::CommitOrPrepare(
   auto status = SDMDisplay::CommitOrPrepare(validate_only, out_retire_fence,
                                             out_num_types, out_num_requests,
                                             needs_commit);
+  SetHDRMetaData();
   return status;
+}
+
+DisplayError SDMDisplayVirtualDPU::SetHDRMetaData() {
+  if (!snapmapper_) {
+    DLOGE("SnapMapper is not initialized.. Exiting");
+    return kErrorNotSupported;
+  }
+
+  SnapHandle *handle = (SnapHandle *)output_buffer_->buffer_id;
+
+  snapmapper_->SetMetadata(*handle, MetadataType::DATASPACE, &output_buffer_->dataspace);
+  snapmapper_->SetMetadata(*handle, MetadataType::MATRIX_COEFFICIENTS,
+                           &output_buffer_->matrixCoefficients);
+  snapmapper_->SetMetadata(*handle, MetadataType::MASTERING_DISPLAY,
+                           &output_buffer_->masteringDisplayInfo);
+  snapmapper_->SetMetadata(*handle, MetadataType::CONTENT_LIGHT_LEVEL,
+                           &output_buffer_->contentLightLevel);
+  snapmapper_->SetMetadata(*handle, MetadataType::COLOR_REMAPPING_INFO, &output_buffer_->cRI);
+  snapmapper_->SetMetadata(*handle, MetadataType::DYNAMIC_METADATA,
+                           &output_buffer_->dynamicMetadata);
+  return kErrorNone;
 }
 
 DisplayError SDMDisplayVirtualDPU::SetPanelLuminanceAttributes(float min_lum,

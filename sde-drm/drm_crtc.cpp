@@ -647,6 +647,8 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
         crtc_info_.ddr_version = DDRVersion::kDDRVersion5;
       } else if(string(line, ddr_version.length()) == "DDR5X") {
         crtc_info_.ddr_version = DDRVersion::kDDRVersion5x;
+      } else if (string(line, ddr_version.length()) == "DDR6") {
+        crtc_info_.ddr_version = DDRVersion::kDDRVersion6;
       } else {
         crtc_info_.ddr_version = DDRVersion::kDDRVersionNone;
       }

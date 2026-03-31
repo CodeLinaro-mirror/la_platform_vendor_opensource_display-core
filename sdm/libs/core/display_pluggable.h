@@ -88,8 +88,8 @@ class DisplayPluggable : public DisplayBase, HWEventHandler {
   bool IsPrimaryDisplay() override;
   DisplayError GetPanelBrightnessBasePath(std::string *base_path) override;
   void HandleSSREvent(SSREventType ssr_event) override;
+  void HandleLSR_SSREvent(LSR_SSREventType lsr_ssr_event) override;
 
-  void UpdateColorModes();
   void InitializeColorModesFromColorspace();
 
  private:

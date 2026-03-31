@@ -66,6 +66,7 @@ public:
 
 private:
   DisplayError SetConfig(uint32_t width, uint32_t height);
+  DisplayError SetHDRMetaData();
 
   float min_lum_ = 0.0f;
   float max_lum_ = 0.0f;

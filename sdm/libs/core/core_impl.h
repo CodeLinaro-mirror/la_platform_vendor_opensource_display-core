@@ -23,9 +23,8 @@
 */
 
 /*
- * ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- *
- * Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -117,6 +116,8 @@ class CoreImpl : public CoreInterface {
 #ifdef PROFILE_COVERAGE_DATA
   virtual DisplayError DumpCodeCoverage();
 #endif
+  virtual void SetHdrCapabilities(Display display, const std::vector<Hdr> &hdr_types,
+                                  float max_avg_luminance, float min_luminance);
 
  protected:
   void InitializeSDMUtils();
@@ -127,6 +128,7 @@ class CoreImpl : public CoreInterface {
   DisplayError ReserveDemuraResources(std::map<uint32_t, uint8_t> required_demura_fetch_cnt);
   DisplayError ReserveABCResources(std::map<uint32_t, uint8_t> required_abc_fetch_cnt);
   DisplayError ValidateAndCleanupDemuraFiles();
+  void ResetCachedHDRCaps();
 
   Locker locker_;
   BufferAllocator *buffer_allocator_ = NULL;
@@ -150,6 +152,9 @@ class CoreImpl : public CoreInterface {
   std::bitset<8> core_ids_ = std::bitset<8>(0xFF);
   std::shared_ptr<DemuraTnValidatorIntf> demuratn_validator_intf_;
   bool drm_node_unavailable_ = false;
+  std::vector<Hdr> set_hdr_types_ = {};
+  float set_max_lum_ = -1.0;
+  float set_min_lum_ = -1.0;
 };
 
 }  // namespace sdm

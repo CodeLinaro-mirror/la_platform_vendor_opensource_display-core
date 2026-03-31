@@ -409,6 +409,7 @@ enum DDRVersion {
   kDDRVersion4,
   kDDRVersion5,
   kDDRVersion5x,
+  kDDRVersion6,
 };
 
 struct InlineRotationInfo {
@@ -1189,7 +1190,8 @@ struct HWLayersInfo {
   HWDNSCInfo dnsc_cfg = {};
   SelfRefreshState self_refresh_state = kSelfRefreshNone;
   BufferInfo dummy_loopback_cac_info = {};
-  std::vector<PrivacyRegion> privacy_regions_ = {};
+  std::vector<PrivacyRegion> privacy_regions = {};
+  PrivacyRegionMode privacy_region_mode = PrivacyRegionMode::PR_NONE;
 };
 
 struct DispLayerStack {
@@ -1324,6 +1326,10 @@ enum SSREventType {
   kSSREnd = 1,
 };
 
+enum LSR_SSREventType {
+  kLSR_SSRStart = 0,
+  kLSR_SSREnd = 1,
+};
 #define CONN_ID_SIZE 24
 #define CONN_1_SHIFT_BITS 12
 #define CONN_BIT_MASK 0x000FFFFFF

@@ -435,6 +435,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   uint32_t GetSelfRefreshRefCount();
   DisplayError ValidateExtendedDisplayResolutions(vector<pair<uint32_t, uint32_t>> ext_disp_res,
                                                   vector<pair<uint32_t, uint32_t>> *fin_disp_res);
+  void UpdateColorModes();
 
   DisplayMutex disp_mutex_;
   bool need_async_poweroff_wait_ = false;
@@ -559,6 +560,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool mixer_resolution_updated_ = false;
   bool primary_commit_needed_ = true;
   bool is_ssr_active_ = false;
+  bool is_lsr_ssr_active_ = false;
+  bool lsr_first_commit_ = true;
 
  private:
   // Max tolerable power-state-change wait-times in milliseconds.
@@ -590,6 +593,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   std::chrono::system_clock::time_point WaitUntilForSelfRefresh(uint64_t *srEPT);
   DisplayError HandleCommitDuringSSR();
   bool IsPrimaryCommitNeeded();
+  void GetHDRLayerIndexForGPUTarget(LayerStack *layer_stack, uint32_t *layer_index);
 
   unsigned int rc_cached_res_width_ = 0;
   unsigned int rc_cached_res_height_ = 0;
@@ -627,7 +631,6 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool wb_downscale_supports_ = false;
   bool enable_ai_scaler_ = false;
   uint64_t next_expected_present_ = 0;
-  bool lsr_first_commit_ = true;
   bool cwb_with_lsr_active_ = false;
 };
 

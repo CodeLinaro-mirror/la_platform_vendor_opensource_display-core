@@ -43,15 +43,23 @@ namespace sdm {
 
 DisplayVirtual::DisplayVirtual(DisplayEventHandler *event_handler,
                                sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> hw_info_intf,
-                               BufferAllocator *buffer_allocator, CompManager *comp_manager)
+                               BufferAllocator *buffer_allocator, CompManager *comp_manager,
+                               const std::vector<Hdr> &hdr_types, float max_lum, float min_lum)
     : DisplayBase(kVirtual, event_handler, kDeviceVirtual, buffer_allocator, comp_manager,
-                  hw_info_intf) {}
+                  hw_info_intf),
+      hdr_types_(hdr_types),
+      max_lum_(max_lum),
+      min_lum_(min_lum) {}
 
 DisplayVirtual::DisplayVirtual(DisplayId display_id, DisplayEventHandler *event_handler,
                                sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> hw_info_intf,
-                               BufferAllocator *buffer_allocator, CompManager *comp_manager)
+                               BufferAllocator *buffer_allocator, CompManager *comp_manager,
+                               const std::vector<Hdr> &hdr_types, float max_lum, float min_lum)
     : DisplayBase(display_id, kVirtual, event_handler, kDeviceVirtual, buffer_allocator,
-                  comp_manager, hw_info_intf) {}
+                  comp_manager, hw_info_intf),
+      hdr_types_(hdr_types),
+      max_lum_(max_lum),
+      min_lum_(min_lum) {}
 
 DisplayError DisplayVirtual::Init() {
   ClientLock lock(disp_mutex_);
@@ -67,6 +75,8 @@ DisplayError DisplayVirtual::Init() {
   if (error != kErrorNone) {
     return error;
   }
+
+  SetHdrCapabilities(hdr_types_, max_lum_, min_lum_);
 
   dpu_core_mux_->GetHWInterface(&hw_intf_);
 
@@ -169,14 +179,6 @@ DisplayError DisplayVirtual::SetActiveConfig(DisplayConfigVariableInfo *variable
   dpu_core_mux_->GetDisplayAttributes(active_index, &device_ctx, &client_ctx);
   dpu_core_mux_->GetHWPanelInfo(&device_ctx, &client_ctx);
 
-  if (set_max_lum_ != -1.0 || set_min_lum_ != -1.0) {
-    client_ctx.hw_panel_info.peak_luminance = set_max_lum_;
-    client_ctx.hw_panel_info.blackness_level = set_min_lum_;
-    DLOGI("for display %d-%d: set peak_luminance %f blackness_level %f", display_id_,
-          display_type_, client_ctx.hw_panel_info.peak_luminance,
-          client_ctx.hw_panel_info.blackness_level);
-  }
-
   error = dpu_core_mux_->GetMixerAttributes(&device_ctx, &client_ctx);
   if (error != kErrorNone) {
     return error;
@@ -246,9 +248,13 @@ DisplayError DisplayVirtual::GetColorModeCount(uint32_t *mode_count) {
 }
 
 DisplayError DisplayVirtual::SetPanelLuminanceAttributes(float min_lum, float max_lum) {
-  set_max_lum_ = max_lum;
-  set_min_lum_ = min_lum;
+  DLOGW("setPanelLuminanceAttributes is unsupported - call setHDRCapabilities for virtual display");
   return kErrorNone;
+}
+
+DisplayError DisplayVirtual::SetHdrCapabilities(const std::vector<Hdr> &hdr_types,
+                                                float max_avg_luminance, float min_luminance) {
+  return dpu_core_mux_->SetHdrCapabilities(hdr_types, max_avg_luminance, min_luminance);
 }
 
 DisplayError DisplayVirtual::colorSamplingOn() {
@@ -260,13 +266,32 @@ DisplayError DisplayVirtual::colorSamplingOff() {
 }
 
 DisplayError DisplayVirtual::InitializeColorModes() {
+  dpu_core_mux_->GetHWPanelInfo(&device_ctx_, &client_ctx_);
   PrimariesTransfer pt = {};
   AttrVal var = {};
-  int sink_support = 0, i = 0;
 
-  Debug::Get()->GetProperty("vendor.display.wcm.sink_support", &sink_support);
+  // SRGB
+  pt.primaries = QtiColorPrimaries_BT709_5;
+  pt.transfer = QtiTransfer_sRGB;
+  var.clear();
+  var.push_back(std::make_pair(kColorGamutAttribute, kSrgb));
+  var.push_back(std::make_pair(kDynamicRangeAttribute, kSdr));
+  var.push_back(std::make_pair(kPictureQualityAttribute, kStandard));
+  var.push_back(std::make_pair(kRenderIntentAttribute, "0"));
+  color_modes_cs_.push_back(pt);
+  color_mode_attr_map_.insert(std::make_pair(kSrgb, var));
 
-  if (sink_support) {
+  // native mode
+  pt.primaries = QtiColorPrimaries_Max;
+  pt.transfer = QtiTransfer_Max;
+  var.clear();
+  var.push_back(std::make_pair(kColorGamutAttribute, kNative));
+  var.push_back(std::make_pair(kGammaTransferAttribute, kNative));
+  var.push_back(std::make_pair(kRenderIntentAttribute, "0"));
+  color_modes_cs_.push_back(pt);
+  color_mode_attr_map_.insert(std::make_pair("hal_native", var));
+
+  if (client_ctx_.hw_panel_info.hdr_enabled) {
     // kDisplayBt2020
     pt.primaries = QtiColorPrimaries_BT2020;
     pt.transfer = QtiTransfer_sRGB;
@@ -279,50 +304,25 @@ DisplayError DisplayVirtual::InitializeColorModes() {
     color_mode_attr_map_.insert(std::make_pair(kDisplayBt2020, var));
 
     // BT2020_PQ
-    pt.primaries = QtiColorPrimaries_BT2020;
-    pt.transfer = QtiTransfer_SMPTE_ST2084;
-    var.clear();
-    var.push_back(std::make_pair(kColorGamutAttribute, kBt2020));
-    var.push_back(std::make_pair(kPictureQualityAttribute, kStandard));
-    var.push_back(std::make_pair(kRenderIntentAttribute, "0"));
-    var.push_back(std::make_pair(kGammaTransferAttribute, kSt2084));
-    color_modes_cs_.push_back(pt);
-    color_mode_attr_map_.insert(std::make_pair(kBt2020Pq, var));
+    if (client_ctx_.hw_panel_info.hdr_eotf & kHdrEOTFHDR10) {
+      pt.transfer = QtiTransfer_SMPTE_ST2084;
+      var.pop_back();
+      var.push_back(std::make_pair(kGammaTransferAttribute, kSt2084));
+      color_modes_cs_.push_back(pt);
+      color_mode_attr_map_.insert(std::make_pair(kBt2020Pq, var));
+    }
 
     // BT2020_HLG
-    pt.primaries = QtiColorPrimaries_BT2020;
-    pt.transfer = QtiTransfer_SMPTE_ST2084;
-    var.clear();
-    var.push_back(std::make_pair(kColorGamutAttribute, kBt2020));
-    var.push_back(std::make_pair(kPictureQualityAttribute, kStandard));
-    var.push_back(std::make_pair(kRenderIntentAttribute, "0"));
-    var.push_back(std::make_pair(kGammaTransferAttribute, kHlg));
-    color_modes_cs_.push_back(pt);
-    color_mode_attr_map_.insert(std::make_pair(kBt2020Hlg, var));
+    if (client_ctx_.hw_panel_info.hdr_eotf & kHdrEOTFHLG) {
+      pt.transfer = QtiTransfer_HLG;
+      var.pop_back();
+      var.push_back(std::make_pair(kGammaTransferAttribute, kHlg));
+      color_modes_cs_.push_back(pt);
+      color_mode_attr_map_.insert(std::make_pair(kBt2020Hlg, var));
+    }
   }
-  // SRGB mode
-  pt.primaries = QtiColorPrimaries_BT709_5;
-  pt.transfer = QtiTransfer_sRGB;
-  var.clear();
-  var.push_back(std::make_pair(kColorGamutAttribute, kSrgb));
-  var.push_back(std::make_pair(kDynamicRangeAttribute, kSdr));
-  var.push_back(std::make_pair(kPictureQualityAttribute, kStandard));
-  var.push_back(std::make_pair(kRenderIntentAttribute, "0"));
-  color_modes_cs_.push_back(pt);
-  color_mode_attr_map_.insert(std::make_pair(kSrgb, var));
-
   current_color_mode_ = kSrgb;
-
-  num_color_modes_ = UINT32(color_mode_attr_map_.size());
-  color_modes_.resize(num_color_modes_);
-  for (ColorModeAttrMap::iterator it = color_mode_attr_map_.begin();
-       ((i < num_color_modes_) && (it != color_mode_attr_map_.end())); i++, it++) {
-    color_modes_[i].id = INT32(i);
-    std::size_t length = (it->first).copy(color_modes_[i].name, sizeof(SDEDisplayMode::name) - 1);
-    color_modes_[i].name[length] = '\0';
-    color_mode_map_.insert(std::make_pair(color_modes_[i].name, &color_modes_[i]));
-    DLOGI("Sink support = %d, Color mode[%d] = %s", sink_support, i, color_modes_[i].name);
-  }
+  UpdateColorModes();
 
   return kErrorNone;
 }

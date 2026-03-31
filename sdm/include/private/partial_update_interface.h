@@ -23,10 +23,10 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-* Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __PARTIAL_UPDATE_INTERFACE_H__
 #define __PARTIAL_UPDATE_INTERFACE_H__
@@ -50,6 +50,9 @@ class PartialUpdateInterface {
   virtual DisplayError Stop() = 0;
   virtual DisplayError SetSprIntf(std::shared_ptr<SPRIntf> intf) = 0;
   virtual DisplayError SetDetailEnhancerData(const DisplayDetailEnhancerData &de_data) = 0;
+  virtual DisplayError Reconfigure(DisplayId display_id, SDMDisplayType type,
+                                   const std::vector<HWResourceInfo> &hw_resource_info,
+                                   const DisplayInfoContext &info_ctx) = 0;
 
  protected:
   virtual ~PartialUpdateInterface() { }

@@ -757,6 +757,14 @@ enum struct DRMOps {
    *      PrivacyRegions - Consolidated privacy regions
    */
   CONNECTOR_SET_PRIVACY_REGIONS,
+
+  /*
+   * Op: Sets the privacy regions v2 on the connector
+   * Arg: uint32_t - Connector ID
+   *      PrivacyRegions - Consolidated privacy regions
+   */
+  CONNECTOR_SET_PRIVACY_REGIONS_V2,
+
   /*
    * Op: Sets LSR frame buffer ID for writeback connector.
    * Arg: uint32_t - Connector ID
@@ -994,6 +1002,7 @@ enum struct DDRVersion {
   kDDRVersion4,
   kDDRVersion5,
   kDDRVersion5x,
+  kDDRVersion6,
 };
 
 /* Type for panel feature resource reservation info */
@@ -1296,6 +1305,7 @@ struct DRMConnectorInfo {
   bool emsync_switch_enabled = false;
   bool is_privacy_layers_supported = false;
   bool is_ept_supported = true;
+  bool is_dsi_to_hdmi_bridge = false;
 };
 
 // All DRM Connectors as map<Connector_id , connector_info>
@@ -1455,6 +1465,7 @@ enum DRMPanelFeatureID {
   kDRMPanelFeatureDemuraBacklight,
   // This prop is used for user space only, it is not an actual drm property
   kDRMPanelFeatureDemuraDoubleBufferCbFlags,
+  kDRMPanelFeatureDemuraBrgtInvAdjExpFlag,
   kDRMPanelFeatureMax,
 };
 
