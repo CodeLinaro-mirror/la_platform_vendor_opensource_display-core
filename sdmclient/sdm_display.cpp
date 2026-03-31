@@ -871,6 +871,17 @@ void SDMDisplay::BuildLayerStack() {
                sdm_layer->GetId(), id_, type_);
     }
 
+    if (sdm_layer->IsLutsSet()) {
+      layer->flags.has_luts = true;
+      // TODO(user): Remove skip once using luts sent by client is supported
+      layer->flags.skip = true;
+      DLOGV_IF(kTagClient,
+               "Layer [%" PRIu64
+               "] marked as skip due to luts set by client "
+               "for display [%" PRIu64 "]-[%" PRIu32 "]",
+               sdm_layer->GetId(), id_, type_);
+    }
+
     if (swap_interval_zero_) {
       layer->input_buffer.acquire_fence = nullptr;
     }

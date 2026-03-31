@@ -267,7 +267,8 @@ struct LayerFlags {
       uint32_t is_qrtc : 1;
                               //!< This flag shall be set to indicate that this layer
                               //!< is a qrtc correction layer
-
+      uint32_t has_luts : 1;  //!< This flag shall be set to indicate that this layer has luts
+                              //!< set by client which should be used over generating new luts.
     };
 
     uint32_t flags = 0;       //!< For initialization purpose only.
