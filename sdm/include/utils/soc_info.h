@@ -35,6 +35,8 @@
 #define kAlorSocId 764
 #define kCanoeSocName "canoe"
 #define kArtSocId 707
+#define kPebbleSocId1 735
+#define kPebbleSocId2 741
 #define kArtSocName "art"
 #define kShikraSocId1 759
 #define kShikraSocId2 758
