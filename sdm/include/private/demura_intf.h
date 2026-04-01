@@ -44,7 +44,7 @@
 #include <string>
 #include <vector>
 
-#define RESOURCE_BITSET 8
+#define RESOURCE_BITSET 16
 
 namespace sdm {
 
