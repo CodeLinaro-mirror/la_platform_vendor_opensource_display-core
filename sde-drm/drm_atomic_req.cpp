@@ -99,7 +99,8 @@ int DRMAtomicReq::Perform(DRMOps opcode, uint32_t obj_id, ...) {
     case DRMOps::PLANE_SET_RENDER_POSE:
     case DRMOps::PLANE_SET_RENDER_FRUSTUM:
     case DRMOps::PLANE_SET_PLANE_EQUATION:
-    case DRMOps::PLANE_SET_LAYER_GAMMA: {
+    case DRMOps::PLANE_SET_LAYER_GAMMA:
+    case DRMOps::PLANE_SET_DISPARITY_PHASE: {
       drm_mgr_->GetPlaneMgr()->Perform(opcode, obj_id, drm_atomic_req_, args);
     } break;
     case DRMOps::PLANE_SET_FP16_CSC_CONFIG:
