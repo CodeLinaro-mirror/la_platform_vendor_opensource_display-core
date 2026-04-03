@@ -1538,6 +1538,10 @@ DisplayError HWDeviceDRM::PowerOn(const HWQosData &qos_data, SyncPoints *sync_po
     }
   }
 
+  if (offload_transition_pending_) {
+    is_synchronous = false;
+  }
+
   // Set panel mode if panel is in active state
   if (last_power_mode_ != DRMPowerMode::OFF &&
       (panel_mode_changed_ & DRM_MODE_FLAG_VID_MODE_PANEL)) {
@@ -2694,6 +2698,7 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
 
   panel_compression_changed_ = 0;
   first_cycle_ = false;
+  offload_transition_pending_ = false;
   pending_power_state_ = kPowerStateNone;
   pending_cwb_teardown_ = false;
   // Inherently a real commit ensures null commit properties have happened, so update the member
