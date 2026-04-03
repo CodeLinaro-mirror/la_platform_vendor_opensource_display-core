@@ -24,9 +24,9 @@ class ISnapMemAllocBackend {
   virtual int ImportBuffer(int fd) = 0;
   virtual Error SecureMemPerms(AllocData *ad) = 0;
   virtual void GetHeapInfo(vendor_qti_hardware_display_common_BufferUsage usage, bool sensor_flag,
-                           std::string *heap_name, std::vector<std::string> *vm_names,
-                           unsigned int *alloc_type, unsigned int *flags,
-                           unsigned int *alloc_size) = 0;
+                           bool use_uncached, std::string *heap_name,
+                           std::vector<std::string> *vm_names, unsigned int *alloc_type,
+                           unsigned int *flags, unsigned int *alloc_size) = 0;
   virtual Error SetBufferPermission(
       int fd, vendor_qti_hardware_display_common_BufferPermission *buffer_perm,
       int64_t *mem_hdl) = 0;

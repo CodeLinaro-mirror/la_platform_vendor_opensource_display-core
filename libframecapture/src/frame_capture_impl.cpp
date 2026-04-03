@@ -5,6 +5,7 @@
 
 #include <utils/fence.h>
 #include <sys/mman.h>
+#include <utils/formats.h>
 #include <utils/rect.h>
 #include <utils/utils.h>
 #include <linux/limits.h>
@@ -46,6 +47,10 @@ int FrameCaptureImpl::DeInit() {
 }
 
 int FrameCaptureImpl::ConfigureFCM(CWBPacketData &data) {
+  if (data.cwb_config.num_parallel_buffers == 0) {
+    DLOGE("Invalid num of side by side buffer");
+    return -1;
+  }
   if (data.stop_cwb) {
     trigger_cwb_ = false;
     return 0;
@@ -67,6 +72,7 @@ int FrameCaptureImpl::ConfigureFCM(CWBPacketData &data) {
     metadata_ << "FIELD_INDEX = " << data.field_index << std::endl;
     metadata_ << "FCM_ROI = " << cwb_roi.left << ", " << cwb_roi.top << ", " << cwb_roi.right
               << ", " << cwb_roi.bottom << std::endl;
+    metadata_ << "SIDE_BY_SIDE_BUFFERS = " << data.cwb_config.num_parallel_buffers << std::endl;
     // NUM_FRAMES = 0 will indicate that Cwb dump will be taken until separate
     // stop will be triggered
     metadata_ << "NUM_FRAMES = " << data.frame_dump_count << std::endl;
@@ -634,6 +640,7 @@ int FrameCaptureImpl::AllocateOutputBuffers(CwbConfig &cwb_config) {
     DLOGE("Buffer Resolution setting failed.");
     return -1;
   }
+  output_buffer_info.buffer_config.width *= cwb_config.num_parallel_buffers;
 
   DLOGI("CWB output buffer resolution: width:%d height:%d tap point:%s",
         output_buffer_info.buffer_config.width, output_buffer_info.buffer_config.height,
@@ -671,12 +678,21 @@ int FrameCaptureImpl::AllocateOutputBuffers(CwbConfig &cwb_config) {
                              : display_config_.y_pixels;
   {
     std::lock_guard<std::mutex> lock(metadata_lock_);
-    metadata_ << "UNCOMPRESSED_SIZE = " << output_buffer_info.alloc_buffer_info.size << std::endl;
+    auto &allocated_info = output_buffer_info.alloc_buffer_info;
+    metadata_ << "UNCOMPRESSED_SIZE = " << allocated_info.size << std::endl;
     metadata_ << "COMPRESSION = " << enable_compression_ << std::endl;
     metadata_ << std::endl << "# DISPLAY_INFO:" << std::endl;
     metadata_ << "DISPLAY_FPS = " << display_config_.fps << std::endl;
     metadata_ << "DISPLAY_WIDTH = " << disp_width << std::endl;
     metadata_ << "DISPLAY_HEIGHT = " << disp_height << std::endl;
+    metadata_ << "BUFFER_WIDTH = " << output_buffer_info.buffer_config.width << std::endl;
+    metadata_ << "BUFFER_HEIGHT = " << output_buffer_info.buffer_config.height << std::endl;
+    metadata_ << "BUFFER_ALIGNED_WIDTH = " << allocated_info.aligned_width << std::endl;
+    metadata_ << "BUFFER_ALIGNED_HEIGHT = " << allocated_info.aligned_height << std::endl;
+    metadata_ << "BUFFER_FORMAT = " << GetFormatString(output_buffer_info.buffer_config.format)
+              << std::endl;
+    metadata_ << "FINAL ROI = " << cwb_config.cwb_roi.left << ", " << cwb_config.cwb_roi.top << ", "
+              << cwb_config.cwb_roi.right << ", " << cwb_config.cwb_roi.bottom << std::endl;
     metadata_ << std::endl << "# FRAME_METADATA:" << std::endl;
     metadata_ << "FRAME_FORMAT = FRAME_NO, QTIMER_TIME, FENCE_TIME, WRITE_TIME, COMP_LEVEL, "
               << "COMP_TIME, COMP_SIZE" << std::endl;

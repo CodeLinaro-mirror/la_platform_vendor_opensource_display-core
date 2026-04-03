@@ -148,10 +148,12 @@ public:
  virtual DisplayError SetABCMode(string mode_name);
  virtual DisplayError SetAIScalerMode(uint32_t mode_id);
  virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data);
+ virtual DisplayError SetQrtcFeatureConfig(int32_t type, void *data);
  virtual DisplayError SetDpuDmaMode();
  virtual bool IsDmaModeIncompatible(LayerComposition composition);
  virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size);
  virtual DisplayError SetPoseConfig(void *buffer) override;
+ virtual DisplayError SetRgbHistObserverConfig(bool state, void *data);
 
 private:
  SDMDisplayBuiltIn(CoreInterface *core_intf, BufferAllocator *buffer_allocator,

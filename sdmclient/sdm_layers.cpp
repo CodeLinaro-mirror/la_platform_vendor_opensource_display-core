@@ -151,9 +151,11 @@ SDMLayer::~SDMLayer() {
     // Delete luts if they are still valid
     if (layer_->lut_3d.lutEntries != nullptr) {
       delete[] layer_->lut_3d.lutEntries;
+      layer_->lut_3d.lutEntries = nullptr;
     }
     if (layer_->lut_3d.gridEntries != nullptr) {
       delete[] layer_->lut_3d.gridEntries;
+      layer_->lut_3d.gridEntries = nullptr;
     }
 
     delete layer_;
@@ -871,6 +873,14 @@ DisplayError SDMLayer::SetMetaData(const SnapHandle *handle, Layer *layer) {
     }
   }
 
+  uint32_t disparity_phase = 0;
+  if (GetMetadata(handle, MetadataType::DISPARITY_PHASE, &disparity_phase, snapmapper_) ==
+      Error::NONE) {
+    layer_buffer->disparity_phase = disparity_phase;
+  } else {
+    layer_buffer->disparity_phase = 0;
+  }
+
   if (!ignore_sdr_histogram_md_ || IsHdr(layer_buffer->dataspace.transfer)) {
     VideoHistogramMetadata histogram = {};
     if (layer_->update_mask.test(kContentMetadata) == false &&
@@ -1181,12 +1191,13 @@ DisplayError SDMLayer::SetLayerPrivacyRegions(const std::vector<PrivacyRegion> &
       if (Contains(dst_rect_, layer_rect) && (!is_area_mode || is_valid_index)) {
         layer_->privacy_regions.push_back(region);
       } else {
-        DLOGV_IF(
-            kTagClient,
-            "Invalid layer %d: region %f %f %f %f, dest_rect %f %f %f %f, privacy_region_mode %d "
-            "index %d",
-            id_, layer_rect.left, layer_rect.top, layer_rect.right, layer_rect.bottom,
-            dst_rect_.left, dst_rect_.top, dst_rect_.right, dst_rect_.bottom, mode, region.index);
+        DLOGV_IF(kTagClient,
+                 "Invalid layer %" PRIu64
+                 ": region %f %f %f %f, dest_rect %f %f %f %f, privacy_region_mode %d "
+                 "index %d",
+                 id_, layer_rect.left, layer_rect.top, layer_rect.right, layer_rect.bottom,
+                 dst_rect_.left, dst_rect_.top, dst_rect_.right, dst_rect_.bottom, mode,
+                 region.index);
       }
     }
   } else {
@@ -1220,6 +1231,14 @@ bool SDMLayer::IsPrivacyRegionUpdated() {
 
 bool SDMLayer::HasPrivacyRegions() {
   return (layer_->privacy_regions.size() > 0);
+}
+
+DisplayError SDMLayer::SetLayerLuts(Lut3d *luts) {
+  // TODO(user): Populate layer_->lut_3d once supported, we need to clear previous luts first
+  // and ensure client luts don't get overriden by hwc luts and is used correctly by planes
+  luts_set_ = luts->validLutEntries;
+
+  return kErrorNone;
 }
 
 } // namespace sdm

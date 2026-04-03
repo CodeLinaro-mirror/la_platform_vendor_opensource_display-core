@@ -111,6 +111,16 @@ bool SDMDisplayBuilder::HasHDRSupport(SDMDisplay *sdm_display) {
   return (out_num_types > 0);
 }
 
+int32_t SDMDisplayBuilder::GetVirtualDisplayId(HWDisplayInfo &info) {
+  for (auto &map_info : map_info_virtual_) {
+    if (map_info.sdm_id == info.display_id) {
+      return -1;
+    }
+  }
+
+  return info.display_id;
+}
+
 void SDMDisplayBuilder::Init(Locker *locker) {
   // Default slots:
   //    Primary = 0, External = 1
@@ -339,9 +349,26 @@ DisplayError SDMDisplayBuilder::CreateVirtualDisplayObj(
   // Request to get virtual display id corresponds writeback block, which could
   // be used for WFD.
   int32_t display_id = -1;
-  auto err = core_intf_->RequestVirtualDisplayId(&display_id);
-  if (err != kErrorNone || display_id == -1) {
-    return kErrorResources;
+  int wb_count = 0;
+  core_intf_->GetMaxDisplaysSupported(kVirtual, &wb_count);
+
+  if (wb_count) {
+    // Request to get virtual display id corresponds writeback block, which could be used for WFD.
+    auto err = core_intf_->RequestVirtualDisplayId(&display_id);
+    if (err != kErrorNone || display_id == -1) {
+      return kErrorResources;
+    }
+  } else if (virtual_display_factory_.IsGPUColorConvertSupported()) {
+    //checking property here, whether gpu color convert is supported.
+    for (auto &vdl : virtual_display_list_) {
+      display_id = GetVirtualDisplayId(vdl);
+      if (display_id == -1) {
+        continue;
+      }
+      break;
+    }
+  } else {
+    return kErrorNotSupported;
   }
 
   // Lock confined to this scope
@@ -421,6 +448,22 @@ void SDMDisplayBuilder::GetVirtualDisplayList() {
 
     virtual_display_list_.push_back(info);
   }
+  if (virtual_display_list_.empty() && virtual_display_factory_.IsGPUColorConvertSupported()) {
+    AddGpuBasedVirtualDisplay(&hw_displays_info);
+  }
+}
+
+void SDMDisplayBuilder::AddGpuBasedVirtualDisplay(const HWDisplaysInfo *const hw_displays_info) {
+  HWDisplayInfo hw_info = {};
+  hw_info.display_type = kVirtual;
+  hw_info.is_connected = true;
+  hw_info.is_primary = false;
+  hw_info.is_wb_ubwc_supported = true;
+  hw_info.display_id = 0;
+  while (hw_displays_info->find(hw_info.display_id) != hw_displays_info->end()) {
+    hw_info.display_id++;
+  }
+  virtual_display_list_.push_back(hw_info);
 }
 
 uint32_t SDMDisplayBuilder::GetVirtualDisplayCount() {
@@ -488,6 +531,7 @@ int SDMDisplayBuilder::CreatePrimaryDisplay() {
       map_info_primary_[0].sdm_id = info.display_id;
 
       cb_->SetDisplayByClientId(client_id, sdm_display);
+      cb_->SetPrimaryConnected(true);
     } else {
       DLOGE("Primary display creation has failed! status = %d", status);
       return status;
@@ -726,6 +770,7 @@ DisplayError SDMDisplayBuilder::HandleConnectedPrimaryDisplays(const HWDisplayIn
         is_hdr_display_[UINT32(client_id)] = HasHDRSupport(sdm_display);
       }
       cb_->SetDisplayByClientId(client_id, sdm_display);
+      cb_->SetPrimaryConnected(true);
       callbacks_->OnHotplug(client_id, true);
     }
   } else {
@@ -759,6 +804,7 @@ DisplayError SDMDisplayBuilder::HandleConnectedPrimaryDisplays(const HWDisplayIn
       null_display_ = null_display;
       null_display_active_ = true;
       cb_->SetDisplayByClientId(client_id, null_display);
+      cb_->SetPrimaryConnected(false);
       callbacks_->OnHotplug(client_id, true);
     }
   }

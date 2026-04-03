@@ -103,6 +103,8 @@ class SDMLayerBuilder : public SDMDisplayLayerBuilderIntf {
   DisplayError SetLayerCornerRadius(uint64_t display, int64_t layer,
                                     CornerRadius corner_radius) override;
 
+  DisplayError SetLayerLuts(uint64_t display, int64_t layer, Lut3d *luts) override;
+
  private:
   SDMLayer *GetSDMLayer(uint64_t display_id, int64_t layer_id);
   DisplayError DestroyLayerLocked(uint64_t display_id, int64_t layer_id);

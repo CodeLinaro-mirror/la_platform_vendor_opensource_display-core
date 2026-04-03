@@ -301,6 +301,19 @@ Error SnapMetadataManager::CWBMetadataHelper(SnapMetadata *metadata, SnapHandleI
   return Error::BAD_VALUE;
 }
 
+Error SnapMetadataManager::DisparityPhaseHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                                                void *in_set, void *out_get,
+                                                BufferDescriptor *buf_des) {
+  if (out_get != nullptr) {
+    *static_cast<uint32_t *>(out_get) = metadata->disparity_phase;
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    metadata->disparity_phase = *static_cast<uint32_t *>(in_set);
+    return Error::NONE;
+  }
+  return Error::BAD_VALUE;
+}
+
 Error SnapMetadataManager::ProtectedContentHelper(SnapMetadata *metadata,
                                                   SnapHandleInternal *handle, void *in_set,
                                                   void *out_get, BufferDescriptor *buf_des) {
@@ -1248,6 +1261,21 @@ Error SnapMetadataManager::HeapNameHelper(SnapMetadata *metadata, SnapHandleInte
   return Error::BAD_VALUE;
 }
 
+Error SnapMetadataManager::ROIRectMetadataHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                                                 void *in_set, void *out_get,
+                                                 BufferDescriptor *buf_des) {
+  if (out_get != nullptr) {
+    *static_cast<vendor_qti_hardware_display_common_ROIRectMetadata *>(out_get) =
+        metadata->roiRectMetadata;
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    metadata->roiRectMetadata =
+        *static_cast<vendor_qti_hardware_display_common_ROIRectMetadata *>(in_set);
+    return Error::NONE;
+  }
+  return Error::BAD_VALUE;
+}
+
 uint64_t SnapMetadataManager::GetMetaDataSize(uint64_t reserved_region_size,
                                               uint64_t custom_content_md_region_size,
                                               uint64_t batch_mode_md_size) {
@@ -1688,6 +1716,9 @@ Error SnapMetadataManager::Set(SnapHandleInternal *hnd,
         break;
       case vendor_qti_hardware_display_common_MetadataType::SMPTE2094_10:
         metadata->is_format_SMPTE2094_10 = false;
+        break;
+      case vendor_qti_hardware_display_common_MetadataType::ROI_RECT_METADATA:
+        metadata->roiRectMetadata.size = 0;
         break;
       default:
         DLOGE("Input is null when setting metadata type %d", type);

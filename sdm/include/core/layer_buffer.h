@@ -284,6 +284,9 @@ struct LayerBufferFlags {
 
       uint32_t custom_tm : 1;       //!< This flag shall be set by client to indicate that the
                                     //!< buffer needs custom tonemap - 3D LUT / DE
+
+      uint32_t qrtc : 1;  //!< This flag shall be set to indicate that the
+                          //!< content is qrtc correction data
     };
 
     uint32_t flags = 0;             //!< For initialization purpose only.
@@ -386,6 +389,7 @@ struct LayerBuffer {
   QtiColorRemappingInfo cRI;
   QtiDynamicMetadata dynamicMetadata = { .dynamicMetaDataValid = false, .dynamicMetaDataLen = 0 };
   QtiAnamorphicMetadata anamorphicMetadata;
+  uint32_t disparity_phase = 0;  //!< Phase of the disparity buffer. Default value is 0.
 };
 
 // This enum represents buffer layout types.
@@ -522,6 +526,8 @@ struct CwbConfig {
   CwbControlParams cwb_control_params;               //!< More control parameters for CWB.
   uint32_t downscale_x = 1;                          //!< Downscale factor for CWB output width.
   uint32_t downscale_y = 1;                          //!< Downscale factor for CWB output height.
+  uint32_t num_parallel_buffers = 1;                 //!< number of parallel buffer of cwb ROI
+                                                     //!< in output buffer
 };
 
 // intermediate struct to hold some color metadata values which will be queried
