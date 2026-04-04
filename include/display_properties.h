@@ -139,6 +139,7 @@
 // Allows color management(tonemapping) in native mode (native mode is considered BT709+sRGB)
 #define ALLOW_TONEMAP_NATIVE                 DISPLAY_PROP("allow_tonemap_native")
 #define ENABLE_METADATA_DUMPING              DISPLAY_PROP("enable_metadata_dump")
+#define FORCE_SRGB_TO_P3                     DISPLAY_PROP("force_srgb_to_p3")
 
 // Disable power saving features
 #define DISABLE_DPPS_FEATURES               DISPLAY_PROP("disable_dpps_features")
@@ -203,7 +204,7 @@
 #define ENABLE_QSYNC_IDLE                    DISPLAY_PROP("enable_qsync_idle")
 #define ENHANCE_IDLE_TIME                    DISPLAY_PROP("enhance_idle_time")
 #define CPU_CLUSTER_BOOST_MASK               DISPLAY_PROP("cpu_cluster_boost_mask")
-#define PERF_VERSION_PROP                    DISPLAY_PROP("perf_version")
+#define PERF_VERSION_PROP                    DISPLAY_PROP("perf.version")
 #define MINIMUM_LARGE_COMP_FPS               DISPLAY_PROP("minimum_large_comp_fps")
 
 #define MMRM_FLOOR_CLK_VOTE                  DISPLAY_PROP("mmrm_floor_vote")
