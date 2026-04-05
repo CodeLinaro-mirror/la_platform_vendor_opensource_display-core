@@ -335,6 +335,8 @@ DisplayError HWPeripheralDRM::SetOffloadMode(bool enable) {
     ret = Sys::pwrite_(fd, buffer.c_str(), buffer.size(), 0);
   } else {
     DLOGI("Disabling the offload mode");
+    first_cycle_ = true;
+    offload_transition_pending_ = true;
     ret = Sys::pwrite_(fd, buffer.c_str(), buffer.size(), 0);
   }
 

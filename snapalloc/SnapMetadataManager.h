@@ -253,6 +253,8 @@ class SnapMetadataManager {
                                       BufferDescriptor *buf_des = nullptr);
   Error ViewIdHelper(SnapMetadata *metadata, SnapHandleInternal *handle, void *in_set = nullptr,
                      void *out_get = nullptr, BufferDescriptor *buf_des = nullptr);
+  Error ROIRectMetadataHelper(SnapMetadata *metadata, SnapHandleInternal *handle, void *in_set,
+                              void *out_get, BufferDescriptor *buf_des);
   Error CWBMetadataHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
                           void *in_set = nullptr, void *out_get = nullptr,
                           BufferDescriptor *buf_des = nullptr);
@@ -496,6 +498,7 @@ class SnapMetadataManager {
           {MULTI_VIEW_INFO, &SnapMetadataManager::MultiViewHelper},
           {THREE_DIMENSIONAL_REF_INFO, &SnapMetadataManager::ThreeDimensionalRefInfoHelper},
           {VIEW_ID, &SnapMetadataManager::ViewIdHelper},
+          {ROI_RECT_METADATA, &SnapMetadataManager::ROIRectMetadataHelper},
           {CWB_METADATA, &SnapMetadataManager::CWBMetadataHelper},
           {DISPARITY_PHASE, &SnapMetadataManager::DisparityPhaseHelper},
   };
@@ -570,6 +573,7 @@ class SnapMetadataManager {
           {MULTI_VIEW_INFO, {false}},
           {THREE_DIMENSIONAL_REF_INFO, {true}},
           {VIEW_ID, {true}},
+          {ROI_RECT_METADATA, {true}},
           {CWB_METADATA, {true}},
           {DISPARITY_PHASE, {true}},
       };

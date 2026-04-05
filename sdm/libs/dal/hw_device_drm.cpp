@@ -1538,6 +1538,10 @@ DisplayError HWDeviceDRM::PowerOn(const HWQosData &qos_data, SyncPoints *sync_po
     }
   }
 
+  if (offload_transition_pending_) {
+    is_synchronous = false;
+  }
+
   // Set panel mode if panel is in active state
   if (last_power_mode_ != DRMPowerMode::OFF &&
       (panel_mode_changed_ & DRM_MODE_FLAG_VID_MODE_PANEL)) {
@@ -2031,6 +2035,8 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
           }
           SetBlending(layer_blend, &blending);
           drm_atomic_intf_->Perform(DRMOps::PLANE_SET_BLEND_TYPE, pipe_id, blending);
+          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_DISPARITY_PHASE, pipe_id,
+                                    input_buffer->disparity_phase);
 
           drm_atomic_intf_->Perform(DRMOps::PLANE_SET_COLOR_MASK_OVERRIDE, pipe_id, 0x0);
           if (hw_layers_info->layer_exts.size() && hw_layers_info->layer_exts.at(i).rgba_split) {
@@ -2692,6 +2698,7 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
 
   panel_compression_changed_ = 0;
   first_cycle_ = false;
+  offload_transition_pending_ = false;
   pending_power_state_ = kPowerStateNone;
   pending_cwb_teardown_ = false;
   // Inherently a real commit ensures null commit properties have happened, so update the member
