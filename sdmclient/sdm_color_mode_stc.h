@@ -30,7 +30,7 @@
  * Changes from Qualcomm Innovation Center, Inc. are provided under the
  * following license:
  *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #ifndef __SDM_COLOR_MODE_STC_H__
@@ -69,6 +69,7 @@ private:
       DynamicRangeMap;
   typedef std::map<SDMRenderIntent, DynamicRangeMap> RenderIntentMap;
   std::map<SDMColorMode, RenderIntentMap> color_mode_map_ = {};
+  bool force_srgb_to_p3_ = 0;
 
   void PopulateColorModes();
   int32_t GetStcColorModeFromMap(const SDMColorMode &mode,
