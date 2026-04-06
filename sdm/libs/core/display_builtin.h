@@ -308,6 +308,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError GetCoprStats(std::vector<int> *stats) override;
 #endif
   DisplayError GetScalerCount(uint32_t *scaler_count) override;
+  DisplayError SetStcFeatureConfig(void *data) override;
   DisplayError DumpDemuraSurface(const char *dir_path, uint32_t frame_index) override;
   DisplayError SetIllumination(uint32_t eye, const IlluminationConfig &config) override;
   DisplayError SetRgbHistObserverConfig(bool state, void *data) override;

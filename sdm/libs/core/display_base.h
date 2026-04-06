@@ -330,6 +330,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError GetCoprStats(std::vector<int> *stats) { return kErrorNotSupported; }
   virtual DisplayError GetScalerCount(uint32_t *scaler_count) { return kErrorNotSupported; }
   void HandleSelfRefresh();
+  virtual DisplayError SetStcFeatureConfig(void *data) { return kErrorNotSupported; }
+
   virtual DisplayError DumpDemuraSurface(const char *dir_path, uint32_t frame_index) {
     return kErrorNotSupported;
   }
