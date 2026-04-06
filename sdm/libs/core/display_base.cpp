@@ -149,6 +149,10 @@ DisplayBase::~DisplayBase() {
     lock.NotifyWorker();
   }
 
+  if (refresh_rate_mgr_) {
+    delete refresh_rate_mgr_;
+  }
+
   commit_thread_.join();
 }
 
@@ -383,6 +387,8 @@ DisplayError DisplayBase::Init() {
   InitBorderLayers();
   // Assume unified draw is supported.
   unified_draw_supported_ = true;
+
+  refresh_rate_mgr_ = new RefreshRateManager(display_id_, display_type_, avr_step_);
 
   return kErrorNone;
 
@@ -1682,6 +1688,10 @@ DisplayError DisplayBase::CommitOrPrepare(LayerStack *layer_stack) {
     lock.NotifyWorker();
   }
 
+  if (refresh_rate_mgr_) {
+    refresh_rate_mgr_->CalculateRefreshRate(disp_layer_stack_, client_ctx_, /*is_idle*/ false);
+  }
+
   return async_commit ? kErrorNone : kErrorNeedsCommit;
 }
 
@@ -1773,6 +1783,10 @@ void DisplayBase::CommitThread() {
       if (self_refresh_state) {
         PerformSelfRefresh(srEPT);
         continue;
+      } else {
+        if (refresh_rate_mgr_) {
+          refresh_rate_mgr_->CalculateRefreshRate(disp_layer_stack_, client_ctx_, /*is_idle*/ true);
+        }
       }
 
       event_handler_->HandleEvent(kIdleTimeout);
@@ -2567,7 +2581,12 @@ DisplayError DisplayBase::SetActiveConfig(uint32_t index) {
   active_config_index_ = index;
   active_refresh_rate_ = client_ctx.display_attributes.fps;
 
-  return ReconfigureDisplay();
+  error = ReconfigureDisplay();
+  if (refresh_rate_mgr_) {
+    refresh_rate_mgr_->CalculateRefreshRate(disp_layer_stack_, client_ctx_, /*is_idle*/ false);
+  }
+
+  return error;
 }
 
 DisplayError DisplayBase::SetMaxMixerStages(uint32_t max_mixer_stages) {

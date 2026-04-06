@@ -169,6 +169,10 @@ DisplayError SDMServices::DynamicDebug(int type, bool enable,
     SDMDebugHandler::DebugColorProc(enable, verbose_level);
     break;
 
+  case SDM_SERVICE_DEBUG_REFRESH_RATE:
+    SDMDebugHandler::DebugRefreshRate(enable, verbose_level);
+    break;
+
   default:
     DLOGW("type = %d is not supported", type);
   }
