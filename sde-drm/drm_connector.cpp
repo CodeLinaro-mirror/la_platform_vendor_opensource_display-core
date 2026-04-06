@@ -1590,10 +1590,11 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::WB_NUM_BUFFERS);
       int ret = drmModeAtomicAddProperty(req, obj_id, prop_id, wb_num_buffers);
       if (ret < 0) {
-        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, wb_num_buffers %d ret %d",
+        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, wb_num_buffers %" PRIu64
+                 " ret %d",
                  obj_id, prop_id, wb_num_buffers, ret);
       } else {
-        DRM_LOGD("Connector %d: Setting wb_num_buffers %d", obj_id, wb_num_buffers);
+        DRM_LOGD("Connector %d: Setting wb_num_buffers %" PRIu64, obj_id, wb_num_buffers);
       }
     } break;
 
