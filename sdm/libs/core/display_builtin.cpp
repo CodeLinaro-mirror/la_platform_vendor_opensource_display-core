@@ -6361,6 +6361,12 @@ DisplayError DisplayBuiltIn::SetQrtcSubsample(int subsample) {
     return kErrorUndefined;
   }
 
+  error = SetupQrtcLayer();
+  if (error != kErrorNone) {
+    DLOGE("Unable to setup Qrtc layer on Display %d-%d", display_id_, display_type_);
+    return kErrorUndefined;
+  }
+
   return kErrorNone;
 }
 
@@ -6450,8 +6456,8 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
   qrtc_config_.cwb_blk = qrtc::QRTC_CWB_BLK0;
   qrtc_config_.wb_blk = qrtc::QRTC_WB_BLK0;
   qrtc_config_.rect_wb_blk = qrtc::QRTC_MULTI_RECT_1;
-  qrtc_config_.subsample = qrtc::QRTC_SubSample_1X1;
-  qrtc_config_.max_subsample = qrtc::QRTC_SubSample_1X1;
+  qrtc_config_.subsample = qrtc::QRTC_SubSample_2X2;
+  qrtc_config_.max_subsample = qrtc::QRTC_SubSample_2X2;
   qrtc_config_.panel_name = "sample";
   qrtc_config_.panel_width = client_ctx_.display_attributes.x_pixels;
   qrtc_config_.panel_height = client_ctx_.display_attributes.y_pixels;
