@@ -6454,7 +6454,8 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
   /* TODO: currently only rect0 is verified, switch to RECT1 later */
   qrtc_config_.rect_fetch_pipe = qrtc::QRTC_MULTI_RECT_0;
   qrtc_config_.cwb_blk = qrtc::QRTC_CWB_BLK0;
-  qrtc_config_.wb_blk = qrtc::QRTC_WB_BLK0;
+  /* TODO: query the wb_id from SDM API and replace hard code value */
+  qrtc_config_.wb_blk = static_cast<qrtc::QrtcWbBlk>(5);
   qrtc_config_.rect_wb_blk = qrtc::QRTC_MULTI_RECT_1;
   qrtc_config_.subsample = qrtc::QRTC_SubSample_2X2;
   qrtc_config_.max_subsample = qrtc::QRTC_SubSample_2X2;
