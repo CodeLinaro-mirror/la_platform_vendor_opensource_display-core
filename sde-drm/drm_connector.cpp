@@ -695,7 +695,9 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
   const string max_linewidth = "maxlinewidth=";
   const string panel_orientation = "panel orientation=";
   const string qsync_support = "qsync support=";
+  const string features = "features=";
   const string wb_ubwc = "wb_ubwc";
+  const string downscale = "downscale";
   const string dyn_bitclk_support = "dyn bitclk support=";
   const string qsync_fps = "qsync_fps=";
   const string has_cwb_dither = "has_cwb_dither=";
@@ -741,8 +743,17 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
       info->qsync_support = (string(line, qsync_support.length()) == "true");
     } else if (line.find(qsync_fps) != string::npos) {
       info->qsync_fps = std::stoi(string(line, qsync_fps.length()));
+    } else if (line.find(features) != string::npos) {
+      if (line.find(wb_ubwc) != string::npos) {
+        info->is_wb_ubwc_supported = true;
+      }
+      if (line.find(downscale) != string::npos) {
+        info->is_wb_downscale_supported = true;
+      }
     } else if (line.find(wb_ubwc) != string::npos) {
       info->is_wb_ubwc_supported = true;
+    } else if (line.find(downscale) != string::npos) {
+      info->is_wb_downscale_supported = true;
     } else if (line.find(dyn_bitclk_support) != string::npos) {
       info->dyn_bitclk_support = (string(line, dyn_bitclk_support.length()) == "true");
     } else if (line.find(has_cwb_dither) != string::npos) {

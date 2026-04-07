@@ -117,6 +117,7 @@ struct HWDisplayInfo {
   bool is_primary = false;                     //!< True only if this is the main display of the
                                                //!< device.
   bool is_wb_ubwc_supported = true;            //!< check hardware wb ubwc support
+  bool is_wb_downscale_supported = false;      //!< check whether connector(WB) supports downscale
   bool is_reserved = false;                    //!< check if currently reserved by any display
   uint32_t max_linewidth = 0;                  //!< max width supported by connector
   uint32_t max_cwb = 0;                        //!< Maximum CWB instances supported concurrently,
