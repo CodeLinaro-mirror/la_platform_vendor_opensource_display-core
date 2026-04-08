@@ -457,6 +457,10 @@ enum QrtcVendorServiceType {
   kTypeQrtcSubsample = 1,
   /* Setter: int */
   kTypeQrtcDumpBuffer = 2,
+  /* Setter: int */
+  kTypeQrtcTuningMode = 3,
+  /* Setter: None */
+  kTypeQrtcTuningCfg = 4,
   KQrtcVendorServiceTypeMax,
 };
 
@@ -1736,7 +1740,7 @@ class DisplayInterface {
   virtual DisplayError SetRgbHistObserverConfig(bool state, void *data) = 0;
 
   /*! @brief Method to configure QRTC feature
-   @param[in] state: Enable/Disable   @param[in] type : Operation type
+   @param[in] type : Operation type
    @param[in] data : Configuration or operation data
 
    @return \link DisplayError \endlink
