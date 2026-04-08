@@ -1061,8 +1061,7 @@ void SDMDisplayBuilder::DestroyDisplay(DisplayMapInfo *map_info) {
     callbacks_->OnHotplug(map_info->client_id, false);
 
     // Wait until all commands are flushed.
-    std::lock_guard<std::mutex> sdm_lock(cb_->command_seq_mutex_);
-
+    std::lock_guard<std::mutex> cmd_lock(cb_->display_command_mutex_[map_info->client_id]);
     cb_->SetPowerMode(map_info->client_id,
                       static_cast<int32_t>(SDMPowerMode::POWER_MODE_OFF));
     DestroyPluggableDisplay(map_info);
