@@ -59,6 +59,8 @@
 
 namespace sdm {
 
+#define MAX_WB_ALLOWED 4
+
 DisplayBuiltIn::DisplayBuiltIn(DisplayEventHandler *event_handler,
                                sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> hw_info_intf,
                                BufferAllocator *buffer_allocator, CompManager *comp_manager,
@@ -700,6 +702,7 @@ DisplayError DisplayBuiltIn::Deinit() {
   if (qrtc_) {
     qrtc_.reset();
     qrtc_ = nullptr;
+    ReleaseWBFromDisplay();
   }
   return DisplayBase::Deinit();
 }
@@ -6825,6 +6828,28 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
     return kErrorUndefined;
   }
 
+  WbMapInfo wb_info;
+  error = ReserveWBForDisplay(&wb_info);
+  if (error != kErrorNone) {
+    DLOGE("Failed to reserve wb for qrtc");
+    return error;
+  }
+
+  int max_wb_index = 0;
+  for (int i = MAX_WB_ALLOWED - 1; i >= 0; i--) {
+    if ((wb_info.info_flag & 0xF) & (1 << i)) {
+      max_wb_index = i;
+      break;
+    }
+  }
+
+  if (wb_info.wb_index < 0 || wb_info.wb_index > max_wb_index) {
+    DLOGE("Invalid wb index on Display %d-%d", display_id_, display_type_);
+    ReleaseWBFromDisplay();
+    return kErrorNotSupported;
+  }
+  DLOGI("Wb index: %d reserved for qrtc", wb_info.wb_index);
+
   int32_t qrtc_pipe_idx = -1;
   int32_t is_virtual = 0;
   qrtc::QrtcFetchPipes fetch_pipe = qrtc::QRTC_FETCH_MAX;
@@ -6851,6 +6876,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
     fetch_pipe = qrtc::QRTC_FETCH_DMA1;
   } else {
     DLOGE("Invalid qrtc pipe index on Display %d-%d", display_id_, display_type_);
+    ReleaseWBFromDisplay();
     return kErrorNotSupported;
   }
 
@@ -6860,8 +6886,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
   qrtc_config_.fetch_pipe = fetch_pipe;
   qrtc_config_.rect_fetch_pipe = rect_fetch_pipe;
   qrtc_config_.cwb_blk = qrtc::QRTC_CWB_BLK0;
-  /* TODO: query the wb_id from SDM API and replace hard code value */
-  qrtc_config_.wb_blk = static_cast<qrtc::QrtcWbBlk>(5);
+  qrtc_config_.wb_blk = static_cast<qrtc::QrtcWbBlk>(wb_info.wb_index);
   qrtc_config_.rect_wb_blk = qrtc::QRTC_MULTI_RECT_1;
   qrtc_config_.subsample = qrtc::QRTC_SubSample_2X2;
   qrtc_config_.max_subsample = qrtc::QRTC_SubSample_2X2;
@@ -6892,6 +6917,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
   if (error != kErrorNone || !qrtc_support.supported) {
     DLOGE("Unable to support QRTC on display %d with subsampling %dx%d", display_id_,
           qrtc_support.subsample_h, qrtc_support.subsample_v);
+    ReleaseWBFromDisplay();
     return error;
   }
 
@@ -6899,6 +6925,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
     DLOGE("Unable to setup Qrtc config on Display %d-%d", display_id_, display_type_);
     qrtc_.reset();
     qrtc_ = nullptr;
+    ReleaseWBFromDisplay();
     return kErrorUndefined;
   }
 
@@ -6906,6 +6933,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
     DLOGE("Unable to setup Qrtc layer on Display %d-%d", display_id_, display_type_);
     qrtc_.reset();
     qrtc_ = nullptr;
+    ReleaseWBFromDisplay();
     return kErrorUndefined;
   }
 
