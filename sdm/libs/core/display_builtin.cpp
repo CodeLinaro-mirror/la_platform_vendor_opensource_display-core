@@ -54,7 +54,6 @@
 #include "drm_interface.h"
 #include "drm_master.h"
 #include "rgb_hist_data_dumper.h"
-#include "rgb_hist_feature_intf_impl.h"
 
 #define __CLASS__ "DisplayBuiltIn"
 
