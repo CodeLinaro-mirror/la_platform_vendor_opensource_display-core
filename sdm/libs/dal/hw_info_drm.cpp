@@ -403,6 +403,8 @@ void HWInfoDRM::GetSystemInfo(HWResourceInfo *hw_resource) {
     hw_resource->ddr_version = kDDRVersion5;
   } else if (info.ddr_version == sde_drm::DDRVersion::kDDRVersion5x) {
     hw_resource->ddr_version = kDDRVersion5x;
+  } else if (info.ddr_version == sde_drm::DDRVersion::kDDRVersion6) {
+    hw_resource->ddr_version = kDDRVersion6;
   } else {
     hw_resource->ddr_version = kDDRVersionNone;
   }
@@ -1112,6 +1114,7 @@ DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
     switch (iter.second.type) {
       case DRM_MODE_CONNECTOR_DSI:
       case DRM_MODE_CONNECTOR_eDP:
+      case DRM_MODE_CONNECTOR_SPI:
         hw_info.display_type = kBuiltIn;
         break;
       case DRM_MODE_CONNECTOR_TV:
@@ -1132,6 +1135,9 @@ DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
     hw_info.is_connected = iter.second.is_connected ? 1 : 0;
     hw_info.is_primary = iter.second.is_primary ? 1 : 0;
     hw_info.is_wb_ubwc_supported = iter.second.is_wb_ubwc_supported;
+    if (iter.second.is_dsi_to_hdmi_bridge) {
+      hw_info.display_type = kPluggable;
+    }
     hw_info.is_reserved = iter.second.is_reserved;
     hw_info.max_linewidth = iter.second.max_linewidth;
 
@@ -1272,7 +1278,6 @@ DisplayError HWInfoDRM::GetVirtualDisplayStatus(VirtualDisplayType type, HWDispl
 
 DisplayError HWInfoDRM::GetMaxDisplaysSupported(const SDMDisplayType type, int32_t *max_displays) {
   static DebugTag log_once = kTagNone;
-
   if (!max_displays) {
     DLOGE("No output parameter provided!");
     return kErrorParameters;
@@ -1295,6 +1300,7 @@ DisplayError HWInfoDRM::GetMaxDisplaysSupported(const SDMDisplayType type, int32
   int32_t max_displays_tmds = 0;
   int32_t max_displays_virtual = 0;
   int32_t max_displays_dpmst = 0;
+  int32_t max_dsi_hdmi_bridge = 0;
   for (auto &iter : encoders_info) {
     switch (iter.second.type) {
       case DRM_MODE_ENCODER_DSI:
@@ -1323,19 +1329,32 @@ DisplayError HWInfoDRM::GetMaxDisplaysSupported(const SDMDisplayType type, int32
     }
   }
 
+  sde_drm::DRMConnectorsInfo conns_info = {};
+  drm_err = drm_mgr_intf_->GetConnectorsInfo(&conns_info);
+  if (drm_err) {
+    DLOGE("DRM Driver get connector error %d while getting max displays supported!", drm_err);
+    return kErrorUndefined;
+  }
+
+  for (auto &iter : conns_info) {
+    if (iter.second.is_dsi_to_hdmi_bridge) {
+      max_displays_builtin--;
+      max_dsi_hdmi_bridge++;
+    }
+  }
   switch (type) {
     case kBuiltIn:
       *max_displays = max_displays_builtin;
       break;
     case kPluggable:
-      *max_displays = std::max(max_displays_tmds, max_displays_dpmst);
+      *max_displays = max_dsi_hdmi_bridge + std::max(max_displays_tmds, max_displays_dpmst);
       break;
     case kVirtual:
       *max_displays = max_displays_virtual;
       break;
     case kDisplayTypeMax:
-      *max_displays = max_displays_builtin + std::max(max_displays_tmds, max_displays_dpmst) +
-                      max_displays_virtual;
+      *max_displays = max_displays_builtin + max_dsi_hdmi_bridge +
+                      std::max(max_displays_tmds, max_displays_dpmst) + max_displays_virtual;
       break;
     default:
       DLOGE("Unknown display type %d.", type);
@@ -1343,12 +1362,12 @@ DisplayError HWInfoDRM::GetMaxDisplaysSupported(const SDMDisplayType type, int32
   }
 
   DLOGI_IF(log_once, "Max %d concurrent displays.",
-           max_displays_builtin + std::max(max_displays_tmds, max_displays_dpmst) +
-               max_displays_virtual);
+           max_displays_builtin + max_dsi_hdmi_bridge +
+               std::max(max_displays_tmds, max_displays_dpmst) + max_displays_virtual);
   DLOGI_IF(log_once, "Max %d concurrent displays of type %d (BuiltIn).", max_displays_builtin,
            kBuiltIn);
   DLOGI_IF(log_once, "Max %d concurrent displays of type %d (Pluggable).",
-           std::max(max_displays_tmds, max_displays_dpmst), kPluggable);
+           max_dsi_hdmi_bridge + std::max(max_displays_tmds, max_displays_dpmst), kPluggable);
   DLOGI_IF(log_once, "Max %d concurrent displays of type %d (Virtual).", max_displays_virtual,
            kVirtual);
 

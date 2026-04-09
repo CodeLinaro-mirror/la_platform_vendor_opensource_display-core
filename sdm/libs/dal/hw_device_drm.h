@@ -215,12 +215,17 @@ class HWDeviceDRM : public HWInterface {
   virtual DisplayError SetReprojectionConfig(const struct ReprojectionConfig &reprojection_config) {
     return kErrorNone;
   }
-  virtual void SetSSRState(bool active);
+  virtual void SetSSRState(bool active, HWSSRType type);
   virtual bool IsEPTSupported();
   virtual DisplayError SetIllumination(uint32_t eye, const IlluminationConfig &config) {
     return kErrorNotSupported;
   }
   virtual DisplayError SetPixelShift(uint32_t eye, const PixelShiftConfig &config) {
+    return kErrorNotSupported;
+  }
+
+  virtual DisplayError SetHdrCapabilities(const std::vector<Hdr> &hdr_types,
+                                          float max_avg_luminance, float min_luminance) {
     return kErrorNotSupported;
   }
 
@@ -305,7 +310,7 @@ class HWDeviceDRM : public HWInterface {
     return;
   };
   void SetCacType(const HWPipeCacMode &cac_mode, sde_drm::DRMCacMode *target);
-  void SetPrivacyRegionsData(std::vector<PrivacyRegion> *privacy_regions);
+  void SetPrivacyRegionsData(std::vector<PrivacyRegion> *privacy_regions, PrivacyRegionMode mode);
   void SetDrmReferenceSpaceType(const uint32_t &pipe_id,
                                 const SDMRenderLayerReferenceSpaceType &reference_space);
   void SetDrmRenderPose(const uint32_t &pipe_id, const SDMLayerPose &layer_pose);
@@ -425,9 +430,14 @@ class HWDeviceDRM : public HWInterface {
   int current_brightness_ = -1;
   int32_t loopback_conn_id_ = -1;
 #ifdef MAX_PRIVACY_LAYERS
+#ifdef PRIVACY_LAYERS_AREA_MODE
+  sde_drm_privacy_layer_v2 privacy_layer_data_ = {};
+#else
   sde_drm_privacy_layer_v1 privacy_layer_data_ = {};
 #endif
+#endif
   bool is_ssr_active_ = false;
+  bool is_lsr_ssr_active_ = false;
 
  private:
   void GetCWBCapabilities();

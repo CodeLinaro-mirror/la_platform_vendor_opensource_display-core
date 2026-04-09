@@ -1,0 +1,38 @@
+cc_library_shared {
+    name: "libframecapture",
+    defaults: ["qtidisplay_defaults"],
+    sanitize: {
+        integer_overflow: true,
+    },
+    vendor: true,
+    header_libs: [
+        "display_headers",
+        "qti_kernel_headers",
+        "qti_display_kernel_headers",
+        "device_kernel_headers",
+        "common_interface_headers",
+    ],
+    shared_libs: [
+        "libutils",
+        "libc++",
+        "libsdmcore",
+        "libdisplaydebug",
+        "libsdmutils",
+    ],
+    static_libs: ["liblz4"],
+    cflags: [
+        "-DLOG_TAG=\"SDM\"",
+        "-Wall",
+        "-std=c++11",
+        "-Werror",
+        "-fno-operator-names",
+    ],
+    export_include_dirs: ["inc"],
+
+    srcs: [
+              "src/Compressor.cpp",
+              "src/frame_capture_intf.cpp",
+              "src/frame_capture_impl.cpp",
+          ],
+
+}

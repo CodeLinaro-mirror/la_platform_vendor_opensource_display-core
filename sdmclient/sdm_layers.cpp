@@ -755,6 +755,7 @@ void SDMLayer::GetUBWCStatsFromMetaData(UBWCStats *cr_stats, UbwcCrStatsVector *
   // in layer_buffer or copy directly to Vector
   if (cr_stats->bDataValid) {
     switch (cr_stats->version) {
+      case UBWCVersion::UBWC_VERSION_7_0:
       case UBWCVersion::UBWC_VERSION_6_0:
       case UBWCVersion::UBWC_VERSION_5_0:
       case UBWCVersion::UBWC_VERSION_4_0:
@@ -1141,9 +1142,16 @@ void SDMLayer::ResetGeometryChanges() {
   layer_->geometry_changes = GeometryChanges::kNone;
 }
 
-DisplayError SDMLayer::SetLayerPrivacyRegions(const std::vector<PrivacyRegion> &privacy_regions) {
+DisplayError SDMLayer::SetLayerPrivacyRegions(const std::vector<PrivacyRegion> &privacy_regions,
+                                              PrivacyRegionMode mode) {
   DTRACE_SCOPED();
   bool updated = false;
+  bool is_area_mode = (mode == PrivacyRegionMode::AREA);
+
+  if (mode == PrivacyRegionMode::PR_NONE) {
+    return kErrorNotSupported;
+  }
+
   if (privacy_regions.size() != layer_->privacy_regions.size()) {
     DLOGV_IF(kTagClient, "Layer's %" PRId64 ": privacy regions updated (cur %u new %u)", id_,
              layer_->privacy_regions.size(), privacy_regions.size());
@@ -1168,13 +1176,17 @@ DisplayError SDMLayer::SetLayerPrivacyRegions(const std::vector<PrivacyRegion> &
     layer_->privacy_regions.clear();
     LayerRect layer_rect = {};
     for (auto region : privacy_regions) {
+      bool is_valid_index = (region.index == 1 || region.index == 2);
       SetRect(region.rect, &layer_rect);
-      if (Contains(dst_rect_, layer_rect)) {
+      if (Contains(dst_rect_, layer_rect) && (!is_area_mode || is_valid_index)) {
         layer_->privacy_regions.push_back(region);
       } else {
-        DLOGV_IF(kTagClient, "Layer %" PRId64 ": region %f %f %f %f is not within %f %f %f %f", id_,
-                 layer_rect.left, layer_rect.top, layer_rect.right, layer_rect.bottom,
-                 dst_rect_.left, dst_rect_.top, dst_rect_.right, dst_rect_.bottom);
+        DLOGV_IF(
+            kTagClient,
+            "Invalid layer %d: region %f %f %f %f, dest_rect %f %f %f %f, privacy_region_mode %d "
+            "index %d",
+            id_, layer_rect.left, layer_rect.top, layer_rect.right, layer_rect.bottom,
+            dst_rect_.left, dst_rect_.top, dst_rect_.right, dst_rect_.bottom, mode, region.index);
       }
     }
   } else {

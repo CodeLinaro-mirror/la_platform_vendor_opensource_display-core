@@ -257,8 +257,11 @@ DisplayError CoreImpl::CreateDisplay(SDMDisplayType type, DisplayEventHandler *e
                                           &comp_mgr_);
       break;
     case kVirtual:
-      display_base = new DisplayVirtual(event_handler, hw_info_intf_, buffer_allocator_,
-                                        &comp_mgr_);
+      display_base = new DisplayVirtual(event_handler, hw_info_intf_, buffer_allocator_, &comp_mgr_,
+                                        set_hdr_types_, set_max_lum_, set_min_lum_);
+      // hdr caps are cached and used to create virtual display to help in initializing color modes
+      // reset the values once the object is created so we don't use it for new virtual display
+      ResetCachedHDRCaps();
       break;
     default:
       DLOGE("Spurious display type %d", type);
@@ -332,8 +335,9 @@ DisplayError CoreImpl::CreateDisplay(int32_t display_id, DisplayEventHandler *ev
                                           buffer_allocator_, &comp_mgr_);
       break;
     case kVirtual:
-      display_base = new DisplayVirtual(disp_id, event_handler, hw_info_intf,
-                                        buffer_allocator_, &comp_mgr_);
+      display_base = new DisplayVirtual(disp_id, event_handler, hw_info_intf, buffer_allocator_,
+                                        &comp_mgr_, set_hdr_types_, set_max_lum_, set_min_lum_);
+      ResetCachedHDRCaps();
       break;
     default:
       DLOGE("Spurious display type %d", display_type);
@@ -1001,6 +1005,19 @@ DisplayError CoreImpl::DumpCodeCoverage() {
 
 bool CoreImpl::IsGPUHWAvailable() {
   return comp_mgr_.IsGPUHWAvailable();
+}
+
+void CoreImpl::SetHdrCapabilities(Display display, const std::vector<Hdr> &hdr_types,
+                                  float max_avg_luminance, float min_luminance) {
+  set_hdr_types_ = hdr_types;
+  set_max_lum_ = max_avg_luminance;
+  set_min_lum_ = min_luminance;
+}
+
+void CoreImpl::ResetCachedHDRCaps() {
+  set_hdr_types_.clear();
+  set_max_lum_ = -1.0;
+  set_min_lum_ = -1.0;
 }
 
 }  // namespace sdm

@@ -32,9 +32,16 @@
 #define kCanoeSocId6 743
 #define kCanoeSSocId 722
 #define kCanoeSSocId1 723
+#define kAlorSocId 764
 #define kCanoeSocName "canoe"
 #define kArtSocId 707
 #define kArtSocName "art"
+#define kShikraSocId1 759
+#define kShikraSocId2 758
+#define kShikraSocId3 756
+#define kShikraSocName "shikra"
+#define kHamoaSocId 555
+#define kHamoaSocName "hamoa"
 
 #endif  // __SOC_INFO_H__
 

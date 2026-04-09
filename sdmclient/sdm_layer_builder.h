@@ -24,6 +24,7 @@ struct SDMLayerStack {
   std::multiset<SDMLayer *, SortLayersByZ> layer_set_;
   uint32_t geometry_changes_ = GeometryChanges::kNone;
   bool privacy_regions_updated_ = false;
+  PrivacyRegionMode privacy_region_mode = PrivacyRegionMode::PR_NONE;
 };
 
 class SDMLayerBuilder : public SDMDisplayLayerBuilderIntf {
@@ -128,6 +129,7 @@ class SDMLayerBuilder : public SDMDisplayLayerBuilderIntf {
 
   int disable_sdr_histogram_ = 0;  // disables handling of SDR histogram data.
   int32_t disable_mask_layer_hint_ = 0;
+  PrivacyRegionMode privacy_region_mode_ = PrivacyRegionMode::PR_NONE;
 
   static SDMLayerBuilder *layer_builder_;
   static uint32_t ref_count_;
