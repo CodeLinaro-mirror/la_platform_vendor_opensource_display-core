@@ -1232,6 +1232,16 @@ DisplayError SDMDisplayBuilder::GetDisplayHwId(uint64_t disp_id,
     }
   }
 
+  // Support for external displays
+  for (auto &info : GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_EXTERNAL)) {
+    if (disp_id == info.client_id) {
+      if (info.sdm_id >= 0) {
+        *disp_hw_id = static_cast<uint32_t>(info.sdm_id);
+        return kErrorNone;
+      }
+    }
+  }
+
   return kErrorNotSupported;
 }
 
