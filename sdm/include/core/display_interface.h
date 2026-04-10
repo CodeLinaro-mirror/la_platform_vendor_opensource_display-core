@@ -436,6 +436,7 @@ enum PanelFeatureVendorServiceType {
 enum ClientCapability {
   kPunchholeSupported,
   kHDRSupported,
+  kPixmanRenderer,
   kClientCapabilityMax,
 };
 
