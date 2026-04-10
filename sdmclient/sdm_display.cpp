@@ -2352,7 +2352,7 @@ void SDMDisplay::DumpInputBuffers() {
 
     if (layer->composition != kCompositionSDE && layer->composition != kCompositionGPU &&
         layer->composition != kCompositionGPUTarget && layer->composition != kCompositionIWECSC &&
-        layer->composition != kCompositionIWERepro) {
+        layer->composition != kCompositionIWERepro && layer->composition != kCompositionQrtc) {
       DLOGI("Skip dumping the layer, composition type : %d", layer->composition);
       continue;  // Skip to dump i.e. stitch layers, noise layer, cursor layer, ...
     }

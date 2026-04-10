@@ -527,6 +527,8 @@ public:
   virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data) {
     return kErrorNotSupported;
   }
+  virtual DisplayError SetQrtcFeatureConfig(int32_t type, void *data) { return kErrorNotSupported; }
+
   virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t input_size) {
     return kErrorNotSupported;
   }

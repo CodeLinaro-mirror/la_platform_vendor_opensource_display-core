@@ -315,12 +315,6 @@ enum struct DRMOps {
    */
   PLANE_SET_REFERENCE_SPACE_TYPE,
   /*
-   * Op: Sets plane render type
-   * Arg: uint32_t - Plane ID
-   *      uint32_t - Render Type
-   */
-  PLANE_SET_RENDER_TYPE,
-  /*
    * Op: Sets plane render pose
    * Arg: uint32_t - Plane ID
    *      uint64_t - Address of Render Pose object
@@ -848,13 +842,13 @@ enum struct DRMOps {
    * Arg: uint32_t - Connector ID
    *      uint32_t - reproj to lrgb
    */
-  CONNECTOR_SET_REPROJ_TO_LRGB,
+  CONNECTOR_SET_REPROJ_TOL_RGB,
   /*
-   * Op: Sets Reproj error to l
+   * Op: Sets Reproj error tol
    * Arg: uint32_t - Connector ID
-   *      uint32_t - error to l
+   *      uint32_t - error tol
    */
-  CONNECTOR_SET_REPROJ_ERROR_TO_L,
+  CONNECTOR_SET_REPROJ_ERROR_TOL,
   /*
    * Op: Sets Reproj isp im size
    * Arg: uint32_t - Connector ID
@@ -862,13 +856,6 @@ enum struct DRMOps {
    *      uint32_t - isp im height
    */
   CONNECTOR_SET_REPROJ_DISP_IM_SIZE,
-  /*
-   * Op: Sets Reproj tile size
-   * Arg: uint32_t - Connector ID
-   *      uint32_t - tile width
-   *      uint32_t - tile height
-   */
-  CONNECTOR_SET_REPROJ_TILE_SIZE,
   /*
    * Op: Sets Reprojection mode
    * Arg: uint32_t - Connector ID
@@ -881,13 +868,6 @@ enum struct DRMOps {
    *      uint32_t - Framebuffer ID
    */
   CONNECTOR_SET_POSE_FB_ID,
-  /*
-   * Op: Sets Reproj min bbox size
-   * Arg: uint32_t - Connector ID
-   *      uint32_t - min bbox width
-   *      uint32_t - min bbox height
-   */
-  CONNECTOR_SET_REPROJ_MIN_BBOX_SIZE,
 };
 
 enum struct DRMRotation {
@@ -1063,6 +1043,7 @@ struct DRMCrtcInfo {
   uint64_t rc_total_mem_size = 0;
   uint32_t demura_count = 0;
   uint32_t abc_count = 0;
+  uint32_t qrtc_count = 0;
   uint32_t dspp_count = 0;
   bool skip_inline_rot_threshold = false;
   bool has_noise_layer = false;
@@ -1178,6 +1159,7 @@ struct DRMPlaneTypeInfo {
   bool block_sec_ui = false;
   int32_t pipe_idx = -1;
   int32_t demura_block_capability = -1;
+  int32_t qrtc_block_capability = -1;
   std::bitset<4> cac_mode;
   int32_t cac_parent_rect = -1;
 };
@@ -1473,9 +1455,12 @@ enum DRMPanelFeatureID {
   kDRMPanelFeatureAiqeCopr,
   kDRMPanelFeatureABC,
   kDRMPanelFeatureDemuraBacklight,
+  kDRMPanelFeatureQrtcConfig,
+  kDRMPanelFeatureQrtcBufferConfig,
   // This prop is used for user space only, it is not an actual drm property
   kDRMPanelFeatureDemuraDoubleBufferCbFlags,
   kDRMPanelFeatureDemuraBrgtInvAdjExpFlag,
+  kDRMPanelFeatureDemuraSupportSingleRecFlags,
   kDRMPanelFeatureMax,
 };
 

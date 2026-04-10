@@ -45,6 +45,7 @@
 #include <private/rc_intf.h>
 #include <private/strategy_interface.h>
 #include <utils/multi_core_instantiator.h>
+#include <qrtc_feature_fact_intf.h>
 
 #include <limits.h>
 #include <map>
@@ -66,6 +67,7 @@ using aiqe::GetABCFeatureFactIntf;
 #define GET_DEMURATN_FACTORY "GetDemuraTnCoreUvmFactoryIntf"
 #define GET_FEATURE_LICENSE_FACTORY "GetFeatureLicenseFactoryIntf"
 #define GET_ABC_FACTORY "GetABCFeatureFactIntf"
+#define GET_QRTC_FACTORY "GetQrtcFeatureFactIntf"
 
 namespace sdm {
 
@@ -79,6 +81,7 @@ typedef PanelFeatureFactoryIntf* (*GetPanelFeatureFactory)();
 typedef DemuraTnCoreUvmFactoryIntf* (*GetDemuraTnFactory)();
 typedef FeatureLicenseFactoryIntf* (*GetFeatureLicenseFactory)();
 typedef aiqe::ABCFeatureFactIntf *(*GetABCFactory)();
+typedef qrtc::QrtcFeatureFactIntf *(*GetQrtcFactory)();
 
 class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
  public:
@@ -316,6 +319,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size) {
     return kErrorNotSupported;
   }
+  virtual DisplayError SetQrtcFeatureConfig(int32_t type, void *data) { return kErrorNotSupported; }
 
   virtual DisplayError PanelBacklightInfo(const std::string &client_name, bool enable,
                                           SdmDisplayCbInterface<PanelBacklightPayload> *cb_intf) {
@@ -563,6 +567,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   int rgba_split_enable_ = false;
   bool mixer_resolution_updated_ = false;
   bool primary_commit_needed_ = true;
+  DynLib qrtc_feature_impl_lib_;
+  qrtc::QrtcFeatureFactIntf *qrtc_factory_ = nullptr;
   bool is_ssr_active_ = false;
   bool is_lsr_ssr_active_ = false;
   bool lsr_first_commit_ = true;

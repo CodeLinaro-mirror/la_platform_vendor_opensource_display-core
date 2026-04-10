@@ -64,6 +64,7 @@ public:
   virtual DisplayError GetPanelFeatureConfig(Display display, int32_t type, void *data,
                                              uint32_t data_size) = 0;
   virtual DisplayError SetRgbHistObserverConfig(Display display, bool state, void *data) = 0;
+  virtual DisplayError SetQrtcFeatureConfig(Display display, int32_t type, void *data) = 0;
 };
 
 } // namespace sdm

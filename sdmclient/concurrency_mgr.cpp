@@ -1249,12 +1249,75 @@ DisplayError ConcurrencyMgr::SetPowerMode(uint64_t display, int32_t int_mode) {
 }
 
 DisplayError ConcurrencyMgr::SetVsyncEnabled(uint64_t display, bool enabled) {
-  //  avoid undefined behavior in cast to Vsync
+  DLOGV("Enable vsync : display = %d, enable = %d", (int)(display), enabled);
   if (enabled) {
-    vsync_source_ = display;
-  }
+    /* To avoid the race conditions for hotplugs of all displays, 
+    before enabling vsyncs on any displays, disable vsyncs on all connected displays.
+    */
+    std::vector<DisplayMapInfo> map_info_pluggable = disp_->GetDisplayMapInfo(DISPLAY_EXTERNAL);
+    for (auto &map_info : map_info_pluggable) {
+      if (sdm_display_[map_info.client_id]) {
+        CallDisplayFunction(map_info.client_id, &SDMDisplay::SetVsyncEnabled, false);
+      }
+    }
+    if (primary_connected_) {
+      // When primary display is not connected, no need to disable its vsync.
+      CallDisplayFunction(SDM_DISPLAY_PRIMARY, &SDMDisplay::SetVsyncEnabled, false);
+    }
+    if (primary_connected_ || display != SDM_DISPLAY_PRIMARY) {
+      // Do as SurfaceFlinger says us to do.
+      vsync_source_ = display;
+      DLOGV("Updating vsync source to display %d", (int)display);
+      return CallDisplayFunction(display, &SDMDisplay::SetVsyncEnabled, true);
+    }
+    /* Primary display not connected, but SurfaceFlinger does not know it.
+       We should search for secondary displays which have fps equal to primary display 
+       and use that display's HW Vsync to drive SurfaceFlinger
+    */
+    uint32_t primary_vsync_period = 0;
+    GetVsyncPeriod(SDM_DISPLAY_PRIMARY, &primary_vsync_period);
+    DLOGV("Primary display vsync = %d", primary_vsync_period);
+    int min_vsync_period = INT_MAX;
+    uint64_t min_vsync_period_client_id = kNumDisplays;
+    for (auto &map_info : map_info_pluggable) {
+      if (sdm_display_[map_info.client_id]) {
+        uint32_t vsync_period = 0;
+        GetVsyncPeriod(map_info.client_id, &vsync_period);
+        DLOGV("vsync_period of display %d = %d", (int)map_info.client_id, vsync_period);
+        if (vsync_period == primary_vsync_period) {
+          min_vsync_period_client_id = map_info.client_id;
+          min_vsync_period = vsync_period;
+          break;
+        } else if (vsync_period < min_vsync_period) {
+          min_vsync_period_client_id = map_info.client_id;
+          min_vsync_period = vsync_period;
+          DLOGV("min_vsync_period = %d, display = %d", min_vsync_period,
+                (int)min_vsync_period_client_id);
+        }
+      }
+    }
+    if (min_vsync_period == INT_MAX) {
+      // there is no display connected.
+      return kErrorNone;
+    }
 
-  return CallDisplayFunction(display, &SDMDisplay::SetVsyncEnabled, enabled);
+    vsync_source_ = min_vsync_period_client_id;
+    DLOGV("Updating vsync source to display %d", (int)min_vsync_period_client_id);
+    DLOGV("Min vsync period = %d", min_vsync_period);
+    CallDisplayFunction(min_vsync_period_client_id, &SDMDisplay::SetVsyncEnabled, true);
+
+  } else {
+    std::vector<DisplayMapInfo> map_info_pluggable = disp_->GetDisplayMapInfo(DISPLAY_EXTERNAL);
+    for (auto &map_info : map_info_pluggable) {
+      if (sdm_display_[map_info.client_id]) {
+        CallDisplayFunction(map_info.client_id, &SDMDisplay::SetVsyncEnabled, false);
+      }
+    }
+    if (primary_connected_) {
+      CallDisplayFunction(SDM_DISPLAY_PRIMARY, &SDMDisplay::SetVsyncEnabled, false);
+    }
+  }
+  return kErrorNone;
 }
 
 DisplayError ConcurrencyMgr::SetDimmingEnable(uint64_t display,
@@ -1816,6 +1879,7 @@ DisplayError ConcurrencyMgr::GetDisplayConnectionType(Display display,
     return kErrorParameters;
   }
 
+  SCOPE_LOCK(locker_[display]);
   if (!sdm_display_[display]) {
     DLOGW("Expected valid sdm_display");
     return kErrorParameters;
@@ -2816,6 +2880,10 @@ DisplayError ConcurrencyMgr::SetPanelFeatureConfig(Display display, int32_t type
 DisplayError ConcurrencyMgr::GetPanelFeatureConfig(Display display, int32_t type, void *data,
                                                    uint32_t data_size) {
   return CallDisplayFunction(display, &SDMDisplay::GetPanelFeatureConfig, type, data, data_size);
+}
+
+DisplayError ConcurrencyMgr::SetQrtcFeatureConfig(Display display, int32_t type, void *data) {
+  return CallDisplayFunction(display, &SDMDisplay::SetQrtcFeatureConfig, type, data);
 }
 
 DisplayError ConcurrencyMgr::ClearBuffersMappedToLayer(uint64_t display, LayerId layer_id,

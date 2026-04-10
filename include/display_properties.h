@@ -198,6 +198,12 @@
 #define ANTI_AGING_DISABLE_CWB_DOWNSCALING_PRIMARY    DISPLAY_PROP("antiaging_disable_cwb_downscaling_primary")
 #define ANTI_AGING_DISABLE_CWB_DOWNSCALING_SECONDARY  DISPLAY_PROP("antiaging_disable_cwb_downscaling_secondary")
 
+// Panel Feature Qrtc Properties
+#define PANEL_FEATURE_RECT_MODE_SELECT       DISPLAY_PROP("panel_feature_rect_mode")
+#define ENABLE_QRTC                          DISPLAY_PROP("enable_qrtc")
+#define DISABLE_QRTC_PRIMARY                 DISPLAY_PROP("disable_qrtc_primary")
+#define DISABLE_QRTC_SECONDARY               DISPLAY_PROP("disable_qrtc_secondary")
+
 // PERF hint properties
 #define ENABLE_PERF_HINT_LARGE_COMP_CYCLE    DISPLAY_PROP("enable_perf_hint_large_comp_cycle")
 #define LARGE_COMP_HINT_THRESHOLD            DISPLAY_PROP("large_comp_hint_threshold")
@@ -205,7 +211,7 @@
 #define ENABLE_QSYNC_IDLE                    DISPLAY_PROP("enable_qsync_idle")
 #define ENHANCE_IDLE_TIME                    DISPLAY_PROP("enhance_idle_time")
 #define CPU_CLUSTER_BOOST_MASK               DISPLAY_PROP("cpu_cluster_boost_mask")
-#define PERF_VERSION_PROP                    DISPLAY_PROP("perf_version")
+#define PERF_VERSION_PROP                    DISPLAY_PROP("perf.version")
 #define MINIMUM_LARGE_COMP_FPS               DISPLAY_PROP("minimum_large_comp_fps")
 
 #define MMRM_FLOOR_CLK_VOTE                  DISPLAY_PROP("mmrm_floor_vote")
@@ -233,6 +239,8 @@
 #define SCALING_SOURCE_OPT_MODE              DISPLAY_PROP("scaling_source_opt_mode")
 // Property to set desired libscale optimization mode on destination
 #define SCALING_DEST_OPT_MODE                DISPLAY_PROP("scaling_dest_opt_mode")
+// Property to override libscale version
+#define LIBSCALE_VERSION_OVERRIDE            DISPLAY_PROP("libscale_version_override")
 
 //AIQE Properties
 #define AIQE_SSRC_ENABLE               DISPLAY_PROP("enable_aiqe_ssrc")
@@ -255,6 +263,8 @@
 #define ENABLE_SNAPALLOC_PROP                GRALLOC_PROP("enable_snapalloc")
 #define ENABLE_ALLOCATION_DATA_DUMPING       GRALLOC_PROP("enable_allocation_data_dumping")
 #define ALLOW_CAMERA_PREVIEW_WRITE           GRALLOC_PROP("allow_camera_preview_write")
+#define USE_UNCACHED_HEAP                    GRALLOC_PROP("use_uncached_heap")
+
 // Add all vendor.gralloc.properties above
 
 #define QDCM_DISABLE_TIMEOUT_PROP            PERSIST_DISPLAY_PROP("qdcm.disable_timeout")

@@ -91,6 +91,11 @@ class ResourceDefault : public ResourceInterface {
                                                    const int8_t &preferred_rect) {
     return kErrorNone;
   }
+  virtual DisplayError ReserveQrtcFetchResources(const int32_t &display_id,
+                                                 const int8_t &preferred_rect) {
+    return kErrorNone;
+  }
+  virtual DisplayError FreeQrtcFetchResources(const int32_t &display_id) { return kErrorNone; }
   virtual DisplayError ReserveABCFetchResources(const uint32_t &display_id, bool is_primary,
                                                 const int8_t &req_cnt) {
     return kErrorNone;
@@ -233,4 +238,3 @@ class ResourceDefault : public ResourceInterface {
 }  // namespace sdm
 
 #endif  // __RESOURCE_DEFAULT_H__
-

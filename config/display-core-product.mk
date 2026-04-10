@@ -35,6 +35,7 @@ ifeq ($(TARGET_BOARD_PLATFORM),malabar)
 	PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_ft8726_lcd_video_mode_dsi_focaltech_panel_with_DSC_malabar.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_ft8726_lcd_video_mode_dsi_focaltech_panel_with_DSC.json
 else
 	PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_ft8726_lcd_video_mode_dsi_focaltech_panel_with_DSC.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_ft8726_lcd_video_mode_dsi_focaltech_panel_with_DSC.json
+	PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_ft8726_fhd_plus_120Hz_Video_panel.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_ft8726_fhd_plus_120Hz_Video_panel.json
 endif
 
 #QDCM calibration json file for nt37802 video PSR amoled VHM panels
@@ -51,6 +52,9 @@ endif
 #QDCM calibration json file for RaonTech panels
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_RaonTech_Non-FSC_mode_video_1440x1440@60_mode_dsi_panel.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_RaonTech_Non-FSC_mode_video_1440x1440@60_mode_dsi_panel.json
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_RaonTech_RDP340x_LCoS_RGB_video_mode_1200x1200_90Hz_dual_dsi_panel.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_RaonTech_RDP340x_LCoS_RGB_video_mode_1200x1200_90Hz_dual_dsi_panel.json
+
+#QDCM calibration json file for JBD panels
+PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_JBD_uLED_video_mode_dsi_i2c_panel_without_DSC.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_JBD_uLED_video_mode_dsi_i2c_panel_without_DSC.json
 
 #QDCM calibration json file for generic panel on Hamoa target
 ifeq ($(TARGET_BOARD_PLATFORM),hamoa)
@@ -96,6 +100,9 @@ PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/display_id_4630
 
 #SDR Dimming config file for nt37802 video PSR VHM, display id is 4630946850534658451
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/display_id_4630946916234099603.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_4630946850534658451.xml
+
+#SDR Dimming config file for ft8726, display id is 4630946473896859282
+PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/display_id_4630946916234099603.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_4630946473896859282.xml
 
 ifneq (,$(filter art, $(TARGET_BOARD_PLATFORM)))
 #SDR Dimming config file for nt37802, display id is 4630946699836970132

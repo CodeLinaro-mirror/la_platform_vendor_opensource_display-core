@@ -134,6 +134,7 @@ enum LayerComposition {
   kCompositionIWE,           //!< This layer will hold the result of first pass composition.
   kCompositionIWECSC,        //!< This layer will hold the result of CSC composition.
   kCompositionIWERepro,      //!< This layer will hold the result of Reprojection composition.
+  kCompositionQrtc,          //!< This layer will be applied by Qrtc HW. No blend required.
 };
 
 enum LayerUpdate {
@@ -263,6 +264,10 @@ struct LayerFlags {
                               //!< is used for front-buffer rendering
       uint32_t buffer_flipped : 1;
                               //!< This flag shall be set to indicate that the buffer is flipped
+      uint32_t is_qrtc : 1;
+                              //!< This flag shall be set to indicate that this layer
+                              //!< is a qrtc correction layer
+
     };
 
     uint32_t flags = 0;       //!< For initialization purpose only.
@@ -406,6 +411,8 @@ struct LayerStackFlags {
                                   //!< all app buffers are rendered on system cache
       uint32_t privacy_regions_updated : 1; //!< This flag indicates that the privacy regions of a
                                             //!< layer in the stack has been updated.
+      uint32_t qrtc_present : 1;  //!< This flag shall be set to true to indicate stack has qrtc
+
     };
 
     uint32_t flags = 0;               //!< For initialization purpose only.

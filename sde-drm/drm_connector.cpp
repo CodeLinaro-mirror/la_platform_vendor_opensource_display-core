@@ -1078,8 +1078,9 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, uint64_t *panel_id) {
 
 int DRMConnector::GetInfo(DRMConnectorInfo *info) {
   uint32_t conn_id = drm_connector_->connector_id;
-  if (!skip_connector_reload_ && (IsTVConnector(drm_connector_->connector_type)
-      || (DRM_MODE_CONNECTOR_VIRTUAL == drm_connector_->connector_type))) {
+  if (!skip_connector_reload_ && (IsTVConnector(drm_connector_->connector_type) ||
+                                  (DRM_MODE_CONNECTOR_VIRTUAL == drm_connector_->connector_type) ||
+                                  (DRM_MODE_CONNECTOR_DSI == drm_connector_->connector_type))) {
     // Reload since for some connectors like Virtual and DP, modes may change.
     drmModeConnectorPtr drm_connector = drmModeGetConnector(fd_, conn_id);
     if (!drm_connector) {
@@ -1866,31 +1867,32 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       DRM_LOGD("Connector %d: REPROJ_R_MAX set successfuly ", obj_id);
     } break;
 
-    case DRMOps::CONNECTOR_SET_REPROJ_TO_LRGB: {
-      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_TO_LRGB_LEFT) ||
-          !prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_TO_LRGB_RIGHT)) {
+    case DRMOps::CONNECTOR_SET_REPROJ_TOL_RGB: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_TOL_RGB_LEFT) ||
+          !prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_TOL_RGB_RIGHT)) {
         return;
       }
-      float lrgb_left = va_arg(args, double);
-      float lrgb_right = va_arg(args, double);
-      uint32_t lrgb_left_int, lrgb_right_int;
-      memcpy(&lrgb_left_int, &lrgb_left, sizeof(lrgb_left));
-      memcpy(&lrgb_right_int, &lrgb_right, sizeof(lrgb_right));
+      float tol_rgb_left = va_arg(args, double);
+      float tol_rgb_right = va_arg(args, double);
+      uint32_t tol_rgb_left_int, tol_rgb_right_int;
+      memcpy(&tol_rgb_left_int, &tol_rgb_left, sizeof(tol_rgb_left));
+      memcpy(&tol_rgb_right_int, &tol_rgb_right, sizeof(tol_rgb_right));
       drmModeAtomicAddProperty(
-          req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_TO_LRGB_LEFT), lrgb_left_int);
-      drmModeAtomicAddProperty(
-          req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_TO_LRGB_RIGHT), lrgb_right_int);
-      DRM_LOGD("Connector %d: REPROJ_TO_LRGB set successfuly", obj_id);
+          req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_TOL_RGB_LEFT), tol_rgb_left_int);
+      drmModeAtomicAddProperty(req, obj_id,
+                               prop_mgr_.GetPropertyId(DRMProperty::REPROJ_TOL_RGB_RIGHT),
+                               tol_rgb_right_int);
+      DRM_LOGD("Connector %d: REPROJ_TOL_RGB set successfuly", obj_id);
     } break;
 
-    case DRMOps::CONNECTOR_SET_REPROJ_ERROR_TO_L: {
-      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_ERROR_TO_L)) {
+    case DRMOps::CONNECTOR_SET_REPROJ_ERROR_TOL: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_ERROR_TOL)) {
         return;
       }
       uint32_t value = va_arg(args, uint32_t);
-      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_ERROR_TO_L),
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_ERROR_TOL),
                                value);
-      DRM_LOGD("Connector %d: REPROJ_ERROR_TO_L set successfuly", obj_id);
+      DRM_LOGD("Connector %d: REPROJ_ERROR_TOL set successfuly", obj_id);
     } break;
 
     case DRMOps::CONNECTOR_SET_REPROJ_DISP_IM_SIZE: {
@@ -1905,34 +1907,6 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_DISP_IM_H),
                                height);
       DRM_LOGD("Connector %d: REPROJ_DISP_IM_W REPROJ_DISP_IM_H set successfuly", obj_id);
-    } break;
-
-    case DRMOps::CONNECTOR_SET_REPROJ_TILE_SIZE: {
-      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_TILE_W) ||
-          !prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_TILE_H)) {
-        return;
-      }
-      uint32_t width = va_arg(args, uint32_t);
-      uint32_t height = va_arg(args, uint32_t);
-      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_TILE_W),
-                               width);
-      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_TILE_H),
-                               height);
-      DRM_LOGD("Connector %d: REPROJ_TILE_W REPROJ_TILE_H set successfuly", obj_id);
-    } break;
-
-    case DRMOps::CONNECTOR_SET_REPROJ_MIN_BBOX_SIZE: {
-      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_MIN_BBOX_W) ||
-          !prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_MIN_BBOX_H)) {
-        return;
-      }
-      uint32_t min_width = va_arg(args, uint32_t);
-      uint32_t min_height = va_arg(args, uint32_t);
-      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_MIN_BBOX_W),
-                               min_width);
-      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_MIN_BBOX_H),
-                               min_height);
-      DRM_LOGD("Connector %d: REPROJ_MIN_BBOX_W REPROJ_MIN_BBOX_H set successfuly", obj_id);
     } break;
 
     case DRMOps::CONNECTOR_SET_POSE_FB_ID: {

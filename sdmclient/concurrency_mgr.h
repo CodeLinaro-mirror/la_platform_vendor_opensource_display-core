@@ -557,6 +557,9 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError ClearBuffersMappedToLayer(uint64_t display, LayerId layer_id,
                                          const SnapHandle *layerBuffer);
   DisplayError SetRgbHistObserverConfig(Display display, bool state, void *data);
+  DisplayError SetQrtcFeatureConfig(Display display, int32_t type, void *data);
+
+  void SetPrimaryConnected(bool state) { primary_connected_ = state; }
 
   static const int locker_count_ = pluggable_lock_index_ + 1;
   static Locker locker_[locker_count_];
@@ -709,6 +712,8 @@ private:
   uint32_t idle_time_inactive_ms_ = 0;
 
   std::vector<Display> pending_hotplugs_{};
+
+  bool primary_connected_ = false;
 
   // debug callbacks
   // void Refresh(int idx) { callbacks_.Refresh(idx); }

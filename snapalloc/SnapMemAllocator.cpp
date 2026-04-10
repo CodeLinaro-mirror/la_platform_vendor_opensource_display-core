@@ -38,9 +38,9 @@ Error SnapMemAllocator::AllocateMem(AllocData *alloc_data,
   }
 
   // After this point we should have the right heap set, there is no fallback
-  alloc_intf_->GetHeapInfo(usage, use_system_heap_for_sensors_, &alloc_data->heap_name,
-                           &alloc_data->vm_names, &alloc_data->alloc_type, &alloc_data->flags,
-                           &alloc_data->size);
+  alloc_intf_->GetHeapInfo(usage, use_system_heap_for_sensors_, alloc_data->uncached,
+                           &alloc_data->heap_name, &alloc_data->vm_names, &alloc_data->alloc_type,
+                           &alloc_data->flags, &alloc_data->size);
 
   ret = alloc_intf_->AllocBuffer(alloc_data);
 
