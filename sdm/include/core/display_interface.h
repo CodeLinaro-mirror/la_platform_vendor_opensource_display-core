@@ -467,6 +467,7 @@ enum QrtcVendorServiceType {
 enum ClientCapability {
   kPunchholeSupported,
   kHDRSupported,
+  kGPUCompositionSupported,
   kClientCapabilityMax,
 };
 
