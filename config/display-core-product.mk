@@ -120,3 +120,6 @@ PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/snapdragon_colo
 
 PRIVACY_REGIONS_OFFSETS_XML_PATH := vendor/qcom/opensource/display-core/config
 PRODUCT_COPY_FILES += $(PRIVACY_REGIONS_OFFSETS_XML_PATH)/privacy_regions_offsets.xml:$(TARGET_COPY_OUT_VENDOR)/etc/display/privacy_regions_offsets.xml
+
+#Demura feature config xml file
+PRODUCT_COPY_FILES += $(PRIVACY_REGIONS_OFFSETS_XML_PATH)/duc_dac_config.xml:$(TARGET_COPY_OUT_VENDOR)/etc/display/duc_dac_config.xml

@@ -443,7 +443,6 @@ enum PanelFeatureVendorServiceType {
   kTypeSwitchToDAC = 12,
   /* Getter: char* */
   kTypeGetDemuraTnAgingValue = 13,
-  kTypeRgbHistConfig = 14,
   PanelFeatureVendorServiceTypeMax,
 };
 
@@ -1654,6 +1653,14 @@ class DisplayInterface {
    @return \link DisplayError \endlink
   */
   virtual DisplayError DumpDemuraSurface(const char *dir_path, uint32_t frame_index) = 0;
+
+  /*! @brief Method to set stc feature configurations
+
+   @param[in] data : Configuration or operation data
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetStcFeatureConfig(void *data) = 0;
 
   /*! @brief Method to trigger Timeout event on current display
 

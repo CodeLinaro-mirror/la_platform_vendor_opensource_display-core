@@ -41,6 +41,7 @@
 #include <vector>
 #include <core/buffer_allocator.h>
 #include <core/socket_handler.h>
+#include <private/snapdragon_color_intf.h>
 
 #include "sdm_color_manager.h"
 #include "sdm_display.h"
@@ -51,6 +52,8 @@
 #include "sdm_tui.h"
 
 namespace sdm {
+
+using snapdragoncolor::StcFeatureCmdType;
 
 enum {
   SDM_SERVICE_COMMAND_LIST_START = 1,
@@ -117,6 +120,7 @@ enum {
   SDM_SERVICE_SET_FRAME_DUMP_STREAMING_CONFIG = 69,  // Set continuous frame dump streaming config
   SDM_SERVICE_SET_RGB_HISTOGRAM_CONFIG = 70,         // Set rgb histogram config
   SDM_SERVICE_SET_QRTC_FEATURE_CONFIG = 71,  // Common function for setting QRTC configuration
+  SDM_SERVICE_SET_STC_FEATURE_CONFIG = 72,   // Common function, Set cfg for stc feature
   SDM_SERVICE_COMMAND_LIST_END = 400,
 };
 
@@ -141,10 +145,11 @@ enum {
   SDM_SERVICE_DEBUG_WB_USAGE,
   SDM_SERVICE_DEBUG_DEMURA,
   SDM_SERVICE_DEBUG_COLOR_PROCESSING,
+  SDM_SERVICE_DEBUG_REFRESH_RATE,
   SDM_SERVICE_DEBUG_MAX_VAL =
-      SDM_SERVICE_DEBUG_COLOR_PROCESSING,  // Used to check each bit of the debug command
-                                           // paramater. Update DEBUG_MAX_VAL when adding
-                                           // new debug tag.
+      SDM_SERVICE_DEBUG_REFRESH_RATE,  // Used to check each bit of the debug command
+                                       // paramater. Update DEBUG_MAX_VAL when adding
+                                       // new debug tag.
 };
 
 enum {
@@ -327,6 +332,11 @@ private:
                                            SDMParcel *output_parcel);
   DisplayError GetDisplayPortId(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError SetPanelFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
+  DisplayError SetStcManualAls(int disp_id, StcFeatureCmdType cmd_type, SDMParcel *input_parcel);
+  DisplayError SetStcAlphaValue(int disp_id, StcFeatureCmdType cmd_type, SDMParcel *input_parcel);
+  DisplayError SetSatCompensationState(int disp_id, StcFeatureCmdType cmd_type,
+                                       SDMParcel *input_parcel);
+  DisplayError SetStcFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError GetPanelFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError GetPanelResolution(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError SetStandbyMode(SDMParcel *input_parcel);
@@ -403,6 +413,7 @@ private:
       {SDM_SERVICE_SET_PANEL_FEATURE_CONFIG, &SDMServices::SetPanelFeatureConfig},
       {SDM_SERVICE_GET_PANEL_RESOLUTION, &SDMServices::GetPanelResolution},
       {SDM_SERVICE_GET_PANEL_FEATURE_CONFIG, &SDMServices::GetPanelFeatureConfig},
+      {SDM_SERVICE_SET_STC_FEATURE_CONFIG, &SDMServices::SetStcFeatureConfig},
       {SDM_SERVICE_SET_RGB_HISTOGRAM_CONFIG, &SDMServices::SetRgbHistObserverConfig},
       {SDM_SERVICE_SET_QRTC_FEATURE_CONFIG, &SDMServices::SetQrtcFeatureConfig},
   };
@@ -417,6 +428,9 @@ private:
   BufferAllocator *buffer_allocator_ = nullptr;
   SocketHandler *socket_handler_ = nullptr;
   std::map<PanelFeatureVendorServiceType, std::string> panel_feature_data_type_map_ = {};
+  typedef DisplayError (SDMServices::*SetStcFeatureFunc)(int disp_id, StcFeatureCmdType cmd_type,
+                                                         SDMParcel *input_parcel);
+  std::map<StcFeatureCmdType, SetStcFeatureFunc> stc_feature_funcs_ = {};
 };
 
 } // namespace sdm

@@ -28,8 +28,8 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -46,6 +46,7 @@
 #include "demura_parser_manager_intf.h"
 #include "tvm_service_manager_intf.h"
 #include "demuratn_validator_intf.h"
+#include "duc_dac_config_parser_intf.h"
 
 namespace sdm {
 
@@ -73,6 +74,7 @@ class PanelFeatureFactoryIntf {
                      std::shared_ptr<SPRIntf> spr) = 0;
   virtual std::shared_ptr<TvmDispServiceManagerIntf> CreateTvmServiceManager() = 0;
   virtual std::shared_ptr<DemuraTnValidatorIntf> CreateDemuraTnValidatorIntf() = 0;
+  virtual std::shared_ptr<DucDacConfigParserIntf> CreateDucDacConfigParserIntf() = 0;
 };
 
 }  // namespace sdm

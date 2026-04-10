@@ -22,11 +22,10 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __COLOR_MANAGER_H__
 #define __COLOR_MANAGER_H__
@@ -145,6 +144,7 @@ class ColorManagerIntf {
   virtual DisplayError ColorMgrSetLtmPccConfig(void* pcc_input, size_t size) = 0;
   virtual DisplayError ColorMgrSetSprIntf(std::shared_ptr<SPRIntf> spr_intf) = 0;
   virtual DisplayError ColorMgrIdleFallback(bool idle_fallback_hint) = 0;
+  virtual DisplayError SetStcFeatureConfig(void *data) = 0;
 
   // TBD: Should remove these legacy API's?
   virtual DisplayError ApplyDefaultDisplayMode() = 0;
@@ -214,6 +214,7 @@ class ColorManagerProxy : public ColorManagerIntf {
   DisplayError ColorMgrSetLtmPccConfig(void* pcc_input, size_t size);
   DisplayError ColorMgrSetSprIntf(std::shared_ptr<SPRIntf> spr_intf);
   DisplayError ColorMgrIdleFallback(bool idle_fallback_hint);
+  DisplayError SetStcFeatureConfig(void *data);
 
  protected:
   ColorManagerProxy() {}
@@ -384,6 +385,7 @@ class DPUColorManager : public ColorManagerIntf {
   bool IsValidateNeeded();
   bool ComparePendingAction(vector<PPPendingParams> &pending_action);
   bool CompareSDEDisplayModes(vector<SDEDisplayMode> &mode);
+  DisplayError SetStcFeatureConfig(void *data);
 
  protected:
   DPUColorManager() {}
