@@ -183,7 +183,7 @@ DisplayError DisplayBase::Init() {
   for (auto info_intf = hw_info_intf_.Begin(); info_intf != hw_info_intf_.End(); info_intf++) {
     HWResourceInfo res_info;
     info_intf->second->GetHWResourceInfo(&res_info);
-    wb_downscale_supports_ |= !!info_intf->second->GetMaxDNSCBlurBlockCount();
+    wb_downscale_supports_ |= info_intf->second->IsDownscaledCwbSupported(-1 /* For any WB */);
     hw_resource_info_.push_back(res_info);
   }
 
@@ -5458,6 +5458,16 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
   cwb_active_ = true;
 
   return kErrorNone;
+}
+
+DisplayError DisplayBase::ReserveWBForDisplay(int32_t *wb_id) {
+  ClientLock lock(disp_mutex_);
+  return comp_manager_->ReserveWBForDisplay(display_comp_ctx_, wb_id);
+}
+
+void DisplayBase::ReleaseWBFromDisplay(int32_t wb_id) {
+  ClientLock lock(disp_mutex_);
+  comp_manager_->ReleaseWBFromDisplay(display_comp_ctx_, wb_id);
 }
 
 bool DisplayBase::HandleCwbTeardown() {
