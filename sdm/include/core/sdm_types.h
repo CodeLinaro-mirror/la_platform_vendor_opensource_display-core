@@ -599,6 +599,7 @@ enum SDMCapability {
   kHdrOutputConversionConfig = 6,
   kRefreshRateChangedCallbackDebug = 7,
   kLayerLifeCycleBatchCommand = 8,
+  kDisplayCommandConfigChange = 9,
 };
 
 enum SDMFormatColorComponent {

@@ -393,6 +393,10 @@ void ConcurrencyMgr::GetCapabilities(uint32_t *outCount,
   }
   count += is_ept_supported ? 0 : 1;
 
+  // display config switch support is always available from SDM, it will be
+  // controlled by composer version
+  count++;
+
   if (outCapabilities != nullptr && (*outCount >= count)) {
     int index = 0;
 
@@ -407,6 +411,8 @@ void ConcurrencyMgr::GetCapabilities(uint32_t *outCount,
     if (!is_ept_supported) {
       outCapabilities[index++] = INT32(SDMCapability::kPresentFenceIsNotReliable);
     }
+
+    outCapabilities[index++] = INT32(SDMCapability::kDisplayCommandConfigChange);
   }
   *outCount = count;
 }
