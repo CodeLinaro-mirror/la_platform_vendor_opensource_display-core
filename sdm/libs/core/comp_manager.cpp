@@ -164,6 +164,7 @@ DisplayError CompManager::RegisterDisplay(DisplayId display_id, SDMDisplayType t
   display_comp_ctx->display_type = type;
   display_comp_ctx->fb_config = client_ctx.fb_config;
   display_comp_ctx->dest_scaler_blocks_used = client_ctx.mixer_attributes.dest_scaler_blocks_used;
+  display_comp_ctx->num_blending_stages = client_ctx.display_attributes.num_blending_stages;
   *display_ctx = display_comp_ctx;
   // New non-primary display device has been added, so move the composition mode to safe mode until
   // resources for the added display is configured properly.
@@ -173,10 +174,10 @@ DisplayError CompManager::RegisterDisplay(DisplayId display_id, SDMDisplayType t
 
   display_demura_status_[display_id.GetDisplayId()] = false;
 
-  DLOGV_IF(kTagCompManager, "Registered displays [%s], display %d-%d",
+  DLOGV_IF(kTagCompManager, "Registered displays [%s], display %d-%d, num_blending_stages is %d",
            StringDisplayList(registered_displays_).c_str(),
-                             display_comp_ctx->display_id.GetDisplayId(),
-           display_comp_ctx->display_type);
+           display_comp_ctx->display_id.GetDisplayId(),
+           display_comp_ctx->display_type, display_comp_ctx->num_blending_stages);
 
   return kErrorNone;
 }
@@ -299,7 +300,7 @@ void CompManager::PrepareStrategyConstraints(Handle comp_handle,
     if (!core_id_map[res_info.core_id]) {
       continue;
     }
-    num_blending_stages = std::min(num_blending_stages, res_info.num_blending_stages);
+    num_blending_stages = std::min(num_blending_stages, display_comp_ctx->num_blending_stages);
     num_vig_pipe = std::min(num_vig_pipe, res_info.num_vig_pipe);
     num_dma_pipe = std::min(num_dma_pipe, res_info.num_dma_pipe);
     num_rgb_pipe = std::min(num_rgb_pipe, res_info.num_rgb_pipe);

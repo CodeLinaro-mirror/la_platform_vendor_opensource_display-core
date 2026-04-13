@@ -190,12 +190,6 @@ DisplayError DisplayBase::Init() {
     hw_resource_info_.push_back(res_info);
   }
 
-  uint32_t num_blending_stages = INT_MAX;
-  for (auto& res_info : hw_resource_info_) {
-    num_blending_stages = std::min(num_blending_stages, res_info.num_blending_stages);
-  }
-
-  auto max_mixer_stages = num_blending_stages;
   int property_value = Debug::GetMaxPipesPerMixer(display_type_);
   uint32_t active_index = 0;
   int drop_vsync = 0;
@@ -205,7 +199,8 @@ DisplayError DisplayBase::Init() {
   dpu_core_mux_->GetActiveConfig(&active_index);
   dpu_core_mux_->GetDisplayAttributes(active_index, &device_ctx_,
                                       &client_ctx_);
-
+  uint32_t num_blending_stages = client_ctx_.display_attributes.num_blending_stages;
+  auto max_mixer_stages = num_blending_stages;
   uint32_t available_mixers = GetAvailableMixerCount();
   uint32_t required_mixers = GetMixerCountFromTopology(client_ctx_.display_attributes.topology);
   if (available_mixers < required_mixers) {
