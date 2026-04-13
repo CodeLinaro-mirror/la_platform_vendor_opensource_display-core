@@ -282,6 +282,9 @@
 #define DISABLE_ABC_PRIMARY               DISPLAY_PROP("disable_abc_primary")
 #define DISABLE_ABC_SECONDARY             DISPLAY_PROP("disable_abc_secondary")
 
+// Scale support for non-primary display, Auto use case
+#define ENABLE_SCALE_FOR_ALL_DISPLAYS        DISPLAY_PROP("enable_scale_for_all_displays")
+
 // Add all other.properties above
 // End of property
 // clang-format on
