@@ -4170,8 +4170,9 @@ void SDMDisplay::NotifyCwbDone(int32_t status, const LayerBuffer &buffer) {
 
 void SDMDisplay::Abort() { display_intf_->Abort(); }
 
-void SDMDisplay::MarkClientActive(bool is_client_up) {
+DisplayError SDMDisplay::MarkClientActive(bool is_client_up) {
   is_client_up_ = is_client_up;
+  return kErrorNone;
 }
 
 bool SDMDisplay::NotifyIdleNow() {
