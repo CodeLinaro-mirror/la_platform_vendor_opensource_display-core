@@ -1327,6 +1327,7 @@ DisplayError DisplayBuiltIn::SetupQrtcLayer() {
         qrtc_suf->buffer_info.alloc_buffer_info.aligned_height);
   qrtc_layer.input_buffer.planes[0].offset = 0;
   qrtc_layer.input_buffer.flags.qrtc = 1;
+  qrtc_layer.input_buffer.flags.secure = qrtc_suf->buffer_info.buffer_config.secure;
   qrtc_layer.composition = kCompositionQrtc;
   qrtc_layer.blending = kBlendingSkip;
   qrtc_layer.flags.is_qrtc = 1;
@@ -6810,6 +6811,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
   qrtc_config_.panel_name = "sample";
   qrtc_config_.panel_width = client_ctx_.display_attributes.x_pixels;
   qrtc_config_.panel_height = client_ctx_.display_attributes.y_pixels;
+  qrtc_config_.is_buffer_secure = true;
 
   int spr_prop_value = 0;
   int spr_bypass_prop_value = 0;
