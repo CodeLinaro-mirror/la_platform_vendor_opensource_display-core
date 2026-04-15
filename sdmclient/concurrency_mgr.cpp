@@ -1738,10 +1738,6 @@ DisplayError ConcurrencyMgr::GetReadbackBufferAttributes(Display display,
     return kErrorParameters;
   }
 
-  if (display != SDM_DISPLAY_PRIMARY) {
-    return kErrorNotSupported;
-  }
-
   SDMDisplay *sdm_display = sdm_display_[display];
   if (sdm_display == nullptr) {
     return kErrorParameters;
@@ -1768,10 +1764,6 @@ ConcurrencyMgr::SetReadbackBuffer(uint64_t display, void *buffer,
 
   if (display >= kNumDisplays) {
     return kErrorParameters;
-  }
-
-  if (display != SDM_DISPLAY_PRIMARY) {
-    return kErrorNotSupported;
   }
 
   CwbConfig cwb_config = {}; /* SF uses LM tappoint*/
@@ -1814,10 +1806,6 @@ ConcurrencyMgr::GetReadbackBufferFence(uint64_t display,
 
   if (display >= kNumDisplays) {
     return kErrorParameters;
-  }
-
-  if (display != SDM_DISPLAY_PRIMARY) {
-    return kErrorNotSupported;
   }
 
   return CallDisplayFunction(display, &SDMDisplay::GetReadbackBufferFence,
