@@ -331,6 +331,7 @@
 #define DISABLE_PUNCHHOLE_LAYERS          DISPLAY_PROP("disable_punchhole_layers")
 
 #define FORCE_LSR_RENDER_MODE             DISPLAY_PROP("force_lsr_render_mode")
+#define SET_VSYNC_OFFSET                  DISPLAY_PROP("set_vsync_offset")
 
 // Enable RGB Histogram
 #define ENABLE_RGB_HISTOGRAM              DISPLAY_PROP("enable_rgb_histogram")

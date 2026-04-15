@@ -1942,6 +1942,17 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       DRM_LOGD("Connector %d: REPROJ_MODE set successfuly", obj_id);
     } break;
 
+    case DRMOps::CONNECTOR_SET_VSYNC_OFFSET: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::VSYNC_OFFSET)) {
+        return;
+      }
+
+      uint64_t vsync_offset = va_arg(args, uint64_t);
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::VSYNC_OFFSET),
+                               vsync_offset);
+      DRM_LOGD("Connector %d: VSYNC_OFFSET set to %" PRIu64, obj_id, vsync_offset);
+    } break;
+
     case DRMOps::CONNECTOR_SET_PRIVACY_REGIONS: {
 #ifdef MAX_PRIVACY_LAYERS
       if (!prop_mgr_.IsPropertyAvailable(DRMProperty::PRIVACY_REGIONS)) {
