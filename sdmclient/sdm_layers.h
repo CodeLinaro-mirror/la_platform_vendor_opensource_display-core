@@ -218,6 +218,7 @@ class SDMLayer {
   bool compatible_ = false;
   bool ignore_sdr_histogram_md_ = false;
   PrivacyRegionState privacy_region_state_ = kRegionReset;
+  bool disable_get_screen_decorator_support_ = false;
 
   // SDMCompositionType requested by client(SF) Original
   SDMCompositionType client_requested_orig_ = SDMCompositionType::COMP_DEVICE;
