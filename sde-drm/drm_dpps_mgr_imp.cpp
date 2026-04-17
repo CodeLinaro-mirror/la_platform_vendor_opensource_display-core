@@ -87,7 +87,9 @@ int DRMDppsManagerImp::GetDrmResources(drmModeRes* res) {
 
   for (auto i = 0; i < res->count_connectors; i++) {
     conn = drmModeGetConnector(drm_fd_, res->connectors[i]);
-    if (conn && conn->connector_type == DRM_MODE_CONNECTOR_DSI &&
+    if (conn &&
+        (conn->connector_type == DRM_MODE_CONNECTOR_DSI ||
+         conn->connector_type == DRM_MODE_CONNECTOR_eDP) &&
         conn->count_modes && conn->connection == DRM_MODE_CONNECTED) {
       DRM_LOGI("Found connector %d", conn->connector_id);
       conn_id_ = conn->connector_id;
@@ -104,7 +106,8 @@ int DRMDppsManagerImp::GetDrmResources(drmModeRes* res) {
 
   for (auto i = 0; i < conn->count_encoders; i++) {
     enc = drmModeGetEncoder(drm_fd_, conn->encoders[i]);
-    if (enc && enc->encoder_type == DRM_MODE_ENCODER_DSI) {
+    if (enc &&
+        (enc->encoder_type == DRM_MODE_ENCODER_DSI || enc->encoder_type == DRM_MODE_ENCODER_TMDS)) {
       DRM_LOGI("Found encoder %d", enc->encoder_id);
       enc_id = enc->encoder_id;
       break;

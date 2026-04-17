@@ -319,8 +319,14 @@ DisplayError DisplayBuiltIn::Init() {
   Debug::Get()->GetProperty(ENABLE_HFI_PATH, &value);
   hfi_path_supported_ = (value > 0);
 
-  error = event_proxy_info_.Init(client_ctx_.hw_panel_info.panel_name, this, extension_lib_,
-                                 prop_intf_);
+  if (strlen(client_ctx_.hw_panel_info.panel_name)) {
+    error = event_proxy_info_.Init(client_ctx_.hw_panel_info.panel_name, this, extension_lib_,
+                                   prop_intf_);
+  } else {
+    char panel_name_override[] = "generic panel";
+    error = event_proxy_info_.Init(panel_name_override, this, extension_lib_, prop_intf_);
+  }
+
   if (error != kErrorNone) {
     DLOGW("Failed to initialize event proxy info");
     event_proxy_info_.Deinit();
@@ -1855,7 +1861,13 @@ DisplayError DisplayBuiltIn::PostCommit() {
     dpps_pu_notify_pending_ = false;
     dpps_pu_lock_.Broadcast();
   }
-  dpps_info_.Init(this, client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
+
+  if (strlen(client_ctx_.hw_panel_info.panel_name)) {
+    dpps_info_.Init(this, client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
+  } else {
+    char panel_name_override[] = "generic panel";
+    dpps_info_.Init(this, panel_name_override, this, prop_intf_);
+  }
 
   if (demuratn_ && !demuratn_user_disabled_)
     EnableDemuraTn(true);
