@@ -4069,6 +4069,11 @@ DisplayError DisplayBuiltIn::HandleSecureEvent(SecureEvent secure_event, bool *n
     comp_manager_->SetDemuraStatusForDisplay(display_id_, true);
   }
 
+  if (secure_event == kTUITransitionEnd && qrtc_ && qrtc_enabled_) {
+    // enable QRTC after TUI transition end
+    SetQrtcState(1);
+  }
+
   return error;
 }
 
@@ -4091,6 +4096,10 @@ DisplayError DisplayBuiltIn::PostHandleSecureEvent(SecureEvent secure_event) {
       comp_manager_->SetDemuraStatusForDisplay(display_id_, false);
       //  disable demura before TUI transition start
       SetDemuraIntfStatus(false, demura_current_idx_);
+    }
+    if (secure_event == kTUITransitionStart && qrtc_ && qrtc_enabled_) {
+      //  disable QRTC before TUI transition start
+      SetQrtcState(0);
     }
   }
   if (secure_event == kTUITransitionEnd) {
