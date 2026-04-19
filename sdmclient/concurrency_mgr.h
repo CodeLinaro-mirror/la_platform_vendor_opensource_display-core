@@ -135,11 +135,8 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
 
   void CompositorSync(uint64_t display, CompositorSyncType sync_type) override;
 
-  DisplayError PostBuffer(const CwbConfig &cwb_config, void *buffer, int32_t display_type);
-
-  DisplayError PostBufferWithOwner(const CwbConfig &cwb_config, void *buffer, int32_t display_type,
-                                   SDMSideBandCompositorCbIntf *owner);
-
+  DisplayError PostBuffer(const CwbConfig &cwb_config, void *buffer,
+                          int32_t display_type);
   DisplayError SetPoseConfig(uint64_t disp_id, void *buffer);
 
   template <typename... Args>
@@ -387,8 +384,6 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError GetActiveBuiltinDisplay(uint64_t *disp_id) override;
 
   void RegisterSideBandCallback(SDMSideBandCompositorCbIntf *cb, bool enable) override;
-  void RegisterSideBandCallbackEx(SDMSideBandCompositorCbIntf *cb, bool enable,
-                                  SideBandCallbackClient intf_type) override;
 
   void GetCapabilities(uint32_t *outCount, int32_t *outCapabilities);
   void Dump(uint32_t *out_size, char *out_buffer);

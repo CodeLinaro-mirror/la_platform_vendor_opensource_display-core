@@ -28,38 +28,6 @@ void SDMCompositorCallbacks::RegisterSideband(SDMSideBandCompositorCbIntf *cb, b
   }
 }
 
-void SDMCompositorCallbacks::RegisterSideband(SDMSideBandCompositorCbIntf *cb, bool enable,
-                                              SideBandCallbackClient intf_type) {
-  SDMSideBandCompositorCbIntf **callback = nullptr;
-
-  switch (intf_type) {
-    case kDisplayConfig:
-      callback = &sideband_;
-      break;
-    case kAmbientDataCapture:
-      callback = &adc_callback_;
-      break;
-    default:
-      callback = &sideband_;
-      break;
-  }
-
-  if (!enable) {
-    if (!cb || *callback == cb) {
-      *callback = nullptr;
-    }
-    return;
-  }
-
-  if (cb) {
-    *callback = cb;
-    DLOGI("RegisterSideband interface as %s",
-          (intf_type == kDisplayConfig) ? "DisplayConfig" : "AmbientDataCapture");
-  } else {
-    DLOGW("RegisterSideband: enable=true but cb=null (type=%d)", intf_type);
-  }
-}
-
 void SDMCompositorCallbacks::OnHotplug(uint64_t display, bool connected) {
   if (!callbacks_) {
     DLOGW("Callbacks interface is not initialized!");
@@ -164,92 +132,13 @@ void SDMCompositorCallbacks::NotifyIdleStatus(bool status) {
   sideband_->NotifyIdleStatus(status);
 }
 
-DisplayError SDMCompositorCallbacks::RegisterCWBBufferOwner(void *buffer,
-                                                            SDMSideBandCompositorCbIntf *owner) {
-  if (!buffer || !owner) {
-    DLOGW("Invalid buffer or owner for CWB registration");
-    return kErrorParameters;
-  }
-
-  std::lock_guard<std::mutex> lock(cwb_buffer_lock_);
-  auto it = cwb_buffer_owners_.find(buffer);
-  if (it != cwb_buffer_owners_.end()) {
-    DLOGW("Buffer already CWB registered");
-    return kErrorParameters;
-  }
-
-  is_adc_active_ = false;
-  for (const auto &entry : cwb_buffer_owners_) {
-    if (entry.second == adc_callback_) {
-      is_adc_active_ = true;
-      break;
-    }
-  }
-  if ((owner == sideband_) && is_adc_active_) {
-    return kErrorNotSupported;
-  }
-
-  cwb_buffer_owners_[buffer] = owner;
-  is_adc_active_ = (owner == adc_callback_) ? true : is_adc_active_;
-  return kErrorNone;
-}
-
-void SDMCompositorCallbacks::UnregisterCWBBufferOwner(void *buffer) {
-  if (!buffer) {
-    return;
-  }
-
-  std::lock_guard<std::mutex> lock(cwb_buffer_lock_);
-  auto it = cwb_buffer_owners_.find(buffer);
-  if (it != cwb_buffer_owners_.end()) {
-    cwb_buffer_owners_.erase(it);
-  }
-}
-
 void SDMCompositorCallbacks::NotifyCWBStatus(int32_t status, void *buffer) {
-  if (!buffer) {
-    DLOGW("Null buffer in NotifyCWBStatus!");
+  if (!sideband_) {
+    DLOGW("Sideband intf is not initalized!");
     return;
   }
 
-  SDMSideBandCompositorCbIntf *owner = nullptr;
-  SDMSideBandCompositorCbIntf *target_callback = nullptr;
-
-  // Determine which callback to route to based on priority and activity
-  {
-    std::lock_guard<std::mutex> lock(cwb_buffer_lock_);
-    auto it = cwb_buffer_owners_.find(buffer);
-    if (it != cwb_buffer_owners_.end()) {
-      owner = it->second;
-      cwb_buffer_owners_.erase(it);
-    }
-
-    // Priority logic:
-    // 1. If ADC has active buffers, route to ADC (ADC takes priority)
-    // 2. Otherwise, route to IDC
-    if (is_adc_active_) {
-      target_callback = adc_callback_;
-    } else {
-      target_callback = sideband_;
-    }
-  }
-
-  // Notify ONLY the specific owner
-  if (target_callback != nullptr && owner != nullptr) {
-    if (target_callback != owner) {
-      owner->NotifyCWBStatus(-1, buffer);
-    } else {
-      target_callback->NotifyCWBStatus(status, buffer);
-    }
-  } else {
-    // Fallback for backward compatibility: use the registered sideband callback
-    if (!sideband_) {
-      DLOGW("Sideband intf is not initialized!");
-      return;
-    }
-    DLOGW("No owner found for buffer %p, using fallback sideband callback", buffer);
-    sideband_->NotifyCWBStatus(status, buffer);
-  }
+  sideband_->NotifyCWBStatus(status, buffer);
 }
 
 void SDMCompositorCallbacks::NotifyContentFps(const std::string &name, int32_t fps) {
