@@ -6500,6 +6500,23 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
   qrtc_config_.panel_width = client_ctx_.display_attributes.x_pixels;
   qrtc_config_.panel_height = client_ctx_.display_attributes.y_pixels;
 
+  int spr_prop_value = 0;
+  int spr_bypass_prop_value = 0;
+  int spr_disable_value = 0;
+  Debug::GetProperty(ENABLE_SPR, &spr_prop_value);
+
+  if (IsPrimaryDisplay()) {
+    Debug::Get()->GetProperty(DISABLE_SPR_PRIMARY, &spr_disable_value);
+    Debug::GetProperty(ENABLE_SPR_BYPASS, &spr_bypass_prop_value);
+  } else {
+    Debug::Get()->GetProperty(DISABLE_SPR_SECONDARY, &spr_disable_value);
+    Debug::GetProperty(ENABLE_SPR_BYPASS_SECONDARY, &spr_bypass_prop_value);
+  }
+
+  if (spr_prop_value && !spr_disable_value && !spr_bypass_prop_value) {
+    qrtc_config_.is_pentile_format = true;
+  }
+
   if (SetupQrtcConfig(qrtc_config_) != kErrorNone) {
     DLOGE("Unable to setup Qrtc config on Display %d-%d", display_id_, display_type_);
     return kErrorUndefined;
