@@ -623,9 +623,19 @@ DisplayError DisplayBuiltIn::Deinit() {
     hw_rc_blocks_in_use_ -= rc_blocks_reserved_;
 
     if (service_manager_intf_) {
-      service_manager_intf_->Deinit();
+      struct AvfCbInfo *input = nullptr;
+      GenericPayload in;
+      int ret = in.CreatePayload<AvfCbInfo>(input);
+      if (ret || input == nullptr) {
+        DLOGE("Failed to create AvfCbInfo payload %d", ret);
+        return kErrorMemory;
+      }
+      input->observer = avf_obs_name_ + std::to_string(display_id_);
+      ret = service_manager_intf_->SetParameter(kDeRegisterAvfCallback, in);
+      if (ret) {
+        DLOGW("Failed to deregister avf callback %d", ret);
+      }
       service_manager_intf_.reset();
-      service_manager_intf_ = nullptr;
     }
 
     if (vm_file_xfer_intf_) {
@@ -5605,6 +5615,19 @@ int DisplayBuiltIn::CreateServiceManager() {
       service_manager_intf_ = nullptr;
       return -EINVAL;
     }
+    struct AvfCbInfo *input = nullptr;
+    GenericPayload in;
+    int ret = in.CreatePayload<AvfCbInfo>(input);
+    if (ret || input == nullptr) {
+      DLOGE("Failed to create AvfCbInfo payload %d", ret);
+      return ret;
+    }
+    input->observer = avf_obs_name_ + std::to_string(display_id_);
+    input->cb = this;
+    ret = service_manager_intf_->SetParameter(kRegisterAvfCallback, in);
+    if (ret) {
+      DLOGW("Failed to register avf callback %d", ret);
+    }
   }
 
   // Create factory extn
@@ -6055,7 +6078,7 @@ DisplayError DisplayBuiltIn::SetDemuraTnAgingSurfTransfer(void *data) {
 
 int DisplayBuiltIn::HandleTvmServiceEvent(const TvmServiceCbEvent &event) {
   DLOGI("Handle TVM service event %d", event);
-  if (event == kVmFileTransferServiceDead) {
+  if (event == kVmFileTransferServiceDead || event == kVmUserspaceReady) {
     if (vm_file_xfer_intf_) {
       vm_file_xfer_intf_->Deinit();
       vm_file_xfer_intf_.reset();

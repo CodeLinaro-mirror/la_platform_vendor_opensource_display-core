@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -8,12 +8,17 @@
 
 #include <private/generic_payload.h>
 #include <private/generic_intf.h>
+#include <private/display_cb_intf.h>
+#include <string>
 
 namespace sdm {
 
 enum TvmDispServiceManagerParams {
   kStartVmFileTransferService,
   kStartDemuraTnService,
+  kCheckMinkQrtrConnection,
+  kRegisterAvfCallback,
+  kDeRegisterAvfCallback,
   kTvmDispServiceManagerParamMax,
 };
 
@@ -24,7 +29,14 @@ enum TvmDispServiceManagerOps {
 enum TvmServiceCbEvent {
   kVmFileTransferServiceDead,
   kDemuraTnServiceDead,
+  kVmUserspaceReady,
+  kVmStopped,
   kTvmServiceEventsMax = 0xff
+};
+
+struct AvfCbInfo {
+  std::string observer;
+  SdmDisplayCbInterface<TvmServiceCbEvent> *cb;
 };
 
 using TvmDispServiceManagerIntf =
