@@ -1082,8 +1082,9 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, uint64_t *panel_id) {
 
 int DRMConnector::GetInfo(DRMConnectorInfo *info) {
   uint32_t conn_id = drm_connector_->connector_id;
-  if (!skip_connector_reload_ && (IsTVConnector(drm_connector_->connector_type)
-      || (DRM_MODE_CONNECTOR_VIRTUAL == drm_connector_->connector_type))) {
+  if (!skip_connector_reload_ && (IsTVConnector(drm_connector_->connector_type) ||
+                                  (DRM_MODE_CONNECTOR_VIRTUAL == drm_connector_->connector_type) ||
+                                  (DRM_MODE_CONNECTOR_DSI == drm_connector_->connector_type))) {
     // Reload since for some connectors like Virtual and DP, modes may change.
     drmModeConnectorPtr drm_connector = drmModeGetConnector(fd_, conn_id);
     if (!drm_connector) {
