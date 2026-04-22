@@ -823,6 +823,14 @@ DisplayError HWDeviceDRM::Deinit() {
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_POWER_MODE, token_.conn_id, DRMPowerMode::OFF);
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_MODE, token_.crtc_id, nullptr);
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_ACTIVE, token_.crtc_id, 0);
+    if (hw_resource_.cac_version == kCacVersionLoopback && loopback_conn_id_ != -1 &&
+        loopback_cac_configured_) {
+      DLOGV_IF(kTagDriverConfig, "Teardown CAC loopback");
+      drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, loopback_token_.conn_id, 0);
+      drm_mgr_intf_->UnregisterDisplay(&loopback_token_);
+      loopback_token_ = {};
+      loopback_cac_configured_ = false;
+    }
 #ifdef TRUSTED_VM
     drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_VM_REQ_STATE, token_.crtc_id,
                               sde_drm::DRMVMRequestState::RELEASE);
