@@ -26,7 +26,7 @@ class SnapTestAllocator : public ISnapMemAllocBackend {
   int ImportBuffer(int fd);
   Error SecureMemPerms(AllocData *ad);
   void GetHeapInfo(vendor_qti_hardware_display_common_BufferUsage usage, bool sensor_flag,
-                   std::string *heap_name, std::vector<std::string> *vm_names,
+                   bool use_uncached, std::string *heap_name, std::vector<std::string> *vm_names,
                    unsigned int *alloc_type, unsigned int *flags, unsigned int *alloc_size);
   Error SetBufferPermission(
       int fd, vendor_qti_hardware_display_common_BufferPermission *buffer_perm, int64_t *mem_hdl);
