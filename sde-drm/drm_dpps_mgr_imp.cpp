@@ -28,8 +28,8 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -91,7 +91,7 @@ int DRMDppsManagerImp::GetDrmResources(drmModeRes* res) {
         (conn->connector_type == DRM_MODE_CONNECTOR_DSI ||
          conn->connector_type == DRM_MODE_CONNECTOR_eDP) &&
         conn->count_modes && conn->connection == DRM_MODE_CONNECTED) {
-      DRM_LOGI("Found connector %d", conn->connector_id);
+      DRM_LOGV("Found connector %d", conn->connector_id);
       conn_id_ = conn->connector_id;
       break;
     }
@@ -128,7 +128,7 @@ int DRMDppsManagerImp::GetDrmResources(drmModeRes* res) {
     if (enc->possible_crtcs & (1 << i)) {
       crtc = drmModeGetCrtc(drm_fd_, res->crtcs[i]);
       if (crtc) {
-        DRM_LOGI("Found crtc %d", crtc->crtc_id);
+        DRM_LOGV("Found crtc %d", crtc->crtc_id);
         crtc_id_ = crtc->crtc_id;
         break;
       }
@@ -329,7 +329,7 @@ void DRMDppsManagerImp::Init(int fd, drmModeRes* res) {
       DRMProperty::SDE_LTM_VLUT, prop_mgr_.GetPropertyId(DRMProperty::SDE_LTM_VLUT),
       false /* is_event */};
   } else {
-    DRM_LOGI("LTM properties are not available");
+    DRM_LOGV("LTM properties are not available");
   }
 
   dpps_feature_[kFeaturePowerEvent] = DRMDppsPropInfo{1, DRMProperty::INVALID, 0, true /* is_event */};
@@ -417,8 +417,9 @@ void DRMDppsManagerImp::CommitDppsFeatures(drmModeAtomicReq *req, const DRMDispl
         if (ret) {
           ret = -errno;
           if (ret == -EALREADY) {
-            DRM_LOGI("Duplicated request to set event 0x%x, object_id %u, object_type 0x%x, enable %d",
-                      event_req.event, event_req.object_id, info.object_type, info.enable);
+            DRM_LOGV(
+                "Duplicated request to set event 0x%x, object_id %u, object_type 0x%x, enable %d",
+                event_req.event, event_req.object_id, info.object_type, info.enable);
           } else if (ret == -ENOENT || ret == -ENODEV || ret == -EACCES) {
             DRM_LOGW("Event 0x%x, object_id %u, object_type 0x%x, enable %d, ret %d",
                       event_req.event, event_req.object_id, info.object_type, info.enable, ret);

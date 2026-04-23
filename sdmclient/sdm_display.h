@@ -53,6 +53,7 @@
 #include <utility>
 #include <vector>
 #include <climits>
+#include <sstream>
 
 #include "sdm_compositor_callbacks.h"
 #include "sdm_layer_builder.h"
@@ -169,6 +170,8 @@ public:
   virtual DisplayError Deinit(bool deinit_layer_builder = true);
 
   virtual DisplayError GetFixedConfig(DisplayConfigFixedInfo *info);
+  void DumpXRInputProjectionTable(std::ostringstream *os);
+  bool HasProjectionInputLayers() const;
 
   // Framebuffer configurations
   virtual void SetIdleTimeoutMs(uint32_t timeout_ms, uint32_t inactive_ms);
