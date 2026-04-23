@@ -356,10 +356,20 @@ bool ConcurrencyMgr::IsHDRDisplay(uint64_t display) {
   return disp_->IsHDRDisplay(display);
 }
 
-DisplayError ConcurrencyMgr::PostBuffer(const CwbConfig &cwb_config,
-                                        void *buffer, int32_t display_type) {
-  return cwb_->PostBuffer(cwb_config, buffer,
-                          disp_->GetDisplayIndex(display_type));
+DisplayError ConcurrencyMgr::PostBuffer(const CwbConfig &cwb_config, void *buffer,
+                                        int32_t display_type) {
+  return cwb_->PostBuffer(cwb_config, buffer, disp_->GetDisplayIndex(display_type));
+}
+
+DisplayError ConcurrencyMgr::PostBufferWithOwner(const CwbConfig &cwb_config, void *buffer,
+                                                 int32_t display_type,
+                                                 SDMSideBandCompositorCbIntf *owner) {
+  // Register buffer ownership for callback routing if PostBuffer succeeded
+  auto err = callbacks_.RegisterCWBBufferOwner(buffer, owner);
+  if (err == kErrorNone) {
+    return cwb_->PostBuffer(cwb_config, buffer, disp_->GetDisplayIndex(display_type));
+  }
+  return err;
 }
 
 void ConcurrencyMgr::NotifyCWBStatus(int32_t status, void *buffer) {
@@ -2728,6 +2738,11 @@ DisplayError ConcurrencyMgr::SetPanelLuminanceAttributes(uint64_t display_id,
 
 void ConcurrencyMgr::RegisterSideBandCallback(SDMSideBandCompositorCbIntf *cb, bool enable) {
   callbacks_.RegisterSideband(cb, enable);
+}
+
+void ConcurrencyMgr::RegisterSideBandCallbackEx(SDMSideBandCompositorCbIntf *cb, bool enable,
+                                                SideBandCallbackClient intf_type) {
+  callbacks_.RegisterSideband(cb, enable, intf_type);
 }
 
 DisplayError ConcurrencyMgr::SetSsrcMode(uint64_t display_id, const std::string &mode_name) {

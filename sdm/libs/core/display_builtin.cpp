@@ -316,11 +316,22 @@ DisplayError DisplayBuiltIn::Init() {
   deferred_config_.frame_count = (value > 0) ? UINT32(value) : 0;
 
   value = 0;
+  Debug::Get()->GetProperty(DISABLE_FBT_FOR_CWB_FALLBACK, &value);
+  disable_fbt_for_cwb_fallback_ = (value == 1);
+  DLOGI("disable_fbt_for_cwb_fallback_: %d", disable_fbt_for_cwb_fallback_);
+
+  value = 0;
   Debug::Get()->GetProperty(ENABLE_HFI_PATH, &value);
   hfi_path_supported_ = (value > 0);
 
-  error = event_proxy_info_.Init(client_ctx_.hw_panel_info.panel_name, this, extension_lib_,
-                                 prop_intf_);
+  if (strlen(client_ctx_.hw_panel_info.panel_name)) {
+    error = event_proxy_info_.Init(client_ctx_.hw_panel_info.panel_name, this, extension_lib_,
+                                   prop_intf_);
+  } else {
+    char panel_name_override[] = "generic panel";
+    error = event_proxy_info_.Init(panel_name_override, this, extension_lib_, prop_intf_);
+  }
+
   if (error != kErrorNone) {
     DLOGW("Failed to initialize event proxy info");
     event_proxy_info_.Deinit();
@@ -614,12 +625,24 @@ DisplayError DisplayBuiltIn::Deinit() {
     demura_dynamic_enabled_ = true;
 
     DeinitCWBBuffer();
+    CloseFd(&prev_framebuffer_.planes[0].fd);
+    CloseFd(&curr_framebuffer_.planes[0].fd);
     hw_rc_blocks_in_use_ -= rc_blocks_reserved_;
 
     if (service_manager_intf_) {
-      service_manager_intf_->Deinit();
+      struct AvfCbInfo *input = nullptr;
+      GenericPayload in;
+      int ret = in.CreatePayload<AvfCbInfo>(input);
+      if (ret || input == nullptr) {
+        DLOGE("Failed to create AvfCbInfo payload %d", ret);
+        return kErrorMemory;
+      }
+      input->observer = avf_obs_name_ + std::to_string(display_id_);
+      ret = service_manager_intf_->SetParameter(kDeRegisterAvfCallback, in);
+      if (ret) {
+        DLOGW("Failed to deregister avf callback %d", ret);
+      }
       service_manager_intf_.reset();
-      service_manager_intf_ = nullptr;
     }
 
     if (vm_file_xfer_intf_) {
@@ -1855,7 +1878,13 @@ DisplayError DisplayBuiltIn::PostCommit() {
     dpps_pu_notify_pending_ = false;
     dpps_pu_lock_.Broadcast();
   }
-  dpps_info_.Init(this, client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
+
+  if (strlen(client_ctx_.hw_panel_info.panel_name)) {
+    dpps_info_.Init(this, client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
+  } else {
+    char panel_name_override[] = "generic panel";
+    dpps_info_.Init(this, panel_name_override, this, prop_intf_);
+  }
 
   if (demuratn_ && !demuratn_user_disabled_)
     EnableDemuraTn(true);
@@ -3552,6 +3581,28 @@ DisplayError DisplayBuiltIn::SetActiveConfig(uint32_t index) {
     sleep(1);
     SetDisplayState(kStateOn, 0, &release_fence);
   }
+
+  if (refresh_rate_mgr_ && qrtc_) {
+    int ret = 0;
+    GenericPayload fps_payload;
+    qrtc::QrtcFeatureFps *qrtc_fps_ptr = nullptr;
+
+    ret = fps_payload.CreatePayload(qrtc_fps_ptr);
+    if (ret != 0 || !qrtc_fps_ptr) {
+      DLOGE("Failed to create the payload for QrtcFeatureFps. Error:%d", ret);
+      return error;
+    }
+
+    qrtc_fps_ptr->panel_fps = refresh_rate_mgr_->GetPanelRefreshRate();
+    qrtc_fps_ptr->avg_fps = refresh_rate_mgr_->GetAverageRefreshRate();
+
+    ret = qrtc_->SetParameter(qrtc::kQrtcFps, fps_payload);
+    if (ret) {
+      DLOGE("Failed to set Qrtc FPS, ret %d", ret);
+      return error;
+    }
+  }
+
   return error;
 }
 
@@ -4057,6 +4108,11 @@ DisplayError DisplayBuiltIn::HandleSecureEvent(SecureEvent secure_event, bool *n
     comp_manager_->SetDemuraStatusForDisplay(display_id_, true);
   }
 
+  if (secure_event == kTUITransitionEnd && qrtc_ && qrtc_enabled_) {
+    // enable QRTC after TUI transition end
+    SetQrtcState(1);
+  }
+
   return error;
 }
 
@@ -4079,6 +4135,10 @@ DisplayError DisplayBuiltIn::PostHandleSecureEvent(SecureEvent secure_event) {
       comp_manager_->SetDemuraStatusForDisplay(display_id_, false);
       //  disable demura before TUI transition start
       SetDemuraIntfStatus(false, demura_current_idx_);
+    }
+    if (secure_event == kTUITransitionStart && qrtc_ && qrtc_enabled_) {
+      //  disable QRTC before TUI transition start
+      SetQrtcState(0);
     }
   }
   if (secure_event == kTUITransitionEnd) {
@@ -4243,12 +4303,7 @@ void DisplayBuiltIn::InitCWBBuffer() {
     return;
   }
 
-  if (disable_cwb_idle_fallback_ || cwb_buffer_initialized_) {
-    return;
-  }
-
-  bool is_wb_ubwc_supported = true;
-
+  is_wb_ubwc_supported_ = true;
   for (auto hw_info = hw_info_intf_.Begin(); hw_info != hw_info_intf_.End(); hw_info++) {
     HWDisplaysInfo display_infos;
     DisplayError error = hw_info->second->GetDisplaysStatus(&display_infos);
@@ -4263,7 +4318,17 @@ void DisplayBuiltIn::InitCWBBuffer() {
         break;
       }
     }
-    is_wb_ubwc_supported &= is_cur_core_wb_ubwc_supported;
+    is_wb_ubwc_supported_ &= is_cur_core_wb_ubwc_supported;
+  }
+
+  DLOGV_IF(kTagDisplay, "WB blocks support UBWC output: %d", is_wb_ubwc_supported_);
+
+  if (!disable_fbt_for_cwb_fallback_) {
+    return;
+  }
+
+  if (disable_cwb_idle_fallback_ || cwb_buffer_initialized_) {
+    return;
   }
 
   // Initialize CWB buffer with display resolution to get full size buffer
@@ -4271,7 +4336,7 @@ void DisplayBuiltIn::InitCWBBuffer() {
   output_buffer_info_.buffer_config.width = client_ctx_.display_attributes.x_pixels;
   output_buffer_info_.buffer_config.height = client_ctx_.display_attributes.y_pixels;
 
-  if (is_wb_ubwc_supported) {
+  if (is_wb_ubwc_supported_) {
     output_buffer_info_.buffer_config.format = kFormatRGBX8888Ubwc;
   } else {
     output_buffer_info_.buffer_config.format = kFormatRGB888;
@@ -4309,6 +4374,12 @@ void DisplayBuiltIn::InitCWBBuffer() {
 }
 
 void DisplayBuiltIn::DeinitCWBBuffer() {
+  if (!disable_fbt_for_cwb_fallback_) {
+    CloseFd(&cwb_layer_.input_buffer.planes[0].fd);
+    cwb_layer_ = {};
+    return;
+  }
+
   if (!cwb_buffer_initialized_) {
     return;
   }
@@ -4318,7 +4389,128 @@ void DisplayBuiltIn::DeinitCWBBuffer() {
   cwb_buffer_initialized_ = false;
 }
 
+void DisplayBuiltIn::UpdateFrameBufferForCWB() {
+  if (disable_cwb_idle_fallback_ || disable_fbt_for_cwb_fallback_) {
+    return;
+  }
+
+  if (!IsFrameBufferPresent()) {
+    return;
+  }
+
+  for (auto &info : disp_layer_stack_->info) {
+    uint32_t hw_layers_count = info.second.hw_layers.size();
+    for (uint32_t i = 0; i < hw_layers_count; i++) {
+      uint32_t sdm_layer_index = info.second.index.at(i);
+      Layer &hw_layer = info.second.hw_layers.at(i);
+      if (disp_layer_stack_->stack_info.gpu_target_index == sdm_layer_index) {
+        if (curr_framebuffer_.handle_id != hw_layer.input_buffer.handle_id) {
+          // fbt flipped
+          CloseFd(&prev_framebuffer_.planes[0].fd);
+          prev_framebuffer_ = curr_framebuffer_;
+          curr_framebuffer_ = hw_layer.input_buffer;
+          curr_framebuffer_.planes[0].fd = Sys::dup_(hw_layer.input_buffer.planes[0].fd);
+          DLOGV_IF(
+              kTagDisplay, "display %d-%d, updating FBT handle_id prev %" PRIu64 " curr %" PRIu64,
+              display_id_, display_type_, prev_framebuffer_.handle_id, curr_framebuffer_.handle_id);
+        }
+
+        if (disp_layer_stack_->stack_info.update_fbt_for_cwb) {
+          UpdateCWBLayer(prev_framebuffer_);
+          *(info.second.output_buffer) = cwb_layer_.input_buffer;
+          disp_layer_stack_->stack_info.update_fbt_for_cwb = false;
+          DLOGV_IF(kTagDisplay,
+                   "display %d-%d, updating FBT handle_id %" PRIu64
+                   " width %d height %d"
+                   " format %d for CWB capture",
+                   display_id_, display_type_, cwb_layer_.input_buffer.handle_id,
+                   cwb_layer_.input_buffer.unaligned_width,
+                   cwb_layer_.input_buffer.unaligned_height, cwb_layer_.input_buffer.format);
+        }
+      }
+    }
+  }
+}
+
+void DisplayBuiltIn::UpdateCWBLayer(LayerBuffer &layer_buffer) {
+  CloseFd(&cwb_layer_.input_buffer.planes[0].fd);
+  cwb_layer_.input_buffer = layer_buffer;
+  cwb_layer_.input_buffer.planes[0].fd = Sys::dup_(layer_buffer.planes[0].fd);
+
+  if (!is_wb_ubwc_supported_) {
+    // use fbt with linear format
+    cwb_layer_.input_buffer.format = kFormatRGBA8888;
+    cwb_layer_.input_buffer.usage = 0;
+  }
+
+  cwb_layer_.src_rect = {0, 0, FLOAT(client_ctx_.fb_config.x_pixels),
+                         FLOAT(client_ctx_.fb_config.y_pixels)};
+  cwb_layer_.dst_rect = cwb_layer_.src_rect;
+  cwb_layer_.composition = kCompositionCWBTarget;
+  cwb_layer_.flags.is_cwb = 1;
+}
+
+void DisplayBuiltIn::AppendCWBLayerWithFBT(LayerStack *layer_stack) {
+  /* if N is the FBT thats currently with the driver (or the latest slot that has been used),
+     then use N-1 FBT for capturing CWB dump for idle fallback. N+1 FBT can be used safely
+     if idle exit commit needs an fbt flip. */
+
+  // Previous FBT is not yet available for capturing CWB
+  if (prev_framebuffer_.handle_id <= 0) {
+    return;
+  }
+
+  // Check if prev FBT has current FB resolution
+  if ((prev_framebuffer_.unaligned_width != client_ctx_.fb_config.x_pixels) ||
+      (prev_framebuffer_.unaligned_height != client_ctx_.fb_config.y_pixels)) {
+    return;
+  }
+
+  // Check if CWB layer is already using prev FBT handle
+  if ((cwb_layer_.input_buffer.handle_id > 0) &&
+      (cwb_layer_.input_buffer.handle_id == prev_framebuffer_.handle_id)) {
+    DLOGV_IF(kTagDisplay,
+             "display %d-%d, using FBT handle_id %" PRIu64
+             " width %d height %d"
+             " format %d for CWB Layer",
+             display_id_, display_type_, cwb_layer_.input_buffer.handle_id,
+             cwb_layer_.input_buffer.unaligned_width, cwb_layer_.input_buffer.unaligned_height,
+             cwb_layer_.input_buffer.format);
+    layer_stack->layers.push_back(&cwb_layer_);
+    return;
+  }
+
+  UpdateCWBLayer(prev_framebuffer_);
+  layer_stack->layers.push_back(&cwb_layer_);
+  DLOGV_IF(kTagDisplay,
+           "display %d-%d, using FBT handle_id %" PRIu64
+           " width %d height %d"
+           " format %d for CWB Layer",
+           display_id_, display_type_, cwb_layer_.input_buffer.handle_id,
+           cwb_layer_.input_buffer.unaligned_width, cwb_layer_.input_buffer.unaligned_height,
+           cwb_layer_.input_buffer.format);
+}
+
 void DisplayBuiltIn::AppendCWBLayer(LayerStack *layer_stack) {
+  if (!client_ctx_.hw_panel_info.is_primary_panel || disable_cwb_idle_fallback_) {
+    return;
+  }
+
+  uint32_t new_mixer_width = client_ctx_.fb_config.x_pixels;
+  uint32_t new_mixer_height = client_ctx_.fb_config.y_pixels;
+  NeedsMixerReconfiguration(layer_stack, &new_mixer_width, &new_mixer_height);
+
+  if (!disable_fbt_for_cwb_fallback_) {
+    // FB resolution needs to be same as mixer resolution to re-use for CWB dump
+    if ((new_mixer_width != client_ctx_.fb_config.x_pixels) ||
+        (new_mixer_height != client_ctx_.fb_config.y_pixels)) {
+      return;
+    }
+
+    AppendCWBLayerWithFBT(layer_stack);
+    return;
+  }
+
   if (cwb_buffer_initialized_ &&
       (cwb_layer_.input_buffer.unaligned_width < client_ctx_.display_attributes.x_pixels ||
        cwb_layer_.input_buffer.unaligned_height < client_ctx_.display_attributes.y_pixels)) {
@@ -4333,14 +4525,10 @@ void DisplayBuiltIn::AppendCWBLayer(LayerStack *layer_stack) {
     InitCWBBuffer();
   }
 
-  if (!client_ctx_.hw_panel_info.is_primary_panel || disable_cwb_idle_fallback_ ||
-      !cwb_buffer_initialized_) {
+  if (!cwb_buffer_initialized_) {
     return;
   }
 
-  uint32_t new_mixer_width = client_ctx_.fb_config.x_pixels;
-  uint32_t new_mixer_height = client_ctx_.fb_config.y_pixels;
-  NeedsMixerReconfiguration(layer_stack, &new_mixer_width, &new_mixer_height);
   // Set cwb src_rect same as mixer resolution since LM tappoint
   // and dest_rect equal to fb resolution as strategy scales HWLayer dest rect based on fb
   cwb_layer_.src_rect = {0, 0, FLOAT(new_mixer_width), FLOAT(new_mixer_height)};
@@ -5562,6 +5750,19 @@ int DisplayBuiltIn::CreateServiceManager() {
       service_manager_intf_ = nullptr;
       return -EINVAL;
     }
+    struct AvfCbInfo *input = nullptr;
+    GenericPayload in;
+    int ret = in.CreatePayload<AvfCbInfo>(input);
+    if (ret || input == nullptr) {
+      DLOGE("Failed to create AvfCbInfo payload %d", ret);
+      return ret;
+    }
+    input->observer = avf_obs_name_ + std::to_string(display_id_);
+    input->cb = this;
+    ret = service_manager_intf_->SetParameter(kRegisterAvfCallback, in);
+    if (ret) {
+      DLOGW("Failed to register avf callback %d", ret);
+    }
   }
 
   // Create factory extn
@@ -6012,7 +6213,7 @@ DisplayError DisplayBuiltIn::SetDemuraTnAgingSurfTransfer(void *data) {
 
 int DisplayBuiltIn::HandleTvmServiceEvent(const TvmServiceCbEvent &event) {
   DLOGI("Handle TVM service event %d", event);
-  if (event == kVmFileTransferServiceDead) {
+  if (event == kVmFileTransferServiceDead || event == kVmUserspaceReady) {
     if (vm_file_xfer_intf_) {
       vm_file_xfer_intf_->Deinit();
       vm_file_xfer_intf_.reset();
@@ -6456,6 +6657,23 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
   qrtc_config_.panel_name = "sample";
   qrtc_config_.panel_width = client_ctx_.display_attributes.x_pixels;
   qrtc_config_.panel_height = client_ctx_.display_attributes.y_pixels;
+
+  int spr_prop_value = 0;
+  int spr_bypass_prop_value = 0;
+  int spr_disable_value = 0;
+  Debug::GetProperty(ENABLE_SPR, &spr_prop_value);
+
+  if (IsPrimaryDisplay()) {
+    Debug::Get()->GetProperty(DISABLE_SPR_PRIMARY, &spr_disable_value);
+    Debug::GetProperty(ENABLE_SPR_BYPASS, &spr_bypass_prop_value);
+  } else {
+    Debug::Get()->GetProperty(DISABLE_SPR_SECONDARY, &spr_disable_value);
+    Debug::GetProperty(ENABLE_SPR_BYPASS_SECONDARY, &spr_bypass_prop_value);
+  }
+
+  if (spr_prop_value && !spr_disable_value && !spr_bypass_prop_value) {
+    qrtc_config_.is_pentile_format = true;
+  }
 
   if (SetupQrtcConfig(qrtc_config_) != kErrorNone) {
     DLOGE("Unable to setup Qrtc config on Display %d-%d", display_id_, display_type_);

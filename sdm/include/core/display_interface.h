@@ -1438,6 +1438,23 @@ class DisplayInterface {
   virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config,
                                   const CWBClient &client) = 0;
 
+  /*! @brief Method to allocate Writeback connector for QRTC.
+
+    @param[out] writeback connector id
+
+    @return \link DisplayError \endlink
+  */
+
+  virtual DisplayError ReserveWBForDisplay(int32_t *wb_id) = 0;
+
+  /*! @brief Method to deallocate Writeback connector QRTC in use by QRTC.
+
+    @param[in] writeback connector id
+
+    @return \link void \endlink
+  */
+  virtual void ReleaseWBFromDisplay(int32_t wb_id) = 0;
+
   /*! @brief Method to handle CWB teardown on the display
 
     @return \link DisplayError \endlink

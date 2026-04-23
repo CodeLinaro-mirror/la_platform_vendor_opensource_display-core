@@ -202,6 +202,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
                                              CwbConfig &cwb_config);
   virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config,
                                   const CWBClient &client);
+  virtual DisplayError ReserveWBForDisplay(int32_t *wb_id);
+  virtual void ReleaseWBFromDisplay(int32_t wb_id);
   virtual DisplayError PostHandleSecureEvent(SecureEvent secure_event) {
     return kErrorNotSupported;
   }
@@ -444,6 +446,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   DisplayError DisableDestinationScalar();
   void SetSelfRefreshRefCount(uint32_t sr_ref_count);
   uint32_t GetSelfRefreshRefCount();
+  bool IsFrameBufferPresent();
+  virtual void UpdateFrameBufferForCWB() {}
   DisplayError ValidateExtendedDisplayResolutions(vector<pair<uint32_t, uint32_t>> ext_disp_res,
                                                   vector<pair<uint32_t, uint32_t>> *fin_disp_res);
   void UpdateColorModes();

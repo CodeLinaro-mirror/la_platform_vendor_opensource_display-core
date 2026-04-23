@@ -95,126 +95,127 @@ void DRMPPManager::Init(const DRMPropertyManager &pm , uint32_t object_type) {
       pp_prop_map_[kFeatureGamut].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeatureGamut].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeatureGamut].version = i - (uint32_t)DRMProperty::SDE_DSPP_GAMUT_V3 + 3;
-      DRM_LOGI("Gamut version %d, prop_id %d", pp_prop_map_[kFeatureGamut].version,
+      DRM_LOGV("Gamut version %d, prop_id %d", pp_prop_map_[kFeatureGamut].version,
                pp_prop_map_[kFeatureGamut].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_DSPP_GC_V1 && i <=
                (uint32_t)DRMProperty::SDE_DSPP_GC_V2) {
       pp_prop_map_[kFeaturePgc].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeaturePgc].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeaturePgc].version = i - (uint32_t)DRMProperty::SDE_DSPP_GC_V1 + 1;
-      DRM_LOGI("Pgc version %d, prop_id %d", pp_prop_map_[kFeaturePgc].version,
+      DRM_LOGV("Pgc version %d, prop_id %d", pp_prop_map_[kFeaturePgc].version,
                pp_prop_map_[kFeaturePgc].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_DSPP_IGC_V2 &&
                i <= (uint32_t)DRMProperty::SDE_DSPP_IGC_V5) {
       pp_prop_map_[kFeatureIgc].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeatureIgc].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeatureIgc].version = i - (uint32_t)DRMProperty::SDE_DSPP_IGC_V2 + 2;
-      DRM_LOGI("Igc version %d, prop_id %d", pp_prop_map_[kFeatureIgc].version,
+      DRM_LOGV("Igc version %d, prop_id %d", pp_prop_map_[kFeatureIgc].version,
                pp_prop_map_[kFeatureIgc].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_DSPP_PCC_V3 &&
                i <= (uint32_t)DRMProperty::SDE_DSPP_PCC_V6) {
       pp_prop_map_[kFeaturePcc].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeaturePcc].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeaturePcc].version = i - (uint32_t)DRMProperty::SDE_DSPP_PCC_V3 + 3;
-      DRM_LOGI("Pcc version %d, prop_id %d", pp_prop_map_[kFeaturePcc].version,
+      DRM_LOGV("Pcc version %d, prop_id %d", pp_prop_map_[kFeaturePcc].version,
                pp_prop_map_[kFeaturePcc].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_DSPP_PA_HSIC_V1 &&
                i <= (uint32_t)DRMProperty::SDE_DSPP_PA_HSIC_V2) {
       pp_prop_map_[kFeaturePAHsic].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeaturePAHsic].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeaturePAHsic].version = i - (uint32_t)DRMProperty::SDE_DSPP_PA_HSIC_V1 + 1;
-      DRM_LOGI("PaHsic version %d, prop_id %d", pp_prop_map_[kFeaturePAHsic].version,
+      DRM_LOGV("PaHsic version %d, prop_id %d", pp_prop_map_[kFeaturePAHsic].version,
                pp_prop_map_[kFeaturePAHsic].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_DSPP_PA_SIXZONE_V1 &&
                i <= (uint32_t)DRMProperty::SDE_DSPP_PA_SIXZONE_V2) {
       pp_prop_map_[kFeaturePASixZone].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeaturePASixZone].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeaturePASixZone].version = i - (uint32_t)DRMProperty::SDE_DSPP_PA_SIXZONE_V1 + 1;
-      DRM_LOGI("SixZone version %d, prop_id %d", pp_prop_map_[kFeaturePASixZone].version,
+      DRM_LOGV("SixZone version %d, prop_id %d", pp_prop_map_[kFeaturePASixZone].version,
                pp_prop_map_[kFeaturePASixZone].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_DSPP_PA_MEMCOL_SKIN_V1 &&
                i <= (uint32_t)DRMProperty::SDE_DSPP_PA_MEMCOL_SKIN_V2) {
       pp_prop_map_[kFeaturePAMemColSkin].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeaturePAMemColSkin].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeaturePAMemColSkin].version = i - (uint32_t)DRMProperty::SDE_DSPP_PA_MEMCOL_SKIN_V1 + 1;
-      DRM_LOGI("MemColor skin version %d, prop_id %d", pp_prop_map_[kFeaturePAMemColSkin].version,
+      DRM_LOGV("MemColor skin version %d, prop_id %d", pp_prop_map_[kFeaturePAMemColSkin].version,
                pp_prop_map_[kFeaturePAMemColSkin].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_DSPP_PA_MEMCOL_SKY_V1 &&
                i <= (uint32_t)DRMProperty::SDE_DSPP_PA_MEMCOL_SKY_V2) {
       pp_prop_map_[kFeaturePAMemColSky].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeaturePAMemColSky].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeaturePAMemColSky].version = i - (uint32_t)DRMProperty::SDE_DSPP_PA_MEMCOL_SKY_V1 + 1;
-      DRM_LOGI("MemColor sky version %d, prop_id %d", pp_prop_map_[kFeaturePAMemColSky].version,
+      DRM_LOGV("MemColor sky version %d, prop_id %d", pp_prop_map_[kFeaturePAMemColSky].version,
                pp_prop_map_[kFeaturePAMemColSky].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_DSPP_PA_MEMCOL_FOLIAGE_V1 &&
                i <= (uint32_t)DRMProperty::SDE_DSPP_PA_MEMCOL_FOLIAGE_V2) {
       pp_prop_map_[kFeaturePAMemColFoliage].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeaturePAMemColFoliage].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeaturePAMemColFoliage].version = i - (uint32_t)DRMProperty::SDE_DSPP_PA_MEMCOL_FOLIAGE_V1 + 1;
-      DRM_LOGI("MemColor foliage version %d, prop_id %d", pp_prop_map_[kFeaturePAMemColFoliage].version,
+      DRM_LOGV("MemColor foliage version %d, prop_id %d",
+               pp_prop_map_[kFeaturePAMemColFoliage].version,
                pp_prop_map_[kFeaturePAMemColFoliage].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_DSPP_PA_MEMCOL_PROT_V1 &&
                i <= (uint32_t)DRMProperty::SDE_DSPP_PA_MEMCOL_PROT_V2) {
       pp_prop_map_[kFeaturePAMemColProt].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeaturePAMemColProt].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeaturePAMemColProt].version = i - (uint32_t)DRMProperty::SDE_DSPP_PA_MEMCOL_PROT_V1 + 1;
-      DRM_LOGI("MemColor prot version %d, prop_id %d", pp_prop_map_[kFeaturePAMemColProt].version,
+      DRM_LOGV("MemColor prot version %d, prop_id %d", pp_prop_map_[kFeaturePAMemColProt].version,
                pp_prop_map_[kFeaturePAMemColProt].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_DSPP_PA_DITHER_V1 &&
                i <= (uint32_t)DRMProperty::SDE_DSPP_PA_DITHER_V2) {
       pp_prop_map_[kFeaturePADither].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeaturePADither].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeaturePADither].version = i - (uint32_t)DRMProperty::SDE_DSPP_PA_DITHER_V1 + 1;
-      DRM_LOGI("PA Dither version %d, prop_id %d", pp_prop_map_[kFeaturePADither].version,
+      DRM_LOGV("PA Dither version %d, prop_id %d", pp_prop_map_[kFeaturePADither].version,
                pp_prop_map_[kFeaturePADither].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_PP_DITHER_V1 &&
                i <= (uint32_t)DRMProperty::SDE_PP_DITHER_V3) {
       pp_prop_map_[kFeatureDither].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeatureDither].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeatureDither].version = i - (uint32_t)DRMProperty::SDE_PP_DITHER_V1 + 1;
-      DRM_LOGI("PP dither version %d, prop_id %d", pp_prop_map_[kFeatureDither].version,
+      DRM_LOGV("PP dither version %d, prop_id %d", pp_prop_map_[kFeatureDither].version,
                pp_prop_map_[kFeatureDither].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_DSPP_SPR_DITHER_V1 &&
                i <= (uint32_t)DRMProperty::SDE_DSPP_SPR_DITHER_V2) {
       pp_prop_map_[kFeatureSprDither].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeatureSprDither].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeatureSprDither].version = i - (uint32_t)DRMProperty::SDE_DSPP_SPR_DITHER_V1 + 1;
-      DRM_LOGI("DSPP SPR dither version %d, prop_id %d", pp_prop_map_[kFeatureSprDither].version,
+      DRM_LOGV("DSPP SPR dither version %d, prop_id %d", pp_prop_map_[kFeatureSprDither].version,
                pp_prop_map_[kFeatureSprDither].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_VIG_3D_LUT_GAMUT_V5 &&
                i <= (uint32_t)DRMProperty::SDE_VIG_3D_LUT_GAMUT_V6) {
       pp_prop_map_[kFeatureVigGamut].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeatureVigGamut].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeatureVigGamut].version = i - (uint32_t)DRMProperty::SDE_VIG_3D_LUT_GAMUT_V5 + 5;
-      DRM_LOGI("Vig Gamut version %d, prop_id %d", pp_prop_map_[kFeatureVigGamut].version,
+      DRM_LOGV("Vig Gamut version %d, prop_id %d", pp_prop_map_[kFeatureVigGamut].version,
                pp_prop_map_[kFeatureVigGamut].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_VIG_1D_LUT_IGC_V5 &&
                i <= (uint32_t)DRMProperty::SDE_VIG_1D_LUT_IGC_V6) {
       pp_prop_map_[kFeatureVigIgc].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeatureVigIgc].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeatureVigIgc].version = i - (uint32_t)DRMProperty::SDE_VIG_1D_LUT_IGC_V5 + 5;
-      DRM_LOGI("Vig Igc version %d, prop_id %d", pp_prop_map_[kFeatureVigIgc].version,
+      DRM_LOGV("Vig Igc version %d, prop_id %d", pp_prop_map_[kFeatureVigIgc].version,
                pp_prop_map_[kFeatureVigIgc].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_DGM_1D_LUT_IGC_V5 &&
                i <= (uint32_t)DRMProperty::SDE_DGM_1D_LUT_IGC_V5) {
       pp_prop_map_[kFeatureDgmIgc].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeatureDgmIgc].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeatureDgmIgc].version = i - (uint32_t)DRMProperty::SDE_DGM_1D_LUT_IGC_V5 + 5;
-      DRM_LOGI("Dgm Igc version %d, prop_id %d", pp_prop_map_[kFeatureDgmIgc].version,
+      DRM_LOGV("Dgm Igc version %d, prop_id %d", pp_prop_map_[kFeatureDgmIgc].version,
                pp_prop_map_[kFeatureDgmIgc].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_DGM_1D_LUT_GC_V5 &&
                i <= (uint32_t)DRMProperty::SDE_DGM_1D_LUT_GC_V5) {
       pp_prop_map_[kFeatureDgmGc].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeatureDgmGc].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeatureDgmGc].version = i - (uint32_t)DRMProperty::SDE_DGM_1D_LUT_GC_V5 + 5;
-      DRM_LOGI("Dgm Gc version %d, prop_id %d", pp_prop_map_[kFeatureDgmGc].version,
+      DRM_LOGV("Dgm Gc version %d, prop_id %d", pp_prop_map_[kFeatureDgmGc].version,
                pp_prop_map_[kFeatureDgmGc].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_PP_CWB_DITHER_V2 &&
                i <= (uint32_t)DRMProperty::SDE_PP_CWB_DITHER_V3) {
       pp_prop_map_[kFeatureCWBDither].prop_enum = (DRMProperty)i;
       pp_prop_map_[kFeatureCWBDither].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeatureCWBDither].version = i - (uint32_t)DRMProperty::SDE_PP_CWB_DITHER_V2 + 2;
-      DRM_LOGI("PP CWB dither version %d, prop_id %d", pp_prop_map_[kFeatureCWBDither].version,
+      DRM_LOGV("PP CWB dither version %d, prop_id %d", pp_prop_map_[kFeatureCWBDither].version,
                pp_prop_map_[kFeatureCWBDither].prop_id);
     } else if (i >= (uint32_t)DRMProperty::DIMMING_BL_LUT &&
                i <= (uint32_t)DRMProperty::DIMMING_BL_LUT) {
@@ -247,7 +248,7 @@ void DRMPPManager::Init(const DRMPropertyManager &pm , uint32_t object_type) {
       pp_prop_map_[kFeatureRgbHistBufferCtrl].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeatureRgbHistBufferCtrl].version =
           i - (uint32_t)DRMProperty::SDE_RGB_HIST_SET_BUFFER_V2 + 2;
-      DRM_LOGI("RGB HIST set buffer version %d, prop_id %d",
+      DRM_LOGV("RGB HIST set buffer version %d, prop_id %d",
                pp_prop_map_[kFeatureRgbHistBufferCtrl].version,
                pp_prop_map_[kFeatureRgbHistBufferCtrl].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_RGB_HIST_QUEUE_BUFFER_V2 &&
@@ -256,7 +257,7 @@ void DRMPPManager::Init(const DRMPropertyManager &pm , uint32_t object_type) {
       pp_prop_map_[kFeatureRgbHistQueueBuffer].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeatureRgbHistQueueBuffer].version =
           i - (uint32_t)DRMProperty::SDE_RGB_HIST_QUEUE_BUFFER_V2 + 2;
-      DRM_LOGI("RGB HIST queue buffer version %d, prop_id %d",
+      DRM_LOGV("RGB HIST queue buffer version %d, prop_id %d",
                pp_prop_map_[kFeatureRgbHistQueueBuffer].version,
                pp_prop_map_[kFeatureRgbHistQueueBuffer].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_RGB_HIST_QUEUE_BUFFER2_V2 &&
@@ -265,7 +266,7 @@ void DRMPPManager::Init(const DRMPropertyManager &pm , uint32_t object_type) {
       pp_prop_map_[kFeatureRgbHistQueueBuffer2].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeatureRgbHistQueueBuffer2].version =
           i - (uint32_t)DRMProperty::SDE_RGB_HIST_QUEUE_BUFFER2_V2 + 2;
-      DRM_LOGI("RGB HIST queue buffer2 version %d, prop_id %d",
+      DRM_LOGV("RGB HIST queue buffer2 version %d, prop_id %d",
                pp_prop_map_[kFeatureRgbHistQueueBuffer2].version,
                pp_prop_map_[kFeatureRgbHistQueueBuffer2].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_RGB_HIST_QUEUE_BUFFER3_V2 &&
@@ -274,7 +275,7 @@ void DRMPPManager::Init(const DRMPropertyManager &pm , uint32_t object_type) {
       pp_prop_map_[kFeatureRgbHistQueueBuffer3].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeatureRgbHistQueueBuffer3].version =
           i - (uint32_t)DRMProperty::SDE_RGB_HIST_QUEUE_BUFFER3_V2 + 2;
-      DRM_LOGI("RGB HIST queue buffer3 version %d, prop_id %d",
+      DRM_LOGV("RGB HIST queue buffer3 version %d, prop_id %d",
                pp_prop_map_[kFeatureRgbHistQueueBuffer3].version,
                pp_prop_map_[kFeatureRgbHistQueueBuffer3].prop_id);
     } else if (i >= (uint32_t)DRMProperty::SDE_RGB_HIST_CTRL_V2 &&
@@ -283,7 +284,7 @@ void DRMPPManager::Init(const DRMPropertyManager &pm , uint32_t object_type) {
       pp_prop_map_[kFeatureRgbHistCtrl].prop_id = pm.GetPropertyId((DRMProperty)i);
       pp_prop_map_[kFeatureRgbHistCtrl].version =
           i - (uint32_t)DRMProperty::SDE_RGB_HIST_CTRL_V2 + 2;
-      DRM_LOGI("RGB HIST ctrl version %d, prop_id %d", pp_prop_map_[kFeatureRgbHistCtrl].version,
+      DRM_LOGV("RGB HIST ctrl version %d, prop_id %d", pp_prop_map_[kFeatureRgbHistCtrl].version,
                pp_prop_map_[kFeatureRgbHistCtrl].prop_id);
     }
 
@@ -481,7 +482,7 @@ int DRMPPManager::InitRgbHistBuffers(uint32_t obj_id, struct DRMPPFeatureInfo *i
   // Cache buffers and crtl info to avoid duplicate creation
   rgb_hist_buffers_map_.push_back(std::make_pair(obj_id, std::move(rgb_hist_buffers)));
   rgb_hist_buffers_ctrl_map_.push_back(std::make_pair(obj_id, std::move(rgb_hist_buffers_ctrl)));
-  DRM_LOGI("Init rgb hist buffers successful");
+  DRM_LOGV("Init rgb hist buffers successful");
   return ret;
 }
 
@@ -612,8 +613,8 @@ void DRMPPManager::SetPPEvent(uint32_t obj_id, DRMPPFeatureInfo &feature) {
   if (ret) {
     ret = -errno;
     if (ret == -EALREADY) {
-      DRM_LOGI("Duplicated request to set event 0x%x, object_id %u, object_type 0x%x, enable %d",
-          event_req.event, event_req.object_id, object_type_, enable);
+      DRM_LOGV("Duplicated request to set event 0x%x, object_id %u, object_type 0x%x, enable %d",
+               event_req.event, event_req.object_id, object_type_, enable);
     } else if (ret == -ENOENT || ret == -ENODEV || ret == -EACCES) {
       DRM_LOGW("Event 0x%x, object_id %u, object_type 0x%x, enable %d, ret %d",
           event_req.event, event_req.object_id, object_type_, enable, ret);
@@ -622,8 +623,8 @@ void DRMPPManager::SetPPEvent(uint32_t obj_id, DRMPPFeatureInfo &feature) {
           event_req.event, event_req.object_id, object_type_, enable, ret);
     }
   } else {
-    DRM_LOGI("set event, 0x%x, object_id %u, object_type 0x%x, enable %d",
-             event_req.event, event_req.object_id, object_type_, enable);
+    DRM_LOGV("set event, 0x%x, object_id %u, object_type 0x%x, enable %d", event_req.event,
+             event_req.object_id, object_type_, enable);
   }
 #endif
   return;
