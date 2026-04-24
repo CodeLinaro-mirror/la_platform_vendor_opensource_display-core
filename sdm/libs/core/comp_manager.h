@@ -176,6 +176,7 @@ class CompManager : public CwbCallback {
     DisplayConfigVariableInfo fb_config = {};
     bool first_cycle_ = true;
     uint32_t dest_scaler_blocks_used = 0;
+    uint32_t num_blending_stages = 0;
   };
 
   std::recursive_mutex comp_mgr_mutex_;

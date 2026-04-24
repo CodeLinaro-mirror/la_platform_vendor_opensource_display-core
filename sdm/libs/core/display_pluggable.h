@@ -34,6 +34,7 @@
 #include <private/hw_events_interface.h>
 #include <utils/multi_core_instantiator.h>
 #include <private/aiqe_ssrc_feature_interface.h>
+#include <core/dpps_interface.h>
 
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -45,7 +46,7 @@
 
 namespace sdm {
 
-class DisplayPluggable : public DisplayBase, HWEventHandler {
+class DisplayPluggable : public DisplayBase, HWEventHandler, DppsPropIntf {
  public:
   DisplayPluggable(DisplayEventHandler *event_handler,
                    sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> hw_info_intf,
@@ -112,6 +113,10 @@ class DisplayPluggable : public DisplayBase, HWEventHandler {
                                shared_ptr<Fence> *release_fence) override;
   DisplayError SetActiveConfig(uint32_t index) override;
 
+  // Implement the DppsPropIntf
+  DisplayError DppsProcessOps(enum DppsOps op, void *payload, size_t size) override;
+  DisplayError PostCommit() override;
+
  private:
   PrimariesTransfer GetBlendSpaceFromStcColorMode(
     const snapdragoncolor::ColorMode &color_mode);
@@ -148,6 +153,7 @@ class DisplayPluggable : public DisplayBase, HWEventHandler {
   void UpdateDisplayModeParams();
   DisplayError SetupABCLayer();
   DisplayError ControlPartialUpdateLocked(bool enable, uint32_t *pending);
+  DisplayError SetDppsFeatureLocked(void *payload, size_t size);
 
   static const int kPropertyMax = 256;
 
@@ -193,8 +199,13 @@ class DisplayPluggable : public DisplayBase, HWEventHandler {
   bool demura_calib_files_reloaded_ = false;
   bool abc_enabled_ = false;
   bool abc_prop_ = false;
-  DppsInfo dpps_info_ = {};
   bool switch_to_cmd_ = false;
+  bool commit_event_enabled_ = false;
+  DppsInfo dpps_info_ = {};
+  bool dpps_pu_nofiy_pending_ = false;
+  Locker dpps_pu_lock_;
+  const uint32_t kPuTimeOutMs = 1000;
+  bool enable_dpps_dyn_fps_ = false;
 };
 
 }  // namespace sdm

@@ -881,6 +881,7 @@ void HWDeviceDRM::InitializeConfigs() {
 DisplayError HWDeviceDRM::PopulateDisplayAttributes(uint32_t index) {
   drmModeModeInfo mode = {};
   sde_drm::DRMModeInfo conn_mode = {};
+  DRMCrtcInfo crtc_info = {};
   uint32_t mm_width = 0;
   uint32_t mm_height = 0;
   DRMTopology topology = DRMTopology::SINGLE_LM;
@@ -907,6 +908,9 @@ DisplayError HWDeviceDRM::PopulateDisplayAttributes(uint32_t index) {
       display_attributes_[index].smart_panel = true;
     }
   }
+
+  drm_mgr_intf_->GetCrtcInfo(token_.crtc_id, &crtc_info);
+  display_attributes_[index].num_blending_stages = crtc_info.max_blend_stages;
 
   display_attributes_[index].x_pixels = mode.hdisplay;
   display_attributes_[index].y_pixels = mode.vdisplay;
@@ -961,7 +965,7 @@ DisplayError HWDeviceDRM::PopulateDisplayAttributes(uint32_t index) {
   DLOGI(
       "Display %d-%d attributes[%d]: WxH: %dx%d, DPI: %fx%f, FPS: %d, LM_SPLIT: %d, V_BACK_PORCH:"
       " %d, V_FRONT_PORCH: %d [RFI Adjusted : %s], V_PULSE_WIDTH: %d, V_TOTAL: %d, H_TOTAL: %d,"
-      " CLK: %dKHZ, TOPOLOGY: %d [SPLIT NUMBER: %d], HW_SPLIT: %d, AVR_STEP: %d",
+      " CLK: %dKHZ, TOPOLOGY: %d [SPLIT NUMBER: %d], HW_SPLIT: %d, AVR_STEP: %d, NUM_BLEND_STAGES: %d",
       display_id_, disp_type_, index, display_attributes_[index].x_pixels,
       display_attributes_[index].y_pixels, display_attributes_[index].x_dpi,
       display_attributes_[index].y_dpi, display_attributes_[index].fps,
@@ -970,7 +974,8 @@ DisplayError HWDeviceDRM::PopulateDisplayAttributes(uint32_t index) {
       display_attributes_[index].v_pulse_width, display_attributes_[index].v_total,
       display_attributes_[index].h_total, display_attributes_[index].clock_khz,
       display_attributes_[index].topology, display_attributes_[index].topology_num_split,
-      mixer_attributes_.split_type, display_attributes_[index].avr_step);
+      mixer_attributes_.split_type, display_attributes_[index].avr_step,
+      display_attributes_[index].num_blending_stages);
 
   return kErrorNone;
 }
