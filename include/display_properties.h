@@ -305,6 +305,7 @@
 #define BUILTIN_PRESENTATION                 DISPLAY_PROP("builtin_presentation")
 #define DISABLE_DYNAMIC_SPLIT                DISPLAY_PROP("disable_dynamic_split")
 #define DISABLE_FP16_SUPPORT                 DISPLAY_PROP("disable_fp16_support")
+#define DISABLE_HDR_GAMMA_SUPPORT            DISPLAY_PROP("disable_hdr_gamma_support")
 #define LSR_VARIANT                          DISPLAY_PROP("lsr_variant")
 #define ENABLE_SPLIT_VOTE                    DISPLAY_PROP("enable_split_vote")
 #define ENABLE_SELECTIVE_PANEL_DEAD          DISPLAY_PROP("selective_panel_dead")
