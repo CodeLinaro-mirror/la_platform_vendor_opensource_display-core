@@ -42,6 +42,7 @@ struct VirtualDisplayData {
   uint32_t width;
   uint32_t height;
   int32_t format;
+  SDMVirtualDispType type = kVirtualTypeDefault;
   bool in_use = false;
 };
 
@@ -94,6 +95,7 @@ class SDMDisplayBuilder {
   bool HasHDRSupport(SDMDisplay *sdm_display);
   bool TeardownPluggableDisplays();
   bool IsHDRDisplay(uint32_t disp_id);
+  bool ShouldRetainVirtualDisplay(uint32_t disp_id);
   uint32_t GetVirtualDisplayCount();
   void SetLuminance(float min_lum, float max_lum);
   void SetProperties(int32_t enable_primary_reconfig_req) {

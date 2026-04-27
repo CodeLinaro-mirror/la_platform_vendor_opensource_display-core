@@ -346,8 +346,20 @@ DisplayError CoreImpl::CreateDisplay(int32_t display_id, DisplayEventHandler *ev
                                           buffer_allocator_, &comp_mgr_);
       break;
     case kVirtual:
-      display_base = new DisplayVirtual(disp_id, event_handler, hw_info_intf, buffer_allocator_,
-                                        &comp_mgr_, set_hdr_types_, set_max_lum_, set_min_lum_);
+      switch (set_virtual_disp_type_) {
+        case kVirtualTypeDefault:
+          display_base = new DisplayVirtual(disp_id, event_handler, hw_info_intf, buffer_allocator_,
+                                            &comp_mgr_, set_hdr_types_, set_max_lum_, set_min_lum_);
+          break;
+        case kVirtualTypePQ:
+          display_base =
+              new DisplayVirtualPQ(disp_id, event_handler, hw_info_intf, buffer_allocator_,
+                                   &comp_mgr_, set_hdr_types_, set_max_lum_, set_min_lum_);
+          break;
+        default:
+          DLOGE("Unexpected virtual display type %d", set_virtual_disp_type_);
+          break;
+      }
       ResetCachedHDRCaps();
       break;
     default:
@@ -1131,6 +1143,27 @@ void CoreImpl::SetHdrCapabilities(Display display, const std::vector<Hdr> &hdr_t
   set_hdr_types_ = hdr_types;
   set_max_lum_ = max_avg_luminance;
   set_min_lum_ = min_luminance;
+}
+
+DisplayError CoreImpl::SetVirtualDispType(SDMVirtualDispType type) {
+  if (type >= kVirtualTypeMax) {
+    DLOGE("Invalid virtual display type %d", type);
+    return kErrorParameters;
+  }
+
+  set_virtual_disp_type_ = type;
+  DLOGI("Set virtual display type %d", type);
+  return kErrorNone;
+}
+
+DisplayError CoreImpl::GetVirtualDispType(SDMVirtualDispType *out) {
+  if (!out) {
+    DLOGE("Invalid out is nullptr");
+    return kErrorParameters;
+  }
+
+  *out = set_virtual_disp_type_;
+  return kErrorNone;
 }
 
 void CoreImpl::ResetCachedHDRCaps() {
