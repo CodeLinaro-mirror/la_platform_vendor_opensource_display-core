@@ -6531,6 +6531,12 @@ DisplayError DisplayBuiltIn::SetQrtcFeatureConfig(int32_t type, void *data) {
     case kTypeQrtcDumpBuffer:
       ret = DumpQrtcBuffer(val);
       break;
+    case kTypeQrtcTuningMode:
+      ret = SetQrtcTuningMode(val);
+      break;
+    case kTypeQrtcTuningCfg:
+      ret = SetQrtcTuningCfg();
+      break;
     default:
       DLOGE("Invalid type %d", type);
       ret = kErrorParameters;
@@ -6591,6 +6597,55 @@ DisplayError DisplayBuiltIn::DumpQrtcBuffer(int count) {
   ret = qrtc_->SetParameter(qrtc::kQrtcDumpBuffer, payload);
   if (ret) {
     DLOGE("Failed to Set Qrtc Dump buffer, ret %d", ret);
+    return kErrorNotSupported;
+  }
+
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetQrtcTuningMode(int enable) {
+  int ret = 0;
+
+  if (!qrtc_ || !qrtc_enabled_) {
+    DLOGE("qrtc_ %pK qrtc_enabled_ %d", qrtc_.get(), qrtc_enabled_);
+    return kErrorUndefined;
+  }
+
+  if (enable < 0 || enable > 1) {
+    DLOGE("unsupported QRTC tuning mode input: %d", enable);
+    return kErrorUndefined;
+  }
+
+  GenericPayload payload;
+  bool *enable_ptr = nullptr;
+  ret = payload.CreatePayload(enable_ptr);
+  if (ret != 0 || !enable_ptr) {
+    DLOGE("Failed to create the payload for tuning mode:%d", ret);
+    return kErrorResources;
+  }
+
+  *enable_ptr = static_cast<bool>(enable);
+  ret = qrtc_->SetParameter(qrtc::kQrtcTuningMode, payload);
+  if (ret) {
+    DLOGE("Failed to Set Qrtc tuning mode, ret %d", ret);
+    return kErrorNotSupported;
+  }
+
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetQrtcTuningCfg() {
+  int ret = 0;
+
+  if (!qrtc_ || !qrtc_enabled_) {
+    DLOGE("qrtc_ %pK qrtc_enabled_ %d", qrtc_.get(), qrtc_enabled_);
+    return kErrorUndefined;
+  }
+
+  GenericPayload payload;
+  ret = qrtc_->SetParameter(qrtc::kQrtcTuningCfg, payload);
+  if (ret) {
+    DLOGE("Failed to Set Qrtc tuning cfg, ret %d", ret);
     return kErrorNotSupported;
   }
 

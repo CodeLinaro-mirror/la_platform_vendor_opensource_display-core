@@ -372,6 +372,8 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetQrtcState(int state);
   DisplayError SetQrtcSubsample(int subsample);
   DisplayError DumpQrtcBuffer(int count);
+  DisplayError SetQrtcTuningMode(int enable);
+  DisplayError SetQrtcTuningCfg();
   DisplayError SetQrtcFeatureConfig(int32_t type, void *data) override;
   DisplayError SetDisplayStateForDemuraTn(DisplayState state);
   DisplayError BuildLayerStackStats(LayerStack *layer_stack) override;
