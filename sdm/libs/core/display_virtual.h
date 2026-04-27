@@ -140,6 +140,31 @@ class DisplayVirtual : public DisplayBase {
   std::vector<Hdr> hdr_types_ = {};
   float max_lum_ = -1.0;
   float min_lum_ = -1.0;
+
+ protected:
+  virtual bool NeedsDspp() const { return false; }
+};
+
+class DisplayVirtualPQ : public DisplayVirtual {
+ public:
+  DisplayVirtualPQ(DisplayId display_id, DisplayEventHandler *event_handler,
+                   sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> hw_info_intf,
+                   BufferAllocator *buffer_allocator, CompManager *comp_manager,
+                   const std::vector<Hdr> &hdr_types, float max_lum, float min_lum);
+  ~DisplayVirtualPQ() {}
+
+  virtual DisplayError Init() override;
+  virtual std::string Dump() override;
+  virtual DisplayError GetStcColorModes(snapdragoncolor::ColorModeList *mode_list) override;
+  virtual DisplayError SetStcColorMode(const snapdragoncolor::ColorMode &color_mode) override;
+
+ private:
+  bool NeedsDspp() const override { return true; }
+  PrimariesTransfer GetBlendSpaceFromStcColorMode(const snapdragoncolor::ColorMode &color_mode);
+  snapdragoncolor::ColorModeList stc_color_modes_ = {};
+  snapdragoncolor::ColorMode current_color_mode_ = {};
+  // Panel name forwarded to STC manager to locate calibration files.
+  std::string panel_name_ = "virtual_display_panel_with_pq";
 };
 
 }  // namespace sdm
