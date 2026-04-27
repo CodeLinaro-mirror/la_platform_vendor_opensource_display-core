@@ -265,8 +265,16 @@ DisplayError SDMDisplayBuiltIn::PreValidateDisplay(bool *exit_validate) {
   current_refresh_rate_ = refresh_rate;
 
   if (sdm_layer_stack_->layer_set_.empty()) {
-    // Avoid flush for Command mode panel.
-    flush_ = !client_connected_;
+    // Avoid flush for Command mode panel. Also Flush if the property
+    // flush_on_layerset_empty_ is set.
+    flush_ = (flush_on_layerset_empty_ && GetGeometryChanges()) || !client_connected_;
+    if (flush_) {
+      DisplayConfigFixedInfo fixed_info = {};
+      if (display_intf_->GetConfig(&fixed_info) == kErrorNone && !fixed_info.is_cmdmode) {
+        status = display_intf_->Flush(&layer_stack_);
+      }
+      flush_ = false;
+    }
     *exit_validate = true;
     return status;
   }
