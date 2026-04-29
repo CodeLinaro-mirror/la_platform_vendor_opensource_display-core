@@ -352,6 +352,10 @@ DisplayError ConcurrencyMgr::InitSubModules(DebugCallbackIntf *debug) {
   return kErrorNone;
 }
 
+bool ConcurrencyMgr::IsPluggablePrimary() const {
+  return disp_->IsPluggablePrimary();
+}
+
 bool ConcurrencyMgr::IsHDRDisplay(uint64_t display) {
   return disp_->IsHDRDisplay(display);
 }
