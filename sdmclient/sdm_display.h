@@ -513,6 +513,7 @@ public:
     return kErrorNotSupported;
   }
   int32_t GetDisplayConfigGroup(DisplayConfigGroupInfo variable_config);
+  int32_t GetDisplayConfigGroup(DisplayConfigGroupInfo variable_config, uint32_t fps);
 
   void LayerStackUpdated() {
     layer_stack_invalid_ = true;
