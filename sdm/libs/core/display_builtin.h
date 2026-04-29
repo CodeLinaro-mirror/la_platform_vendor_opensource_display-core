@@ -534,6 +534,7 @@ class DisplayBuiltIn : public DisplayBase,
   std::shared_ptr<TvmDispServiceManagerIntf> service_manager_intf_ = nullptr;
   std::shared_ptr<DemuraParserManagerIntf> pm_intf_ = nullptr;
   std::shared_ptr<VMFileXferIntf> vm_file_xfer_intf_ = nullptr;
+  std::mutex file_xfer_intf_mutex_;
   bool demura_allowed_ = false;
   bool demuratn_allowed_ = false;
   bool demura_enable_ = false;

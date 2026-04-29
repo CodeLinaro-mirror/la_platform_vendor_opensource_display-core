@@ -645,10 +645,13 @@ DisplayError DisplayBuiltIn::Deinit() {
       service_manager_intf_.reset();
     }
 
-    if (vm_file_xfer_intf_) {
-      vm_file_xfer_intf_->Deinit();
-      vm_file_xfer_intf_.reset();
-      vm_file_xfer_intf_ = nullptr;
+    {
+      std::lock_guard<std::mutex> lock(file_xfer_intf_mutex_);
+      if (vm_file_xfer_intf_) {
+        vm_file_xfer_intf_->Deinit();
+        vm_file_xfer_intf_.reset();
+        vm_file_xfer_intf_ = nullptr;
+      }
     }
 
     if (demura_enable_) {
@@ -5798,6 +5801,20 @@ DisplayError DisplayBuiltIn::StartTvmServices() {
     return kErrorUndefined;
   }
 
+  struct AvfCbInfo *input = nullptr;
+  GenericPayload in;
+  ret = in.CreatePayload<AvfCbInfo>(input);
+  if (ret || input == nullptr) {
+    DLOGE("Failed to create AvfCbInfo payload %d", ret);
+    return kErrorParameters;
+  }
+  input->observer = avf_obs_name_ + std::to_string(display_id_);
+  input->cb = this;
+  ret = service_manager_intf_->SetParameter(kRegisterAvfCallback, in);
+  if (ret) {
+    DLOGW("Failed to register avf callback %d", ret);
+  }
+
   if (demuratn_factory_) {
     demuratn_cleanup_intf_ = demuratn_factory_->CreateDemuraTnCleanupIntf(buffer_allocator_);
     if (!demuratn_cleanup_intf_) {
@@ -5833,19 +5850,6 @@ int DisplayBuiltIn::CreateServiceManager() {
       service_manager_intf_.reset();
       service_manager_intf_ = nullptr;
       return -EINVAL;
-    }
-    struct AvfCbInfo *input = nullptr;
-    GenericPayload in;
-    int ret = in.CreatePayload<AvfCbInfo>(input);
-    if (ret || input == nullptr) {
-      DLOGE("Failed to create AvfCbInfo payload %d", ret);
-      return ret;
-    }
-    input->observer = avf_obs_name_ + std::to_string(display_id_);
-    input->cb = this;
-    ret = service_manager_intf_->SetParameter(kRegisterAvfCallback, in);
-    if (ret) {
-      DLOGW("Failed to register avf callback %d", ret);
     }
   }
 
@@ -5904,9 +5908,12 @@ int DisplayBuiltIn::StartVmFileServiceAndExportFiles() {
     return -EINVAL;
   }
 
+  std::lock_guard<std::mutex> lock(file_xfer_intf_mutex_);
   // CreateVMFileXferClient
-  vm_file_xfer_intf_ = factory_extn_->CreateVmFileXferClient(
-      static_cast<SdmDisplayCbInterface<TvmServiceCbEvent> *>(this), buffer_allocator_);
+  if (!vm_file_xfer_intf_) {
+    vm_file_xfer_intf_ = factory_extn_->CreateVmFileXferClient(
+        static_cast<SdmDisplayCbInterface<TvmServiceCbEvent> *>(this), buffer_allocator_);
+  }
   if (!vm_file_xfer_intf_) {
     DLOGE("Failed to create VmFileXferClient");
     return -EINVAL;
@@ -6298,10 +6305,13 @@ DisplayError DisplayBuiltIn::SetDemuraTnAgingSurfTransfer(void *data) {
 int DisplayBuiltIn::HandleTvmServiceEvent(const TvmServiceCbEvent &event) {
   DLOGI("Handle TVM service event %d", event);
   if (event == kVmFileTransferServiceDead || event == kVmUserspaceReady) {
-    if (vm_file_xfer_intf_) {
-      vm_file_xfer_intf_->Deinit();
-      vm_file_xfer_intf_.reset();
-      vm_file_xfer_intf_ = nullptr;
+    {
+      std::lock_guard<std::mutex> lock(file_xfer_intf_mutex_);
+      if (vm_file_xfer_intf_) {
+        vm_file_xfer_intf_->Deinit();
+        vm_file_xfer_intf_.reset();
+        vm_file_xfer_intf_ = nullptr;
+      }
     }
 
     int ret = StartVmFileServiceAndExportFiles();
