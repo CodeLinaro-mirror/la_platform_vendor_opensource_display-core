@@ -2151,6 +2151,7 @@ SDMDisplay::PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence) {
 
   for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
     sdm_layer->ResetGeometryChanges();
+    sdm_layer->ResetBufferFlip();
     Layer *layer = sdm_layer->GetSDMLayer();
     LayerBuffer *layer_buffer = &layer->input_buffer;
     layer->request.flags = {};
