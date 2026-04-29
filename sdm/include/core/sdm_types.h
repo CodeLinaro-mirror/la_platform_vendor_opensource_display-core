@@ -787,6 +787,13 @@ enum CWBClient {
   kCWBClientComposer,  // Client to SDM i.e. SurfaceFlinger
 };
 
+// Virtual display type supported by SDM.
+enum SDMVirtualDispType {
+  kVirtualTypeDefault = 0,  // Default virtual display type.
+  kVirtualTypePQ,           // Virtual display type with PQ processing enabled.
+  kVirtualTypeMax,          // Maximum value for virtual display types.
+};
+
 }  // namespace sdm
 
 #endif  // __SDM_TYPES_H__
