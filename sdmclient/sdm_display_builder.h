@@ -103,6 +103,7 @@ class SDMDisplayBuilder {
   bool IsBuiltInDisplay(uint64_t disp_id);
   DisplayError GetDisplayHwId(uint64_t disp_id, int32_t *disp_hw_id);
   int32_t GetVirtualDisplayId(HWDisplayInfo &info);
+  bool IsPluggablePrimary() const { return pluggable_is_primary_; }
 
  private:
   std::vector<DisplayMapInfo> map_info_primary_;    // Primary display (either builtin or pluggable)
