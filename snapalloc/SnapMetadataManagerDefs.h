@@ -109,6 +109,11 @@ struct SnapMetadata {
   vendor_qti_hardware_display_common_ROIRectMetadata roiRectMetadata;
   vendor_qti_hardware_display_common_cwb_metadata cwb_metadata;
   uint32_t disparity_phase;
+  /*
+   * Producer (camera) will set custom tuning metadata and consumer (video) will
+   * use it. The format of metadata is known to producer and consumer.
+   */
+  vendor_qti_hardware_display_common_CustomTuningMetadata custom_tuning_metadata;
 };
 
 struct FrameMetadata {

@@ -48,6 +48,7 @@
 #include <ThreeDimensionalRefInfo.h>
 #include <ROIRectMetadata.h>
 #include <CWBMetadata.h>
+#include <CustomTuningMetadata.h>
 #include <unordered_map>
 
 using vendor::qti::hardware::display::snapalloc::AllocationResult;
