@@ -39,7 +39,7 @@
 
 namespace drm_utils {
 
-#define MAX_RETRY 10
+#define MAX_RETRY 100
 
 struct DRMBuffer {
   int fd = -1;
