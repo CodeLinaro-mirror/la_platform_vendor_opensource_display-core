@@ -3917,6 +3917,12 @@ DisplayError SDMDisplay::SetReadbackBuffer(void *buffer,
     DLOGE("Failed to retrieve flag");
   }
   output_buffer.usage = static_cast<uint64_t>(usage_flag);
+  bool secure = (usage_flag & BufferUsage::PROTECTED);
+  bool secure_camera = secure && (usage_flag & BufferUsage::CAMERA_OUTPUT);
+  bool secure_display = (usage_flag & BufferUsage::QTI_PRIVATE_SECURE_DISPLAY);
+  output_buffer.flags.secure = secure;
+  output_buffer.flags.secure_camera = secure_camera;
+  output_buffer.flags.secure_display = secure_display;
 
   int64_t compression_type;
   err = GetMetadata(hdl, MetadataType::COMPRESSION, &compression_type,
