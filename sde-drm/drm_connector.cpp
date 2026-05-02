@@ -484,12 +484,16 @@ int DRMConnectorManager::Reserve(DRMDisplayType disp_type, DRMDisplayToken *toke
     if (conn.second->GetStatus() == DRMStatus::FREE &&
         identifier == conn.second->GetConnectorIdentifier()) {
       uint32_t conn_type;
+      DRMConnectorInfo info = {};
+      conn.second->GetInfo(&info);
       conn.second->GetType(&conn_type);
       if ((disp_type == DRMDisplayType::PERIPHERAL &&
            (conn_type == DRM_MODE_CONNECTOR_DSI || conn_type == DRM_MODE_CONNECTOR_eDP ||
             conn_type == DRM_MODE_CONNECTOR_SPI)) ||
           (disp_type == DRMDisplayType::VIRTUAL && conn_type == DRM_MODE_CONNECTOR_VIRTUAL) ||
-          (disp_type == DRMDisplayType::TV && IsTVConnector(conn_type))) {
+          (disp_type == DRMDisplayType::TV &&
+           (IsTVConnector(conn_type) ||
+            (info.is_dsi_to_hdmi_bridge && conn_type == DRM_MODE_CONNECTOR_DSI)))) {
         if (conn.second->IsConnected()) {
           // Free-up previously reserved connector, if any.
           if (token->conn_id) {
