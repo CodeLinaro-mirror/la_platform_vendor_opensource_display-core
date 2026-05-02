@@ -5541,6 +5541,9 @@ DisplayError DisplayBuiltIn::SetPanelFeatureConfig(int32_t type, void *data) {
     case kTypeSwitchToDAC:
       ret = SwitchToDAC(data);
       break;
+    case kTypeSetDemuraTnCompRatio1x1:
+      ret = SetDemuraTnCompRatio(data);
+      break;
     default:
       DLOGE("Invalid type %d", type);
       ret = kErrorParameters;
@@ -6303,6 +6306,26 @@ DisplayError DisplayBuiltIn::SwitchToDAC(void *data) {
   ClearDemuraMultiCfgParsers();
   demuratn_override_feature_ = kFeatureDAC;
   DLOGI("Switch to DAC done");
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetDemuraTnCompRatio(void *data) {
+  int ret = 0;
+  GenericPayload payload;
+  (void)data;
+
+  if (!demuratn_) {
+    DLOGE("demuratn_ is nullptr");
+    return kErrorUndefined;
+  }
+
+  ret = demuratn_->SetParameter(kDemuraTnCoreUvmParamCompRatio1x1, payload);
+  if (ret) {
+    DLOGE("Failed to set compensation ratio 1x1, ret %d", ret);
+    return kErrorUndefined;
+  }
+
+  DLOGI("Set DemuraTn compensation 1x1 override");
   return kErrorNone;
 }
 
