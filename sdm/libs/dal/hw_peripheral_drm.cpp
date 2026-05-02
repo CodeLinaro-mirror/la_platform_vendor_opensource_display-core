@@ -85,6 +85,21 @@ DisplayError HWPeripheralDRM::Init() {
   CreatePanelFeaturePropertyMap();
   InitCalibrationNodes();
 
+  char vsync_offset_ns[255] = {};
+  if (Debug::GetProperty(SET_VSYNC_OFFSET, vsync_offset_ns) == kErrorNone) {
+    errno = 0;
+    char *end = nullptr;
+    unsigned long long offset = std::strtoull(vsync_offset_ns, &end, 10);
+
+    if (errno != ERANGE && end != vsync_offset_ns && *end == '\0') {
+      vsync_offset_ns_ = static_cast<uint64_t>(offset);
+      DLOGV_IF(kTagDriverConfig, "vsync_offset_ns property set to: %" PRIu64, vsync_offset_ns_);
+    } else {
+      DLOGW("Invalid value set for property SET_VSYNC_OFFSET: '%s'", vsync_offset_ns);
+      vsync_offset_ns_ = 0;
+    }
+  }
+
   return kErrorNone;
 }
 
@@ -508,6 +523,12 @@ DisplayError HWPeripheralDRM::Commit(HWLayersInfo *hw_layers_info) {
 
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_USECASE_IDX, token_.conn_id,
                             hw_layers_info->common_info->flags.only_video_updating);
+  if (hw_layers_info->lsr_commit && vsync_offset_ns_ > 0) {
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CONNECTOR_SET_VSYNC_OFFSET, token_.conn_id,
+                              vsync_offset_ns_);
+  } else {
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CONNECTOR_SET_VSYNC_OFFSET, token_.conn_id, 0);
+  }
 
   if (hw_layers_info->lsr_commit && (lsr_cache_state_ == sde_drm::DRMCacheState::DISABLED)) {
     drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_CACHE_STATE, token_.crtc_id,

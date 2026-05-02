@@ -874,6 +874,12 @@ enum struct DRMOps {
    *      uint32_t - Framebuffer ID
    */
   CONNECTOR_SET_POSE_FB_ID,
+  /*
+   * Op: Sets vsync offset on connector
+   * Arg: uint32_t - Connector ID
+   *      uint64_t - vsync offset value in nanoseconds
+   */
+  CONNECTOR_SET_VSYNC_OFFSET,
 };
 
 enum struct DRMRotation {
