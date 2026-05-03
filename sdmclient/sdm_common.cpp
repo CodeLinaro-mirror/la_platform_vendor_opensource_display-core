@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -55,7 +55,7 @@ int uevent_init() {
 
   memset(&addr, 0, sizeof(addr));
   addr.nl_family = AF_NETLINK;
-  addr.nl_pid = getpid();
+  addr.nl_pid = 0;
   addr.nl_groups = 0xffffffff;
 
   s = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_KOBJECT_UEVENT);
