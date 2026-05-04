@@ -102,16 +102,22 @@ DisplayError HWVirtualDRM::Init() {
 void HWVirtualDRM::ConfigureWbConnectorFbId(uint32_t fb_id, vector<uint32_t> lsr_fb_ids) {
   if (lsr_fb_ids.size()) {
     lsr_fb_id_config_ = {};
-    // TODO: need to Handle monocular display
     bool is_repro = (lsr_fb_ids.size() > kMaxCSCOutputBuffer);
     if (is_repro) {
       for (int i = 0; i < lsr_fb_ids.size(); i++) {
+        // For Binocular Display (total 12 buffers)
         // 0:2 FSC for left eye | 3:5 FSC for right eye
         // 6:8 FSC left eye back buffer | 9:11 FSC right eye back buffer
-        bool is_front_buffer = (i < (hw_panel_info_.num_fsc_fields * 2));
-        bool is_left_eye =
-            (i < hw_panel_info_.num_fsc_fields ||
-             (i >= hw_panel_info_.num_fsc_fields * 2 && i < (hw_panel_info_.num_fsc_fields * 3)));
+        // For Monocular Display (total 6 buffer)
+        // 0:2 FSC for left eye
+        // 3:5 FSC left eye back buffer
+        bool is_monocular = (lsr_fb_ids.size() == (hw_panel_info_.num_fsc_fields * 2));
+        bool is_front_buffer = (i < (is_monocular ? hw_panel_info_.num_fsc_fields
+                                                  : (hw_panel_info_.num_fsc_fields * 2)));
+        bool is_left_eye = (is_monocular ? (i < hw_panel_info_.num_fsc_fields * 2)
+                                         : (i < hw_panel_info_.num_fsc_fields ||
+                                            (i >= hw_panel_info_.num_fsc_fields * 2 &&
+                                             i < (hw_panel_info_.num_fsc_fields * 3))));
         uint32_t view_idx = is_left_eye ? 0 : 1;
         struct sde_drm_view_descriptor &descriptor = is_front_buffer
                                                          ? lsr_fb_id_config_.views[view_idx]

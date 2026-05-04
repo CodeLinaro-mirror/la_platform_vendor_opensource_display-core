@@ -1358,6 +1358,9 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
   hw_panel_info_.is_primary_panel = connector_info_.is_primary;
   hw_panel_info_.is_lsr_display =
       connector_info_.is_primary && hw_resource_.num_csc_pipe && hw_resource_.num_repro_pipe;
+  auto submode_idx = connector_info_.modes[index].curr_submode_index;
+  auto topology = connector_info_.modes[index].sub_modes[submode_idx].topology;
+  hw_panel_info_.is_monocular_display = (GetNumInterfaces(topology) == 1);
   hw_panel_info_.is_pluggable = 0;
   hw_panel_info_.hdr_enabled = connector_info_.panel_hdr_prop.hdr_enabled;
   // Convert the luminance values to cd/m^2 units.
@@ -1420,6 +1423,32 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
   DLOGI_IF(kTagDriverConfig, "Panel Maximum Transfer time = %d us",
            hw_panel_info_.transfer_time_us_max);
   DLOGI_IF(kTagDriverConfig, "Dynamic Bit Clk Support = %d", hw_panel_info_.dyn_bitclk_support);
+}
+
+uint32_t HWDeviceDRM::GetNumInterfaces(sde_drm::DRMTopology topology) {
+  switch (topology) {
+    case DRMTopology::SINGLE_LM:            // 1 LM, 1 PP, 1 INTF/WB (101)
+    case DRMTopology::SINGLE_LM_DSC:        // 1 LM, 1 DSC, 1 PP, 1 INTF/WB (111)
+    case DRMTopology::DUAL_LM_MERGE:        // 2 LM, 2 PP, 3DMux, 1 INTF/WB (201)
+    case DRMTopology::DUAL_LM_MERGE_DSC:    // 2 LM, 2 PP, 3DMux, 1 DSC, 1 INTF/WB (211)
+    case DRMTopology::DUAL_LM_DSCMERGE:     // 2 LM, 2 PP, 2 DSC Merge, 1 INTF/WB (221)
+    case DRMTopology::QUAD_LM_DSC4HSMERGE:  // 4 LM, 4 PP, 4 DSC Merge, 1 INTF (441)
+      return 1;
+      break;
+    case DRMTopology::DUAL_LM:           // 2 LM, 2 PP, 2 INTF/WB (202)
+    case DRMTopology::DUAL_LM_DSC:       // 2 LM, 2 DSC, 2 PP, 2 INTF/WB (222)
+    case DRMTopology::QUAD_LM_MERGE:     // 4 LM, 4 PP, 3DMux, 2 INTF (402)
+    case DRMTopology::QUAD_LM_DSCMERGE:  // 4 LM, 4 PP, 4 DSC Merge, 2 INTF (442)
+    case DRMTopology::
+        QUAD_LM_MERGE_DSC:  // 4 LM, 4 PP, 3DMux, 3 DSC, 2 INTF (432)
+    case DRMTopology::PPSPLIT:  // 1 LM, 2 PPs, 2 INTF/WB (102) (PP split creates 2 INTF)
+      return 2;
+      break;
+    default:
+      DLOGW("Topology not listed!!");
+      break;
+  }
+  return 0;
 }
 
 DisplayError HWDeviceDRM::GetDisplayIdentificationData(uint8_t *out_port, uint32_t *out_data_size,

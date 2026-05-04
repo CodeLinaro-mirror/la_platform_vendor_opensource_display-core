@@ -370,6 +370,7 @@ class HWDeviceDRM : public HWInterface {
     return (hw_panel_info_.dynamic_fps && (vrefresh_ || seamless_mode_switch_)) ||
      panel_mode_changed_ || bit_clk_rate_;
   }
+  uint32_t GetNumInterfaces(sde_drm::DRMTopology topology);
 
   const char *device_name_ = {};
   bool default_mode_ = false;
