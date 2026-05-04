@@ -413,6 +413,16 @@ struct RgbHistConfigWrapper {
   std::string observer_id;
 };
 
+/*! @brief Wrapper for demura layers and application state.
+
+  @sa DisplayInterface::DemuraLayerWrapper
+*/
+struct DemuraLayerWrapper {
+  std::vector<Layer> demura_layer;  //!< Demura layers.
+  bool pending_cleared = false;     //!< True if a deferred clear of demura_layer is pending.
+  bool applied = false;             //!< True if demura layer has been applied.
+};
+
 /*! @brief This enum represents the panel feature cmd types supported by the vendService cmd.
 
   @sa DisplayInterface::PanelFeatureVendorServiceType

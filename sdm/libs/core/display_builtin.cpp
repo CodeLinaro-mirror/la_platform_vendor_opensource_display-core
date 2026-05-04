@@ -1115,7 +1115,10 @@ DisplayError DisplayBuiltIn::SetupDemuraLayer() {
     return kErrorResources;
   }
 
-  demura_layer_.clear();  // This will clear the old demura layers
+  DemuraLayerWrapper *layer_wrapper = GetFreeDemuraLayerWrapper();
+  if (!layer_wrapper) {
+    return kErrorUndefined;
+  }
 
   for (int buf_idx = 0; buf_idx < corrdata->surfaces.size(); buf_idx++) {
     if (!corrdata->valid[buf_idx])
@@ -1157,7 +1160,7 @@ DisplayError DisplayBuiltIn::SetupDemuraLayer() {
     demura_layer.dst_rect.bottom = corrdata->surfaces[buf_idx].buffer_config.height;
     LogI(kTagNone, "Demura dst: ", demura_layer.dst_rect);
     demura_layer.buffer_map = std::make_shared<LayerBufferMap>();
-    demura_layer_.push_back(demura_layer);
+    layer_wrapper->demura_layer.push_back(demura_layer);
   }
   return kErrorNone;
 }
@@ -1165,15 +1168,19 @@ DisplayError DisplayBuiltIn::SetupDemuraLayer() {
 DisplayError DisplayBuiltIn::DumpDemuraSurface(const char *dir_path, uint32_t frame_index) {
   ClientLock lock(disp_mutex_);
 
-  if (demura_layer_.empty()) {
+  DemuraLayerWrapper *active = GetActiveDemuraLayerWrapper();
+
+  if (!active) {
     DLOGI("No demura layer present");
     return kErrorNone;
   }
 
-  for (int i = 0; i < demura_layer_.size(); i++) {
-    if (demura_layer_[i].input_buffer.planes[0].fd > 0 && demura_layer_[i].input_buffer.size) {
-      void *mapped_buffer = mmap(NULL, demura_layer_[i].input_buffer.size, PROT_READ | PROT_WRITE,
-                                 MAP_SHARED, demura_layer_[i].input_buffer.planes[0].fd, 0);
+  for (int i = 0; i < active->demura_layer.size(); i++) {
+    if (active->demura_layer[i].input_buffer.planes[0].fd > 0 &&
+        active->demura_layer[i].input_buffer.size) {
+      void *mapped_buffer =
+          mmap(NULL, active->demura_layer[i].input_buffer.size, PROT_READ | PROT_WRITE, MAP_SHARED,
+               active->demura_layer[i].input_buffer.planes[0].fd, 0);
       if (mapped_buffer == MAP_FAILED) {
         DLOGE("mmap failed with err %s", strerror(errno));
         return kErrorUndefined;
@@ -1187,18 +1194,18 @@ DisplayError DisplayBuiltIn::DumpDemuraSurface(const char *dir_path, uint32_t fr
       char dump_file_name[PATH_MAX];
       snprintf(dump_file_name, sizeof(dump_file_name),
                "%s/input_layer_demura%d_%dx%d_%s_frame%d.raw", dir_path, i, hfc_buffer_width_,
-               hfc_buffer_height_, GetFormatString(demura_layer_[i].input_buffer.format),
+               hfc_buffer_height_, GetFormatString(active->demura_layer[i].input_buffer.format),
                frame_index);
 
       FILE *fp = fopen(dump_file_name, "w+");
       size_t result = 0;
       if (fp) {
-        result = fwrite(mapped_buffer, demura_layer_[i].input_buffer.size, 1, fp);
+        result = fwrite(mapped_buffer, active->demura_layer[i].input_buffer.size, 1, fp);
         fclose(fp);
       }
 
       DLOGI("Frame Dump %s: is %s", dump_file_name, result ? "Successful" : "Failed");
-      munmap(mapped_buffer, demura_layer_[i].input_buffer.size);
+      munmap(mapped_buffer, active->demura_layer[i].input_buffer.size);
     }
   }
 
@@ -1219,7 +1226,11 @@ DisplayError DisplayBuiltIn::SetupABCLayer() {
     DLOGE("Failed to get BufferInfo, error = %d", ret);
     return kErrorResources;
   }
-  demura_layer_.clear();  // This will clear the old abc layers
+
+  DemuraLayerWrapper *layer_wrapper = GetFreeDemuraLayerWrapper();
+  if (!layer_wrapper) {
+    return kErrorUndefined;
+  }
 
   for (int buf_idx = 0; buf_idx < corrdata->surfaces.size(); buf_idx++) {
     if (!corrdata->valid[buf_idx])
@@ -1259,7 +1270,7 @@ DisplayError DisplayBuiltIn::SetupABCLayer() {
     demura_layer.dst_rect.bottom = corrdata->surfaces[buf_idx].buffer_config.height;
     LogI(kTagNone, "Demura dst: ", demura_layer.dst_rect);
     demura_layer.buffer_map = std::make_shared<LayerBufferMap>();
-    demura_layer_.push_back(demura_layer);
+    layer_wrapper->demura_layer.push_back(demura_layer);
   }
   return kErrorNone;
 }
@@ -1899,6 +1910,16 @@ DisplayError DisplayBuiltIn::PostCommit() {
   if (pending_cycles_for_poms_setup_ > 0) {
     pending_cycles_for_poms_setup_--;
     avoid_vsync_enable_ = !!pending_cycles_for_poms_setup_;
+  }
+  // display thread no longer holds raw pointers to these Layer objects.
+  for (int i = 0; i < demura_layer_wrappers_.size(); i++) {
+    auto &wrapper = demura_layer_wrappers_[i];
+    if (wrapper.pending_cleared) {
+      DLOGV_IF(kTagDisplay, "Deferred clear demura wrapper[%d] applied=%d", i, wrapper.applied);
+      wrapper.demura_layer.clear();
+      wrapper.applied = false;
+      wrapper.pending_cleared = false;
+    }
   }
 
   return kErrorNone;
@@ -3380,16 +3401,21 @@ DisplayError DisplayBuiltIn::HandleDemuraLayer(LayerStack *layer_stack) {
     return kErrorParameters;
   }
   std::vector<Layer *> &layers = layer_stack->layers;
-  if (comp_manager_->GetDemuraStatus() && comp_manager_->GetDemuraStatusForDisplay(display_id_) &&
-      demura_layer_[0].input_buffer.planes[0].fd > 0) {
+
+  DemuraLayerWrapper *active = GetActiveDemuraLayerWrapper();
+
+  if (active && comp_manager_->GetDemuraStatus() &&
+      comp_manager_->GetDemuraStatusForDisplay(display_id_) &&
+      active->demura_layer.front().input_buffer.planes[0].fd > 0) {
     if (disp_layer_stack_->stack_info.demura_target_index == -1) {
       // If demura layer added for first time, do not skip validate
       needs_validate_ = true;
     }
 
-    for (int buf_idx = 0; buf_idx < demura_layer_.size(); buf_idx++) {
-      layers.push_back(&demura_layer_.at(buf_idx));
+    for (int buf_idx = 0; buf_idx < active->demura_layer.size(); buf_idx++) {
+      layers.push_back(&active->demura_layer.at(buf_idx));
     }
+    active->applied = true;
 
     DLOGI_IF(kTagDisplay, "Demura layer added to layer stack on display %d-%d", display_id_,
              display_type_);
@@ -4797,7 +4823,7 @@ DisplayError DisplayBuiltIn::SetDemuraState(int state, int demura_idx) {
     }
     comp_manager_->SetDemuraStatusForDisplay(display_id_, false);
     demura_dynamic_enabled_ = false;
-    demura_layer_.clear();
+    ClearDemuraLayerWrappers();
   }
 
   // Disable Partial Update for one frame.
@@ -4832,6 +4858,9 @@ DisplayError DisplayBuiltIn::SetDemuraConfig(int demura_idx) {
     DLOGE("Cannot switch demura config when override feature is DAC");
     return kErrorUndefined;
   }
+
+  // Idx is updated, clear the last demura layers
+  ClearDemuraLayerWrappers();
 
   // Update demura config
   if ((ret = pl.CreatePayload<uConfigIdx>(idx))) {
@@ -6370,6 +6399,56 @@ DisplayError DisplayBuiltIn::DisableDemuraForHandOff() {
   }
 
   return kErrorNone;
+}
+
+DemuraLayerWrapper *DisplayBuiltIn::GetFreeDemuraLayerWrapper() {
+  for (int i = 0; i < demura_layer_wrappers_.size(); i++) {
+    auto &wrapper = demura_layer_wrappers_[i];
+    DLOGV_IF(kTagDisplay, "Demura wrapper[%d] applied=%d", i, wrapper.applied);
+
+    // Skip wrappers currently in use by the display thread
+    if (wrapper.applied) {
+      continue;
+    }
+
+    // Always clear before returning this slot to the caller
+    wrapper.pending_cleared = false;
+    wrapper.demura_layer.clear();
+    DLOGV_IF(kTagDisplay, "Returning free demura wrapper[%d]", i);
+    return &wrapper;
+  }
+
+  DLOGE("No non-applied wrapper found");
+  return nullptr;
+}
+
+DemuraLayerWrapper *DisplayBuiltIn::GetActiveDemuraLayerWrapper() {
+  for (int i = 0; i < demura_layer_wrappers_.size(); i++) {
+    auto &wrapper = demura_layer_wrappers_[i];
+    if (!wrapper.demura_layer.empty() && !wrapper.pending_cleared) {
+      DLOGV_IF(kTagDisplay, "Found active demura wrapper[%d]", i);
+      return &wrapper;
+    }
+  }
+  DLOGV_IF(kTagDisplay, "No active demura wrapper found");
+  return nullptr;
+}
+
+void DisplayBuiltIn::ClearDemuraLayerWrappers() {
+  for (int i = 0; i < demura_layer_wrappers_.size(); i++) {
+    auto &wrapper = demura_layer_wrappers_[i];
+    if (!wrapper.demura_layer.empty()) {
+      if (!wrapper.applied) {
+        // Not applied by display thread, safe to clear immediately
+        DLOGV_IF(kTagDisplay, "Clearing non-applied wrapper[%d] immediately", i);
+        wrapper.demura_layer.clear();
+        wrapper.pending_cleared = false;
+      } else {
+        DLOGV_IF(kTagDisplay, "Mark wrapper[%d] to pending clear", i);
+        wrapper.pending_cleared = true;
+      }
+    }
+  }
 }
 
 void DisplayBuiltIn::SetPrivacyRegions() {

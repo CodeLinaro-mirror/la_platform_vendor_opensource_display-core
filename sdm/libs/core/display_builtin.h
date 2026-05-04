@@ -54,6 +54,7 @@
 #include <string>
 #include <future>
 #include <vector>
+#include <array>
 
 #include "display_base.h"
 #include "drm_interface.h"
@@ -63,6 +64,8 @@
 #include "rgb_hist_fact_intf.h"
 
 namespace sdm {
+
+#define DEMURA_LAYER_WRAPPER_COUNT 2
 
 using rgb_histogram::HistData;
 
@@ -420,6 +423,9 @@ class DisplayBuiltIn : public DisplayBase,
   void AppendCWBLayerWithFBT(LayerStack *layer_stack);
   void UpdateCWBLayer(LayerBuffer &layer_buffer);
   void ClearDemuraMultiCfgParsers();
+  void ClearDemuraLayerWrappers();
+  DemuraLayerWrapper *GetActiveDemuraLayerWrapper();
+  DemuraLayerWrapper *GetFreeDemuraLayerWrapper();
   int StartVmFileServiceAndExportFiles();
   int CreateServiceManager();
   int HandleTvmServiceEvent(const TvmServiceCbEvent &event);
@@ -482,7 +488,7 @@ class DisplayBuiltIn : public DisplayBase,
   bool demuratn_enabled_ = false;
   std::shared_ptr<DemuraTnCoreUvmIntf> demuratn_ = nullptr;
   uint64_t panel_id_ = 0;
-  std::vector<Layer> demura_layer_ = {};
+  std::array<DemuraLayerWrapper, DEMURA_LAYER_WRAPPER_COUNT> demura_layer_wrappers_;
   bool demura_intended_ = false;
   bool demura_dynamic_enabled_ = true;
   int demura_current_idx_ = -1;
