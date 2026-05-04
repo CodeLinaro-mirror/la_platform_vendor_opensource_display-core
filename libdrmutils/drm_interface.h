@@ -874,6 +874,12 @@ enum struct DRMOps {
    *      uint32_t - Framebuffer ID
    */
   CONNECTOR_SET_POSE_FB_ID,
+  /*
+   * Op: Sets vsync offset on connector
+   * Arg: uint32_t - Connector ID
+   *      uint64_t - vsync offset value in nanoseconds
+   */
+  CONNECTOR_SET_VSYNC_OFFSET,
 };
 
 enum struct DRMRotation {
@@ -1275,6 +1281,7 @@ struct DRMConnectorInfo {
   // Connection status of this connector
   bool is_connected;
   bool is_wb_ubwc_supported;
+  bool is_wb_downscale_supported = false;
   uint32_t topology_control;
   bool dyn_bitclk_support;
   std::vector<uint8_t> edid;

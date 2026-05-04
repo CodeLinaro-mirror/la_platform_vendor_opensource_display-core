@@ -413,6 +413,16 @@ struct RgbHistConfigWrapper {
   std::string observer_id;
 };
 
+/*! @brief Wrapper for demura layers and application state.
+
+  @sa DisplayInterface::DemuraLayerWrapper
+*/
+struct DemuraLayerWrapper {
+  std::vector<Layer> demura_layer;  //!< Demura layers.
+  bool pending_cleared = false;     //!< True if a deferred clear of demura_layer is pending.
+  bool applied = false;             //!< True if demura layer has been applied.
+};
+
 /*! @brief This enum represents the panel feature cmd types supported by the vendService cmd.
 
   @sa DisplayInterface::PanelFeatureVendorServiceType
@@ -443,7 +453,8 @@ enum PanelFeatureVendorServiceType {
   kTypeSwitchToDAC = 12,
   /* Getter: char* */
   kTypeGetDemuraTnAgingValue = 13,
-  kTypeRgbHistConfig = 14,
+  /* Setter: None */
+  kTypeSetDemuraTnCompRatio1x1 = 14,
   PanelFeatureVendorServiceTypeMax,
 };
 
@@ -458,6 +469,10 @@ enum QrtcVendorServiceType {
   kTypeQrtcSubsample = 1,
   /* Setter: int */
   kTypeQrtcDumpBuffer = 2,
+  /* Setter: int */
+  kTypeQrtcTuningMode = 3,
+  /* Setter: None */
+  kTypeQrtcTuningCfg = 4,
   KQrtcVendorServiceTypeMax,
 };
 
@@ -1439,6 +1454,23 @@ class DisplayInterface {
   virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config,
                                   const CWBClient &client) = 0;
 
+  /*! @brief Method to allocate Writeback connector for QRTC.
+
+    @param[out] writeback connector id
+
+    @return \link DisplayError \endlink
+  */
+
+  virtual DisplayError ReserveWBForDisplay(int32_t *wb_id) = 0;
+
+  /*! @brief Method to deallocate Writeback connector QRTC in use by QRTC.
+
+    @param[in] writeback connector id
+
+    @return \link void \endlink
+  */
+  virtual void ReleaseWBFromDisplay(int32_t wb_id) = 0;
+
   /*! @brief Method to handle CWB teardown on the display
 
     @return \link DisplayError \endlink
@@ -1655,6 +1687,14 @@ class DisplayInterface {
   */
   virtual DisplayError DumpDemuraSurface(const char *dir_path, uint32_t frame_index) = 0;
 
+  /*! @brief Method to set stc feature configurations
+
+   @param[in] data : Configuration or operation data
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetStcFeatureConfig(void *data) = 0;
+
   /*! @brief Method to trigger Timeout event on current display
 
    @return \link void \endlink
@@ -1729,7 +1769,7 @@ class DisplayInterface {
   virtual DisplayError SetRgbHistObserverConfig(bool state, void *data) = 0;
 
   /*! @brief Method to configure QRTC feature
-   @param[in] state: Enable/Disable   @param[in] type : Operation type
+   @param[in] type : Operation type
    @param[in] data : Configuration or operation data
 
    @return \link DisplayError \endlink

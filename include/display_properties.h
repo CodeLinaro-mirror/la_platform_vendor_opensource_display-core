@@ -282,6 +282,7 @@
 #define DISABLE_IDLE_SCALING_LAYERS          DISPLAY_PROP("disable_idle_scaling_layers")
 #define DISABLE_LLCC_DURING_AOD              DISPLAY_PROP("disable_llcc_during_aod")
 #define DISABLE_CWB_IDLE_FALLBACK            DISPLAY_PROP("disable_cwb_idle_fallback")
+#define DISABLE_FBT_FOR_CWB_FALLBACK         DISPLAY_PROP("disable_fbt_for_cwb_fallback")
 #define PRIORITIZE_CLIENT_CWB                DISPLAY_PROP("prioritize_client_cwb")
 #define ENABLE_CWB_CPU_BOOSTING              DISPLAY_PROP("enable_cwb_cpu_boosting")
 #define DISABLE_CWB_OPTIMIZATION             DISPLAY_PROP("disable_cwb_optimization")
@@ -304,6 +305,7 @@
 #define BUILTIN_PRESENTATION                 DISPLAY_PROP("builtin_presentation")
 #define DISABLE_DYNAMIC_SPLIT                DISPLAY_PROP("disable_dynamic_split")
 #define DISABLE_FP16_SUPPORT                 DISPLAY_PROP("disable_fp16_support")
+#define DISABLE_HDR_GAMMA_SUPPORT            DISPLAY_PROP("disable_hdr_gamma_support")
 #define LSR_VARIANT                          DISPLAY_PROP("lsr_variant")
 #define ENABLE_SPLIT_VOTE                    DISPLAY_PROP("enable_split_vote")
 #define ENABLE_SELECTIVE_PANEL_DEAD          DISPLAY_PROP("selective_panel_dead")
@@ -331,9 +333,13 @@
 #define DISABLE_PUNCHHOLE_LAYERS          DISPLAY_PROP("disable_punchhole_layers")
 
 #define FORCE_LSR_RENDER_MODE             DISPLAY_PROP("force_lsr_render_mode")
+#define SET_VSYNC_OFFSET                  DISPLAY_PROP("set_vsync_offset")
 
 // Enable RGB Histogram
 #define ENABLE_RGB_HISTOGRAM              DISPLAY_PROP("enable_rgb_histogram")
+
+// Enable composer driven HDCP path
+#define COMPOSER_DRIVEN_HDCP              DISPLAY_PROP("composer_driven_hdcp")
 
 // Add all other.properties above
 // End of property

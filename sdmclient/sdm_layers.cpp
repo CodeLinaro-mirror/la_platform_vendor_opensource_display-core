@@ -138,6 +138,10 @@ SDMLayer::SDMLayer(Display display_id, LayerId layer_id, BufferAllocator *buf_al
   } else {
     DLOGE("Failed to get snapalloc instance");
   }
+
+  int value = 0;
+  SDMDebugHandler::Get()->GetProperty(DISABLE_GET_SCREEN_DECORATOR_SUPPORT, &value);
+  disable_get_screen_decorator_support_ = (value == 1);
 }
 
 SDMLayer::~SDMLayer() {
@@ -387,6 +391,9 @@ DisplayError SDMLayer::SetLayerCompositionType(SDMCompositionType type) {
   case SDMCompositionType::COMP_CURSOR:
     break;
   case SDMCompositionType::COMP_DISPLAY_DECORATION:
+    if (disable_get_screen_decorator_support_) {
+      return kErrorNotSupported;
+    }
     break;
   case SDMCompositionType::COMP_INVALID:
     return kErrorParameters;
@@ -557,37 +564,65 @@ DisplayError SDMLayer::SetLayerFlag(SDMLayerFlag flag) {
 
 DisplayError SDMLayer::SetRenderLayerReferenceSpaceType(
     SDMRenderLayerReferenceSpaceType reference_layer_space_type) {
-  layer_->reference_space_type = reference_layer_space_type;
+  if (layer_->reference_space_type != reference_layer_space_type) {
+    geometry_changes_ |= kReprojectionParams;
+    layer_->reference_space_type = reference_layer_space_type;
+  }
+
   return kErrorNone;
 }
 
 DisplayError SDMLayer::SetCompositionLayerType(SDMCompositionLayerType comp_layer_type) {
-  layer_->comp_layer_type = comp_layer_type;
+  if (layer_->comp_layer_type != comp_layer_type) {
+    geometry_changes_ |= kReprojectionParams;
+    layer_->comp_layer_type = comp_layer_type;
+  }
+
   return kErrorNone;
 }
 
 DisplayError SDMLayer::SetLayerPose(SDMLayerPose layer_pose) {
-  layer_->layer_pose = layer_pose;
+  if (layer_->layer_pose != layer_pose) {
+    geometry_changes_ |= kReprojectionParams;
+    layer_->layer_pose = layer_pose;
+  }
+
   return kErrorNone;
 }
 
 DisplayError SDMLayer::SetLayerQuadSize(SDMLayerQuadSize layer_quad_size) {
-  layer_->layer_quad_size = layer_quad_size;
+  if (layer_->layer_quad_size != layer_quad_size) {
+    geometry_changes_ |= kReprojectionParams;
+    layer_->layer_quad_size = layer_quad_size;
+  }
+
   return kErrorNone;
 }
 
 DisplayError SDMLayer::SetLayerFrustum(SDMLayerFrustum layer_frustum) {
-  layer_->layer_frustum = layer_frustum;
+  if (layer_->layer_frustum != layer_frustum) {
+    geometry_changes_ |= kReprojectionParams;
+    layer_->layer_frustum = layer_frustum;
+  }
+
   return kErrorNone;
 }
 
 DisplayError SDMLayer::SetLayerPlaneEquation(SDMLayerPlaneEquation plane_equation) {
-  layer_->plane_equation = plane_equation;
+  if (layer_->plane_equation != plane_equation) {
+    geometry_changes_ |= kReprojectionParams;
+    layer_->plane_equation = plane_equation;
+  }
+
   return kErrorNone;
 }
 
 DisplayError SDMLayer::SetLayerVisibilityType(SDMLayerVisibilityType layer_visibility_type) {
-  layer_->layer_visibility_type = layer_visibility_type;
+  if (layer_->layer_visibility_type != layer_visibility_type) {
+    geometry_changes_ |= kReprojectionParams;
+    layer_->layer_visibility_type = layer_visibility_type;
+  }
+
   return kErrorNone;
 }
 

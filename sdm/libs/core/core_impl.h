@@ -123,7 +123,6 @@ class CoreImpl : public CoreInterface {
  protected:
   void InitializeSDMUtils();
   void ReleaseDemuraResources();
-  void OverRideDemuraPanelIds(std::vector<uint64_t> *panel_ids);
   DisplayError CreateNullDisplayLocked(DisplayInterface **intf);
   DisplayError HandleNullDisplay();
   DisplayError ReserveDemuraResources(std::map<uint32_t, uint8_t> required_demura_fetch_cnt);

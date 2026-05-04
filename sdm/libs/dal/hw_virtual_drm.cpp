@@ -81,6 +81,15 @@ DisplayError HWVirtualDRM::Init() {
     return kErrorUndefined;
   }
   for (auto it : conns_info) {
+    if (it.first == display_id_) {
+      if (it.second.is_wb_repro) {
+        virtual_disp_type_ = VirtualDisplayType::REPRO;
+      } else if (it.second.is_wb_csc) {
+        virtual_disp_type_ = VirtualDisplayType::CSC;
+      } else if (it.second.has_cac_loopback) {
+        virtual_disp_type_ = VirtualDisplayType::LOOPBACK;
+      }
+    }
     if (!it.second.is_primary) {
       continue;
     }
@@ -453,6 +462,12 @@ DisplayError HWVirtualDRM::PowerOn(const HWQosData &qos_data, SyncPoints *sync_p
   // commit(null or atomic commit). Need to defer power on for the first cycle.
   if (first_cycle_) {
     return kErrorNone;
+  }
+
+  if ((virtual_disp_type_ == VirtualDisplayType::REPRO) ||
+      (virtual_disp_type_ == VirtualDisplayType::CSC)) {
+    pending_power_state_ = kPowerStateOn;
+    return kErrorDeferred;
   }
 
   DisplayError err = HWDeviceDRM::PowerOn(qos_data, sync_points);

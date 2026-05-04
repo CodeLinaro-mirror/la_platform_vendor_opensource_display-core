@@ -391,6 +391,10 @@ DisplayError SDMDisplayBuiltIn::SetPowerMode(SDMPowerMode mode, bool teardown) {
                                                      : "DOZE_SUSPEND",
            sdm_id_, type_);
 
+  if (enable_perf_hints_) {
+    InitializePerfHints();
+  }
+
   HandlePowerModeHint(mode);
   if (mode == SDMPowerMode::POWER_MODE_ON && abc_defer_reconfig_) {
     DisplayError error = display_intf_->SetABCReconfig();
@@ -1969,22 +1973,25 @@ DisplayError SDMDisplayBuiltIn::GetCoprStats(std::vector<int> *stats) {
   return display_intf_->GetCoprStats(stats);
 }
 
+DisplayError SDMDisplayBuiltIn::SetStcFeatureConfig(void *data) {
+  return display_intf_->SetStcFeatureConfig(data);
+}
+
 void SDMDisplayBuiltIn::InitializePerfHints() {
   // First, detect that boot has reached complete stage
-  if (!boot_completed_time_) {
+  if (!boot_done_) {
     int value = 0;
     SDMDebugHandler::Get()->GetProperty("vendor.post_boot.parsed", &value);
-    bool boot_done = (value == 1);
-    boot_completed_time_ = boot_done ? callbacks_->SystemTime(SYSTEM_TIME_MONOTONIC) : 0;
-    return;
+    boot_done_ = (value == 1);
+
+    if (!boot_done_) {
+      return;
+    }
   }
 
-  // Allow perf hal to initialize and boot up for 100ms after boot completed. At time T+100ms,
   // check if perf hints will be enabled/disabled.
   if (enable_perf_hints_ && !cpu_hint_) {
-    nsecs_t current_time = callbacks_->SystemTime(SYSTEM_TIME_MONOTONIC);
-    if ((nanoseconds_to_milliseconds(current_time - boot_completed_time_) /
-         perf_hint_current_retries_) > elapse_time_threshold_) {
+    if (perf_hint_current_retries_ <= kPerfHintMaxRetries) {
       int value = 0;
       SDMDebugHandler::Get()->GetProperty("vendor.mpctl.init.complete", &value);
 
@@ -1998,16 +2005,15 @@ void SDMDisplayBuiltIn::InitializePerfHints() {
           enable_perf_hints_ = false;
           return;
         }
-
-        // Reset to indicate perf hints initialization is done
+        //Reset to indicate perf hints initialization is done
         enable_perf_hints_ = false;
         DLOGI("Perf hints enabled");
         return;
       }
-      if (perf_hint_current_retries_ > kPerfHintMaxRetries) {
-        // Reset to indicate perf hints initialization is done
+      if (perf_hint_current_retries_ >= kPerfHintMaxRetries) {
         enable_perf_hints_ = false;
-        DLOGI("Perf hints disabled");
+        DLOGI("Max retries reached. Perf hints disabled");
+        return;
       }
       perf_hint_current_retries_++;
     }

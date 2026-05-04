@@ -59,7 +59,7 @@
 #define UI_FBID_LIMIT 4
 #define VIDEO_FBID_LIMIT 32
 #define OFFLINE_ROTATOR_FBID_LIMIT 2
-#define REPROJECTION_FBID_LIMIT 13
+#define REPROJECTION_FBID_LIMIT 12
 
 using drm_utils::DRMBuffer;
 using sde_drm::DRMPowerMode;

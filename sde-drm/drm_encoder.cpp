@@ -28,10 +28,10 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ *
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
 #include <stdint.h>
@@ -115,9 +115,9 @@ void DRMEncoderManager::InsertSecondaryDSI() {
     uint32_t enc_id = first_dsi_id + 1;
     unique_ptr<DRMEncoder> sec_dsi_enc(new DRMEncoder(fd_, enc_id, DRM_MODE_ENCODER_DSI));
     encoder_pool_[enc_id] = std::move(sec_dsi_enc);
-    DRM_LOGI("Userspace has inserted secondary panel DSI encoder!");
+    DRM_LOGV("Userspace has inserted secondary panel DSI encoder!");
   } else {
-    DRM_LOGI("Userspace did not need to insert secondary panel DSI encoder, it is present.");
+    DRM_LOGV("Userspace did not need to insert secondary panel DSI encoder, it is present.");
   }
 }
 
@@ -287,12 +287,13 @@ int DRMEncoder::GetPossibleCrtcIndices(std::set<uint32_t> *possible_crtc_indices
 
 void DRMEncoder::Dump() {
   if (drm_encoder_) {
-    DRM_LOGI("[driver-reported] id: %u encoder_type: %u crtc id: %u possible_crtcs: %u"
-             "possible_clones: %u fd = %d",
-             drm_encoder_->encoder_id, drm_encoder_->encoder_type, drm_encoder_->crtc_id,
-             drm_encoder_->possible_crtcs, drm_encoder_->possible_clones, fd_);
+    DRM_LOGV(
+        "[driver-reported] id: %u encoder_type: %u crtc id: %u possible_crtcs: %u"
+        "possible_clones: %u fd = %d",
+        drm_encoder_->encoder_id, drm_encoder_->encoder_type, drm_encoder_->crtc_id,
+        drm_encoder_->possible_crtcs, drm_encoder_->possible_clones, fd_);
   } else {
-    DRM_LOGI("[userspace-only] id: %u encoder_type: %u fd = %d ", fake_id_, fake_type_, fd_);
+    DRM_LOGV("[userspace-only] id: %u encoder_type: %u fd = %d ", fake_id_, fake_type_, fd_);
   }
 }
 

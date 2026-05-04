@@ -440,10 +440,37 @@ Error SnapMetadataManager::PlaneLayoutsHelper(SnapMetadata *metadata, SnapHandle
       }
       *static_cast<vendor_qti_hardware_display_common_BufferLayout *>(out_get) = layout;
     } else {
-      *static_cast<vendor_qti_hardware_display_common_BufferLayout *>(out_get) =
-          metadata->buffer_layout;
-    }
+      if (metadata->isStandardMetadataSet[GET_STANDARD_METADATA_STATUS_INDEX(
+              (int64_t)vendor_qti_hardware_display_common_MetadataType::CROP)]) {
+        int width = 0, height = 0;
+        width = metadata->crop.right;
+        height = metadata->crop.bottom;
 
+        AllocData ad;
+        vendor_qti_hardware_display_common_BufferLayout layout;
+        BufferDescriptor desc = {.format = handle->format(),
+                                 .usage = handle->usage(),
+                                 .width = width,
+                                 .height = height,
+                                 .layerCount =
+                                     static_cast<int32_t>(handle->layer_count()),
+                                 .reservedSize = static_cast<long>(handle->reserved_size())};
+        BufferDescriptor out_desc;
+        int out_priv_flags = 0;
+        auto err = constraint_mgr_->GetAllocationData(desc, &ad, &layout,
+                                                      &out_desc, &out_priv_flags);
+        if (err != Error::NONE) {
+          DLOGE("Invalid allocation - unable to create plane layout");
+          return err;
+        }
+
+        *static_cast<vendor_qti_hardware_display_common_BufferLayout *>(out_get) =
+            layout;
+      } else {
+          *static_cast<vendor_qti_hardware_display_common_BufferLayout *>(out_get) =
+               metadata->buffer_layout;
+      }
+   }
     return Error::NONE;
   } else if (in_set != nullptr) {
     return Error::UNSUPPORTED;
@@ -916,6 +943,21 @@ Error SnapMetadataManager::CustomContentMetadataHelper(SnapMetadata *metadata,
       metadata->is_format_SMPTE2094_10 = false;
       memcpy(c_md_out, c_md_in, sizeof(*c_md_in));
     }
+    return Error::NONE;
+  }
+  return Error::BAD_VALUE;
+}
+
+Error SnapMetadataManager::CustomTuningMetadataHelper(SnapMetadata *metadata,
+                                                      SnapHandleInternal *handle, void *in_set,
+                                                      void *out_get, BufferDescriptor *buf_des) {
+  if (out_get != nullptr) {
+    *static_cast<vendor_qti_hardware_display_common_CustomTuningMetadata *>(out_get) =
+        metadata->custom_tuning_metadata;
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    metadata->custom_tuning_metadata =
+        *static_cast<vendor_qti_hardware_display_common_CustomTuningMetadata *>(in_set);
     return Error::NONE;
   }
   return Error::BAD_VALUE;
@@ -1719,6 +1761,9 @@ Error SnapMetadataManager::Set(SnapHandleInternal *hnd,
         break;
       case vendor_qti_hardware_display_common_MetadataType::ROI_RECT_METADATA:
         metadata->roiRectMetadata.size = 0;
+        break;
+      case vendor_qti_hardware_display_common_MetadataType::CUSTOM_TUNING_METADATA:
+        metadata->custom_tuning_metadata.size = 0;
         break;
       default:
         DLOGE("Input is null when setting metadata type %d", type);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -8,8 +8,11 @@
 
 #include "sdm_compositor_cb_intf.h"
 #include "sdm_compositor_sideband_cb_intf.h"
+#include "sdm_display_intf_lifecycle.h"
 
 #include <core/sdm_types.h>
+#include <unordered_map>
+#include <mutex>
 
 namespace sdm {
 
@@ -17,6 +20,8 @@ class SDMCompositorCallbacks {
  public:
   void RegisterCallback(SDMCompositorCbIntf *cb, bool enable);
   void RegisterSideband(SDMSideBandCompositorCbIntf *cb, bool enable);
+  void RegisterSideband(SDMSideBandCompositorCbIntf *cb, bool enable,
+                        SideBandCallbackClient intf_type);
 
   // compositor callbacks
   void OnHotplug(uint64_t display, bool connected);
@@ -25,6 +30,7 @@ class SDMCompositorCallbacks {
   void OnSeamlessPossible(uint64_t display);
   void OnVsyncIdle(uint64_t display);
   void OnVsyncPeriodTimingChanged(uint64_t display, SDMVsyncPeriodChangeTimeline &timeline);
+  void onHdcpLevelsChanged(uint64_t display, uint32_t min_enc_level);
 
   // sideband callbacks
   void NotifyQsyncChange(uint64_t display_id, bool qsync_enabled, uint32_t refresh_rate,
@@ -39,6 +45,10 @@ class SDMCompositorCallbacks {
   void NotifyIdleStatus(bool status);
 
   void NotifyCWBStatus(int32_t status, void *buffer);
+
+  // Buffer ownership tracking for CWB
+  DisplayError RegisterCWBBufferOwner(void *buffer, SDMSideBandCompositorCbIntf *owner);
+  void UnregisterCWBBufferOwner(void *buffer);
 
   void NotifyContentFps(const std::string &name, int32_t fps);
 
@@ -80,6 +90,13 @@ class SDMCompositorCallbacks {
   // non-owning reference - must always be reset to null on/before client deinit
   SDMCompositorCbIntf *callbacks_ = nullptr;
   SDMSideBandCompositorCbIntf *sideband_ = nullptr;
+  // AmbientDataCapture callback for CWB callbacks
+  SDMSideBandCompositorCbIntf *adc_callback_ = nullptr;
+  bool is_adc_active_ = false;
+
+  // Buffer ownership tracking: buffer_handle -> owning_callback
+  std::unordered_map<void *, SDMSideBandCompositorCbIntf *> cwb_buffer_owners_;
+  std::mutex cwb_buffer_lock_;
 };
 
 }  // namespace sdm

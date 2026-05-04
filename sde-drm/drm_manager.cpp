@@ -28,11 +28,10 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  *
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
  */
 
 #include <drm_logger.h>
@@ -453,7 +452,7 @@ void DRMManager::MapPlaneToConnector(std::map<uint32_t, uint32_t> *plane_to_conn
   // These are the planes that ultimately need to know their CONNECTOR
   plane_mgr_->MapPlaneToCrtc(&plane_to_crtc);
   if (!plane_to_crtc.size()) {
-    DRM_LOGI("No cont. splash planes found");
+    DRM_LOGV("No cont. splash planes found");
     return;
   }
 

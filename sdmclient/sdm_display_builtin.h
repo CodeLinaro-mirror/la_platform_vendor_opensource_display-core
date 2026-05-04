@@ -148,6 +148,7 @@ public:
  virtual DisplayError SetABCMode(string mode_name);
  virtual DisplayError SetAIScalerMode(uint32_t mode_id);
  virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data);
+ virtual DisplayError SetStcFeatureConfig(void *data);
  virtual DisplayError SetQrtcFeatureConfig(int32_t type, void *data);
  virtual DisplayError SetDpuDmaMode();
  virtual bool IsDmaModeIncompatible(LayerComposition composition);
@@ -231,11 +232,11 @@ private:
  uint32_t large_comp_hint_threshold_ = 0;
  uint32_t minimum_large_comp_fps_ = 90;
  nsecs_t hint_start_time_ = 0;
- nsecs_t boot_completed_time_ = 0;
+ bool boot_done_ = 0;
  bool enable_perf_hints_ = true;
 
  nsecs_t elapse_time_threshold_ = 100;  // Time is in milliseconds
- static const int kPerfHintMaxRetries = 5;
+ static const int kPerfHintMaxRetries = 100;
  int perf_hint_current_retries_ = 1;
 
  // Nominal VSync multiplier for Notify EPT heads-up

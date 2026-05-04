@@ -162,6 +162,7 @@ enum GeometryChanges {
   kBufferGeometry = 0x200,
   kColorTransform = 0x400,
   kLayerBrightness = 0x800,
+  kReprojectionParams = 0x1000,
   kDefault = 0xFFFF,
 };
 
