@@ -209,6 +209,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(SetIllumination(uint32_t eye, const IlluminationConfig &config))
   MAKE_NO_OP(SetRgbHistObserverConfig(bool, void *))
   MAKE_NO_OP(SetQrtcFeatureConfig(int32_t type, void *data))
+  MAKE_NO_OP(UpdateRgbHistogramRoi(const void *));
 
  protected:
   DisplayConfigVariableInfo default_variable_config_ = {};

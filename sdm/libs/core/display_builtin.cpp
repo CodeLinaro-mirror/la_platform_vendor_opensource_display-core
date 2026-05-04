@@ -3516,6 +3516,12 @@ DisplayError DisplayBuiltIn::BuildLayerStackStats(LayerStack *layer_stack) {
   stack_info.qrtc_target_index = -1;
 
   disp_layer_stack_->stack = layer_stack;
+
+  if (IsValid(rgb_hist_roi_)) {
+    layer_stack->rgb_histogram_roi = rgb_hist_roi_;
+  }
+  layer_stack->flags.rgb_histogram_updated = pending_rgb_histogram_roi_;
+
   stack_info.common_info.flags = layer_stack->flags;
   stack_info.common_info.blend_cs = layer_stack->blend_cs;
   stack_info.wide_color_primaries.clear();
@@ -3576,11 +3582,12 @@ DisplayError DisplayBuiltIn::BuildLayerStackStats(LayerStack *layer_stack) {
       kTagDisplay,
       "LayerStack layer_count: %zu, app_layer_count: %d "
       "gpu_target_index: %d, stitch_index: %d demura_index: %d cwb_target_index: %d qrtc_index: %d "
-      "game_present: %d noise_present: %d display: %d-%d",
+      "game_present: %d noise_present: %d valid_for_pu: %d rgb_hist_updated: %d display: %d-%d",
       layers.size(), stack_info.app_layer_count, stack_info.gpu_target_index,
       stack_info.stitch_target_index, stack_info.demura_target_index, stack_info.cwb_target_index,
       stack_info.qrtc_target_index, stack_info.game_present,
-      stack_info.common_info.flags.noise_present, display_id_, display_type_);
+      stack_info.common_info.flags.noise_present, IsValid(rgb_hist_roi_),
+      layer_stack->flags.rgb_histogram_updated, display_id_, display_type_);
 
   if (!stack_info.app_layer_count) {
     DLOGW("Layer count is zero");
@@ -7036,6 +7043,63 @@ DisplayError DisplayBuiltIn::SetRgbHistObserverConfig(bool state, void *data) {
   }
 
   DLOGI("RGB histogram observer configuration updated, state=%d", state);
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::UpdateRgbHistogramRoi(const void *data) {
+  DTRACE_SCOPED();
+
+  // Check whether the vendor property is configured
+  if (!rgb_histogram_enable_) {
+    DLOGE("RGB histogram prop enable %d", rgb_histogram_enable_);
+    return kErrorNotSupported;
+  }
+
+  const auto *config = static_cast<const rgb_histogram::ObserverConfig *>(data);
+  if (!config) {
+    DLOGE("Invalid ObserverConfig is nullptr");
+    return kErrorParameters;
+  }
+
+  HWMixerAttributes mixer_attributes = client_ctx_.mixer_attributes;
+  LayerRect full_frame = {0, 0, FLOAT(mixer_attributes.width), FLOAT(mixer_attributes.height)};
+  pending_rgb_histogram_roi_ = true;
+
+  // When disabled, config is zero-initialized so roi will be {0,0,0,0}
+  LayerRect roi = {};
+  roi.left = FLOAT(config->x);
+  roi.top = FLOAT(config->y);
+  roi.right = FLOAT(config->x + config->width);
+  roi.bottom = FLOAT(config->y + config->height);
+
+  if (IsZeroRoi(roi)) {
+    DLOGV_IF(kTagDisplay, "RGB histogram roi [%.2f %.2f %.2f %.2f] is reset", roi.left, roi.top,
+             roi.right, roi.bottom);
+    rgb_hist_roi_ = {};
+    return kErrorNone;
+  }
+
+  if (!IsValid(roi)) {
+    DLOGE("RGB histogram roi [%.2f %.2f %.2f %.2f] is invalid", roi.left, roi.top, roi.right,
+          roi.bottom);
+    rgb_hist_roi_ = {};
+    return kErrorParameters;
+  }
+
+  if (!Contains(full_frame, roi)) {
+    DLOGE("RGB histogram roi [%.2f %.2f %.2f %.2f] is outside full_frame [%.2f %.2f %.2f %.2f]",
+          roi.left, roi.top, roi.right, roi.bottom, full_frame.left, full_frame.top,
+          full_frame.right, full_frame.bottom);
+    rgb_hist_roi_ = {};
+    return kErrorParameters;
+  }
+
+  rgb_hist_roi_ = roi;
+
+  DLOGV_IF(kTagDisplay, "RGB histogram roi [%d %d %d %d], rect [%.2f %.2f %.2f %.2f]", config->x,
+           config->y, config->width, config->height, rgb_hist_roi_.left, rgb_hist_roi_.top,
+           rgb_hist_roi_.right, rgb_hist_roi_.bottom);
+
   return kErrorNone;
 }
 

@@ -1774,6 +1774,13 @@ class DisplayInterface {
   */
   virtual DisplayError SetQrtcFeatureConfig(int32_t type, void *data) = 0;
 
+  /*! @brief Method to set and cache the rgb histogram roi
+   @param[in] data : RGB Histogram data (ObserverConfig)
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError UpdateRgbHistogramRoi(const void *data) = 0;
+
  protected:
   virtual ~DisplayInterface() { }
 };

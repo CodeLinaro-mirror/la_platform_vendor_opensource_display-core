@@ -350,6 +350,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
     return kErrorNotSupported;
   }
   virtual bool IsLSRSupported();
+  virtual DisplayError UpdateRgbHistogramRoi(const void *data) { return kErrorNotSupported; }
 
  protected:
   struct DisplayMutex {
@@ -580,6 +581,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool is_lsr_ssr_active_ = false;
   bool lsr_first_commit_ = true;
   RefreshRateManager *refresh_rate_mgr_ = nullptr;
+  bool pending_rgb_histogram_roi_ = false;
 
  private:
   // Max tolerable power-state-change wait-times in milliseconds.
