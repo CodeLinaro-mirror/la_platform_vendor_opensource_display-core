@@ -1041,7 +1041,13 @@ DisplayError DisplayBuiltIn::SetupDemura(int current_idx) {
   auto frl = frlv[0];
   for (auto &fr : frl) {
     int i = std::get<1>(fr);  // fetch resource index
+    int rect = std::get<2>(fr);  // fetch rect index
     input_cfg.resources.set(i);
+    if (rect == 0) {
+      input_cfg.resources.set(8);
+    } else if (rect == 1) {
+      input_cfg.resources.set(9);
+    }
   }
 
 #ifdef TRUSTED_VM
