@@ -7017,10 +7017,13 @@ DisplayError DisplayBuiltIn::SetRgbHistObserverConfig(bool state, void *data) {
     return kErrorUndefined;
   }
 
+  // Set display dimensions on ObserverConfig
+  auto *obs_config = reinterpret_cast<rgb_histogram::ObserverConfig *>(data);
+  obs_config->disp_width = client_ctx_.display_attributes.x_pixels;
+  obs_config->disp_height = client_ctx_.display_attributes.y_pixels;
+
   // Fill in observer configuration
   wrapper->enable = state;
-  wrapper->disp_width = client_ctx_.display_attributes.x_pixels;
-  wrapper->disp_height = client_ctx_.display_attributes.y_pixels;
   wrapper->payload = reinterpret_cast<rgb_histogram::ObserverConfig *>(data);
   wrapper->observer = static_cast<rgb_histogram::NotifyInterface<HistData> *>(this);
   wrapper->observer_id = kRgbHistogramClient_;

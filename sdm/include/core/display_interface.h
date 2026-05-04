@@ -406,8 +406,6 @@ struct PanelFeatureInfo {
 */
 struct RgbHistConfigWrapper {
   bool enable = false;
-  uint32_t disp_width = 0;
-  uint32_t disp_height = 0;
   void *payload = nullptr;
   void *observer = nullptr;
   std::string observer_id;
