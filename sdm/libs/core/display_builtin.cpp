@@ -6805,12 +6805,40 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
     return kErrorUndefined;
   }
 
+  int32_t qrtc_pipe_idx = -1;
+  int32_t is_virtual = 0;
+  qrtc::QrtcFetchPipes fetch_pipe = qrtc::QRTC_FETCH_MAX;
+  qrtc::QrtcMultiRect rect_fetch_pipe = qrtc::QRTC_MULTI_RECT_0;
+
+  std::vector<FetchResourceList> frlv;
+  frlv.resize(core_count_);
+  comp_manager_->GetQrtcFetchResources(display_comp_ctx_, &frlv);
+  // handled for DPU 0
+  auto frl = frlv[0];
+  for (auto &fr : frl) {
+    qrtc_pipe_idx = std::get<1>(fr);  // fetch resource index
+    is_virtual = std::get<2>(fr);
+  }
+
+  // default on rect0, rect selection support in rect mode
+  if (frl.size() == 1 && is_virtual == 1) {
+    rect_fetch_pipe = qrtc::QRTC_MULTI_RECT_1;
+  }
+
+  if (qrtc_pipe_idx == 3) {
+    fetch_pipe = qrtc::QRTC_FETCH_DMA3;
+  } else if (qrtc_pipe_idx == 1) {
+    fetch_pipe = qrtc::QRTC_FETCH_DMA1;
+  } else {
+    DLOGE("Invalid qrtc pipe index on Display %d-%d", display_id_, display_type_);
+    return kErrorNotSupported;
+  }
+
   qrtc_ = std::move(qrtc_intf);
 
   // default setting
-  qrtc_config_.fetch_pipe = qrtc::QRTC_FETCH_DMA3;
-  /* TODO: currently only rect0 is verified, switch to RECT1 later */
-  qrtc_config_.rect_fetch_pipe = qrtc::QRTC_MULTI_RECT_0;
+  qrtc_config_.fetch_pipe = fetch_pipe;
+  qrtc_config_.rect_fetch_pipe = rect_fetch_pipe;
   qrtc_config_.cwb_blk = qrtc::QRTC_CWB_BLK0;
   /* TODO: query the wb_id from SDM API and replace hard code value */
   qrtc_config_.wb_blk = static_cast<qrtc::QrtcWbBlk>(5);

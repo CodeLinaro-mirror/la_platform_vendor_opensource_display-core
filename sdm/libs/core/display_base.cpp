@@ -627,7 +627,8 @@ DisplayError DisplayBase::SetupPanelFeatureFactory() {
     }
   }
 
-  int enable_qrtc = 1;
+  int enable_qrtc = 0;
+  Debug::Get()->GetProperty(ENABLE_QRTC, &enable_qrtc);
   GetQrtcFactory get_qrtc_factory_ptr = nullptr;
   if (enable_qrtc) {
     if (qrtc_feature_impl_lib_.Open(QRTC_LIBRARY_NAME)) {

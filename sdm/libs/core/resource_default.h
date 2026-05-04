@@ -103,6 +103,9 @@ class ResourceDefault : public ResourceInterface {
   virtual DisplayError GetDemuraFetchResources(Handle display_ctx, vector<FetchResourceList> *frl) {
     return kErrorNone;
   }
+  virtual DisplayError GetQrtcFetchResources(Handle display_ctx, vector<FetchResourceList> *frl) {
+    return kErrorNone;
+  }
   virtual DisplayError SetMaxSDEClk(Handle display_ctx, uint32_t clk) { return kErrorNotSupported; }
   virtual DisplayError ForceToneMapConfigure(Handle display_ctx, DispLayerStack *disp_layer_stack) {
     return kErrorNotSupported;
