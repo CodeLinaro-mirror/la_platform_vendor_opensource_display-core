@@ -8,6 +8,7 @@
 #include <core/core_interface.h>
 
 #include <map>
+#include <mutex>
 #include <vector>
 
 #include "sdm_display.h"
@@ -79,6 +80,9 @@ class SDMDisplayBuilder {
   void DestroyNonPluggableDisplayLocked(DisplayMapInfo *map_info);
   std::vector<DisplayMapInfo> &GetDisplayMapInfo(int display_id);
   std::map<Display, DisplayMapInfo *> &GetActiveDisplays();
+  void InsertActiveDisplay(Display client_id, DisplayMapInfo *info);
+  void EraseActiveDisplay(Display client_id);
+  size_t GetActiveDisplayCount();
   int GetDisplayIndex(int dpy);
   Display GetActiveBuiltinDisplay();
 
@@ -121,6 +125,7 @@ class SDMDisplayBuilder {
   SDMDisplayEventHandler *evt_handler_ = nullptr;
 
   std::map<Display, DisplayMapInfo *> map_active_displays_;
+  std::mutex active_displays_lock_;
   vector<HWDisplayInfo> virtual_display_list_{};
 
   float set_max_lum_ = -1.0;
