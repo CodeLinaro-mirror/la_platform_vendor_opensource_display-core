@@ -592,6 +592,10 @@ DisplayError SDMDisplay::Init() {
     DLOGI("HDR Handling disabled");
   }
 
+  int composer_driven_hdcp;
+  SDMDebugHandler::Get()->GetProperty(COMPOSER_DRIVEN_HDCP, &composer_driven_hdcp);
+  composer_driven_hdcp_ = (composer_driven_hdcp == 1);
+
   int property_swap_interval = 1;
   SDMDebugHandler::Get()->GetProperty(ZERO_SWAP_INTERVAL,
                                       &property_swap_interval);
@@ -2669,7 +2673,17 @@ DisplayError
 SDMDisplay::OnMinHdcpEncryptionLevelChange(uint32_t min_enc_level) {
   DisplayError error =
       display_intf_->OnMinHdcpEncryptionLevelChange(min_enc_level);
-  if (error != kErrorNone) {
+
+  // only send this callback if HDCP is driven by composer
+  if (composer_driven_hdcp_) {
+    if (error == kErrorNone) {
+      callbacks_->onHdcpLevelsChanged(id_, min_enc_level);
+    } else {
+      callbacks_->onHdcpLevelsChanged(id_, -1);
+    }
+  }
+
+  if (error) {
     DLOGE("Failed. Error = %d", error);
   }
 

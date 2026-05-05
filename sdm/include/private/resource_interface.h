@@ -108,6 +108,8 @@ class ResourceInterface {
                                                std::vector<FetchResourceList> *frl) = 0;
   virtual DisplayError ReserveABCFetchResources(const uint32_t &display_id, bool is_primary,
                                                 const int8_t &req_cnt) = 0;
+  virtual DisplayError GetQrtcFetchResources(Handle display_ctx,
+                                             std::vector<FetchResourceList> *frl) = 0;
   virtual ~ResourceInterface() {}
   virtual DisplayError SetMaxSDEClk(Handle display_ctx, uint32_t clk) = 0;
   virtual DisplayError ForceToneMapConfigure(Handle display_ctx,

@@ -17,6 +17,7 @@
 #include <map>
 #include <vector>
 #include <atomic>
+#include <cstdint>
 
 namespace snapalloc {
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -114,6 +114,15 @@ void SDMCompositorCallbacks::OnVsyncPeriodTimingChanged(uint64_t display,
   }
 
   callbacks_->OnVsyncPeriodTimingChanged(display, timeline);
+}
+
+void SDMCompositorCallbacks::onHdcpLevelsChanged(uint64_t display, uint32_t min_enc_level) {
+  if (!callbacks_) {
+    DLOGW("Callbacks interface is not initialized!");
+    return;
+  }
+
+  callbacks_->onHdcpLevelsChanged(display, min_enc_level);
 }
 
 // sideband callbacks
