@@ -3725,6 +3725,7 @@ void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
   }
 
   UpdateFrameBuffer();
+  UpdateFrameBufferForCWB();
 
   if (layer_stack->elapse_timestamp) {
     disp_layer_stack_->stack_info.common_info.elapse_timestamp = layer_stack->elapse_timestamp;
@@ -3742,16 +3743,7 @@ void DisplayBase::UpdateFrameBuffer() {
     return;
   }
 
-  bool client_target_present = false;
-  for (auto& info : disp_layer_stack_->info) {
-    for (auto &hw_layer : info.second.hw_layers) {
-      if (hw_layer.composition == kCompositionGPUTarget) {
-        client_target_present = true;
-        break;
-      }
-    }
-  }
-  bool need_cached_fb = !gpu_comp_frame_ && client_target_present;
+  bool need_cached_fb = !gpu_comp_frame_ && IsFrameBufferPresent();
   if (!need_cached_fb) {
     return;
   }
@@ -3769,6 +3761,20 @@ void DisplayBase::UpdateFrameBuffer() {
       }
     }
   }
+}
+
+bool DisplayBase::IsFrameBufferPresent() {
+  bool client_target_present = false;
+  for (auto &info : disp_layer_stack_->info) {
+    for (auto &hw_layer : info.second.hw_layers) {
+      if (hw_layer.composition == kCompositionGPUTarget) {
+        client_target_present = true;
+        break;
+      }
+    }
+  }
+
+  return client_target_present;
 }
 
 void DisplayBase::PostCommitLayerParams() {

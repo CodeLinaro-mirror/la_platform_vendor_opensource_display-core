@@ -228,7 +228,9 @@ private:
  uint32_t minimum_large_comp_fps_ = 90;
  nsecs_t hint_start_time_ = 0;
  nsecs_t elapse_time_threshold_ = 100;  // Time is in milliseconds
- nsecs_t boot_completed_time_ = 0;
+ bool boot_done_ = 0;
+ static const int kPerfHintMaxRetries = 100;
+ int perf_hint_current_retries_ = 1;
  bool enable_perf_hints_ = true;
 
  // Nominal VSync multiplier for Notify EPT heads-up
