@@ -138,6 +138,8 @@ class ResourceInterface {
       Handle display_ctx, const SDMDisplayDeviceConfig &display_device_config) = 0;
   virtual DisplayError SetPoseConfig(Handle display_ctx, const LayerBuffer &buffer) = 0;
   virtual DisplayError CanTakeDPUScreenshot(uint32_t display_id) = 0;
+  virtual DisplayError ConfigureDynamicCaCConfig(Handle display_ctx,
+                                                 DispLayerStack *disp_layer_stack) = 0;
 };
 
 }  // namespace sdm

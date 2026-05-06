@@ -304,8 +304,8 @@ DisplayError ConcurrencyMgr::InitSubModules(DebugCallbackIntf *debug) {
   DLOGI("core_id_mask: %d", core_id_mask);
   std::bitset<8> core_ids(core_id_mask);
 
-  DisplayError error = CoreInterface::CreateCore(
-      buffer_allocator_, nullptr, socket_handler_, ipc_intf_, &core_intf_);
+  DisplayError error = CoreInterface::CreateCore(buffer_allocator_, nullptr, socket_handler_,
+                                                 ipc_intf_, &core_intf_, core_ids);
 
   if (error != kErrorNone) {
     DLOGE("Failed to create CoreInterface");

@@ -1302,4 +1302,19 @@ DisplayError CompManager::GetQrtcFetchResources(Handle display_ctx,
   return resource_intf_->GetQrtcFetchResources(display_comp_ctx->display_resource_ctx, frl);
 }
 
+DisplayError CompManager::ConfigureDynamicCacConfig(Handle display_ctx,
+                                                    DispLayerStack *disp_layer_stack) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+  DTRACE_SCOPED();
+
+  DisplayError error = kErrorNone;
+  if (resource_intf_) {
+    DisplayCompositionContext *display_comp_ctx =
+        reinterpret_cast<DisplayCompositionContext *>(display_ctx);
+    error = resource_intf_->ConfigureDynamicCaCConfig(display_comp_ctx->display_resource_ctx,
+                                                      disp_layer_stack);
+  }
+  return error;
+}
+
 }  // namespace sdm

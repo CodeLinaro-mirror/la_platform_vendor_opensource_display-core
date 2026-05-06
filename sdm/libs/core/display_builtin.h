@@ -274,6 +274,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetDemuraState(int state, int demura_idx) override;
   DisplayError SetDemuraConfig(int demura_idx) override;
   DisplayError PerformCacConfig(CacConfig config, bool enable) override;
+  DisplayError SetDynamicCacConfig(DynamicCacV2Config config, bool enable) override;
   bool IsCacV2Supported() override;
   DisplayError
   PanelOprInfo(const std::string &client_name, bool enable,
@@ -514,7 +515,9 @@ class DisplayBuiltIn : public DisplayBase,
   bool lower_fps_ = false;
   bool cwb_buffer_initialized_ = false;
   bool enable_cac_ = false;
+  bool enable_dynamic_cac_ = false;
   CacConfig cac_config_ = {};
+  DynamicCacV2Config cac_config_dynamic_v2_ = {};
   BufferInfo output_buffer_info_ = {};
   EventProxyInfo event_proxy_info_ = {};
   bool enable_brightness_drm_prop_ = false;

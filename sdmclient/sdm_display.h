@@ -505,6 +505,9 @@ public:
   virtual DisplayError PerformCacConfig(CacConfig config, bool enable) {
     return kErrorNotSupported;
   }
+  virtual DisplayError PerformDynamicCac(DynamicCacV2Config config, bool enable) {
+    return kErrorNotSupported;
+  }
   virtual DisplayError IsCacV2Supported(bool *supported) {
     *supported = false;
     return kErrorNotSupported;
