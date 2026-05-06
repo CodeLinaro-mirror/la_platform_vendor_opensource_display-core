@@ -76,6 +76,8 @@ class DRMMaster {
    *   fd: Pointer to store master fd into
    */
   void GetHandle(int *fd) { *fd = dev_fd_; }
+  /* Overrides master DRM fd with an externally provided one. */
+  void SetHandle(int fd) { dev_fd_ = fd; }
   void CreateEventHandle(int *fd);
   /* Returns true if the ref counted version of rmfb is being used */
   bool IsRmFbRefCounted();
