@@ -131,6 +131,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   DisplayError ReadFromNode(const std::string node_name, int32_t *fd, uint32_t *data);
   void InitCalibrationNodes();
   DisplayError OpenNode(std::string node_name, int32_t *fd);
+  void PrintBrightnessPolicy();
 
   struct DestScalarCache {
     SDEScaler scalar_data = {};
