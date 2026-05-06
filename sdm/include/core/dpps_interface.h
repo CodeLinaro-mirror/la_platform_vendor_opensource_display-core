@@ -72,12 +72,22 @@ struct DppsNotifyPayload {
   bool is_primary;
   void *payload;
   uint32_t payload_size;
+  /*
+   * display_id >= 0 identifies the specific display (supports external_2..8).
+   * -1 means "use is_primary for backward compatibility".
+   */
+  int32_t display_id = -1;
 };
 
 struct DppsBlendSpaceInfo {
   QtiColorPrimaries primaries = QtiColorPrimaries_BT709_5;
   QtiGammaTransfer transfer = QtiTransfer_sRGB;
   bool is_primary;
+  /*
+   * display_id >= 0 identifies the specific display (supports external_2..8).
+   * -1 means "use is_primary for backward compatibility".
+   */
+  int32_t display_id = -1;
 };
 
 struct DppsDisplayInfo {

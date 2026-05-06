@@ -170,6 +170,7 @@ DisplayError DisplayPluggable::Init() {
     if (error != kErrorNone) {
       DLOGW("Failed to initialize event proxy info");
       event_proxy_info_.Deinit();
+      error = kErrorNone;
     }
   }
 
@@ -178,7 +179,7 @@ DisplayError DisplayPluggable::Init() {
     int rc_prop_value = 0;
     Debug::GetProperty(ENABLE_ROUNDED_CORNER, &rc_prop_value);
 
-    if (rc_prop_value && EnableRC() && client_ctx_.hw_panel_info.is_rc_supported) {
+    if (rc_prop_value && client_ctx_.hw_panel_info.is_rc_supported && EnableRC()) {
       rc_enable_prop_ = true;
     }
   }
@@ -2216,5 +2217,120 @@ DisplayError DisplayPluggable::SetActiveConfig(uint32_t index) {
   return error;
 }
 
+DisplayError DisplayPluggable::DppsProcessOps(enum DppsOps op, void *payload, size_t size) {
+  DisplayError error = kErrorNone;
+  uint32_t pending;
+  bool enable = false;
+  DppsDisplayInfo *info;
+
+  switch (op) {
+    case kDppsSetFeature:
+      if (!payload) {
+        DLOGE("Invalid payload parameter for op %d", op);
+        error = kErrorParameters;
+        break;
+      }
+      {
+        ClientLock lock(disp_mutex_);
+        error = SetDppsFeatureLocked(payload, size);
+      }
+      break;
+    case kDppsGetFeatureInfo:
+      if (!payload) {
+        DLOGE("Invalid payload parameter for op %d", op);
+        error = kErrorParameters;
+        break;
+      }
+      error = dpu_core_mux_->GetDppsFeatureInfo(payload, size);
+      break;
+    case kDppsScreenRefresh:
+      HandleSelfRefresh();
+      break;
+    case kDppsPartialUpdate: {
+      int ret;
+      if (!payload) {
+        DLOGE("Invalid payload parameter for op %d", op);
+        error = kErrorParameters;
+        break;
+      }
+      enable = *(reinterpret_cast<bool *>(payload));
+      dpps_info_.disable_pu_ = !enable;
+      ControlPartialUpdate(enable, &pending);
+      event_handler_->Refresh();
+      {
+        ClientLock lock(disp_mutex_);
+        validated_ = false;
+        dpps_pu_nofiy_pending_ = true;
+      }
+      ret = dpps_pu_lock_.WaitFinite(kPuTimeOutMs);
+      if (ret) {
+        DLOGW("failed to %s partial update ret %d", ((enable) ? "enable" : "disable"), ret);
+        error = kErrorTimeOut;
+      }
+      break;
+    }
+    case kDppsRequestCommit:
+      if (!payload) {
+        DLOGE("Invalid payload parameter for op %d", op);
+        error = kErrorParameters;
+        break;
+      }
+      {
+        ClientLock lock(disp_mutex_);
+        commit_event_enabled_ = *(reinterpret_cast<bool *>(payload));
+      }
+      break;
+    case kDppsGetDisplayInfo:
+      if (!payload) {
+        DLOGE("Invalid payload parameter for op %d", op);
+        error = kErrorParameters;
+        break;
+      }
+      info = reinterpret_cast<DppsDisplayInfo *>(payload);
+      info->width = client_ctx_.display_attributes.x_pixels;
+      info->height = client_ctx_.display_attributes.y_pixels;
+      info->is_primary = IsPrimaryDisplayLocked();
+      info->display_id = display_id_;
+      info->display_type = display_type_;
+      info->fps = enable_dpps_dyn_fps_ ? client_ctx_.display_attributes.fps : 0;
+
+      error = dpu_core_mux_->GetPanelBrightnessBasePath(&(info->brightness_base_path));
+      if (error != kErrorNone) {
+        DLOGE("Failed to get brightness base path, error %d", error);
+      }
+      break;
+    case kDppsSetPccConfig:
+      error = color_mgr_->ColorMgrSetLtmPccConfig(payload, size);
+      if (error != kErrorNone) {
+        DLOGE("Failed to set PCC config to ColorManagerProxy, error %d", error);
+      } else {
+        ClientLock lock(disp_mutex_);
+        validated_ = false;
+        DisablePartialUpdateOneFrameInternal();
+      }
+      break;
+    default:
+      DLOGE("Invalid input op %d", op);
+      error = kErrorParameters;
+      break;
+  }
+  return error;
+}
+
+DisplayError DisplayPluggable::PostCommit() {
+  DisplayBase::PostCommit();
+
+  if (commit_event_enabled_) {
+    dpps_info_.DppsNotifyOps(kDppsCommitEvent, &display_type_, sizeof(display_type_));
+  }
+
+  dpps_info_.Init(this, client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
+
+  return kErrorNone;
+}
+
+DisplayError DisplayPluggable::SetDppsFeatureLocked(void *payload, size_t size) {
+  return dpu_core_mux_->SetDppsFeature(payload, size);
+}
 
 }  // namespace sdm
