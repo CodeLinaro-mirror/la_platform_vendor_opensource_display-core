@@ -35,6 +35,7 @@ ifeq ($(TARGET_BOARD_PLATFORM),malabar)
 	PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_ft8726_lcd_video_mode_dsi_focaltech_panel_with_DSC_malabar.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_ft8726_lcd_video_mode_dsi_focaltech_panel_with_DSC.json
 else
 	PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_ft8726_lcd_video_mode_dsi_focaltech_panel_with_DSC.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_ft8726_lcd_video_mode_dsi_focaltech_panel_with_DSC.json
+	PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_ft8726_fhd_plus_120Hz_Video_panel.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_ft8726_fhd_plus_120Hz_Video_panel.json
 endif
 
 #QDCM calibration json file for nt37802 video PSR amoled VHM panels
@@ -68,6 +69,7 @@ PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/display_id_4630
 #SDR Dimming config file for vtdr6130, display id is 4630947039571902851
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/display_id_4630946916234099603.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_4630947039571902851.xml
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/display_id_4630946916234099603.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_4630947039571902850.xml
+PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/display_id_4630946916234099603.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_4630947039571902866.xml
 
 #SDR Dimming config file for Sharp, display id is 4630947075271898515
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/display_id_4630946916234099603.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_4630947075271898515.xml

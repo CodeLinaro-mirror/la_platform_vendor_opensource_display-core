@@ -73,11 +73,12 @@ Error SnapTestAllocator::SecureMemPerms(AllocData *ad) {
 }
 
 void SnapTestAllocator::GetHeapInfo(vendor_qti_hardware_display_common_BufferUsage usage,
-                                    bool sensor_flag, std::string *heap_name,
+                                    bool sensor_flag, bool use_uncached, std::string *heap_name,
                                     std::vector<std::string> *vm_names, unsigned int *alloc_type,
                                     unsigned int *flags, unsigned int *alloc_size) {
   (void)usage;
   (void)sensor_flag;
+  (void)use_uncached;
   (void)heap_name;
   (void)alloc_type;
   (void)vm_names;

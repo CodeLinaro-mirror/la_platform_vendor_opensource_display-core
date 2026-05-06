@@ -139,6 +139,10 @@ SDMLayer::SDMLayer(Display display_id, LayerId layer_id, BufferAllocator *buf_al
   } else {
     DLOGE("Failed to get snapalloc instance");
   }
+
+  int value = 0;
+  SDMDebugHandler::Get()->GetProperty(DISABLE_GET_SCREEN_DECORATOR_SUPPORT, &value);
+  disable_get_screen_decorator_support_ = (value == 1);
 }
 
 SDMLayer::~SDMLayer() {
@@ -388,6 +392,9 @@ DisplayError SDMLayer::SetLayerCompositionType(SDMCompositionType type) {
   case SDMCompositionType::COMP_CURSOR:
     break;
   case SDMCompositionType::COMP_DISPLAY_DECORATION:
+    if (disable_get_screen_decorator_support_) {
+      return kErrorNotSupported;
+    }
     break;
   case SDMCompositionType::COMP_INVALID:
     return kErrorParameters;
