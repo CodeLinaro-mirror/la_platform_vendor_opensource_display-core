@@ -157,34 +157,6 @@ DisplayError HWPeripheralDRM::Deinit() {
   return HWDeviceDRM::Deinit();
 }
 
-void HWPeripheralDRM::InitDestScaler() {
-  if (hw_resource_.hw_dest_scalar_info.count) {
-    // Do all destination scaler block resource allocations here.
-    dest_scaler_blocks_used_ = 1;
-    if (kQuadSplit == mixer_attributes_.split_type) {
-      dest_scaler_blocks_used_ = 4;
-    } else if (kDualSplit == mixer_attributes_.split_type) {
-      dest_scaler_blocks_used_ = 2;
-    }
-    if (hw_resource_.hw_dest_scalar_info.count >=
-        (hw_dest_scaler_blocks_used_[core_id_] + dest_scaler_blocks_used_)) {
-      // Enough destination scaler blocks available so update the static counter.
-      hw_dest_scaler_blocks_used_[core_id_] += dest_scaler_blocks_used_;
-    } else {
-      dest_scaler_blocks_used_ = 0;
-    }
-    scalar_data_.resize(dest_scaler_blocks_used_);
-    dest_scalar_cache_.resize(dest_scaler_blocks_used_);
-    // Update crtc (layer-mixer) configuration info.
-    mixer_attributes_.dest_scaler_blocks_used = dest_scaler_blocks_used_;
-  }
-
-  topology_control_ = UINT32(sde_drm::DRMTopologyControl::DSPP);
-  if (dest_scaler_blocks_used_) {
-    topology_control_ |= UINT32(sde_drm::DRMTopologyControl::DEST_SCALER);
-  }
-}
-
 #ifndef TARGET_INCLUDES_NEO
 void HWPeripheralDRM::InitAIScaler() {
   if (hw_resource_.hw_ai_scaler_count) {
@@ -579,14 +551,6 @@ DisplayError HWPeripheralDRM::Commit(HWLayersInfo *hw_layers_info) {
   return error;
 }
 
-void HWPeripheralDRM::ResetDestScalarCache() {
-  if (dest_scaler_blocks_used_ > 0) {
-    for (uint32_t j = 0; j < scalar_data_.size(); j++) {
-      dest_scalar_cache_[j] = {};
-    }
-  }
-}
-
 void HWPeripheralDRM::ResetAIScalarCache() {
 #ifndef TARGET_INCLUDES_NEO
   if (ai_scaler_blocks_used_ > 0) {
@@ -598,78 +562,12 @@ void HWPeripheralDRM::ResetAIScalarCache() {
 }
 
 void HWPeripheralDRM::SetDestScalarData(const HWLayersInfo &hw_layer_info) {
-  if (dest_scaler_blocks_used_ > 0) {
-    SetDestScalarData(hw_layer_info.dest_scale_info_map);
-  }
+  HWDeviceDRM::SetDestScalarData(hw_layer_info);
 #ifndef TARGET_INCLUDES_NEO
   if (ai_scaler_blocks_used_ > 0) {
     SetAIScalerData(hw_layer_info.ai_scale_info_map);
   }
 #endif
-}
-
-void HWPeripheralDRM::SetDestScalarData(const DestScaleInfoMap dest_scale_info_map) {
-  if (!hw_scale_ || !dest_scaler_blocks_used_) {
-    return;
-  }
-
-  for (uint32_t i = 0; i < dest_scaler_blocks_used_; i++) {
-    auto it = dest_scale_info_map.find(i);
-
-    if (it == dest_scale_info_map.end()) {
-      continue;
-    }
-
-    HWDestScaleInfo *dest_scale_info = it->second;
-    SDEScaler *scale = &scalar_data_[i];
-    hw_scale_->SetScaler(dest_scale_info->scale_data, scale);
-
-    sde_drm_dest_scaler_cfg *dest_scalar_data = &sde_dest_scalar_data_.ds_cfg[i];
-    dest_scalar_data->flags = 0;
-    if (scale->scaler_v2.enable) {
-      dest_scalar_data->flags |= SDE_DRM_DESTSCALER_ENABLE;
-    }
-    if (scale->scaler_v2.de.enable) {
-      dest_scalar_data->flags |= SDE_DRM_DESTSCALER_ENHANCER_UPDATE;
-    }
-    if (dest_scale_info->scale_update) {
-      dest_scalar_data->flags |= SDE_DRM_DESTSCALER_SCALE_UPDATE;
-    }
-    if (hw_panel_info_.partial_update) {
-      dest_scalar_data->flags |= SDE_DRM_DESTSCALER_PU_ENABLE;
-    }
-    dest_scalar_data->index = i;
-    dest_scalar_data->lm_width = dest_scale_info->mixer_width;
-    dest_scalar_data->lm_height = dest_scale_info->mixer_height;
-    dest_scalar_data->scaler_cfg = reinterpret_cast<uint64_t>(&scale->scaler_v2);
-#ifndef TARGET_INCLUDES_NEO
-    switch (dest_scale_info->mixer_merge_mode) {
-      case kDestScalerSinglePipe:
-        dest_scalar_data->merge_mode = DEST_SCALER_SINGLE_PIPE;
-        break;
-      case kDestScalerDualPipe:
-        dest_scalar_data->merge_mode = DEST_SCALER_DUAL_PIPE;
-        break;
-      case kDestScalerQuadPipe:
-        dest_scalar_data->merge_mode = DEST_SCALER_QUAD_PIPE;
-        break;
-      default:
-        DLOGI("Invalid destination scaler merge mode");
-        break;
-    }
-#endif
-
-    if (std::memcmp(&dest_scalar_cache_[i].scalar_data, scale, sizeof(SDEScaler)) ||
-        dest_scalar_cache_[i].flags != dest_scalar_data->flags) {
-      needs_ds_update_ = true;
-    }
-  }
-
-  if (needs_ds_update_) {
-    sde_dest_scalar_data_.num_dest_scaler = UINT32(dest_scale_info_map.size());
-    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_DEST_SCALER_CONFIG, token_.crtc_id,
-                              reinterpret_cast<uint64_t>(&sde_dest_scalar_data_));
-  }
 }
 
 #ifndef TARGET_INCLUDES_NEO
@@ -733,14 +631,7 @@ void HWPeripheralDRM::SetAIScalerData(const AIScalerInfoMap ai_scale_info_map) {
 #endif
 
 void HWPeripheralDRM::CacheDestScalarData() {
-  if ((dest_scaler_blocks_used_ > 0) && needs_ds_update_) {
-    // Cache the destination scalar data during commit
-    for (uint32_t i = 0; i < sde_dest_scalar_data_.num_dest_scaler; i++) {
-      dest_scalar_cache_[i].flags = sde_dest_scalar_data_.ds_cfg[i].flags;
-      dest_scalar_cache_[i].scalar_data = scalar_data_[i];
-    }
-    needs_ds_update_ = false;
-  }
+  HWDeviceDRM::CacheDestScalarData();
 #ifndef TARGET_INCLUDES_NEO
   if ((ai_scaler_blocks_used_ > 0) && needs_ai_scaler_update_) {
     // Cache the AI Scaler data during commit
@@ -1061,18 +952,6 @@ DisplayError HWPeripheralDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   SetTUIState();
 
   return kErrorNone;
-}
-
-void HWPeripheralDRM::ResetDestScalarData() {
-  if (sde_dest_scalar_data_.num_dest_scaler) {
-    for (uint32_t i = 0; i < dest_scaler_blocks_used_; i++) {
-      sde_drm_dest_scaler_cfg *dest_scalar_data = &sde_dest_scalar_data_.ds_cfg[i];
-      *dest_scalar_data = {};
-    }
-    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_DEST_SCALER_CONFIG, token_.crtc_id,
-                              reinterpret_cast<uint64_t>(&sde_dest_scalar_data_));
-    ResetDestScalarCache();
-  }
 }
 
 DisplayError HWPeripheralDRM::Doze(const HWQosData &qos_data, SyncPoints *sync_points) {
