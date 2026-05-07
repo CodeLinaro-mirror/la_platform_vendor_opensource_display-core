@@ -58,18 +58,13 @@
 #include "display_base.h"
 #include "drm_interface.h"
 #include "pu_subject_intf_impl.h"
-
-#ifndef TRUSTED_VM
 #include "rgb_hist_feature_intf.h"
 #include "rgb_hist_manager_intf.h"
-#include "rgb_hist_fact_intf_impl.h"
-#endif
+#include "rgb_hist_fact_intf.h"
 
 namespace sdm {
 
-#ifndef TRUSTED_VM
 using rgb_histogram::HistData;
-#endif
 
 struct DeferFpsConfig {
   uint32_t frame_count = 0;
@@ -203,12 +198,8 @@ class QrtcScreenRefreshImp : public qrtc::QrtcScreenRefreshIntf {
 class DisplayBuiltIn : public DisplayBase,
                        HWEventHandler,
                        DppsPropIntf,
-                       SdmDisplayCbInterface<TvmServiceCbEvent>
-#ifndef TRUSTED_VM
-    ,
-                       rgb_histogram::NotifyInterface<HistData>
-#endif
-{
+                       SdmDisplayCbInterface<TvmServiceCbEvent>,
+                       rgb_histogram::NotifyInterface<HistData> {
  public:
   DisplayBuiltIn(DisplayEventHandler *event_handler,
                  sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> hw_info_intf,
@@ -308,6 +299,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError GetCoprStats(std::vector<int> *stats) override;
 #endif
   DisplayError GetScalerCount(uint32_t *scaler_count) override;
+  DisplayError SetStcFeatureConfig(void *data) override;
   DisplayError DumpDemuraSurface(const char *dir_path, uint32_t frame_index) override;
   DisplayError SetIllumination(uint32_t eye, const IlluminationConfig &config) override;
   DisplayError SetRgbHistObserverConfig(bool state, void *data) override;
@@ -331,6 +323,7 @@ class DisplayBuiltIn : public DisplayBase,
   void HandleVmReclaimEvent() override;
   void GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) override;
   bool IsPrimaryDisplay() override;
+  void UpdateFrameBufferForCWB() override;
   DisplayError GetPanelBrightnessBasePath(std::string *base_path) override;
   void HandleSSREvent(SSREventType ssr_event) override;
   void HandleLSR_SSREvent(LSR_SSREventType lsr_ssr_event) override;
@@ -348,10 +341,8 @@ class DisplayBuiltIn : public DisplayBase,
   // Implement SdmDisplayCbInterface
   int Notify(const TvmServiceCbEvent &) override;
 
-#ifndef TRUSTED_VM
   // Implement rgb histogram callback interface
   int Notify(const HistData &data) override;
-#endif
 
   DisplayError SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config) override;
   DisplayError SetPoseConfig(const LayerBuffer &buffer) override;
@@ -423,6 +414,8 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetDemuraTnAodHandlerCtrl(void *data);
   DisplayError SetDemuraTnAgingSurfTransfer(void *data);
   DisplayError SwitchToDAC(void *data);
+  void AppendCWBLayerWithFBT(LayerStack *layer_stack);
+  void UpdateCWBLayer(LayerBuffer &layer_buffer);
   void ClearDemuraMultiCfgParsers();
   int StartVmFileServiceAndExportFiles();
   int CreateServiceManager();
@@ -524,6 +517,7 @@ class DisplayBuiltIn : public DisplayBase,
 
   bool avr_step_enabled_ = false;
   bool vrr_enabled_ = false;
+  std::string avf_obs_name_ = "DisplayBuiltIn";
   std::shared_ptr<TvmDispServiceManagerIntf> service_manager_intf_ = nullptr;
   std::shared_ptr<DemuraParserManagerIntf> pm_intf_ = nullptr;
   std::shared_ptr<VMFileXferIntf> vm_file_xfer_intf_ = nullptr;
@@ -534,6 +528,10 @@ class DisplayBuiltIn : public DisplayBase,
   VmFileXferClientFactIntfExtn *factory_extn_ = nullptr;
   std::shared_ptr<FeatureLicenseIntf> feat_license_intf_ = nullptr;
   bool hfi_path_supported_ = false;
+  bool disable_fbt_for_cwb_fallback_ = false;
+  LayerBuffer prev_framebuffer_ = {};
+  LayerBuffer curr_framebuffer_ = {};
+  bool is_wb_ubwc_supported_ = true;
   bool double_buffer_codebook_supported_ = false;
   bool previous_frame_default_strategy_ = false;
   PrivacyRegionManager *privacy_region_mgr_ = nullptr;
@@ -556,11 +554,9 @@ class DisplayBuiltIn : public DisplayBase,
 
   // RGB Histogram
   bool rgb_histogram_enable_ = false;
-#ifndef TRUSTED_VM
   rgb_histogram::RgbHistFactIntf *rgb_hist_fact_intf_ = nullptr;
   std::shared_ptr<rgb_histogram::RgbHistManagerIntf> rgb_hist_manager_intf_ = nullptr;
   std::string kRgbHistogramClient_ = "rgb_histogram_client";
-#endif
 };
 
 }  // namespace sdm

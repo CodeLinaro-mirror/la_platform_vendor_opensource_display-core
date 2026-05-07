@@ -149,6 +149,10 @@ DisplayBase::~DisplayBase() {
     lock.NotifyWorker();
   }
 
+  if (refresh_rate_mgr_) {
+    delete refresh_rate_mgr_;
+  }
+
   commit_thread_.join();
 }
 
@@ -179,7 +183,7 @@ DisplayError DisplayBase::Init() {
   for (auto info_intf = hw_info_intf_.Begin(); info_intf != hw_info_intf_.End(); info_intf++) {
     HWResourceInfo res_info;
     info_intf->second->GetHWResourceInfo(&res_info);
-    wb_downscale_supports_ |= !!info_intf->second->GetMaxDNSCBlurBlockCount();
+    wb_downscale_supports_ |= info_intf->second->IsDownscaledCwbSupported(-1 /* For any WB */);
     hw_resource_info_.push_back(res_info);
   }
 
@@ -383,6 +387,8 @@ DisplayError DisplayBase::Init() {
   InitBorderLayers();
   // Assume unified draw is supported.
   unified_draw_supported_ = true;
+
+  refresh_rate_mgr_ = new RefreshRateManager(display_id_, display_type_, avr_step_);
 
   return kErrorNone;
 
@@ -1682,6 +1688,10 @@ DisplayError DisplayBase::CommitOrPrepare(LayerStack *layer_stack) {
     lock.NotifyWorker();
   }
 
+  if (refresh_rate_mgr_) {
+    refresh_rate_mgr_->CalculateRefreshRate(disp_layer_stack_, client_ctx_, /*is_idle*/ false);
+  }
+
   return async_commit ? kErrorNone : kErrorNeedsCommit;
 }
 
@@ -1773,6 +1783,10 @@ void DisplayBase::CommitThread() {
       if (self_refresh_state) {
         PerformSelfRefresh(srEPT);
         continue;
+      } else {
+        if (refresh_rate_mgr_) {
+          refresh_rate_mgr_->CalculateRefreshRate(disp_layer_stack_, client_ctx_, /*is_idle*/ true);
+        }
       }
 
       event_handler_->HandleEvent(kIdleTimeout);
@@ -1832,7 +1846,8 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
   }
 
   for (auto& info : disp_layer_stack_->info) {
-    info.second.retire_fence_offset = retire_fence_offset_;
+    info.second.retire_fence_offset =
+        (disp_layer_stack_->stack_info.iwe_repro_left_index == -1) ? retire_fence_offset_ : 0;
   }
   // Regiser for power events on first cycle in unified draw.
   if (first_cycle_ && display_type_ == kBuiltIn) {
@@ -2566,7 +2581,12 @@ DisplayError DisplayBase::SetActiveConfig(uint32_t index) {
   active_config_index_ = index;
   active_refresh_rate_ = client_ctx.display_attributes.fps;
 
-  return ReconfigureDisplay();
+  error = ReconfigureDisplay();
+  if (refresh_rate_mgr_) {
+    refresh_rate_mgr_->CalculateRefreshRate(disp_layer_stack_, client_ctx_, /*is_idle*/ false);
+  }
+
+  return error;
 }
 
 DisplayError DisplayBase::SetMaxMixerStages(uint32_t max_mixer_stages) {
@@ -3862,6 +3882,7 @@ void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
   }
 
   UpdateFrameBuffer();
+  UpdateFrameBufferForCWB();
 
   if (layer_stack->elapse_timestamp) {
     disp_layer_stack_->stack_info.common_info.elapse_timestamp = layer_stack->elapse_timestamp;
@@ -3879,16 +3900,7 @@ void DisplayBase::UpdateFrameBuffer() {
     return;
   }
 
-  bool client_target_present = false;
-  for (auto& info : disp_layer_stack_->info) {
-    for (auto &hw_layer : info.second.hw_layers) {
-      if (hw_layer.composition == kCompositionGPUTarget) {
-        client_target_present = true;
-        break;
-      }
-    }
-  }
-  bool need_cached_fb = !gpu_comp_frame_ && client_target_present;
+  bool need_cached_fb = !gpu_comp_frame_ && IsFrameBufferPresent();
   if (!need_cached_fb) {
     return;
   }
@@ -3906,6 +3918,20 @@ void DisplayBase::UpdateFrameBuffer() {
       }
     }
   }
+}
+
+bool DisplayBase::IsFrameBufferPresent() {
+  bool client_target_present = false;
+  for (auto &info : disp_layer_stack_->info) {
+    for (auto &hw_layer : info.second.hw_layers) {
+      if (hw_layer.composition == kCompositionGPUTarget) {
+        client_target_present = true;
+        break;
+      }
+    }
+  }
+
+  return client_target_present;
 }
 
 void DisplayBase::PostCommitLayerParams() {
@@ -5438,6 +5464,16 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
   cwb_active_ = true;
 
   return kErrorNone;
+}
+
+DisplayError DisplayBase::ReserveWBForDisplay(int32_t *wb_id) {
+  ClientLock lock(disp_mutex_);
+  return comp_manager_->ReserveWBForDisplay(display_comp_ctx_, wb_id);
+}
+
+void DisplayBase::ReleaseWBFromDisplay(int32_t wb_id) {
+  ClientLock lock(disp_mutex_);
+  comp_manager_->ReleaseWBFromDisplay(display_comp_ctx_, wb_id);
 }
 
 bool DisplayBase::HandleCwbTeardown() {

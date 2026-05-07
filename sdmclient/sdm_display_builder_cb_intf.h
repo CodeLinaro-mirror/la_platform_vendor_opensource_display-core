@@ -28,7 +28,8 @@ public:
   virtual bool IsClientConnected() = 0;
   virtual void SetPrimaryConnected(bool state) = 0;
 
-  std::mutex command_seq_mutex_;
+  // Per-display mutex for command execution
+  std::mutex display_command_mutex_[kNumDisplays];
 };
 
 } // namespace sdm

@@ -22,8 +22,8 @@
 */
 
 /*
- * ​​​​​Changes from Qualcomm Technologies, Inc. are provided under the following license:
- * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries. 
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -993,6 +993,33 @@ DisplayError ColorManagerProxy::ColorMgrIdleFallback(bool idle_fallback_hint) {
   return error;
 }
 
+DisplayError ColorManagerProxy::SetStcFeatureConfig(void *data) {
+  if (!stc_intf_) {
+    DLOGE("STC interface is NULL");
+    return kErrorUndefined;
+  }
+
+  if (!data) {
+    DLOGE("Invalid parameters");
+    return kErrorParameters;
+  }
+
+  snapdragoncolor::StcFeaturePayload *payload =
+      reinterpret_cast<snapdragoncolor::StcFeaturePayload *>(data);
+
+  ScPayload in_data = {};
+  in_data.prop = snapdragoncolor::kSetStcFeatureConfig;
+  in_data.len = sizeof(snapdragoncolor::StcFeaturePayload);
+  in_data.payload = reinterpret_cast<uint64_t>(payload);
+  int result = stc_intf_->SetProperty(in_data);
+  if (result) {
+    DLOGE("Failed to SetProperty prop = %d, error = %d", in_data.prop, result);
+    return kErrorUndefined;
+  }
+
+  return kErrorNone;
+}
+
 ColorFeatureCheckingImpl::ColorFeatureCheckingImpl(DPUCoreMux *dpu_core_mux,
                                                    PPFeaturesConfig *pp_features,
                                                    bool dyn_switch, uint32_t core_id)
@@ -1902,6 +1929,22 @@ DisplayError DPUColorManager::NotifyDisplayCalibrationMode(bool in_calibration) 
     error = color_mgr->NotifyDisplayCalibrationMode(in_calibration);
     if (error) {
       DLOGE("Failed to Notify Display Calibration Mode, error=%d", error);
+      return error;
+    }
+  }
+
+  return error;
+}
+
+DisplayError DPUColorManager::SetStcFeatureConfig(void *data) {
+  DisplayError error = kErrorNone;
+  int i = 0;
+
+  for (auto &color_mgr : color_manager_proxy_list_) {
+    DLOGV("Set stc feature config for core=%d", i++);
+    error = color_mgr->SetStcFeatureConfig(data);
+    if (error) {
+      DLOGE("Failed to set stc feature config, error=%d", error);
       return error;
     }
   }

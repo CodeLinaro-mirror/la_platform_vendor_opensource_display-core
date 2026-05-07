@@ -339,6 +339,12 @@ enum struct DRMOps {
    */
   PLANE_SET_LAYER_GAMMA,
   /*
+   * Op: Sets disparity enabled on this plane.
+   * Arg: uint32_t - Plane ID
+   *      uint32_t - disparity phase
+   */
+  PLANE_SET_DISPARITY_PHASE,
+  /*
    * Op: Activate or deactivate a CRTC
    * Arg: uint32_t - CRTC ID
    *      uint32_t - 1 to enable, 0 to disable
@@ -1269,6 +1275,7 @@ struct DRMConnectorInfo {
   // Connection status of this connector
   bool is_connected;
   bool is_wb_ubwc_supported;
+  bool is_wb_downscale_supported = false;
   uint32_t topology_control;
   bool dyn_bitclk_support;
   std::vector<uint8_t> edid;

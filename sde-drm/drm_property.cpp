@@ -289,6 +289,7 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "SDE_DSPP_RGB_HIST_CTRL_V2") { return DRMProperty::SDE_RGB_HIST_CTRL_V2; }
   if (name == "SDE_QRTC_CFG_V1") { return DRMProperty::SDE_QRTC_CFG_V1; }
   if (name == "SDE_QRTC_BUFFER_V1") { return DRMProperty::SDE_QRTC_BUFFER_V1; }
+  if (name == "disparity_phase") { return DRMProperty::DISPARITY_PHASE; }
 
   return DRMProperty::INVALID;
 }

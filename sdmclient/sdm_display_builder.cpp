@@ -471,13 +471,15 @@ uint32_t SDMDisplayBuilder::GetVirtualDisplayCount() {
 }
 
 int SDMDisplayBuilder::CreatePrimaryDisplay() {
-  int status = -EINVAL;
+  int status = 0;
   HWDisplaysInfo hw_displays_info = {};
+  SDMDisplay *sdm_display = nullptr;
+  Display client_id = map_info_primary_[0].client_id;
 
   DisplayError error = core_intf_->GetDisplaysStatus(&hw_displays_info);
   if (error != kErrorNone) {
     DLOGE("Failed to get connected display list. Error = %d", error);
-    return status;
+    return -EINVAL;
   }
 
   for (auto &iter : hw_displays_info) {
@@ -486,8 +488,7 @@ int SDMDisplayBuilder::CreatePrimaryDisplay() {
       continue;
     }
 
-    SDMDisplay *sdm_display = nullptr;
-    Display client_id = map_info_primary_[0].client_id;
+    sdm_display = nullptr;
     pluggable_is_primary_ = (info.display_type == kPluggable);
 
     // Create Null display if Primary is not connected
@@ -515,6 +516,7 @@ int SDMDisplayBuilder::CreatePrimaryDisplay() {
           info.display_id, 0, 0, false, &sdm_display);
     } else {
       DLOGE("Spurious primary display type = %d", info.display_type);
+      status = -EINVAL;
       break;
     }
 
@@ -539,6 +541,19 @@ int SDMDisplayBuilder::CreatePrimaryDisplay() {
 
     // Primary display is found, no need to parse more.
     break;
+  }
+
+  // primary display is not connected, create a null display
+  sdm_display = cb_->GetDisplayFromClientId(client_id);
+  if (!status && sdm_display == nullptr) {
+    status = SDMDisplayNull::Create(core_intf_, buffer_allocator_, callbacks_, evt_handler_,
+                                    client_id, 1, &sdm_display);
+    null_display_active_ = true;
+    map_info_primary_[0].disp_type = kBuiltIn;
+    map_info_primary_[0].sdm_id = 1;
+    null_display_ = sdm_display;
+
+    cb_->SetDisplayByClientId(client_id, sdm_display);
   }
 
   return status;
@@ -1061,8 +1076,7 @@ void SDMDisplayBuilder::DestroyDisplay(DisplayMapInfo *map_info) {
     callbacks_->OnHotplug(map_info->client_id, false);
 
     // Wait until all commands are flushed.
-    std::lock_guard<std::mutex> sdm_lock(cb_->command_seq_mutex_);
-
+    std::lock_guard<std::mutex> cmd_lock(cb_->display_command_mutex_[map_info->client_id]);
     cb_->SetPowerMode(map_info->client_id,
                       static_cast<int32_t>(SDMPowerMode::POWER_MODE_OFF));
     DestroyPluggableDisplay(map_info);

@@ -823,6 +823,14 @@ DisplayError HWDeviceDRM::Deinit() {
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_POWER_MODE, token_.conn_id, DRMPowerMode::OFF);
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_MODE, token_.crtc_id, nullptr);
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_ACTIVE, token_.crtc_id, 0);
+    if (hw_resource_.cac_version == kCacVersionLoopback && loopback_conn_id_ != -1 &&
+        loopback_cac_configured_) {
+      DLOGV_IF(kTagDriverConfig, "Teardown CAC loopback");
+      drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, loopback_token_.conn_id, 0);
+      drm_mgr_intf_->UnregisterDisplay(&loopback_token_);
+      loopback_token_ = {};
+      loopback_cac_configured_ = false;
+    }
 #ifdef TRUSTED_VM
     drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_VM_REQ_STATE, token_.crtc_id,
                               sde_drm::DRMVMRequestState::RELEASE);
@@ -1538,6 +1546,10 @@ DisplayError HWDeviceDRM::PowerOn(const HWQosData &qos_data, SyncPoints *sync_po
     }
   }
 
+  if (offload_transition_pending_) {
+    is_synchronous = false;
+  }
+
   // Set panel mode if panel is in active state
   if (last_power_mode_ != DRMPowerMode::OFF &&
       (panel_mode_changed_ & DRM_MODE_FLAG_VID_MODE_PANEL)) {
@@ -2031,6 +2043,8 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
           }
           SetBlending(layer_blend, &blending);
           drm_atomic_intf_->Perform(DRMOps::PLANE_SET_BLEND_TYPE, pipe_id, blending);
+          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_DISPARITY_PHASE, pipe_id,
+                                    input_buffer->disparity_phase);
 
           drm_atomic_intf_->Perform(DRMOps::PLANE_SET_COLOR_MASK_OVERRIDE, pipe_id, 0x0);
           if (hw_layers_info->layer_exts.size() && hw_layers_info->layer_exts.at(i).rgba_split) {
@@ -2692,6 +2706,7 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
 
   panel_compression_changed_ = 0;
   first_cycle_ = false;
+  offload_transition_pending_ = false;
   pending_power_state_ = kPowerStateNone;
   pending_cwb_teardown_ = false;
   // Inherently a real commit ensures null commit properties have happened, so update the member
@@ -4180,6 +4195,13 @@ void HWDeviceDRM::ConfigureConcurrentWriteback(const HWLayersInfo &hw_layer_info
   } else if (has_cwb_crop_) {  // If CWB ROI feature is supported, then set WB connector's roi_v1
     // property to PU ROI and DST_* properties to CWB ROI. Else, set DST_* properties to full
     // frame ROI.
+
+    // To avoid driver error on downscale resource starvation, downscale rectangle configuration
+    // treats as CWB ROI configuration.
+    if (cwb_config->cwb_control_params.needs_downscale) {
+      cwb_config->cwb_roi = cwb_config->cwb_downscaled_rect;
+    }
+
     // Set WB connector's roi_v1 property to PU_ROI.
     if (is_full_frame_update) {
       drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_ROI, vitual_conn_id, 0, nullptr);

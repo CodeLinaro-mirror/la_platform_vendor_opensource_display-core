@@ -170,6 +170,8 @@ class SDMLayer {
   DisplayError SetLayerCornerRadius(CornerRadius corner_radius);
   bool IsPrivacyRegionUpdated();
   bool HasPrivacyRegions();
+  bool IsLutsSet() { return luts_set_; }
+  DisplayError SetLayerLuts(Lut3d *luts);
 
  private:
   std::shared_ptr<ISnapMapper> snapmapper_;
@@ -197,7 +199,9 @@ class SDMLayer {
   bool secure_ = false;
   bool compatible_ = false;
   bool ignore_sdr_histogram_md_ = false;
+  bool luts_set_ = false;
   PrivacyRegionState privacy_region_state_ = kRegionReset;
+  bool disable_get_screen_decorator_support_ = false;
 
   // SDMCompositionType requested by client(SF) Original
   SDMCompositionType client_requested_orig_ = SDMCompositionType::COMP_DEVICE;

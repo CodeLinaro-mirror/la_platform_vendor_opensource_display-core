@@ -165,6 +165,7 @@ enum DebugTag {
   kTagSelfRefresh,      //!< Debug log is tagged for HAL Self-Refresh Implementation.
   kTagDemura,           //!< Debug log is tagged for Demura and DemuraTn Implementation.
   kTagColorProc,        //!< Debug log is tagged for Color Processing Implementation.
+  kTagRefreshRate,      //!< Debug log is tagged for refresh rate manager.
 };
 
 typedef std::vector<std::pair<std::string, std::string>> ColorModeAttributeVal;

@@ -1125,6 +1125,7 @@ struct LayerStackInfo {
   bool cwb_present = false;  // Indicates there is cwb layer or not
   bool lower_fps = false;  // This field hints to lower the fps in case of idle fallback
   bool notify_idle = false;
+  bool update_fbt_for_cwb = false; // This field hints to update fbt used for CWB
   bool enable_self_refresh = false;  // This field hints to enable self refresh when idle timeout
   std::shared_ptr<LayerBuffer> output_buffer = nullptr;
                                      //!< Pointer to the buffer where composed buffer would be
@@ -1336,6 +1337,139 @@ enum LSR_SSREventType {
   kLSR_SSRStart = 0,
   kLSR_SSREnd = 1,
 };
+
+class WbConnectorId {
+ public:
+  // Constants for bit manipulation
+  static constexpr uint32_t WB_CONN_BIT_MASK = 0xFFF;    // 12-bit mask
+  static constexpr uint32_t WB_MULTI_CONN_MASK = 0xF00;  // Bits 11-8 set
+  static constexpr uint32_t WB_MULTI_CONN_HINT = 0x400;  // Bit 10th set
+  static constexpr uint32_t BITS_PER_INDEX = 4;          // Each index uses 4 bits
+  static constexpr uint32_t INDEX_MASK = 0xFF;           // Mask 4 bit start/end WB indices
+  static constexpr int32_t INVALID = -1;                 // Invalid constant
+
+  // Default constructor creates an invalid ID
+  WbConnectorId() : wb_id_(INVALID) {}
+
+  // Single connector constructor
+  explicit WbConnectorId(int32_t wb_id) {
+    *this = wb_id;  // Call the assignment operator
+  }
+
+  // Multi-connector constructor
+  WbConnectorId(uint32_t start_wb_index, uint32_t end_wb_index) : wb_id_(INVALID) {
+    int32_t count = end_wb_index - start_wb_index + 1;
+    if (count == 1) {
+      // if start and end input are same, then treat as WB connector ID instead of index,
+      // and store as single WB connector ID, instead of WB start-end index pair.
+      wb_id_ = start_wb_index;
+    } else if (count > 1 &&  count < (1 << BITS_PER_INDEX)) {
+      // As grouping needed for stiched WB requirement, the following is bits-packing strategy
+      // for single WB ID to include the range of stitchable WB connectors ID.
+      // Assumption: All stitched WBs are contineous, that's why only storing last and first
+      // indices.
+      // 12 bit WB ID :      11-8 (4 bits)        7-4 (4 bits)           3-0 (4 bits)
+      //                +----------------------+---------------------+----------------------+
+      //                | Multi Connector Hint | WB range Last Index | WB range First Index |
+      //                +----------------------+---------------------+----------------------+
+      wb_id_ = WB_MULTI_CONN_HINT;
+      wb_id_ |= (start_wb_index & INDEX_MASK) | ((end_wb_index & INDEX_MASK) << BITS_PER_INDEX);
+    }
+  }
+
+  // Copy constructor (for completeness)
+  WbConnectorId(const WbConnectorId& other) : wb_id_(other.wb_id_) {}
+
+  // Assignment operator for WbConnectorId
+  WbConnectorId& operator=(const WbConnectorId& other) {
+    if (this != &other) {
+      wb_id_ = other.wb_id_;
+    }
+    return *this;
+  }
+
+  // Assignment operator for integer values
+  WbConnectorId& operator=(int32_t wb_id) {
+    wb_id_ = ((wb_id & WB_MULTI_CONN_MASK) <= WB_MULTI_CONN_HINT) ? wb_id & WB_CONN_BIT_MASK
+                                                                  : INVALID;
+    return *this;
+  }
+
+  // Get the raw connector ID
+  int32_t GetWbId() const {
+    return wb_id_;
+  }
+
+  // Check if this connector ID is valid
+  bool IsValid() const {
+    return IsValid(wb_id_);
+  }
+
+  // Check if this is a combination of multi WB connectors
+  bool HasMultiWBs() const {
+    return HasMultiWBs(wb_id_);
+  }
+
+  // Get the count of WBs included in case of multi-WBs assosciated with single ID.
+  uint32_t GetEmbeddedWbCount() const {
+    return GetEmbeddedWbCount(wb_id_);
+  }
+
+  int32_t GetFirstWbIndex() const {
+    return GetFirstWbIndex(wb_id_);
+  }
+
+  int32_t GetLastWbIndex() const {
+    return GetLastWbIndex(wb_id_);
+  }
+
+  // Equality operators
+  bool operator==(const WbConnectorId& other) const {
+    return wb_id_ == other.wb_id_;
+  }
+
+  bool operator!=(const WbConnectorId& other) const {
+    return !(*this == other);
+  }
+
+  // Integer comparison operators
+  bool operator==(const int32_t wb_id) const {
+    return wb_id_ == (wb_id & WB_CONN_BIT_MASK);
+  }
+
+  bool operator!=(const int32_t wb_id) const {
+    return wb_id_ != (wb_id & WB_CONN_BIT_MASK);
+  }
+
+  // Check if this connector ID is valid
+  static bool IsValid(int32_t wb_id) {
+    return (wb_id & WB_MULTI_CONN_MASK) <= WB_MULTI_CONN_HINT;
+  }
+
+  // Returns true if the encoded 12-bit ID has multi WBs.
+  static bool HasMultiWBs(int32_t wb_id) {
+    // Check if the multi-connector hint bits are set correctly
+    return (wb_id & WB_MULTI_CONN_MASK) == WB_MULTI_CONN_HINT;
+  }
+
+  // Return the count of WBs included in case of multi-WBs assosciated with single ID.
+  static uint32_t GetEmbeddedWbCount(int32_t wb_id) {
+    if (!HasMultiWBs(wb_id)) { return IsValid(wb_id) ? 1 : 0; }
+    return ((wb_id >> BITS_PER_INDEX) & INDEX_MASK) - (wb_id & INDEX_MASK) + 1;
+  }
+
+  static int32_t GetFirstWbIndex(int32_t wb_id) {
+    return HasMultiWBs(wb_id) ? wb_id & INDEX_MASK : INVALID;
+  }
+
+  static int32_t GetLastWbIndex(int32_t wb_id) {
+    return HasMultiWBs(wb_id) ? (wb_id >> BITS_PER_INDEX) & INDEX_MASK : INVALID;
+  }
+
+ private:
+  int32_t wb_id_;
+};
+
 #define CONN_ID_SIZE 24
 #define CONN_1_SHIFT_BITS 12
 #define CONN_BIT_MASK 0x000FFFFFF
