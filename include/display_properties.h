@@ -343,6 +343,9 @@
 // Enable composer driven HDCP path
 #define COMPOSER_DRIVEN_HDCP              DISPLAY_PROP("composer_driven_hdcp")
 
+//Max virtual display count supported
+#define MAX_VIRTUAL_DISPLAY_COUNT         DISPLAY_PROP("max_virtual_display_count")
+
 // Add all other.properties above
 // End of property
 // clang-format on
