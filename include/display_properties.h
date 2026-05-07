@@ -336,6 +336,9 @@
 // Enable RGB Histogram
 #define ENABLE_RGB_HISTOGRAM              DISPLAY_PROP("enable_rgb_histogram")
 
+//Max virtual display count supported
+#define MAX_VIRTUAL_DISPLAY_COUNT         DISPLAY_PROP("max_virtual_display_count")
+
 // Add all other.properties above
 // End of property
 // clang-format on
