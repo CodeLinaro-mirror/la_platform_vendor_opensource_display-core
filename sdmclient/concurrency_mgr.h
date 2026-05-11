@@ -665,6 +665,7 @@ private:
   std::bitset<kNumDisplays>
       client_pending_refresh_; // compositor refresh pending
 
+  bool auto_platform_support_ = false;
   bool async_vds_creation_ = false;
   bool tui_state_transition_[kNumDisplays] = {};
   bool secure_session_active_ = false;

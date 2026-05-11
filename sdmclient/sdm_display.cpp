@@ -1888,6 +1888,11 @@ DisplayError SDMDisplay::CommitOrPrepare(bool validate_only,
   // Mask error if needed.
   auto status = HandlePrepareError(error);
   if (status != kErrorNone) {
+    if (first_cycle_ && error == kErrorNoAppLayers) {
+      first_cycle_ = false;
+      client_target_3_1_set_ = false;
+      return kErrorNone;
+    }
     client_target_3_1_set_ = false;
     return status;
   }
