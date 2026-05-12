@@ -49,6 +49,7 @@ class HWTVDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   virtual PanelFeaturePropertyIntf *GetPanelFeaturePropertyIntf() { return this; }
   virtual int GetPanelFeature(PanelFeaturePropertyInfo *feature_info);
   virtual int SetPanelFeature(const PanelFeaturePropertyInfo &feature_info);
+  virtual DisplayError GetPanelBrightnessBasePath(std::string *base_path) const;
   virtual DisplayError GetQsyncFps(uint32_t *qsync_fps);
 
  protected:
@@ -61,6 +62,11 @@ class HWTVDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   virtual DisplayError Standby(SyncPoints *sync_points);
   virtual DisplayError Commit(HWLayersInfo *hw_layers_info);
   virtual void PopulateHWPanelInfo();
+  virtual DisplayError SetDppsFeature(void *payload, size_t size);
+  virtual DisplayError GetDppsFeatureInfo(void *payload, size_t size);
+  virtual DisplayError SetPanelBrightness(int level);
+  virtual DisplayError GetPanelBrightness(int *level);
+  virtual void GetHWPanelMaxBrightness();
   virtual DisplayError GetDefaultConfig(uint32_t *default_config);
   virtual DisplayError PowerOn(const HWQosData &qos_data, SyncPoints *sync_points);
   virtual DisplayError Deinit();
@@ -95,6 +101,9 @@ class HWTVDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   std::vector<DestScalarCache> dest_scalar_cache_ = {};
   bool needs_ds_update_ = false;
 
+  drm_msm_ad4_roi_cfg ad4_roi_cfg_ = {};
+  bool ltm_hist_en_ = false;
+  bool aba_hist_en_ = false;
   const float kDefaultMinLuminance = 0.02f;
   const float kDefaultMaxLuminance = 500.0f;
   const float kMinPeakLuminance = 300.0f;
@@ -106,7 +115,7 @@ class HWTVDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   bool in_multiset_ = false;
   std::map<PanelFeaturePropertyID, sde_drm::DRMPanelFeatureID> panel_feature_property_map_ {};
   sde_drm::DRMIdlePCState idle_pc_state_ = sde_drm::DRMIdlePCState::NONE;
-  bool idle_pc_enabled_ = true;
+  std::string brightness_base_path_ = "";
   SelfRefreshState self_refresh_state_ = kSelfRefreshNone;
 };
 

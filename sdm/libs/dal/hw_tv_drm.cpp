@@ -109,6 +109,8 @@ using sde_drm::DRMDisplayType;
 using sde_drm::DRMDisplayToken;
 using sde_drm::DRMConnectorInfo;
 using sde_drm::DRMPPFeatureInfo;
+using sde_drm::DppsFeaturePayload;
+using sde_drm::DRMDppsFeatureInfo;
 using sde_drm::DRMOps;
 using sde_drm::DRMTopology;
 using sde_drm::DRMPowerMode;
@@ -839,6 +841,226 @@ bool HWTVDRM::IsVRRSupported() {
   return false;
 }
 
+DisplayError HWTVDRM::SetDppsFeature(void *payload, size_t size) {
+  uint32_t obj_id = 0, object_type = 0, feature_id = 0;
+  uint64_t value = 0;
+
+  if (size != sizeof(DppsFeaturePayload)) {
+    DLOGE("invalid payload size %zu, expected %zu", size, sizeof(DppsFeaturePayload));
+    return kErrorParameters;
+  }
+
+  DppsFeaturePayload *feature_payload = reinterpret_cast<DppsFeaturePayload *>(payload);
+  object_type = feature_payload->object_type;
+  feature_id = feature_payload->feature_id;
+  value = feature_payload->value;
+
+  if (feature_id == sde_drm::kFeatureAd4Roi) {
+    if (feature_payload->value) {
+      DisplayDppsAd4RoiCfg *params = reinterpret_cast<DisplayDppsAd4RoiCfg *>
+                                                      (feature_payload->value);
+      if (!params) {
+        DLOGE("invalid playload value %" PRIu64, feature_payload->value);
+        return kErrorNotSupported;
+      }
+
+      ad4_roi_cfg_.h_x = params->h_start;
+      ad4_roi_cfg_.h_y = params->h_end;
+      ad4_roi_cfg_.v_x = params->v_start;
+      ad4_roi_cfg_.v_y = params->v_end;
+      ad4_roi_cfg_.factor_in = params->factor_in;
+      ad4_roi_cfg_.factor_out = params->factor_out;
+
+      value = (uint64_t)&ad4_roi_cfg_;
+    }
+  }
+
+  if (feature_id == sde_drm::kFeatureLtmHistCtrl)
+    ltm_hist_en_ = value;
+
+  if (feature_id == sde_drm::kFeatureAbaHistCtrl)
+    aba_hist_en_ = value;
+
+  if (object_type == DRM_MODE_OBJECT_CRTC) {
+    obj_id = token_.crtc_id;
+  } else if (object_type == DRM_MODE_OBJECT_CONNECTOR) {
+    obj_id = token_.conn_id;
+  } else {
+    DLOGE("invalid object type 0x%x", object_type);
+    return kErrorUndefined;
+  }
+
+  drm_atomic_intf_->Perform(DRMOps::DPPS_CACHE_FEATURE, obj_id, feature_id, value);
+  return kErrorNone;
+}
+
+DisplayError HWTVDRM::GetDppsFeatureInfo(void *payload, size_t size) {
+  if (size != sizeof(DRMDppsFeatureInfo)) {
+    DLOGE("invalid payload size %zu, expected %zu", size, sizeof(DRMDppsFeatureInfo));
+    return kErrorParameters;
+  }
+  DRMDppsFeatureInfo *feature_info = reinterpret_cast<DRMDppsFeatureInfo *>(payload);
+  feature_info->obj_id = token_.crtc_id;
+  drm_mgr_intf_->GetDppsFeatureInfo(feature_info);
+  return kErrorNone;
+}
+
+DisplayError HWTVDRM::SetPanelBrightness(int level) {
+  DTRACE_SCOPED();
+  if (pending_power_state_ != kPowerStateNone) {
+    DLOGI("Power state %d pending!! Skip for now", pending_power_state_);
+    return kErrorDeferred;
+  }
+
+#ifdef TRUSTED_VM
+  if (first_cycle_) {
+    DLOGI("First cycle is not done yet!! Skip for now");
+    return kErrorDeferred;
+  }
+#endif
+
+  if (!active_) {
+    return kErrorNone;
+  }
+
+  if (enable_brightness_drm_prop_) {
+    // set brightness through drm property
+    cached_brightness_level_ = level;
+    return kErrorNone;
+  }
+
+  // set brightness through sysfs node
+  char buffer[kMaxSysfsCommandLength] = {0};
+
+  if (brightness_base_path_.empty()) {
+    return kErrorHardware;
+  }
+
+  std::string brightness_node(brightness_base_path_ + "brightness");
+  int fd = Sys::open_(brightness_node.c_str(), O_RDWR);
+  if (fd < 0) {
+    if (connector_info_.backlight_type != "dcs") {
+      DLOGW("Failed to open node = %s, error = %s ", brightness_node.c_str(),
+          strerror(errno));
+      return kErrorFileDescriptor;
+    } else {
+    DLOGE("Failed to open node = %s, error = %s ", brightness_node.c_str(),
+          strerror(errno));
+    return kErrorFileDescriptor;
+    }
+  }
+
+  int32_t bytes = snprintf(buffer, kMaxSysfsCommandLength, "%d\n", level);
+  ssize_t ret = Sys::pwrite_(fd, buffer, static_cast<size_t>(bytes), 0);
+  if (ret <= 0) {
+    DLOGE("Failed to write to node = %s, error = %s ", brightness_node.c_str(),
+          strerror(errno));
+    Sys::close_(fd);
+    return kErrorHardware;
+  }
+
+  Sys::close_(fd);
+
+  return kErrorNone;
+}
+
+DisplayError HWTVDRM::GetPanelBrightness(int *level) {
+  DTRACE_SCOPED();
+  char value[kMaxStringLength] = {0};
+
+  if (!level) {
+    DLOGE("Invalid input, null pointer.");
+    return kErrorParameters;
+  }
+
+  if (enable_brightness_drm_prop_) {
+    *level = current_brightness_;
+    return kErrorNone;
+  }
+
+  if (brightness_base_path_.empty()) {
+    return kErrorHardware;
+  }
+
+  std::string brightness_node(brightness_base_path_ + "brightness");
+  int fd = Sys::open_(brightness_node.c_str(), O_RDWR);
+  if (fd < 0) {
+    if (connector_info_.backlight_type != "dcs") {
+      DLOGW("Failed to open brightness node = %s, error = %s", brightness_node.c_str(),
+             strerror(errno));
+      return kErrorFileDescriptor;
+    } else {
+    DLOGE("Failed to open brightness node = %s, error = %s", brightness_node.c_str(),
+           strerror(errno));
+    return kErrorFileDescriptor;
+    }
+  }
+
+  if (Sys::pread_(fd, value, sizeof(value), 0) > 0) {
+    *level = atoi(value);
+  } else {
+    DLOGE("Failed to read panel brightness");
+    Sys::close_(fd);
+    return kErrorHardware;
+  }
+
+  Sys::close_(fd);
+
+  return kErrorNone;
+}
+
+void HWTVDRM::GetHWPanelMaxBrightness() {
+  DTRACE_SCOPED();
+  char value[kMaxStringLength] = {0};
+  hw_panel_info_.panel_max_brightness = 255.0f;
+
+  // Panel nodes, driver connector creation, and DSI probing all occur in sync, for each DSI. This
+  // means that the connector_type_id - 1 will reflect the same # as the panel # for panel node.
+  char s[kMaxStringLength] = {};
+  snprintf(s, sizeof(s), "/sys/class/backlight/panel%d-backlight/",
+           static_cast<int>(connector_info_.type_id - 1));
+  brightness_base_path_.assign(s);
+
+  std::string brightness_node(brightness_base_path_ + "max_brightness");
+  int fd = Sys::open_(brightness_node.c_str(), O_RDONLY);
+  if (fd < 0) {
+    if (connector_info_.backlight_type != "dcs") {
+    DLOGW("Failed to open max brightness node = %s, error = %s", brightness_node.c_str(),
+          strerror(errno));
+    return;
+  } else {
+    DLOGE("Failed to open max brightness node = %s, error = %s", brightness_node.c_str(),
+          strerror(errno));
+    return;
+    }
+  }
+
+  if (Sys::pread_(fd, value, sizeof(value), 0) > 0) {
+    hw_panel_info_.panel_max_brightness = static_cast<float>(atof(value));
+    DLOGI_IF(kTagDriverConfig, "Max brightness = %f", hw_panel_info_.panel_max_brightness);
+  } else {
+    DLOGE("Failed to read max brightness. error = %s", strerror(errno));
+  }
+
+  Sys::close_(fd);
+  return;
+}
+
+DisplayError HWTVDRM::GetPanelBrightnessBasePath(std::string *base_path) const {
+  if (!base_path) {
+    DLOGE("Invalid base_path is null pointer");
+    return kErrorParameters;
+  }
+
+  if (brightness_base_path_.empty()) {
+    DLOGE("brightness_base_path_ is empty");
+    return kErrorHardware;
+  }
+
+  *base_path = brightness_base_path_;
+  return kErrorNone;
+}
+
 void HWTVDRM::SetSelfRefreshState() {
   if (self_refresh_state_ != kSelfRefreshNone) {
     if (self_refresh_state_ == kSelfRefreshReadAlloc) {
@@ -866,4 +1088,3 @@ DisplayError HWTVDRM::GetQsyncFps(uint32_t *qsync_fps) {
 
 
 }  // namespace sdm
-

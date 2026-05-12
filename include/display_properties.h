@@ -51,6 +51,10 @@
 #define IDLE_TIME_PROP                       DISPLAY_PROP("idle_time")
 #define IDLE_TIME_INACTIVE_PROP              DISPLAY_PROP("idle_time_inactive")
 #define DISABLE_ROTATOR_DOWNSCALE_PROP       DISPLAY_PROP("disable_rotator_downscale")
+
+// Enables for automotive platform
+#define ENABLE_AUTOMOTIVE_PLATFORM           DISPLAY_PROP("enable_automotive_platform")
+
 // Enables rotator for UI
 #define ENABLE_ROTATOR_UI_PROP               DISPLAY_PROP("enable_rotator_ui")
 #define DISABLE_DECIMATION_PROP              DISPLAY_PROP("disable_decimation")
@@ -281,6 +285,9 @@
 #define ENABLE_ABC                        DISPLAY_PROP("enable_abc")
 #define DISABLE_ABC_PRIMARY               DISPLAY_PROP("disable_abc_primary")
 #define DISABLE_ABC_SECONDARY             DISPLAY_PROP("disable_abc_secondary")
+
+// Scale support for non-primary display, Auto use case
+#define ENABLE_SCALE_FOR_ALL_DISPLAYS        DISPLAY_PROP("enable_scale_for_all_displays")
 
 // Add all other.properties above
 // End of property
