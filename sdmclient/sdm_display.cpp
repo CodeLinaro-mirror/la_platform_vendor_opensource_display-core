@@ -4761,6 +4761,7 @@ DisplayError SDMDisplay::ClearBuffersMappedToLayer(LayerId layer_id,
         // nothing to erase; just treat as already cleared
         continue;
       }
+      std::lock_guard<std::mutex> lock(layer->buffer_map->lock);
       auto it = layer->buffer_map->buffer_map.find(buffer_id);
       if (it != layer->buffer_map->buffer_map.end()) {
         DLOGV_IF(kTagClient,
