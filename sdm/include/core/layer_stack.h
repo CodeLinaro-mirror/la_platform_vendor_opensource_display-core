@@ -577,6 +577,19 @@ struct CacConfig {
   uint32_t skip_inc = 0;
 };
 
+struct DynamicCacV2Poly {
+  double rhc[3]; // red horizontal rhc[2] * (x ^ 2) + rhc[1] * x + rhc[0]
+  double bhc[3]; // blue horizontal
+  double rvc[3]; // red vertical rvc[2] * (y ^ 2) + rvc[1] * y + rvc[0]
+  double bvc[3]; // blue vertical
+  uint32_t gpu_coef_flags; // bit 0: GPU coefficient mode, bit 1: right eye mode
+};
+
+struct DynamicCacV2Config {
+  DynamicCacV2Poly poly_ctrl_left;
+  DynamicCacV2Poly poly_ctrl_right;
+};
+
 /*! @brief This structure defines a layer stack that contains layers which need to be composed and
   rendered onto the target.
 
