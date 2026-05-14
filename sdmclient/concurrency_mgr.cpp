@@ -2509,6 +2509,21 @@ int ConcurrencyMgr::GetDisplayConfigGroup(uint64_t display, DisplayConfigGroupIn
   return -1;
 }
 
+int ConcurrencyMgr::GetDisplayConfigGroup(uint64_t display, DisplayConfigGroupInfo variable_config,
+                                          uint32_t fps) {
+  if (display < 0) {
+    DLOGE("Invalid display = %d", display);
+    return kErrorNotSupported;
+  }
+
+  SCOPE_LOCK(locker_[display]);
+  if (sdm_display_[display]) {
+    return sdm_display_[display]->GetDisplayConfigGroup(variable_config, fps);
+  }
+
+  return -1;
+}
+
 int ConcurrencyMgr::GetProperty(const char *property_name, char *value) {
   return Debug::Get()->GetProperty(property_name, value);
 }

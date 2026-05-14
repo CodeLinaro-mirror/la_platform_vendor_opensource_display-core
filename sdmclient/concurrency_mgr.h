@@ -501,6 +501,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                              SDMTUIEventType event_type) override;
   DisplayError SetContentFps(const std::string &name, int32_t fps) override;
   int GetDisplayConfigGroup(uint64_t display, DisplayConfigGroupInfo variable_config);
+  int GetDisplayConfigGroup(uint64_t display, DisplayConfigGroupInfo variable_config, uint32_t fps);
 
   // SDMDisplayEventHandler
   virtual void DisplayPowerReset(int32_t display);
