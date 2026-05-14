@@ -483,7 +483,30 @@ DisplayError CoreImpl::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
   hw_displays_info->clear();
   hw_displays_info->insert(disp_id_to_dispinfo_map.begin(), disp_id_to_dispinfo_map.end());
 
+  /*
+   * Preserve original key ordering for internal lookups (e.g. hw_displays_info_.find() in
+   * CreateDisplay uses the real encoded display_id as key).
+   */
   hw_displays_info_ = *hw_displays_info;
+
+  /*
+   * Ensure the primary display (is_primary=true) is the first entry in the output map so that
+   * callers relying on iteration order (e.g. DMS) always see the primary display first.
+   * The map key is swapped for ordering only; info.display_id in each struct retains the real
+   * hardware-encoded display_id that must be used for all display creation/identification.
+   */
+  auto primary_it = std::find_if(hw_displays_info->begin(), hw_displays_info->end(),
+                                  [](const auto &p) { return p.second.is_primary; });
+  if (primary_it != hw_displays_info->end() && primary_it != hw_displays_info->begin()) {
+    int32_t first_key = hw_displays_info->begin()->first;
+    int32_t primary_key = primary_it->first;
+    HWDisplayInfo primary_info = primary_it->second;
+    HWDisplayInfo first_info = hw_displays_info->begin()->second;
+    hw_displays_info->erase(primary_key);
+    hw_displays_info->erase(first_key);
+    (*hw_displays_info)[first_key] = primary_info;   // primary display at lowest key (sorts first)
+    (*hw_displays_info)[primary_key] = first_info;   // displaced display at original primary key
+  }
 
   return kErrorNone;
 }
