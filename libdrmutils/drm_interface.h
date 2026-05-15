@@ -880,6 +880,12 @@ enum struct DRMOps {
    *      uint64_t - vsync offset value in nanoseconds
    */
   CONNECTOR_SET_VSYNC_OFFSET,
+  /*
+   * Op: Sets SPR mode on connector
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - SPR mode (0 = disabled, 1 = enabled)
+   */
+  CONNECTOR_SET_SPR_MODE,
 };
 
 enum struct DRMRotation {
@@ -1207,6 +1213,7 @@ struct DRMSubModeInfo {
   std::vector<uint64_t> dyn_bitclk_list;
   uint32_t bpp_mode;
   std::vector<uint32_t> emsync_fps_list;
+  bool spr_mode = false;  // SPR enabled for this sub-mode
 };
 
 enum DynamicFrontPorchType {
@@ -1256,6 +1263,7 @@ struct DRMModeInfo {
   uint32_t lm_mask = 0;
   bool is_virtual_config = false;
   int32_t parent_config_index = -1;
+  bool current_spr_mode = false;  // Current SPR mode state
 };
 
 /* Per Connector Info*/

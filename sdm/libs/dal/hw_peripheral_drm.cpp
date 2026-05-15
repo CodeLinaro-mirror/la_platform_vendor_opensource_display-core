@@ -216,8 +216,8 @@ DisplayError HWPeripheralDRM::SetDynamicDSIClock(uint64_t bit_clk_rate) {
     return kErrorNotSupported;
   }
 
-  if (vrefresh_ || update_mode_) {
-    // vrefresh and/or mode change pending.
+  if (vrefresh_ || update_mode_ || spr_mode_changed_) {
+    // vrefresh and/or mode change and/or spr mode pending.
     // Defer bit rate clock change.
     return kErrorNotSupported;
   }
@@ -246,6 +246,44 @@ DisplayError HWPeripheralDRM::SetDynamicDSIClock(uint64_t bit_clk_rate) {
 DisplayError HWPeripheralDRM::GetDynamicDSIClock(uint64_t *bit_clk_rate) {
   // Update bit_rate corresponding to current refresh rate.
   *bit_clk_rate = (uint32_t)connector_info_.modes[current_mode_index_].curr_bit_clk_rate;
+  return kErrorNone;
+}
+
+DisplayError HWPeripheralDRM::SetDynamicSPRMode(bool spr_mode) {
+  if (last_power_mode_ == DRMPowerMode::DOZE_SUSPEND || last_power_mode_ == DRMPowerMode::OFF) {
+    return kErrorNotSupported;
+  }
+
+  if (doze_poms_switch_done_ || pending_poms_switch_) {
+    return kErrorNotSupported;
+  }
+
+  if (vrefresh_ || update_mode_ || bit_clk_rate_) {
+    // vrefresh and/or mode change and/or bit clock rate pending.
+    // Defer spr mode change.
+    return kErrorNotSupported;
+  }
+
+  if (hw_panel_info_.vhm_support) {
+    if (idle_pc_enabled_) {
+      // reject spr mode change if idle pc is enabled
+      return kErrorNotSupported;
+    }
+    if (idle_pc_state_ == sde_drm::DRMIdlePCState::DISABLE) {
+      // defer spr mode change until idle pc is disabled
+      DLOGV_IF(kTagDriverConfig, "Defer setting Dynamic SPR Mode until Idle PC is disabled");
+      return kErrorDeferred;
+    }
+  }
+
+  // Check if SPR mode is already set to the requested value
+  if (connector_info_.modes[current_mode_index_].current_spr_mode == spr_mode) {
+    return kErrorNone;
+  }
+
+  DLOGV_IF(kTagDriverConfig, "Setting Dynamic SPR Mode: %d", spr_mode);
+  spr_mode_ = spr_mode;
+  spr_mode_changed_ = true;
   return kErrorNone;
 }
 
@@ -996,9 +1034,10 @@ DisplayError HWPeripheralDRM::DozeSuspend(const HWQosData &qos_data, SyncPoints 
 }
 
 DisplayError HWPeripheralDRM::SetDisplayAttributes(uint32_t index) {
-  if (doze_poms_switch_done_ || pending_poms_switch_ || bit_clk_rate_) {
+  if (doze_poms_switch_done_ || pending_poms_switch_ || bit_clk_rate_ || spr_mode_changed_) {
     DLOGW("Bailing. Pending operations: doze_poms_switch_done_=%d, pending_poms_switch_=%d,"
-     "bit_clk_rate_=%" PRIu64, doze_poms_switch_done_, pending_poms_switch_, bit_clk_rate_);
+     "bit_clk_rate_=%" PRIu64 ", spr_mode_changed_:%d", doze_poms_switch_done_,
+     pending_poms_switch_, bit_clk_rate_);
     return kErrorDeferred;
   }
 
@@ -1441,39 +1480,81 @@ DisplayError HWPeripheralDRM::SetAlternateDisplayConfig(uint32_t *alt_config) {
     curr_mode_flag = DRM_MODE_FLAG_VID_MODE_PANEL;
   }
 
+  // Get current SPR mode to preserve it during compression switch
+  bool target_spr_mode = connector_info_.modes[current_mode_index_].current_spr_mode;
+
   // First try to perform compression mode switch within same mode
+  // Prefer sub_mode with matching SPR mode; fall back to any compression-different sub_mode
+  int32_t fallback_submode_idx = -1;
   for (uint32_t submode_idx = 0; submode_idx < current_mode.sub_modes.size(); submode_idx++) {
     if ((curr_compression != current_mode.sub_modes[submode_idx].panel_compression_mode)) {
-      connector_info_.modes[current_mode_index_].curr_submode_index = submode_idx;
-      connector_info_.modes[current_mode_index_].curr_compression_mode =
-              current_mode.sub_modes[submode_idx].panel_compression_mode;
-      SetTopology(connector_info_.modes[current_mode_index_].sub_modes[submode_idx].topology,
-                  &display_attributes_[current_mode_index_].topology);
-      SetDisplaySwitchMode(current_mode_index_);
-      panel_compression_changed_ = current_mode.sub_modes[submode_idx].panel_compression_mode;
-      *alt_config = current_mode_index_;
-      return kErrorNone;
+      if (current_mode.sub_modes[submode_idx].spr_mode == target_spr_mode) {
+        // Exact match: different compression and same SPR mode
+        connector_info_.modes[current_mode_index_].curr_submode_index = submode_idx;
+        connector_info_.modes[current_mode_index_].curr_compression_mode =
+                current_mode.sub_modes[submode_idx].panel_compression_mode;
+        SetTopology(connector_info_.modes[current_mode_index_].sub_modes[submode_idx].topology,
+                    &display_attributes_[current_mode_index_].topology);
+        SetDisplaySwitchMode(current_mode_index_);
+        panel_compression_changed_ = current_mode.sub_modes[submode_idx].panel_compression_mode;
+        *alt_config = current_mode_index_;
+        return kErrorNone;
+      } else if (fallback_submode_idx < 0) {
+        fallback_submode_idx = static_cast<int32_t>(submode_idx);
+      }
     }
+  }
+  if (fallback_submode_idx >= 0) {
+    uint32_t submode_idx = static_cast<uint32_t>(fallback_submode_idx);
+    connector_info_.modes[current_mode_index_].curr_submode_index = submode_idx;
+    connector_info_.modes[current_mode_index_].curr_compression_mode =
+            current_mode.sub_modes[submode_idx].panel_compression_mode;
+    SetTopology(connector_info_.modes[current_mode_index_].sub_modes[submode_idx].topology,
+                &display_attributes_[current_mode_index_].topology);
+    SetDisplaySwitchMode(current_mode_index_);
+    panel_compression_changed_ = current_mode.sub_modes[submode_idx].panel_compression_mode;
+    *alt_config = current_mode_index_;
+    return kErrorNone;
   }
 
   // If there is no compression switch possible within current mode, try with other modes
   for (uint32_t mode_index = 0; mode_index < connector_info_.modes.size(); mode_index++) {
     if ((current_mode.mode.vrefresh == connector_info_.modes[mode_index].mode.vrefresh) &&
         (curr_mode_flag & connector_info_.modes[mode_index].cur_panel_mode)) {
+      // Prefer sub_mode with matching SPR mode; fall back to any compression-different sub_mode
+      int32_t fallback_submode_idx = -1;
       for (uint32_t submode_idx = 0; submode_idx <
            connector_info_.modes[mode_index].sub_modes.size(); submode_idx++) {
         if ((curr_compression !=
              connector_info_.modes[mode_index].sub_modes[submode_idx].panel_compression_mode)) {
-          connector_info_.modes[mode_index].curr_submode_index = submode_idx;
-          SetTopology(connector_info_.modes[mode_index].sub_modes[submode_idx].topology,
-                      &display_attributes_[mode_index].topology);
-          connector_info_.modes[mode_index].curr_compression_mode =
-                connector_info_.modes[mode_index].sub_modes[submode_idx].panel_compression_mode;
-          SetDisplayAttributes(mode_index);
-          panel_compression_changed_ = connector_info_.modes[mode_index].curr_compression_mode;
-          *alt_config = mode_index;
-          return kErrorNone;
+          if (connector_info_.modes[mode_index].sub_modes[submode_idx].spr_mode ==
+              target_spr_mode) {
+            // Exact match: different compression and same SPR mode
+            connector_info_.modes[mode_index].curr_submode_index = submode_idx;
+            SetTopology(connector_info_.modes[mode_index].sub_modes[submode_idx].topology,
+                        &display_attributes_[mode_index].topology);
+            connector_info_.modes[mode_index].curr_compression_mode =
+                  connector_info_.modes[mode_index].sub_modes[submode_idx].panel_compression_mode;
+            SetDisplayAttributes(mode_index);
+            panel_compression_changed_ = connector_info_.modes[mode_index].curr_compression_mode;
+            *alt_config = mode_index;
+            return kErrorNone;
+          } else if (fallback_submode_idx < 0) {
+            fallback_submode_idx = static_cast<int32_t>(submode_idx);
+          }
         }
+      }
+      if (fallback_submode_idx >= 0) {
+        uint32_t submode_idx = static_cast<uint32_t>(fallback_submode_idx);
+        connector_info_.modes[mode_index].curr_submode_index = submode_idx;
+        SetTopology(connector_info_.modes[mode_index].sub_modes[submode_idx].topology,
+                    &display_attributes_[mode_index].topology);
+        connector_info_.modes[mode_index].curr_compression_mode =
+              connector_info_.modes[mode_index].sub_modes[submode_idx].panel_compression_mode;
+        SetDisplayAttributes(mode_index);
+        panel_compression_changed_ = connector_info_.modes[mode_index].curr_compression_mode;
+        *alt_config = mode_index;
+        return kErrorNone;
       }
     }
   }

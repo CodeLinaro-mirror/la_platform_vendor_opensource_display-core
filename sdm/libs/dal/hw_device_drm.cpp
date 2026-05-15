@@ -987,6 +987,10 @@ void HWDeviceDRM::InitializeConfigs() {
   for (uint32_t i = 0; i < connector_info_.modes.size(); i++) {
     PopulateDisplayAttributes(i);
   }
+
+  if (first_cycle_) {
+    connector_info_.modes[current_mode_index_].current_spr_mode = 1;
+  }
   SetDisplaySwitchMode(current_mode_index_);
 }
 
@@ -1522,6 +1526,7 @@ void HWDeviceDRM::SetDisplaySwitchMode(uint32_t index) {
   sde_drm::DRMModeInfo current_mode = connector_info_.modes[current_mode_index_];
   uint64_t target_bit_clk = connector_info_.modes[current_mode_index_].curr_bit_clk_rate;
   uint32_t target_compression = connector_info_.modes[current_mode_index_].curr_compression_mode;
+  bool target_spr_mode = connector_info_.modes[current_mode_index_].current_spr_mode;
   uint32_t switch_index  = 0;
 
   if (to_set.cur_panel_mode & DRM_MODE_FLAG_CMD_MODE_PANEL) {
@@ -1550,15 +1555,35 @@ void HWDeviceDRM::SetDisplaySwitchMode(uint32_t index) {
         (to_set.mode.vrefresh == connector_info_.modes[mode_index].mode.vrefresh) &&
         (mode_flag & connector_info_.modes[mode_index].cur_panel_mode) &&
         (!connector_info_.emsync_switch_enabled)) {
+      // First pass: prefer sub_mode matching both compression and SPR mode
+      int32_t fallback_submode_idx = -1;
       for (uint32_t submode_idx = 0; submode_idx <
            connector_info_.modes[mode_index].sub_modes.size(); submode_idx++) {
         sde_drm::DRMSubModeInfo sub_mode = connector_info_.modes[mode_index].sub_modes[submode_idx];
         if (sub_mode.panel_compression_mode == target_compression) {
-          connector_info_.modes[mode_index].curr_submode_index = submode_idx;
-          index = mode_index;
-          to_set.curr_bit_clk_rate = GetSupportedBitClkRate(index, target_bit_clk);
-          break;
+          if (sub_mode.spr_mode == target_spr_mode) {
+            // Exact match: compression and SPR mode both match
+            connector_info_.modes[mode_index].curr_submode_index = submode_idx;
+            index = mode_index;
+            to_set.curr_bit_clk_rate = GetSupportedBitClkRate(index, target_bit_clk);
+            fallback_submode_idx = -1;  // No fallback needed
+            break;
+          } else if (fallback_submode_idx < 0) {
+            // Compression matches but SPR mode doesn't - save as fallback
+            fallback_submode_idx = static_cast<int32_t>(submode_idx);
+          }
         }
+      }
+      // Second pass: use fallback if no exact SPR mode match was found
+      if (fallback_submode_idx >= 0) {
+        DLOGV_IF(kTagDriverConfig,
+                 "No sub_mode with matching SPR mode %d found, using compression-only match",
+                 target_spr_mode);
+        connector_info_.modes[mode_index].curr_submode_index =
+            static_cast<uint32_t>(fallback_submode_idx);
+        index = mode_index;
+        to_set.curr_bit_clk_rate = GetSupportedBitClkRate(index, target_bit_clk);
+        connector_info_.modes[current_mode_index_].current_spr_mode = !target_spr_mode;
       }
       break;
     }
@@ -1572,15 +1597,34 @@ void HWDeviceDRM::SetDisplaySwitchMode(uint32_t index) {
         (to_set.mode.hdisplay == connector_info_.modes[mode_index].mode.hdisplay) &&
         (to_set.mode.vrefresh == connector_info_.modes[mode_index].mode.vrefresh) &&
         (switch_mode_flag & connector_info_.modes[mode_index].cur_panel_mode)) {
+      // First pass: prefer sub_mode matching both compression and SPR mode
+      int32_t fallback_submode_idx = -1;
       for (uint32_t submode_idx = 0; submode_idx <
            connector_info_.modes[mode_index].sub_modes.size(); submode_idx++) {
         sde_drm::DRMSubModeInfo sub_mode = connector_info_.modes[mode_index].sub_modes[submode_idx];
         if (sub_mode.panel_compression_mode == target_compression) {
-          connector_info_.modes[mode_index].curr_submode_index = submode_idx;
-          switch_index = mode_index;
-          switch_mode_valid_ = true;
-          break;
+          if (sub_mode.spr_mode == target_spr_mode) {
+            // Exact match: compression and SPR mode both match
+            connector_info_.modes[mode_index].curr_submode_index = submode_idx;
+            switch_index = mode_index;
+            switch_mode_valid_ = true;
+            fallback_submode_idx = -1;  // No fallback needed
+            break;
+          } else if (fallback_submode_idx < 0) {
+            // Compression matches but SPR mode doesn't - save as fallback
+            fallback_submode_idx = static_cast<int32_t>(submode_idx);
+          }
         }
+      }
+      // Second pass: use fallback if no exact SPR mode match was found
+      if (fallback_submode_idx >= 0) {
+        DLOGV_IF(kTagDriverConfig,
+                 "Switch mode: no sub_mode with matching SPR mode %d found, "
+                 "using compression-only match", target_spr_mode);
+        connector_info_.modes[mode_index].curr_submode_index =
+            static_cast<uint32_t>(fallback_submode_idx);
+        switch_index = mode_index;
+        switch_mode_valid_ = true;
       }
       break;
     }
@@ -2497,6 +2541,12 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_DYN_BIT_CLK, token_.conn_id, bit_clk_rate_);
   }
 
+  if (spr_mode_changed_) {
+    // Set the new SPR mode
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_SPR_MODE, token_.conn_id,
+                              static_cast<uint32_t>(spr_mode_));
+  }
+
   if (transfer_time_updated_) {
     // Skip updating the driver if driver is the one providing new transfer time
     if (connector_info_.modes[current_mode_index_].transfer_time_us != transfer_time_updated_) {
@@ -2820,6 +2870,34 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
     connector_info_.modes[current_mode_index_].curr_bit_clk_rate = bit_clk_rate_;
 
     bit_clk_rate_ = 0;
+  }
+
+  if (spr_mode_changed_) {
+    // Update current SPR mode state after successful commit.
+    connector_info_.modes[current_mode_index_].current_spr_mode = spr_mode_;
+
+    sde_drm::DRMModeInfo current_mode = connector_info_.modes[current_mode_index_];
+    uint32_t curr_compression = current_mode.curr_compression_mode;
+    bool target_spr_mode = connector_info_.modes[current_mode_index_].current_spr_mode;
+    int32_t fallback_submode_idx = -1;
+    for (uint32_t submode_idx = 0; submode_idx < current_mode.sub_modes.size(); submode_idx++) {
+      if (curr_compression == current_mode.sub_modes[submode_idx].panel_compression_mode) {
+        if (current_mode.sub_modes[submode_idx].spr_mode == target_spr_mode) {
+          // Exact match: same compression and same SPR mode
+          connector_info_.modes[current_mode_index_].curr_submode_index = submode_idx;
+          fallback_submode_idx = -1 ;
+          break;
+        } else if (fallback_submode_idx < 0) {
+          fallback_submode_idx = static_cast<int32_t>(submode_idx);
+        }
+      }
+    }
+    if (fallback_submode_idx >= 0) {
+      uint32_t submode_idx = static_cast<uint32_t>(fallback_submode_idx);
+      connector_info_.modes[current_mode_index_].curr_submode_index = submode_idx;
+      connector_info_.modes[current_mode_index_].current_spr_mode = !target_spr_mode;
+    }
+    spr_mode_changed_ = false;
   }
 
   if (transfer_time_updated_) {
@@ -3241,20 +3319,40 @@ DisplayError HWDeviceDRM::SetRefreshRate(uint32_t refresh_rate) {
 
   // Check if requested refresh rate is valid
   sde_drm::DRMModeInfo current_mode = connector_info_.modes[current_mode_index_];
+  bool target_spr_mode = connector_info_.modes[current_mode_index_].current_spr_mode;
   for (uint32_t mode_index = 0; mode_index < connector_info_.modes.size(); mode_index++) {
     if ((current_mode.mode.vdisplay == connector_info_.modes[mode_index].mode.vdisplay) &&
         (current_mode.mode.hdisplay == connector_info_.modes[mode_index].mode.hdisplay) &&
         (current_mode.cur_panel_mode == connector_info_.modes[mode_index].cur_panel_mode) &&
         (refresh_rate == connector_info_.modes[mode_index].mode.vrefresh)) {
+      // First pass: prefer sub_mode matching both compression and SPR mode
+      int32_t fallback_submode_idx = -1;
       for (uint32_t submode_idx = 0; submode_idx <
            connector_info_.modes[mode_index].sub_modes.size(); submode_idx++) {
         sde_drm::DRMSubModeInfo sub_mode = connector_info_.modes[mode_index].sub_modes[submode_idx];
         if (sub_mode.panel_compression_mode == current_mode.curr_compression_mode) {
-          connector_info_.modes[mode_index].curr_submode_index = submode_idx;
-          vrefresh_ = refresh_rate;
-          DLOGV_IF(kTagDriverConfig, "Set refresh rate to %d", refresh_rate);
-          return kErrorNone;
+          if (sub_mode.spr_mode == target_spr_mode) {
+            // Exact match: compression and SPR mode both match
+            connector_info_.modes[mode_index].curr_submode_index = submode_idx;
+            vrefresh_ = refresh_rate;
+            DLOGV_IF(kTagDriverConfig, "Set refresh rate to %d with SPR mode %d",
+                     refresh_rate, target_spr_mode);
+            return kErrorNone;
+          } else if (fallback_submode_idx < 0) {
+            // Compression matches but SPR mode doesn't - save as fallback
+            fallback_submode_idx = static_cast<int32_t>(submode_idx);
+          }
         }
+      }
+      // Second pass: use fallback if no exact SPR mode match was found
+      if (fallback_submode_idx >= 0) {
+        DLOGV_IF(kTagDriverConfig,
+                 "SetRefreshRate: no sub_mode with matching SPR mode %d found, "
+                 "using compression-only match for rate %d", target_spr_mode, refresh_rate);
+        connector_info_.modes[mode_index].curr_submode_index =
+            static_cast<uint32_t>(fallback_submode_idx);
+        vrefresh_ = refresh_rate;
+        return kErrorNone;
       }
     }
   }
@@ -3862,6 +3960,10 @@ DisplayError HWDeviceDRM::SetDynamicDSIClock(uint64_t bit_clk_rate) {
 }
 
 DisplayError HWDeviceDRM::GetDynamicDSIClock(uint64_t *bit_clk_rate) {
+  return kErrorNotSupported;
+}
+
+DisplayError HWDeviceDRM::SetDynamicSPRMode(bool spr_mode) {
   return kErrorNotSupported;
 }
 

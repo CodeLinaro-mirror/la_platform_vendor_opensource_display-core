@@ -291,6 +291,7 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "SDE_QRTC_BUFFER_V1") { return DRMProperty::SDE_QRTC_BUFFER_V1; }
   if (name == "disparity_phase") { return DRMProperty::DISPARITY_PHASE; }
   if (name == "vsync_offset") { return DRMProperty::VSYNC_OFFSET; }
+  if (name == "spr_mode") { return DRMProperty::SPR_MODE; }
 
   return DRMProperty::INVALID;
 }

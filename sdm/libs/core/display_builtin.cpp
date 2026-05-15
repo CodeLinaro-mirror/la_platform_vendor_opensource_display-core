@@ -7106,6 +7106,8 @@ DisplayError DisplayBuiltIn::UpdateRgbHistogramRoi(const void *data) {
 }
 
 DisplayError DisplayBuiltIn::SetSPRState(int state) {
+  ClientLock lock(disp_mutex_);
+
   if (spr_ == nullptr) {
     DLOGE("invalid SPR interface");
     return kErrorUndefined;
@@ -7137,6 +7139,15 @@ DisplayError DisplayBuiltIn::SetSPRState(int state) {
   DisablePartialUpdateOneFrameInternal();
 
   needs_validate_ = true;
+
+  // Send the SPR mode change to the hardware via DRM connector property
+  DisplayError hw_error = dpu_core_mux_->SetDynamicSPRMode((bool)state);
+  if (hw_error != kErrorNone && hw_error != kErrorNotSupported) {
+    DLOGW("SetDynamicSPRMode failed with error %d, state=%d", hw_error, state);
+  }
+
+  avoid_qsync_mode_change_ = true;
+  event_handler_->Refresh();
 
   return kErrorNone;
 }
