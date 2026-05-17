@@ -159,6 +159,9 @@
 #define DISABLE_SPR_PRIMARY                  DISPLAY_PROP("disable_spr_primary")
 #define DISABLE_SPR_SECONDARY                DISPLAY_PROP("disable_spr_secondary")
 
+//SPI Display
+#define SPI_DISPLAY_PRESENT                  DISPLAY_PROP("has_spi_display")
+
 // Panel Feature Demura Properties
 #define ENABLE_DEMURA                        DISPLAY_PROP("enable_demura")
 #define DISABLE_DEMURA_PRIMARY               DISPLAY_PROP("disable_demura_primary")
@@ -337,9 +340,14 @@
 
 // Enable RGB Histogram
 #define ENABLE_RGB_HISTOGRAM              DISPLAY_PROP("enable_rgb_histogram")
+// Enable Dynamic CAC
+#define DYNAMIC_CAC_FILE_PATH             DISPLAY_PROP("dynamic_cac_file_path")
 
 // Enable composer driven HDCP path
 #define COMPOSER_DRIVEN_HDCP              DISPLAY_PROP("composer_driven_hdcp")
+
+//Max virtual display count supported
+#define MAX_VIRTUAL_DISPLAY_COUNT         DISPLAY_PROP("max_virtual_display_count")
 
 // Add all other.properties above
 // End of property

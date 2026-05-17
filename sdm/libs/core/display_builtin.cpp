@@ -735,7 +735,7 @@ DisplayError DisplayBuiltIn::PrePrepare(LayerStack *layer_stack) {
   }
 
   error = DisplayBase::PrePrepare(layer_stack);
-  if (error == kErrorNone || error == kErrorNeedsLutRegen) {
+  if (error == kErrorNone || error == kErrorNeedsLutRegen || error == kErrorNeedsDynamicCac) {
     return error;
   }
 
@@ -812,6 +812,11 @@ DisplayError DisplayBuiltIn::Prepare(LayerStack *layer_stack) {
 
   DisplayError error = PrePrepare(layer_stack);
   if (error == kErrorNone) {
+    return kErrorNone;
+  }
+
+  if (error == kErrorNeedsDynamicCac && (comp_manager_->ConfigureDynamicCacConfig(
+                                             display_comp_ctx_, disp_layer_stack_) == kErrorNone)) {
     return kErrorNone;
   }
 
@@ -3529,6 +3534,8 @@ DisplayError DisplayBuiltIn::BuildLayerStackStats(LayerStack *layer_stack) {
   stack_info.enable_anamorphic_fov = IsAnamorphicFoveationEnabled(layer_stack);
   stack_info.cac_config = cac_config_;
   stack_info.rgba_split_enable = rgba_split_enable_;
+  stack_info.cac_config_dynamic_v2 = cac_config_dynamic_v2_;
+  stack_info.enable_dynamic_cac = enable_dynamic_cac_;
 
   int index = 0;
   for (auto &layer : layers) {
@@ -4930,6 +4937,7 @@ bool DisplayBuiltIn::IsCacV2Supported() {
 
 DisplayError DisplayBuiltIn::PerformCacConfig(CacConfig config, bool enable) {
   ClientLock lock(disp_mutex_);
+  DTRACE_SCOPED();
 
   if (!IsCacV2Supported()) {
     return kErrorNotSupported;
@@ -4945,6 +4953,37 @@ DisplayError DisplayBuiltIn::PerformCacConfig(CacConfig config, bool enable) {
   cac_config_ = config;
   validated_ = false;
   event_handler_->Refresh();
+
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetDynamicCacConfig(DynamicCacV2Config config, bool enable) {
+  ClientLock lock(disp_mutex_);
+  DTRACE_SCOPED();
+
+  if (!IsCacV2Supported()) {
+    return kErrorNotSupported;
+  }
+
+  DLOGV_IF(kTagDisplay, "Dynamic CAC enable: %d", enable);
+  DLOGV_IF(kTagDisplay, "Left eye config:");
+  for (int i = 0; i < 3; i++) {
+    DLOGD_IF(kTagDisplay, "rhc[%d]: %.10f, bhc[%d]: %.10f, rvc[%d]: %.10f, bvc[%d]: %.10f", i,
+             config.poly_ctrl_left.rhc[i], i, config.poly_ctrl_left.bhc[i], i,
+             config.poly_ctrl_left.rvc[i], i, config.poly_ctrl_left.bvc[i]);
+  }
+  DLOGV_IF(kTagDisplay, "Right eye config:");
+  for (int i = 0; i < 3; i++) {
+    DLOGD_IF(kTagDisplay, "rhc[%d]: %.10f, bhc[%d]: %.10f, rvc[%d]: %.10f, bvc[%d]: %.10f", i,
+             config.poly_ctrl_right.rhc[i], i, config.poly_ctrl_right.bhc[i], i,
+             config.poly_ctrl_right.rvc[i], i, config.poly_ctrl_right.bvc[i]);
+  }
+  if (enable_dynamic_cac_ != enable) {
+    validated_ = false;
+  }
+  enable_cac_ = enable;
+  cac_config_dynamic_v2_ = config;
+  enable_dynamic_cac_ = enable;
 
   return kErrorNone;
 }

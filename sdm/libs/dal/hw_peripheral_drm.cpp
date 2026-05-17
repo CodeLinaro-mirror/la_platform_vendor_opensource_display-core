@@ -1234,10 +1234,12 @@ DisplayError HWPeripheralDRM::SetPanelBrightness(int level, bool apply_immediate
     if (connector_info_.backlight_type != "dcs") {
       DLOGW("Failed to open node = %s, error = %s ", brightness_node.c_str(),
           strerror(errno));
+      PrintBrightnessPolicy();
       return kErrorFileDescriptor;
     } else {
     DLOGE("Failed to open node = %s, error = %s ", brightness_node.c_str(),
           strerror(errno));
+    PrintBrightnessPolicy();
     return kErrorFileDescriptor;
     }
   }
@@ -1247,6 +1249,7 @@ DisplayError HWPeripheralDRM::SetPanelBrightness(int level, bool apply_immediate
   if (ret <= 0) {
     DLOGE("Failed to write to node = %s, error = %s ", brightness_node.c_str(),
           strerror(errno));
+    PrintBrightnessPolicy();
     Sys::close_(fd);
     return kErrorHardware;
   }
@@ -1861,6 +1864,28 @@ DisplayError HWPeripheralDRM::IsLedDriverUp(bool *is_led_driver_up) {
   *is_led_driver_up = true;
 
   return error;
+}
+
+void HWPeripheralDRM::PrintBrightnessPolicy() {
+  if (brightness_base_path_.empty()) {
+    return;
+  }
+
+  std::string ls_cmd = "ls -lZ " + brightness_base_path_;
+  FILE *pipe = popen(ls_cmd.c_str(), "r");
+  if (pipe) {
+    char buffer[256];
+    std::string result = "";
+    while (!feof(pipe)) {
+      if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        result += buffer;
+      }
+    }
+    pclose(pipe);
+    DLOGI("Brightness node permissions: %s", result.c_str());
+  } else {
+    DLOGW("Failed to execute command: %s", ls_cmd.c_str());
+  }
 }
 
 }  // namespace sdm

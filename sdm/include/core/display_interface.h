@@ -477,6 +477,7 @@ enum QrtcVendorServiceType {
 enum ClientCapability {
   kPunchholeSupported,
   kHDRSupported,
+  kGPUCompositionSupported,
   kClientCapabilityMax,
 };
 
@@ -1519,6 +1520,14 @@ class DisplayInterface {
     @return \link DisplayError \endlink
   */
   virtual DisplayError PerformCacConfig(CacConfig config, bool enable) = 0;
+
+  /*! @brief Method to handle Dynamic CAC coefficients.
+
+    @param[in] config \link DynamicCacV2Config \endlink
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetDynamicCacConfig(DynamicCacV2Config config, bool enable) = 0;
 
   /*! @brief Method to enable/disable panel OPR info.
 

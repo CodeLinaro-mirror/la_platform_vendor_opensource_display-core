@@ -2923,7 +2923,8 @@ DisplayError SDMDisplay::GetSupportedDisplayRefreshRates(
   Config active_config = 0;
   GetActiveConfig(false, &active_config);
 
-  uint32_t active_config_group = GetDisplayConfigGroup(variable_config_map_[active_config]);
+  uint32_t active_config_group = GetDisplayConfigGroup(variable_config_map_[active_config],
+                                                       variable_config_map_[active_config].fps);
   if (active_config_group == -1) {
     DLOGE("Failed to get config group of active config");
     return kErrorNotSupported;
@@ -2931,7 +2932,7 @@ DisplayError SDMDisplay::GetSupportedDisplayRefreshRates(
 
   supported_refresh_rates->resize(0);
   for (auto &config : variable_config_map_) {
-    uint32_t config_group = GetDisplayConfigGroup(config.second);
+    uint32_t config_group = GetDisplayConfigGroup(config.second, config.second.fps);
     if (config_group == -1) {
       DLOGE("Failed to get config group for config index: %u", config.first);
       return kErrorNotSupported;
@@ -3229,6 +3230,21 @@ SDMDisplay::GetDisplayConfigGroup(DisplayConfigGroupInfo variable_config) {
   for (auto &config : variable_config_map_) {
     DisplayConfigGroupInfo const &group_info = config.second;
     if (group_info == variable_config) {
+      return INT32(config.first);
+    }
+  }
+
+  return -1;
+}
+
+int32_t SDMDisplay::GetDisplayConfigGroup(DisplayConfigGroupInfo variable_config, uint32_t fps) {
+  for (auto &config : variable_config_map_) {
+    DisplayConfigGroupInfo const &group_info = config.second;
+    if (type_ == kPluggable) {
+      if (group_info == variable_config && fps == config.second.fps) {
+        return INT32(config.first);
+      }
+    } else if (group_info == variable_config) {
       return INT32(config.first);
     }
   }

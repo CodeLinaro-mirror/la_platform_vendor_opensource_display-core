@@ -501,6 +501,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                              SDMTUIEventType event_type) override;
   DisplayError SetContentFps(const std::string &name, int32_t fps) override;
   int GetDisplayConfigGroup(uint64_t display, DisplayConfigGroupInfo variable_config);
+  int GetDisplayConfigGroup(uint64_t display, DisplayConfigGroupInfo variable_config, uint32_t fps);
 
   // SDMDisplayEventHandler
   virtual void DisplayPowerReset(int32_t display);
@@ -632,6 +633,9 @@ private:
   }
   DisplayError PerformCacConfig(uint64_t disp_id, CacConfig cac_config, bool enable) {
     return CallDisplayFunction(disp_id, &SDMDisplay::PerformCacConfig, cac_config, enable);
+  }
+  DisplayError PerformDynamicCac(uint64_t disp_id, DynamicCacV2Config cac_config, bool enable) {
+    return CallDisplayFunction(disp_id, &SDMDisplay::PerformDynamicCac, cac_config, enable);
   }
   // Internal methods
   void HandleSecureSession();

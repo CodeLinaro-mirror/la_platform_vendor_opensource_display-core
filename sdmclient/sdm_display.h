@@ -505,11 +505,15 @@ public:
   virtual DisplayError PerformCacConfig(CacConfig config, bool enable) {
     return kErrorNotSupported;
   }
+  virtual DisplayError PerformDynamicCac(DynamicCacV2Config config, bool enable) {
+    return kErrorNotSupported;
+  }
   virtual DisplayError IsCacV2Supported(bool *supported) {
     *supported = false;
     return kErrorNotSupported;
   }
   int32_t GetDisplayConfigGroup(DisplayConfigGroupInfo variable_config);
+  int32_t GetDisplayConfigGroup(DisplayConfigGroupInfo variable_config, uint32_t fps);
 
   void LayerStackUpdated() {
     layer_stack_invalid_ = true;

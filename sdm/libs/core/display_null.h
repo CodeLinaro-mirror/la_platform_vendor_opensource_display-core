@@ -98,6 +98,9 @@ class DisplayNull : public DisplayInterface {
   virtual bool IsDpuDmaModeEnabled() { return false; }
   virtual bool IsEPTSupported() { return false; }
   virtual bool IsLSRSupported() { return false; }
+  virtual DisplayError SetDynamicCacConfig(DynamicCacV2Config config, bool enable) {
+    return kErrorNotSupported;
+  }
 
   MAKE_NO_OP(CommitOrPrepare(LayerStack *))
   MAKE_NO_OP(PrePrepare(LayerStack *))

@@ -295,6 +295,9 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
     return kErrorNotSupported;
   }
   virtual bool IsCacV2Supported() { return false; }
+  virtual DisplayError SetDynamicCacConfig(DynamicCacV2Config config, bool enable) {
+    return kErrorNotSupported;
+  }
   virtual DisplayError
   PanelOprInfo(const std::string &client_name, bool enable,
                SdmDisplayCbInterface<PanelOprPayload> *cb_intf) {
