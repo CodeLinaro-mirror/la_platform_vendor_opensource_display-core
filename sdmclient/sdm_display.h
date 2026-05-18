@@ -37,11 +37,13 @@
 #define __SDM_DISPLAY_H__
 
 #include "display_event_handler.h"
+#include "frame_capture_intf.h"
 #include "sdm_layers.h"
 #include <algorithm>
 #include <bitset>
 #include <core/buffer_sync_handler.h>
 #include <core/core_interface.h>
+#include <core/sdm_types.h>
 #include <map>
 #include <private/color_params.h>
 #include <queue>
@@ -51,6 +53,7 @@
 #include <utility>
 #include <vector>
 #include <climits>
+#include <sstream>
 
 #include "sdm_compositor_callbacks.h"
 #include "sdm_layer_builder.h"
@@ -167,6 +170,8 @@ public:
   virtual DisplayError Deinit(bool deinit_layer_builder = true);
 
   virtual DisplayError GetFixedConfig(DisplayConfigFixedInfo *info);
+  void DumpXRInputProjectionTable(std::ostringstream *os);
+  bool HasProjectionInputLayers() const;
 
   // Framebuffer configurations
   virtual void SetIdleTimeoutMs(uint32_t timeout_ms, uint32_t inactive_ms);
@@ -218,6 +223,8 @@ public:
   virtual DisplayError GetReadbackBufferFence(shared_ptr<Fence> *release_fence);
   virtual void ReleaseFrameDumpResources();
   virtual DisplayError TeardownConcurrentWriteback();
+  // Configure Frame Capture Manager (libframecapture) streaming via FCM
+  virtual DisplayError ConfigureFCM(CWBPacketData &data);
   // Captures frame output in the buffer specified by output_buffer_info. The
   // API is non-blocking and the client is expected to check operation status
   // later on. Returns -1 if the input is invalid.
@@ -524,9 +531,12 @@ public:
   virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data) {
     return kErrorNotSupported;
   }
+  virtual DisplayError SetQrtcFeatureConfig(int32_t type, void *data) { return kErrorNotSupported; }
+
   virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t input_size) {
     return kErrorNotSupported;
   }
+  virtual DisplayError SetStcFeatureConfig(void *data) { return kErrorNotSupported; }
   DisplayError GetCachedActiveConfig(bool get_real_config, Config *config);
   virtual void TimeoutOnBuiltins(){};
   virtual void IdleTimeout(){};
@@ -538,6 +548,9 @@ public:
   virtual DisplayError ClearBuffersMappedToLayer(LayerId layer_id, const SnapHandle *layerBuffer);
   virtual DisplayError SetPoseConfig(void *buffer) { return kErrorNotSupported; }
   virtual bool IsEPTSupported();
+  virtual DisplayError SetRgbHistObserverConfig(bool state, void *data) {
+    return kErrorNotSupported;
+  }
 
  protected:
   static uint32_t throttling_refresh_rate_;
@@ -761,6 +774,8 @@ public:
   uint32_t frame_interval_ns_ = 0;  // FrameInterval for current frame
   bool is_poms_mode_ = false;
   bool pending_privregions_update_ = false;
+  FrameCaptureIntf *fcm_ = nullptr;
+  bool composer_driven_hdcp_ = false;
 };
 
 inline DisplayError SDMDisplay::Perform(uint32_t operation, ...) {

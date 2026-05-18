@@ -347,6 +347,8 @@ void CompManager::PrepareStrategyConstraints(Handle comp_handle,
     size_ff++;
   if (disp_layer_stack->stack_info.cwb_present)
     size_ff++;
+  if (disp_layer_stack->stack_info.qrtc_present)
+    size_ff++;
   uint32_t app_layer_count = UINT32(disp_layer_stack->stack->layers.size()) - size_ff;
   if (display_comp_ctx->idle_fallback) {
     // Handle the GPU based idle timeout by falling back
@@ -941,6 +943,11 @@ DisplayError CompManager::FreeDemuraFetchResources(const uint32_t &display_id) {
   return resource_intf_->FreeDemuraFetchResources(display_id);
 }
 
+DisplayError CompManager::FreeQrtcFetchResources(const uint32_t &display_id) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+  return resource_intf_->FreeQrtcFetchResources(display_id);
+}
+
 DisplayError CompManager::GetDemuraFetchResourceCount(MultiDpuDemuraMap *fetch_resource_cnt) {
   std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
   return resource_intf_->GetDemuraFetchResourceCount(fetch_resource_cnt);
@@ -956,6 +963,12 @@ DisplayError CompManager::ReserveABCFetchResources(const uint32_t &display_id, b
                                                    const int8_t &req_cnt) {
   std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
   return resource_intf_->ReserveABCFetchResources(display_id, is_primary, req_cnt);
+}
+
+DisplayError CompManager::ReserveQrtcFetchResources(const uint32_t &display_id,
+                                                    const int8_t &preferred_rect) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+  return resource_intf_->ReserveQrtcFetchResources(display_id, preferred_rect);
 }
 
 DisplayError CompManager::GetDemuraFetchResources(Handle display_ctx,
@@ -1103,6 +1116,25 @@ DisplayError CompManager::CaptureCwb(Handle display_ctx, const LayerBuffer &outp
   error = cwb_mgr_intf_->CaptureCwb(display_comp_ctx->display_id.GetDisplayId(), kCwbClientExternal,
                                     output_buffer, cwb_config, this);
   return error;
+}
+
+DisplayError CompManager::ReserveWBForDisplay(Handle display_ctx, int32_t *wb_id) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+
+  DisplayCompositionContext *display_comp_ctx =
+      reinterpret_cast<DisplayCompositionContext *>(display_ctx);
+  DisplayError error = kErrorNone;
+  error = cwb_mgr_intf_->ReserveWBForDisplay(display_comp_ctx->display_id.GetDisplayId(), wb_id);
+  return error;
+}
+
+void CompManager::ReleaseWBFromDisplay(Handle display_ctx, int32_t wb_id) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+
+  DisplayCompositionContext *display_comp_ctx =
+      reinterpret_cast<DisplayCompositionContext *>(display_ctx);
+
+  cwb_mgr_intf_->ReleaseWBFromDisplay(display_comp_ctx->display_id.GetDisplayId(), wb_id);
 }
 
 void CompManager::NotifyCwbDone(int32_t display_id, int32_t status, const LayerBuffer &buffer) {

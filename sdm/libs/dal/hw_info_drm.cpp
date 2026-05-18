@@ -330,6 +330,7 @@ DisplayError HWInfoDRM::GetHWResourceInfo(HWResourceInfo *hw_resource) {
   DLOGI("MaxSDEClock = %d Hz", hw_resource->max_sde_clk);
   DLOGI("Demura Count = %" PRIu32, hw_resource->demura_count);
   DLOGI("ABC Count = %" PRIu32, hw_resource->abc_count);
+  DLOGI("Qrtc Count = %" PRIu32, hw_resource->qrtc_count);
   DLOGI("Is Udc Supported = %d", hw_resource->is_udc_supported);
   DLOGI("DSPP Count = %" PRIu32, hw_resource->dspp_count);
   DLOGI("Clock Fudge Factor = %f", hw_resource->clk_fudge_factor);
@@ -351,6 +352,12 @@ DisplayError HWInfoDRM::GetHWResourceInfo(HWResourceInfo *hw_resource) {
           hw_resource->dyn_bw_info.total_bw_limit[index],
           hw_resource->dyn_bw_info.pipe_bw_limit[index]);
   }
+  DLOGI("Has demura single rec support = %d", hw_resource->support_demura_with_single_rec);
+  value = 0;
+  if (Debug::GetProperty(PANEL_FEATURE_RECT_MODE_SELECT, &value) == kErrorNone) {
+    hw_resource->panel_feature_rect_mode_enabled_ = (value == 1);
+  }
+  DLOGI("Panel feature rect mode = %d", hw_resource->panel_feature_rect_mode_enabled_);
 
   if (!hw_resource_) {
     hw_resource_ = new HWResourceInfo();
@@ -383,6 +390,7 @@ void HWInfoDRM::GetSystemInfo(HWResourceInfo *hw_resource) {
   hw_resource->has_micro_idle = info.has_micro_idle;
   hw_resource->demura_count = info.demura_count;
   hw_resource->abc_count = info.abc_count;
+  hw_resource->qrtc_count = info.qrtc_count;
   hw_resource->is_udc_supported = info.is_udc_supported;
   hw_resource->dspp_count = info.dspp_count;
   hw_resource->skip_inline_rot_threshold = info.skip_inline_rot_threshold;
@@ -483,6 +491,7 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
 
   MapPlaneToConnector(hw_resource);
   GetInitialDemuraInfo(hw_resource);
+  hw_resource->support_demura_with_single_rec = GetSupportDemuraWithSingleRec();
   for (auto &pipe_obj : planes) {
     if (max_vig_pipes && max_dma_pipes) {
       uint32_t master_plane_id = pipe_obj.second.master_plane_id;
@@ -585,6 +594,7 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
     pipe_caps.dgm_csc_version = pipe_obj.second.dgm_csc_version;
     pipe_caps.pipe_idx = pipe_obj.second.pipe_idx;
     pipe_caps.demura_block_capability = pipe_obj.second.demura_block_capability;
+    pipe_caps.qrtc_block_capability = pipe_obj.second.qrtc_block_capability;
     pipe_caps.cac_mode = GetCacMode(pipe_obj.second.cac_mode, hw_resource->cac_version);
     pipe_caps.cac_parent_id = pipe_obj.second.cac_parent_rect;
     // disable src tonemap feature if its disabled using property.
@@ -662,6 +672,15 @@ void HWInfoDRM::MapPlaneToConnector(HWResourceInfo *hw_resource) {
 
 void HWInfoDRM::GetInitialDemuraInfo(HWResourceInfo *hw_resource) {
   drm_mgr_intf_->GetInitialDemuraInfo(&hw_resource->initial_demura_planes);
+}
+
+bool HWInfoDRM::GetSupportDemuraWithSingleRec() {
+  DRMPanelFeatureInfo info = {};
+  bool flags = false;
+  info.prop_id = sde_drm::kDRMPanelFeatureDemuraSupportSingleRecFlags;
+  info.prop_ptr = reinterpret_cast<uint64_t>(&flags);
+  drm_mgr_intf_->GetPanelFeature(&info);
+  return flags;
 }
 
 DisplayError HWInfoDRM::GetDemuraDoubleBufferCodebookFlags(bool *out) {
@@ -1070,10 +1089,25 @@ void HWInfoDRM::GetSDMFormat(uint32_t drm_format, uint64_t drm_format_modifier,
 }
 
 DisplayError HWInfoDRM::GetFirstDisplayInterfaceType(HWDisplayInterfaceInfo *hw_disp_info) {
+  HWDisplaysInfo hw_displays_info;
+  DisplayError error = kErrorNone;
+
   hw_disp_info->type = kBuiltIn;
   hw_disp_info->is_connected = true;
 
-  return kErrorNone;
+  error = GetDisplaysStatus(&hw_displays_info);
+  if (error == kErrorNone) {
+    for (auto &iter : hw_displays_info) {
+      auto &info = iter.second;
+      if (info.is_primary) {
+        hw_disp_info->type = info.display_type;
+        hw_disp_info->is_connected = info.is_connected;
+        break;
+      }
+    }
+  }
+
+  return error;
 }
 
 DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
@@ -1140,6 +1174,7 @@ DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
     }
     hw_info.is_reserved = iter.second.is_reserved;
     hw_info.max_linewidth = iter.second.max_linewidth;
+    hw_info.is_wb_downscale_supported = iter.second.is_wb_downscale_supported;
 
     if (iter.second.type == DRM_MODE_CONNECTOR_DSI) {
       uint32_t mode_index = 0;
@@ -1256,6 +1291,7 @@ DisplayError HWInfoDRM::GetVirtualDisplayStatus(VirtualDisplayType type, HWDispl
     hw_info->is_wb_ubwc_supported = iter.second.is_wb_ubwc_supported;
     hw_info->is_reserved = iter.second.is_reserved;
     hw_info->max_linewidth = iter.second.max_linewidth;
+    hw_info->is_wb_downscale_supported = iter.second.is_wb_downscale_supported;
 
     if (!hw_info->max_cwb) {
       auto &conn_mode = iter.second.modes[0];
@@ -1448,6 +1484,55 @@ uint32_t HWInfoDRM::GetMaxDNSCBlurBlockCount() {
 #else
   return 0;
 #endif
+}
+
+uint32_t HWInfoDRM::GetMaxWritebackBlockCount() {
+  sde_drm::DRMConnectorsInfo conns_info = {};
+  auto drm_err = drm_mgr_intf_->GetConnectorsInfo(&conns_info);
+  if (drm_err) {
+    DLOGE("DRM Driver get connector error %d while getting max displays supported!", drm_err);
+    return 0;
+  }
+
+  uint32_t wb_count = 0;
+  for (auto &iter : conns_info) {
+    if (iter.second.type == DRM_MODE_CONNECTOR_VIRTUAL) {
+      wb_count++;
+    }
+  }
+  return wb_count;
+}
+
+bool HWInfoDRM::IsQrtcSupported() {
+  return false;
+}
+
+bool HWInfoDRM::IsDownscaledCwbSupported(int32_t wb_block_index) {
+  sde_drm::DRMConnectorsInfo conns_info = {};
+  auto drm_err = drm_mgr_intf_->GetConnectorsInfo(&conns_info);
+  if (drm_err) {
+    DLOGE("DRM Driver get connector error %d while getting max displays supported!", drm_err);
+    return false;
+  }
+
+  uint32_t wb_count = 0;
+  for (auto &iter : conns_info) {
+    if (iter.second.type == DRM_MODE_CONNECTOR_VIRTUAL) {
+      if (iter.second.is_wb_downscale_supported &&
+          (wb_block_index == wb_count || wb_block_index < 0)) {
+        return true;
+      }
+
+      wb_count++;
+    }
+  }
+
+  // For legacy compatibility.
+  if (wb_count < 3 && wb_block_index <= 0) {
+    return !!GetMaxDNSCBlurBlockCount();
+  }
+
+  return false;
 }
 
 int HWInfoDRM::GetConnectorTypeforTMDS(uint32_t encoder_id, sde_drm::DRMEncoderInfo info) {

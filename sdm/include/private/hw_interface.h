@@ -84,18 +84,15 @@ struct ReprojectionConfig {
   uint32_t distort_resolution = 0;  // num column of reproj_radial_dis_grid data array
   struct sde_drm_lsr_point reproj_optical_axis_offset = {};  // config to for optical_axis_offset
   float reproj_r_max = 0;
-  uint32_t reproj_error_to_l = 0;
+  uint32_t reproj_error_tol = 0;
   uint32_t reproj_disp_im_width = 0;
   uint32_t reproj_disp_im_height = 0;
-  uint32_t reproj_tile_w = 0;
-  uint32_t reproj_tile_h = 0;
   struct drm_msm_opaque_config repro_session_config = {};
   struct drm_msm_opaque_config repro_session_data_config = {};
   uint32_t reprojection_mode_enabled = true;
-  float reproj_to_lrgb_left = 0;
-  float reproj_to_lrgb_right = 0;
-  uint32_t reproj_min_bbox_w = 0;
-  uint32_t reproj_min_bbox_h = 0;
+  float reproj_tol_rgb_left = 0;
+  float reproj_tol_rgb_right = 0;
+  uint64_t vsync_offset = 0;  // vsync offset in nanoseconds
 };
 
 enum HWFeature {

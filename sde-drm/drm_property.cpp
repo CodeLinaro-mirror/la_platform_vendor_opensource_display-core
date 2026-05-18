@@ -28,43 +28,6 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following
- * license:
- *
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted (subject to the limitations in the
- * disclaimer below) provided that the following conditions are met:
- *
- *    * Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
- *
- *    * Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
- *      disclaimer in the documentation and/or other materials provided
- *      with the distribution.
- *
- *    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of
- * its contributors may be used to endorse or promote products derived from this
- * software without specific prior written permission.
- *
- * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
- * GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
- * HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
- * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
-/*
  * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
@@ -104,7 +67,6 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "mode_properties") { return DRMProperty::MODE_PROPERTIES; }
   if (name == "lut_ed") { return DRMProperty::LUT_ED; }
   if (name == "layer_lock_type") { return DRMProperty::REFERENCE_SPACE_TYPE; }
-  if (name == "render_type") { return DRMProperty::RENDER_TYPE; }
   if (name == "render_pose") { return DRMProperty::RENDER_POSE; }
   if (name == "render_frustum") { return DRMProperty::RENDER_FRUSTUM; }
   if (name == "plane_equation") { return DRMProperty::PLANE_EQUATION; }
@@ -259,6 +221,7 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "early_fence_line") { return DRMProperty::EARLY_FENCE_LINE; }
   if (name == "dnsc_blur") { return DRMProperty::DNSC_BLR; }
   if (name == "wb_usage_type") { return DRMProperty::WB_USAGE_TYPE; }
+  if (name == "num_buffers") { return DRMProperty::WB_NUM_BUFFERS; }
   if (name == "wb_csc_config") { return DRMProperty::WB_CSC_CONFIG; }
   if (name == "SDE_SSPP_FP16_IGC_V1") { return DRMProperty::SDE_SSPP_FP16_IGC_V1; }
   if (name == "SDE_SSPP_FP16_GC_V1") { return DRMProperty::SDE_SSPP_FP16_GC_V1; }
@@ -308,21 +271,26 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "reproj_grid_w") { return DRMProperty::REPROJ_GRID_W; }
   if (name == "reproj_grid_h") { return DRMProperty::REPROJ_GRID_H; }
   if (name == "reproj_r_max") { return DRMProperty::REPROJ_R_MAX; }
-  if (name == "reproj_error_to_l") { return DRMProperty::REPROJ_ERROR_TO_L; }
+  if (name == "reproj_error_to_l") { return DRMProperty::REPROJ_ERROR_TOL; }
   if (name == "reproj_disp_im_w") { return DRMProperty::REPROJ_DISP_IM_W; }
   if (name == "reproj_disp_im_h") { return DRMProperty::REPROJ_DISP_IM_H; }
-  if (name == "reproj_tile_w") { return DRMProperty::REPROJ_TILE_W; }
-  if (name == "reproj_tile_h") { return DRMProperty::REPROJ_TILE_H; }
   if (name == "distort_resolution") { return DRMProperty::DISTORT_RESOLUTION; }
   if (name == "layer_gamma") { return DRMProperty::LAYER_GAMMA; }
   if (name == "reproj_mode") { return DRMProperty::REPROJ_MODE; }
-  if (name == "reproj_to_lrgb_left") { return DRMProperty::REPROJ_TO_LRGB_LEFT; }
-  if (name == "reproj_to_lrgb_right") { return DRMProperty::REPROJ_TO_LRGB_RIGHT; }
+  if (name == "reproj_to_lrgb_left") { return DRMProperty::REPROJ_TOL_RGB_LEFT; }
+  if (name == "reproj_to_lrgb_right") { return DRMProperty::REPROJ_TOL_RGB_RIGHT; }
   if (name == "reproj_pose_fb") { return DRMProperty::REPROJ_POSE_FB; }
-  if (name == "reproj_min_bbox_w") { return DRMProperty::REPROJ_MIN_BBOX_W; }
-  if (name == "reproj_min_bbox_h") { return DRMProperty::REPROJ_MIN_BBOX_H; }
   if (name == "lsr_mode") { return DRMProperty::LSR_MODE; }
   if (name == "privacy_layers_v2") { return DRMProperty::PRIVACY_REGIONS_V2; }
+  if (name == "SDE_DSPP_RGB_HIST_SET_BUF_V2") { return DRMProperty::SDE_RGB_HIST_SET_BUFFER_V2; }
+  if (name == "SDE_DSPP_RGB_HIST_Q_BUF_V2") { return DRMProperty::SDE_RGB_HIST_QUEUE_BUFFER_V2; }
+  if (name == "SDE_DSPP_RGB_HIST_Q_BUF2_V2") { return DRMProperty::SDE_RGB_HIST_QUEUE_BUFFER2_V2; }
+  if (name == "SDE_DSPP_RGB_HIST_Q_BUF3_V2") { return DRMProperty::SDE_RGB_HIST_QUEUE_BUFFER3_V2; }
+  if (name == "SDE_DSPP_RGB_HIST_CTRL_V2") { return DRMProperty::SDE_RGB_HIST_CTRL_V2; }
+  if (name == "SDE_QRTC_CFG_V1") { return DRMProperty::SDE_QRTC_CFG_V1; }
+  if (name == "SDE_QRTC_BUFFER_V1") { return DRMProperty::SDE_QRTC_BUFFER_V1; }
+  if (name == "disparity_phase") { return DRMProperty::DISPARITY_PHASE; }
+  if (name == "vsync_offset") { return DRMProperty::VSYNC_OFFSET; }
 
   return DRMProperty::INVALID;
 }

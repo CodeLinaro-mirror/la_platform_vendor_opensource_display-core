@@ -356,10 +356,20 @@ bool ConcurrencyMgr::IsHDRDisplay(uint64_t display) {
   return disp_->IsHDRDisplay(display);
 }
 
-DisplayError ConcurrencyMgr::PostBuffer(const CwbConfig &cwb_config,
-                                        void *buffer, int32_t display_type) {
-  return cwb_->PostBuffer(cwb_config, buffer,
-                          disp_->GetDisplayIndex(display_type));
+DisplayError ConcurrencyMgr::PostBuffer(const CwbConfig &cwb_config, void *buffer,
+                                        int32_t display_type) {
+  return cwb_->PostBuffer(cwb_config, buffer, disp_->GetDisplayIndex(display_type));
+}
+
+DisplayError ConcurrencyMgr::PostBufferWithOwner(const CwbConfig &cwb_config, void *buffer,
+                                                 int32_t display_type,
+                                                 SDMSideBandCompositorCbIntf *owner) {
+  // Register buffer ownership for callback routing if PostBuffer succeeded
+  auto err = callbacks_.RegisterCWBBufferOwner(buffer, owner);
+  if (err == kErrorNone) {
+    return cwb_->PostBuffer(cwb_config, buffer, disp_->GetDisplayIndex(display_type));
+  }
+  return err;
 }
 
 void ConcurrencyMgr::NotifyCWBStatus(int32_t status, void *buffer) {
@@ -1423,22 +1433,27 @@ void ConcurrencyMgr::Refresh(uint64_t display) {
   client_pending_refresh_.set(UINT32(display));
 }
 
-void ConcurrencyMgr::CompositorSync(CompositorSyncType sync_type) {
+void ConcurrencyMgr::CompositorSync(uint64_t display, CompositorSyncType sync_type) {
   if (sync_type == CompositorSyncTypeAcquire) {
-    command_seq_mutex_.lock();
-    tui_mutex_.lock();
+    tui_mutex_.lock_shared();  // shared — allows concurrent SF threads
+    display_command_mutex_[display].lock();
   } else {
-    command_seq_mutex_.unlock();
-    tui_mutex_.unlock();
+    display_command_mutex_[display].unlock();
+    tui_mutex_.unlock_shared();  // release shared lock last
   }
 }
 
 void ConcurrencyMgr::PerformDisplayPowerReset(int32_t recovery_display) {
   disp_->RemoveDisconnectedPluggableDisplays();
 
-  // Wait until all commands are flushed.
-  std::lock_guard<std::mutex> lock(command_seq_mutex_);
-  std::lock_guard<std::mutex> tui_lock(tui_mutex_);
+  // Wait until all commands are flushed on ALL displays. Power reset affects
+  // shared MDSS hardware, so we must wait for every display to finish its
+  // current command before proceeding.
+  std::vector<std::unique_lock<std::mutex>> hw_locks;
+  hw_locks.reserve(kNumDisplays);
+  for (Display d = SDM_DISPLAY_PRIMARY; d < kNumDisplays; d++) {
+    hw_locks.emplace_back(display_command_mutex_[d]);
+  }
 
   // Acquire lock on all displays.
   for (Display display = SDM_DISPLAY_PRIMARY; display < kNumDisplays;
@@ -1879,6 +1894,7 @@ DisplayError ConcurrencyMgr::GetDisplayConnectionType(Display display,
     return kErrorParameters;
   }
 
+  SCOPE_LOCK(locker_[display]);
   if (!sdm_display_[display]) {
     DLOGW("Expected valid sdm_display");
     return kErrorParameters;
@@ -2291,18 +2307,12 @@ DisplayError ConcurrencyMgr::CreateVirtualDisplay(uint32_t width,
                                                   uint32_t height,
                                                   int32_t *format,
                                                   Display *out_display_id) {
-  // Wait until all commands are flushed.
-  std::lock_guard<std::mutex> sdm_lock(command_seq_mutex_);
-  std::lock_guard<std::mutex> tui_lock(tui_mutex_);
-
+  std::shared_lock<std::shared_mutex> tui_lock(tui_mutex_);
   return disp_->CreateVirtualDisplay(width, height, format, out_display_id);
 }
 
 DisplayError ConcurrencyMgr::DestroyVirtualDisplay(Display client_id) {
-  // Wait until all commands are flushed.
-  std::lock_guard<std::mutex> sdm_lock(command_seq_mutex_);
-  std::lock_guard<std::mutex> tui_lock(tui_mutex_);
-
+  std::shared_lock<std::shared_mutex> tui_lock(tui_mutex_);
   return disp_->DestroyVirtualDisplay(client_id);
 }
 
@@ -2730,6 +2740,11 @@ void ConcurrencyMgr::RegisterSideBandCallback(SDMSideBandCompositorCbIntf *cb, b
   callbacks_.RegisterSideband(cb, enable);
 }
 
+void ConcurrencyMgr::RegisterSideBandCallbackEx(SDMSideBandCompositorCbIntf *cb, bool enable,
+                                                SideBandCallbackClient intf_type) {
+  callbacks_.RegisterSideband(cb, enable, intf_type);
+}
+
 DisplayError ConcurrencyMgr::SetSsrcMode(uint64_t display_id, const std::string &mode_name) {
   int disp_idx = GetDisplayIndex(display_id);
   if (disp_idx == -1) {
@@ -2881,6 +2896,14 @@ DisplayError ConcurrencyMgr::GetPanelFeatureConfig(Display display, int32_t type
   return CallDisplayFunction(display, &SDMDisplay::GetPanelFeatureConfig, type, data, data_size);
 }
 
+DisplayError ConcurrencyMgr::SetStcFeatureConfig(Display display, void *data) {
+  return CallDisplayFunction(display, &SDMDisplay::SetStcFeatureConfig, data);
+}
+
+DisplayError ConcurrencyMgr::SetQrtcFeatureConfig(Display display, int32_t type, void *data) {
+  return CallDisplayFunction(display, &SDMDisplay::SetQrtcFeatureConfig, type, data);
+}
+
 DisplayError ConcurrencyMgr::ClearBuffersMappedToLayer(uint64_t display, LayerId layer_id,
                                                        const SnapHandle *layerBuffer) {
   return CallDisplayFunction(display, &SDMDisplay::ClearBuffersMappedToLayer, layer_id,
@@ -2890,9 +2913,14 @@ DisplayError ConcurrencyMgr::ClearBuffersMappedToLayer(uint64_t display, LayerId
 void ConcurrencyMgr::PerformSubsystemRestart(bool start) {
   DTRACE_SCOPED();
   DLOGI("Perform Subsystem Restart: %s", start ? "Start" : "End");
-  // Wait until all commands are flushed.
-  std::lock_guard<std::mutex> lock(command_seq_mutex_);
-  std::lock_guard<std::mutex> tui_lock(tui_mutex_);
+  // Wait until all commands are flushed on ALL displays. SSR affects shared
+  // MDSS hardware, so we must wait for every display to finish its current
+  // command before proceeding.
+  std::vector<std::unique_lock<std::mutex>> hw_locks;
+  hw_locks.reserve(kNumDisplays);
+  for (Display d = SDM_DISPLAY_PRIMARY; d < kNumDisplays; d++) {
+    hw_locks.emplace_back(display_command_mutex_[d]);
+  }
 
   // Acquire lock on all displays.
   for (Display display = SDM_DISPLAY_PRIMARY; display < kNumDisplays; display++) {
@@ -2950,6 +2978,10 @@ void ConcurrencyMgr::PerformSubsystemRestart(bool start) {
     locker_[display].Unlock();
   }
   DLOGI("Perform Subsystem Restart done!");
+}
+
+DisplayError ConcurrencyMgr::SetRgbHistObserverConfig(Display display, bool state, void *data) {
+  return CallDisplayFunction(display, &SDMDisplay::SetRgbHistObserverConfig, state, data);
 }
 
 }  // namespace sdm

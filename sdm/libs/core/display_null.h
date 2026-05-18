@@ -84,6 +84,7 @@ class DisplayNull : public DisplayInterface {
   virtual bool IsWriteBackSupportedFormat(const LayerBufferFormat &format) { return false; }
   virtual bool HandleCwbTeardown() { return false; }
   virtual void Abort() {}
+  virtual void ReleaseWBFromDisplay(int32_t) {}
   virtual uint32_t GetAvailableMixerCount() { return 0; }
   virtual DisplayError GetDisplayId(int32_t *display_id);
   virtual DisplayError GetDisplayType(SDMDisplayType *display_type);
@@ -96,6 +97,7 @@ class DisplayNull : public DisplayInterface {
   }
   virtual bool IsDpuDmaModeEnabled() { return false; }
   virtual bool IsEPTSupported() { return false; }
+  virtual bool IsLSRSupported() { return false; }
 
   MAKE_NO_OP(CommitOrPrepare(LayerStack *))
   MAKE_NO_OP(PrePrepare(LayerStack *))
@@ -181,6 +183,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(UpdateTransferTime(uint32_t transfer_time))
   MAKE_NO_OP(SetJitterConfig(uint32_t, float, uint32_t))
   MAKE_NO_OP(CaptureCwb(const LayerBuffer &, const CwbConfig &, const CWBClient &));
+  MAKE_NO_OP(ReserveWBForDisplay(int32_t *));
   MAKE_NO_OP(GetPanelFeatureInfo(PanelFeatureInfo *info));
   MAKE_NO_OP(PanelOprInfo(const std::string &client_name, bool enable,
                           SdmDisplayCbInterface<PanelOprPayload> *cb_intf));
@@ -197,12 +200,15 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(GetCoprStats(std::vector<int> *stats))
   MAKE_NO_OP(GetScalerCount(uint32_t *scaler_count));
   MAKE_NO_OP(DumpDemuraSurface(const char *dir_path, uint32_t frame_index))
+  MAKE_NO_OP(SetStcFeatureConfig(void *));
   MAKE_NO_OP(setDriverCommitPath(const int path))
   MAKE_NO_OP(SetRGBASplit(int enable));
   MAKE_NO_OP(SetClientTargetCapability(const std::bitset<kClientCapabilityMax> &));
   MAKE_NO_OP(SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config))
   MAKE_NO_OP(SetPoseConfig(const LayerBuffer &buffer))
   MAKE_NO_OP(SetIllumination(uint32_t eye, const IlluminationConfig &config))
+  MAKE_NO_OP(SetRgbHistObserverConfig(bool, void *))
+  MAKE_NO_OP(SetQrtcFeatureConfig(int32_t type, void *data))
 
  protected:
   DisplayConfigVariableInfo default_variable_config_ = {};

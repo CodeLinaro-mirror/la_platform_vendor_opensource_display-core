@@ -253,9 +253,17 @@ class SnapMetadataManager {
                                       BufferDescriptor *buf_des = nullptr);
   Error ViewIdHelper(SnapMetadata *metadata, SnapHandleInternal *handle, void *in_set = nullptr,
                      void *out_get = nullptr, BufferDescriptor *buf_des = nullptr);
+  Error ROIRectMetadataHelper(SnapMetadata *metadata, SnapHandleInternal *handle, void *in_set,
+                              void *out_get, BufferDescriptor *buf_des);
   Error CWBMetadataHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
                           void *in_set = nullptr, void *out_get = nullptr,
                           BufferDescriptor *buf_des = nullptr);
+  Error DisparityPhaseHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                             void *in_set = nullptr, void *out_get = nullptr,
+                             BufferDescriptor *buf_des = nullptr);
+  Error CustomTuningMetadataHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                                   void *in_set = nullptr, void *out_get = nullptr,
+                                   BufferDescriptor *buf_des = nullptr);
 
   struct DRMFormatDescriptor {
     uint32_t drm_format;
@@ -493,7 +501,10 @@ class SnapMetadataManager {
           {MULTI_VIEW_INFO, &SnapMetadataManager::MultiViewHelper},
           {THREE_DIMENSIONAL_REF_INFO, &SnapMetadataManager::ThreeDimensionalRefInfoHelper},
           {VIEW_ID, &SnapMetadataManager::ViewIdHelper},
+          {ROI_RECT_METADATA, &SnapMetadataManager::ROIRectMetadataHelper},
           {CWB_METADATA, &SnapMetadataManager::CWBMetadataHelper},
+          {DISPARITY_PHASE, &SnapMetadataManager::DisparityPhaseHelper},
+          {CUSTOM_TUNING_METADATA, &SnapMetadataManager::CustomTuningMetadataHelper},
   };
   struct metadata_traits {
     bool is_settable;
@@ -566,7 +577,10 @@ class SnapMetadataManager {
           {MULTI_VIEW_INFO, {false}},
           {THREE_DIMENSIONAL_REF_INFO, {true}},
           {VIEW_ID, {true}},
+          {ROI_RECT_METADATA, {true}},
           {CWB_METADATA, {true}},
+          {DISPARITY_PHASE, {true}},
+          {CUSTOM_TUNING_METADATA, {true}},
       };
 };
 }  // namespace snapalloc

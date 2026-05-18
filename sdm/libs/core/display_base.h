@@ -45,6 +45,7 @@
 #include <private/rc_intf.h>
 #include <private/strategy_interface.h>
 #include <utils/multi_core_instantiator.h>
+#include <qrtc_feature_fact_intf.h>
 
 #include <limits.h>
 #include <map>
@@ -59,6 +60,7 @@
 #include "color_manager.h"
 #include "dpu_core_factory.h"
 #include "dpu_core_mux.h"
+#include "refresh_rate_manager.h"
 
 using aiqe::GetABCFeatureFactIntf;
 
@@ -66,6 +68,7 @@ using aiqe::GetABCFeatureFactIntf;
 #define GET_DEMURATN_FACTORY "GetDemuraTnCoreUvmFactoryIntf"
 #define GET_FEATURE_LICENSE_FACTORY "GetFeatureLicenseFactoryIntf"
 #define GET_ABC_FACTORY "GetABCFeatureFactIntf"
+#define GET_QRTC_FACTORY "GetQrtcFeatureFactIntf"
 
 namespace sdm {
 
@@ -79,6 +82,7 @@ typedef PanelFeatureFactoryIntf* (*GetPanelFeatureFactory)();
 typedef DemuraTnCoreUvmFactoryIntf* (*GetDemuraTnFactory)();
 typedef FeatureLicenseFactoryIntf* (*GetFeatureLicenseFactory)();
 typedef aiqe::ABCFeatureFactIntf *(*GetABCFactory)();
+typedef qrtc::QrtcFeatureFactIntf *(*GetQrtcFactory)();
 
 class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
  public:
@@ -198,6 +202,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
                                              CwbConfig &cwb_config);
   virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config,
                                   const CWBClient &client);
+  virtual DisplayError ReserveWBForDisplay(int32_t *wb_id);
+  virtual void ReleaseWBFromDisplay(int32_t wb_id);
   virtual DisplayError PostHandleSecureEvent(SecureEvent secure_event) {
     return kErrorNotSupported;
   }
@@ -309,10 +315,14 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data) {
     return kErrorNotSupported;
   }
+  virtual DisplayError SetRgbHistObserverConfig(bool state, void *data) {
+    return kErrorNotSupported;
+  }
 
   virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t data_size) {
     return kErrorNotSupported;
   }
+  virtual DisplayError SetQrtcFeatureConfig(int32_t type, void *data) { return kErrorNotSupported; }
 
   virtual DisplayError PanelBacklightInfo(const std::string &client_name, bool enable,
                                           SdmDisplayCbInterface<PanelBacklightPayload> *cb_intf) {
@@ -322,6 +332,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError GetCoprStats(std::vector<int> *stats) { return kErrorNotSupported; }
   virtual DisplayError GetScalerCount(uint32_t *scaler_count) { return kErrorNotSupported; }
   void HandleSelfRefresh();
+  virtual DisplayError SetStcFeatureConfig(void *data) { return kErrorNotSupported; }
+
   virtual DisplayError DumpDemuraSurface(const char *dir_path, uint32_t frame_index) {
     return kErrorNotSupported;
   }
@@ -337,6 +349,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError SetIllumination(uint32_t eye, const IlluminationConfig &config) {
     return kErrorNotSupported;
   }
+  virtual bool IsLSRSupported();
 
  protected:
   struct DisplayMutex {
@@ -433,6 +446,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   DisplayError DisableDestinationScalar();
   void SetSelfRefreshRefCount(uint32_t sr_ref_count);
   uint32_t GetSelfRefreshRefCount();
+  bool IsFrameBufferPresent();
+  virtual void UpdateFrameBufferForCWB() {}
   DisplayError ValidateExtendedDisplayResolutions(vector<pair<uint32_t, uint32_t>> ext_disp_res,
                                                   vector<pair<uint32_t, uint32_t>> *fin_disp_res);
   void UpdateColorModes();
@@ -559,9 +574,12 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   int rgba_split_enable_ = false;
   bool mixer_resolution_updated_ = false;
   bool primary_commit_needed_ = true;
+  DynLib qrtc_feature_impl_lib_;
+  qrtc::QrtcFeatureFactIntf *qrtc_factory_ = nullptr;
   bool is_ssr_active_ = false;
   bool is_lsr_ssr_active_ = false;
   bool lsr_first_commit_ = true;
+  RefreshRateManager *refresh_rate_mgr_ = nullptr;
 
  private:
   // Max tolerable power-state-change wait-times in milliseconds.

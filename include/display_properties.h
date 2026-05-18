@@ -198,6 +198,12 @@
 #define ANTI_AGING_DISABLE_CWB_DOWNSCALING_PRIMARY    DISPLAY_PROP("antiaging_disable_cwb_downscaling_primary")
 #define ANTI_AGING_DISABLE_CWB_DOWNSCALING_SECONDARY  DISPLAY_PROP("antiaging_disable_cwb_downscaling_secondary")
 
+// Panel Feature Qrtc Properties
+#define PANEL_FEATURE_RECT_MODE_SELECT       DISPLAY_PROP("panel_feature_rect_mode")
+#define ENABLE_QRTC                          DISPLAY_PROP("enable_qrtc")
+#define DISABLE_QRTC_PRIMARY                 DISPLAY_PROP("disable_qrtc_primary")
+#define DISABLE_QRTC_SECONDARY               DISPLAY_PROP("disable_qrtc_secondary")
+
 // PERF hint properties
 #define ENABLE_PERF_HINT_LARGE_COMP_CYCLE    DISPLAY_PROP("enable_perf_hint_large_comp_cycle")
 #define LARGE_COMP_HINT_THRESHOLD            DISPLAY_PROP("large_comp_hint_threshold")
@@ -205,7 +211,7 @@
 #define ENABLE_QSYNC_IDLE                    DISPLAY_PROP("enable_qsync_idle")
 #define ENHANCE_IDLE_TIME                    DISPLAY_PROP("enhance_idle_time")
 #define CPU_CLUSTER_BOOST_MASK               DISPLAY_PROP("cpu_cluster_boost_mask")
-#define PERF_VERSION_PROP                    DISPLAY_PROP("perf_version")
+#define PERF_VERSION_PROP                    DISPLAY_PROP("perf.version")
 #define MINIMUM_LARGE_COMP_FPS               DISPLAY_PROP("minimum_large_comp_fps")
 
 #define MMRM_FLOOR_CLK_VOTE                  DISPLAY_PROP("mmrm_floor_vote")
@@ -233,6 +239,8 @@
 #define SCALING_SOURCE_OPT_MODE              DISPLAY_PROP("scaling_source_opt_mode")
 // Property to set desired libscale optimization mode on destination
 #define SCALING_DEST_OPT_MODE                DISPLAY_PROP("scaling_dest_opt_mode")
+// Property to override libscale version
+#define LIBSCALE_VERSION_OVERRIDE            DISPLAY_PROP("libscale_version_override")
 
 //AIQE Properties
 #define AIQE_SSRC_ENABLE               DISPLAY_PROP("enable_aiqe_ssrc")
@@ -255,6 +263,8 @@
 #define ENABLE_SNAPALLOC_PROP                GRALLOC_PROP("enable_snapalloc")
 #define ENABLE_ALLOCATION_DATA_DUMPING       GRALLOC_PROP("enable_allocation_data_dumping")
 #define ALLOW_CAMERA_PREVIEW_WRITE           GRALLOC_PROP("allow_camera_preview_write")
+#define USE_UNCACHED_HEAP                    GRALLOC_PROP("use_uncached_heap")
+
 // Add all vendor.gralloc.properties above
 
 #define QDCM_DISABLE_TIMEOUT_PROP            PERSIST_DISPLAY_PROP("qdcm.disable_timeout")
@@ -272,6 +282,7 @@
 #define DISABLE_IDLE_SCALING_LAYERS          DISPLAY_PROP("disable_idle_scaling_layers")
 #define DISABLE_LLCC_DURING_AOD              DISPLAY_PROP("disable_llcc_during_aod")
 #define DISABLE_CWB_IDLE_FALLBACK            DISPLAY_PROP("disable_cwb_idle_fallback")
+#define DISABLE_FBT_FOR_CWB_FALLBACK         DISPLAY_PROP("disable_fbt_for_cwb_fallback")
 #define PRIORITIZE_CLIENT_CWB                DISPLAY_PROP("prioritize_client_cwb")
 #define ENABLE_CWB_CPU_BOOSTING              DISPLAY_PROP("enable_cwb_cpu_boosting")
 #define DISABLE_CWB_OPTIMIZATION             DISPLAY_PROP("disable_cwb_optimization")
@@ -294,6 +305,7 @@
 #define BUILTIN_PRESENTATION                 DISPLAY_PROP("builtin_presentation")
 #define DISABLE_DYNAMIC_SPLIT                DISPLAY_PROP("disable_dynamic_split")
 #define DISABLE_FP16_SUPPORT                 DISPLAY_PROP("disable_fp16_support")
+#define DISABLE_HDR_GAMMA_SUPPORT            DISPLAY_PROP("disable_hdr_gamma_support")
 #define LSR_VARIANT                          DISPLAY_PROP("lsr_variant")
 #define ENABLE_SPLIT_VOTE                    DISPLAY_PROP("enable_split_vote")
 #define ENABLE_SELECTIVE_PANEL_DEAD          DISPLAY_PROP("selective_panel_dead")
@@ -313,12 +325,21 @@
 #define ENABLE_HFI_PATH                   DISPLAY_PROP("enable_hfi_path")
 // Disable client querying luts
 #define DISABLE_QUERY_LUTS                DISPLAY_PROP("disable_query_luts")
+// Disable publishing luts support to client
+#define DISABLE_LUTS_OVERLAY_SUPPORT      DISPLAY_PROP("disable_luts_overlay_support")
 
 #define ENABLE_PRIVACY_LAYERS             DISPLAY_PROP("enable_privacy_layers")
 
 #define DISABLE_PUNCHHOLE_LAYERS          DISPLAY_PROP("disable_punchhole_layers")
 
 #define FORCE_LSR_RENDER_MODE             DISPLAY_PROP("force_lsr_render_mode")
+#define SET_VSYNC_OFFSET                  DISPLAY_PROP("set_vsync_offset")
+
+// Enable RGB Histogram
+#define ENABLE_RGB_HISTOGRAM              DISPLAY_PROP("enable_rgb_histogram")
+
+// Enable composer driven HDCP path
+#define COMPOSER_DRIVEN_HDCP              DISPLAY_PROP("composer_driven_hdcp")
 
 // Add all other.properties above
 // End of property

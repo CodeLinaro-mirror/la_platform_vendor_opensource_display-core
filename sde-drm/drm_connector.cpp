@@ -310,7 +310,7 @@ static inline vector<uint64_t> GetBitClkRates(const string &bitclk_rates) {
   string bitclk_rate {};
   vector<uint64_t> dyn_bitclk_list {};
 
-  DRM_LOGI("Setting dynamic bitclk list: %s", bitclk_rates.c_str());
+  DRM_LOGV("Setting dynamic bitclk list: %s", bitclk_rates.c_str());
   while (line >> bitclk_rate) {
     dyn_bitclk_list.push_back(std::stoi(bitclk_rate));
   }
@@ -322,7 +322,7 @@ static inline vector<uint32_t> GetEmSyncFpsList(const string &emsync_fps_list) {
   string emsync_fps{};
   vector<uint32_t> em_sync_fps_list{};
 
-  DRM_LOGI("Setting em sync fps list: %s", emsync_fps_list.c_str());
+  DRM_LOGV("Setting em sync fps list: %s", emsync_fps_list.c_str());
   while (line >> emsync_fps) {
     em_sync_fps_list.push_back(std::stoi(emsync_fps));
   }
@@ -334,7 +334,7 @@ static inline vector<uint32_t> GetFpValues(const string &fp_list) {
   string fp {};
   vector<uint32_t> dyn_fp_list {};
 
-  DRM_LOGI("Setting dynamic fp list: %s", fp_list.c_str());
+  DRM_LOGV("Setting dynamic fp list: %s", fp_list.c_str());
   while (line >> fp) {
     dyn_fp_list.emplace_back(std::stoi(fp));
   }
@@ -347,7 +347,7 @@ static inline vector<uint32_t> GetAllowedModeSwitches(const string &mode_switch_
   string mode_switch{};
   vector<uint32_t> allowed_mode_switch_list{};
 
-  DRM_LOGI("Setting allowed mode switch list: %s", mode_switch_lsit.c_str());
+  DRM_LOGV("Setting allowed mode switch list: %s", mode_switch_lsit.c_str());
   while (line >> mode_switch) {
     allowed_mode_switch_list.emplace_back(std::stoul(mode_switch));
   }
@@ -688,7 +688,7 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
   memcpy (fmt_str, blob->data, blob->length);
   fmt_str[blob->length] = '\0';
   stringstream stream(fmt_str);
-  DRM_LOGI("stream str %s len %zu blob str %s len %d", stream.str().c_str(), stream.str().length(),
+  DRM_LOGV("stream str %s len %zu blob str %s len %d", stream.str().c_str(), stream.str().length(),
            (char *)(blob->data), blob->length);
   string line = {};
   const string display_type = "display type=";
@@ -699,7 +699,9 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
   const string max_linewidth = "maxlinewidth=";
   const string panel_orientation = "panel orientation=";
   const string qsync_support = "qsync support=";
+  const string features = "features=";
   const string wb_ubwc = "wb_ubwc";
+  const string downscale = "downscale";
   const string dyn_bitclk_support = "dyn bitclk support=";
   const string qsync_fps = "qsync_fps=";
   const string has_cwb_dither = "has_cwb_dither=";
@@ -745,8 +747,17 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
       info->qsync_support = (string(line, qsync_support.length()) == "true");
     } else if (line.find(qsync_fps) != string::npos) {
       info->qsync_fps = std::stoi(string(line, qsync_fps.length()));
+    } else if (line.find(features) != string::npos) {
+      if (line.find(wb_ubwc) != string::npos) {
+        info->is_wb_ubwc_supported = true;
+      }
+      if (line.find(downscale) != string::npos) {
+        info->is_wb_downscale_supported = true;
+      }
     } else if (line.find(wb_ubwc) != string::npos) {
       info->is_wb_ubwc_supported = true;
+    } else if (line.find(downscale) != string::npos) {
+      info->is_wb_downscale_supported = true;
     } else if (line.find(dyn_bitclk_support) != string::npos) {
       info->dyn_bitclk_support = (string(line, dyn_bitclk_support.length()) == "true");
     } else if (line.find(has_cwb_dither) != string::npos) {
@@ -828,13 +839,13 @@ void DRMConnector::ParseModeProperties(uint64_t blob_id, DRMConnectorInfo *info)
     return;
   }
 
-  DRM_LOGI("Obtain modes for conn %d", info->type_id);
+  DRM_LOGV("Obtain modes for conn %d", info->type_id);
 
   char *fmt_str = new char[blob->length + 1];
   memcpy (fmt_str, blob->data, blob->length);
   fmt_str[blob->length] = '\0';
   stringstream stream(fmt_str);
-  DRM_LOGI("stream str %s len %zu blob str %s len %d", stream.str().c_str(), stream.str().length(),
+  DRM_LOGV("stream str %s len %zu blob str %s len %d", stream.str().c_str(), stream.str().length(),
            (char *)(blob->data), blob->length);
 
   string line = {};
@@ -1032,12 +1043,13 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, drm_msm_ext_hdr_propertie
     hdr_info->hdr_max_luminance = hdr_cdata->hdr_max_luminance;
     hdr_info->hdr_avg_luminance = hdr_cdata->hdr_avg_luminance;
     hdr_info->hdr_min_luminance = hdr_cdata->hdr_min_luminance;
-    DRM_LOGI("hdr_supported = %d, hdr_plus_supported = %d, hdr_eotf = %d, "
-             "hdr_metadata_type_one = %d, hdr_max_luminance = %d, hdr_avg_luminance = %d, "
-             "hdr_min_luminance = %d\n", hdr_info->hdr_supported,
-             hdr_info->hdr_plus_supported,
-             hdr_info->hdr_eotf, hdr_info->hdr_metadata_type_one, hdr_info->hdr_max_luminance,
-             hdr_info->hdr_avg_luminance, hdr_info->hdr_min_luminance);
+    DRM_LOGV(
+        "hdr_supported = %d, hdr_plus_supported = %d, hdr_eotf = %d, "
+        "hdr_metadata_type_one = %d, hdr_max_luminance = %d, hdr_avg_luminance = %d, "
+        "hdr_min_luminance = %d\n",
+        hdr_info->hdr_supported, hdr_info->hdr_plus_supported, hdr_info->hdr_eotf,
+        hdr_info->hdr_metadata_type_one, hdr_info->hdr_max_luminance, hdr_info->hdr_avg_luminance,
+        hdr_info->hdr_min_luminance);
   }
   drmModeFreePropertyBlob(blob);
 }
@@ -1575,6 +1587,22 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       }
     } break;
 
+    case DRMOps::CONNECTOR_WB_NUM_BUFFERS: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::WB_NUM_BUFFERS)) {
+        return;
+      }
+      uint64_t wb_num_buffers = va_arg(args, uint32_t);
+      uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::WB_NUM_BUFFERS);
+      int ret = drmModeAtomicAddProperty(req, obj_id, prop_id, wb_num_buffers);
+      if (ret < 0) {
+        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, wb_num_buffers %" PRIu64
+                 " ret %d",
+                 obj_id, prop_id, wb_num_buffers, ret);
+      } else {
+        DRM_LOGD("Connector %d: Setting wb_num_buffers %" PRIu64, obj_id, wb_num_buffers);
+      }
+    } break;
+
     case DRMOps::CONNECTOR_WB_CSC_CONFIG: {
       if (!prop_mgr_.IsPropertyAvailable(DRMProperty::WB_CSC_CONFIG)) {
         return;
@@ -1686,7 +1714,7 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       if (ret < 0) {
         DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, ret %d", obj_id, prop_id, ret);
       }
-      DRM_LOGD("Connector %d: Setting SYNC_TO", obj_id);
+      DRM_LOGD("Connector %d: Setting SYNC_TO primary_conn_id %u", obj_id, primary_conn_id);
     } break;
 
     case DRMOps::CONNECTOR_SET_CONFIG_MATRIX: {
@@ -1816,7 +1844,8 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       uint32_t resolution = va_arg(args, uint32_t);
       drmModeAtomicAddProperty(
           req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::DISTORT_RESOLUTION), resolution);
-      DRM_LOGD("Connector %d: DISTORT_RESOLUTION set successfuly", obj_id);
+      DRM_LOGD("Connector %d: DISTORT_RESOLUTION set successfuly resolution %u", obj_id,
+               resolution);
     } break;
 
     case DRMOps::CONNECTOR_SET_REPROJ_OPTICAL_AXIS_OFFSET: {
@@ -1841,7 +1870,8 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
                                width);
       drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_GRID_H),
                                height);
-      DRM_LOGD("Connector %d: REPROJ_GRID_W REPROJ_GRID_H set successfuly", obj_id);
+      DRM_LOGD("Connector %d: REPROJ_GRID_W REPROJ_GRID_H set successfuly width %u height %u",
+               obj_id, width, height);
     } break;
 
     case DRMOps::CONNECTOR_SET_REPROJ_R_MAX: {
@@ -1853,34 +1883,36 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       memcpy(&value, &r_max, sizeof(r_max));
       drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_R_MAX),
                                value);
-      DRM_LOGD("Connector %d: REPROJ_R_MAX set successfuly ", obj_id);
+      DRM_LOGD("Connector %d: REPROJ_R_MAX set successfuly r_max %f", obj_id, r_max);
     } break;
 
-    case DRMOps::CONNECTOR_SET_REPROJ_TO_LRGB: {
-      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_TO_LRGB_LEFT) ||
-          !prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_TO_LRGB_RIGHT)) {
+    case DRMOps::CONNECTOR_SET_REPROJ_TOL_RGB: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_TOL_RGB_LEFT) ||
+          !prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_TOL_RGB_RIGHT)) {
         return;
       }
-      float lrgb_left = va_arg(args, double);
-      float lrgb_right = va_arg(args, double);
-      uint32_t lrgb_left_int, lrgb_right_int;
-      memcpy(&lrgb_left_int, &lrgb_left, sizeof(lrgb_left));
-      memcpy(&lrgb_right_int, &lrgb_right, sizeof(lrgb_right));
+      float tol_rgb_left = va_arg(args, double);
+      float tol_rgb_right = va_arg(args, double);
+      uint32_t tol_rgb_left_int, tol_rgb_right_int;
+      memcpy(&tol_rgb_left_int, &tol_rgb_left, sizeof(tol_rgb_left));
+      memcpy(&tol_rgb_right_int, &tol_rgb_right, sizeof(tol_rgb_right));
       drmModeAtomicAddProperty(
-          req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_TO_LRGB_LEFT), lrgb_left_int);
-      drmModeAtomicAddProperty(
-          req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_TO_LRGB_RIGHT), lrgb_right_int);
-      DRM_LOGD("Connector %d: REPROJ_TO_LRGB set successfuly", obj_id);
+          req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_TOL_RGB_LEFT), tol_rgb_left_int);
+      drmModeAtomicAddProperty(req, obj_id,
+                               prop_mgr_.GetPropertyId(DRMProperty::REPROJ_TOL_RGB_RIGHT),
+                               tol_rgb_right_int);
+      DRM_LOGD("Connector %d: REPROJ_TOL_RGB set successfuly left %f right %f", obj_id,
+               tol_rgb_left, tol_rgb_right);
     } break;
 
-    case DRMOps::CONNECTOR_SET_REPROJ_ERROR_TO_L: {
-      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_ERROR_TO_L)) {
+    case DRMOps::CONNECTOR_SET_REPROJ_ERROR_TOL: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_ERROR_TOL)) {
         return;
       }
       uint32_t value = va_arg(args, uint32_t);
-      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_ERROR_TO_L),
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_ERROR_TOL),
                                value);
-      DRM_LOGD("Connector %d: REPROJ_ERROR_TO_L set successfuly", obj_id);
+      DRM_LOGD("Connector %d: REPROJ_ERROR_TOL set successfuly value %u", obj_id, value);
     } break;
 
     case DRMOps::CONNECTOR_SET_REPROJ_DISP_IM_SIZE: {
@@ -1894,35 +1926,8 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
                                width);
       drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_DISP_IM_H),
                                height);
-      DRM_LOGD("Connector %d: REPROJ_DISP_IM_W REPROJ_DISP_IM_H set successfuly", obj_id);
-    } break;
-
-    case DRMOps::CONNECTOR_SET_REPROJ_TILE_SIZE: {
-      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_TILE_W) ||
-          !prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_TILE_H)) {
-        return;
-      }
-      uint32_t width = va_arg(args, uint32_t);
-      uint32_t height = va_arg(args, uint32_t);
-      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_TILE_W),
-                               width);
-      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_TILE_H),
-                               height);
-      DRM_LOGD("Connector %d: REPROJ_TILE_W REPROJ_TILE_H set successfuly", obj_id);
-    } break;
-
-    case DRMOps::CONNECTOR_SET_REPROJ_MIN_BBOX_SIZE: {
-      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_MIN_BBOX_W) ||
-          !prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_MIN_BBOX_H)) {
-        return;
-      }
-      uint32_t min_width = va_arg(args, uint32_t);
-      uint32_t min_height = va_arg(args, uint32_t);
-      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_MIN_BBOX_W),
-                               min_width);
-      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_MIN_BBOX_H),
-                               min_height);
-      DRM_LOGD("Connector %d: REPROJ_MIN_BBOX_W REPROJ_MIN_BBOX_H set successfuly", obj_id);
+      DRM_LOGD("Connector %d: REPROJ_DISP_IM_W REPROJ_DISP_IM_H set successfuly width %u height %u",
+               obj_id, width, height);
     } break;
 
     case DRMOps::CONNECTOR_SET_POSE_FB_ID: {
@@ -1944,7 +1949,18 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       uint32_t value = va_arg(args, uint32_t);
       drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_MODE),
                                value);
-      DRM_LOGD("Connector %d: REPROJ_MODE set successfuly", obj_id);
+      DRM_LOGD("Connector %d: REPROJ_MODE set successfuly mode %u", obj_id, value);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_VSYNC_OFFSET: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::VSYNC_OFFSET)) {
+        return;
+      }
+
+      uint64_t vsync_offset = va_arg(args, uint64_t);
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::VSYNC_OFFSET),
+                               vsync_offset);
+      DRM_LOGD("Connector %d: VSYNC_OFFSET set to %" PRIu64, obj_id, vsync_offset);
     } break;
 
     case DRMOps::CONNECTOR_SET_PRIVACY_REGIONS: {

@@ -29,8 +29,8 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 // clang-format on
@@ -116,6 +116,10 @@ enum ScProperty {
   //<! SetProperty - Property to pass PPFeatureVersion to STC manager.
   //<! Payload - struct PPFeatureVersion
   kSetPPFeatureVersion,
+  //<! SetProperty - Property to set config for stc feature.
+  //<! Payload - Struct StcFeaturePayload
+  kSetStcFeatureConfig,
+
   //<! Max value of public properties
   kPropertyMax = 511,
   //<! Custom Properties
@@ -136,6 +140,15 @@ enum ScOps {
   //<! configuration if they are presenting in the color mode.
   kScModeSwAssets,
   kScOpsMax = 0xFF,
+};
+
+//<! This enum represents the stc feature cmd types supported by the vndService cmd.
+enum StcFeatureCmdType {
+  /* Setter */
+  kTypeSetManualAls = 0,
+  kTypeSetAlpha = 1,
+  kTypeSetState = 2,
+  StcFeatureCmdTypeMax,
 };
 
 //<! Tuple first entry: Hardware capability.
@@ -330,6 +343,19 @@ struct RenderIntentMapList {
   const uint32_t version = sizeof(struct RenderIntentMapList) + sizeof(struct RenderIntentMap);
   //<! List of the render intent
   std::vector<RenderIntentMap> list;
+};
+
+struct StcFeaturePayload {
+  const uint32_t version = sizeof(struct StcFeaturePayload);
+  enum StcFeatureCmdType cmd_type;
+  std::shared_ptr<void> payload;
+  uint32_t payload_len;
+};
+
+struct ManualAlsInput {
+  const uint32_t version = sizeof(ManualAlsInput);
+  bool manual_control;
+  int32_t als;
 };
 
 }  // namespace snapdragoncolor

@@ -85,6 +85,21 @@ DisplayError HWPeripheralDRM::Init() {
   CreatePanelFeaturePropertyMap();
   InitCalibrationNodes();
 
+  char vsync_offset_ns[255] = {};
+  if (Debug::GetProperty(SET_VSYNC_OFFSET, vsync_offset_ns) == kErrorNone) {
+    errno = 0;
+    char *end = nullptr;
+    unsigned long long offset = std::strtoull(vsync_offset_ns, &end, 10);
+
+    if (errno != ERANGE && end != vsync_offset_ns && *end == '\0') {
+      vsync_offset_ns_ = static_cast<uint64_t>(offset);
+      DLOGV_IF(kTagDriverConfig, "vsync_offset_ns property set to: %" PRIu64, vsync_offset_ns_);
+    } else {
+      DLOGW("Invalid value set for property SET_VSYNC_OFFSET: '%s'", vsync_offset_ns);
+      vsync_offset_ns_ = 0;
+    }
+  }
+
   return kErrorNone;
 }
 
@@ -335,6 +350,8 @@ DisplayError HWPeripheralDRM::SetOffloadMode(bool enable) {
     ret = Sys::pwrite_(fd, buffer.c_str(), buffer.size(), 0);
   } else {
     DLOGI("Disabling the offload mode");
+    first_cycle_ = true;
+    offload_transition_pending_ = true;
     ret = Sys::pwrite_(fd, buffer.c_str(), buffer.size(), 0);
   }
 
@@ -506,6 +523,12 @@ DisplayError HWPeripheralDRM::Commit(HWLayersInfo *hw_layers_info) {
 
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_USECASE_IDX, token_.conn_id,
                             hw_layers_info->common_info->flags.only_video_updating);
+  if (hw_layers_info->lsr_commit && vsync_offset_ns_ > 0) {
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CONNECTOR_SET_VSYNC_OFFSET, token_.conn_id,
+                              vsync_offset_ns_);
+  } else {
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CONNECTOR_SET_VSYNC_OFFSET, token_.conn_id, 0);
+  }
 
   if (hw_layers_info->lsr_commit && (lsr_cache_state_ == sde_drm::DRMCacheState::DISABLED)) {
     drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_CACHE_STATE, token_.crtc_id,
@@ -1385,6 +1408,11 @@ void HWPeripheralDRM::CreatePanelFeaturePropertyMap() {
       sde_drm::kDRMPanelFeatureDemuraDoubleBufferCbFlags;
   panel_feature_property_map_[kPanelFeatureDemuraBrgtInvAdjExpFlag] =
       sde_drm::kDRMPanelFeatureDemuraBrgtInvAdjExpFlag;
+  panel_feature_property_map_[kPanelFeatureDemuraSupportSingleRecFlags] =
+      sde_drm::kDRMPanelFeatureDemuraSupportSingleRecFlags;
+  panel_feature_property_map_[kPanelFeatureQrtcConfig] = sde_drm::kDRMPanelFeatureQrtcConfig;
+  panel_feature_property_map_[kPanelFeatureQrtcBufferConfig] =
+      sde_drm::kDRMPanelFeatureQrtcBufferConfig;
 }
 
 int HWPeripheralDRM::GetPanelFeature(PanelFeaturePropertyInfo *feature_info) {
@@ -1424,6 +1452,8 @@ int HWPeripheralDRM::GetPanelFeature(PanelFeaturePropertyInfo *feature_info) {
     case kPanelFeatureAiqeCopr:
     case kPanelFeatureABCCfg:
     case kPanelFeatureDemuraBacklight:
+    case kPanelFeatureQrtcConfig:
+    case kPanelFeatureQrtcBufferConfig:
       drm_feature.obj_type = DRM_MODE_OBJECT_CRTC;
       drm_feature.obj_id = token_.crtc_id;
       break;
@@ -1435,6 +1465,7 @@ int HWPeripheralDRM::GetPanelFeature(PanelFeaturePropertyInfo *feature_info) {
       break;
     case kPanelFeatureDemuraDoubleBufferCbFlags:
     case kPanelFeatureDemuraBrgtInvAdjExpFlag:
+    case kPanelFeatureDemuraSupportSingleRecFlags:
       break;
     default:
       DLOGE("obj id population for property %d not implemented", feature_info->prop_id);
@@ -1472,6 +1503,8 @@ int HWPeripheralDRM::SetPanelFeature(const PanelFeaturePropertyInfo &feature_inf
     case kPanelFeatureAiqeCopr:
     case kPanelFeatureABCCfg:
     case kPanelFeatureDemuraBacklight:
+    case kPanelFeatureQrtcConfig:
+    case kPanelFeatureQrtcBufferConfig:
       drm_feature.obj_type = DRM_MODE_OBJECT_CRTC;
       drm_feature.obj_id = token_.crtc_id;
       break;

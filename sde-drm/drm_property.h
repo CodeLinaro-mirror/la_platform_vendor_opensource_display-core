@@ -28,43 +28,6 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following
- * license:
- *
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted (subject to the limitations in the
- * disclaimer below) provided that the following conditions are met:
- *
- *    * Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
- *
- *    * Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
- *      disclaimer in the documentation and/or other materials provided
- *      with the distribution.
- *
- *    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of
- * its contributors may be used to endorse or promote products derived from this
- * software without specific prior written permission.
- *
- * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
- * GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
- * HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
- * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
-/*
  * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
@@ -245,6 +208,7 @@ enum struct DRMProperty {
   EARLY_FENCE_LINE,
   DNSC_BLR,
   WB_USAGE_TYPE,
+  WB_NUM_BUFFERS,
   WB_CSC_CONFIG,
   SDE_SSPP_FP16_IGC_V1,
   SDE_SSPP_FP16_GC_V1,
@@ -290,7 +254,6 @@ enum struct DRMProperty {
   FB_ID_LIST,
   SYNC_TO,
   REFERENCE_SPACE_TYPE,
-  RENDER_TYPE,
   RENDER_POSE,
   RENDER_FRUSTUM,
   PLANE_EQUATION,
@@ -304,21 +267,26 @@ enum struct DRMProperty {
   REPROJ_GRID_W,
   REPROJ_GRID_H,
   REPROJ_R_MAX,
-  REPROJ_TO_LRGB_LEFT,
-  REPROJ_TO_LRGB_RIGHT,
-  REPROJ_ERROR_TO_L,
+  REPROJ_TOL_RGB_LEFT,
+  REPROJ_TOL_RGB_RIGHT,
+  REPROJ_ERROR_TOL,
   REPROJ_DISP_IM_W,
   REPROJ_DISP_IM_H,
-  REPROJ_TILE_W,
-  REPROJ_TILE_H,
   DISTORT_RESOLUTION,
   LAYER_GAMMA,
   REPROJ_MODE,
   REPROJ_POSE_FB,
-  REPROJ_MIN_BBOX_W,
-  REPROJ_MIN_BBOX_H,
   LSR_MODE,
   PRIVACY_REGIONS_V2,
+  SDE_RGB_HIST_SET_BUFFER_V2,
+  SDE_RGB_HIST_QUEUE_BUFFER_V2,
+  SDE_RGB_HIST_QUEUE_BUFFER2_V2,
+  SDE_RGB_HIST_QUEUE_BUFFER3_V2,
+  SDE_RGB_HIST_CTRL_V2,
+  SDE_QRTC_CFG_V1,
+  SDE_QRTC_BUFFER_V1,
+  DISPARITY_PHASE,
+  VSYNC_OFFSET,
 
   // Insert above
   MAX

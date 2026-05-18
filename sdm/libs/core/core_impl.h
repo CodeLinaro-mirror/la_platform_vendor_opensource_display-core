@@ -111,6 +111,7 @@ class CoreImpl : public CoreInterface {
   virtual DisplayError GetMaxDisplaysSupported(SDMDisplayType type, int32_t *max_displays);
   virtual bool IsRotatorSupportedFormat(LayerBufferFormat format);
   virtual DisplayError ReserveDemuraPipeResources();
+  virtual DisplayError ReserveQrtcPipeResources();
   virtual DisplayError RequestVirtualDisplayId(int32_t *vdisp_id);
   virtual bool IsGPUHWAvailable();
 #ifdef PROFILE_COVERAGE_DATA
@@ -122,11 +123,11 @@ class CoreImpl : public CoreInterface {
  protected:
   void InitializeSDMUtils();
   void ReleaseDemuraResources();
-  void OverRideDemuraPanelIds(std::vector<uint64_t> *panel_ids);
   DisplayError CreateNullDisplayLocked(DisplayInterface **intf);
   DisplayError HandleNullDisplay();
   DisplayError ReserveDemuraResources(std::map<uint32_t, uint8_t> required_demura_fetch_cnt);
   DisplayError ReserveABCResources(std::map<uint32_t, uint8_t> required_abc_fetch_cnt);
+  DisplayError ReserveQrtcResources(std::map<uint32_t, uint8_t> required_qrtc_fetch_cnt);
   DisplayError ValidateAndCleanupDemuraFiles();
   void ResetCachedHDRCaps();
 
@@ -146,8 +147,10 @@ class CoreImpl : public CoreInterface {
   std::shared_ptr<IPCIntf> ipc_intf_ = nullptr;
   CoreIPCVmCallbackImpl *vm_cb_intf_ = nullptr;
   bool reserve_done_ = false;
+  bool qrtc_reserve_done_ = false;
   char *raw_mapped_buffer_ = nullptr;
   std::vector<uint32_t> demura_display_ids_;
+  std::vector<uint32_t> qrtc_display_ids_;
   bool enable_null_display_ = false;
   std::bitset<8> core_ids_ = std::bitset<8>(0xFF);
   std::shared_ptr<DemuraTnValidatorIntf> demuratn_validator_intf_;

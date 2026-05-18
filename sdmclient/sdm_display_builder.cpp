@@ -111,6 +111,16 @@ bool SDMDisplayBuilder::HasHDRSupport(SDMDisplay *sdm_display) {
   return (out_num_types > 0);
 }
 
+int32_t SDMDisplayBuilder::GetVirtualDisplayId(HWDisplayInfo &info) {
+  for (auto &map_info : map_info_virtual_) {
+    if (map_info.sdm_id == info.display_id) {
+      return -1;
+    }
+  }
+
+  return info.display_id;
+}
+
 void SDMDisplayBuilder::Init(Locker *locker) {
   // Default slots:
   //    Primary = 0, External = 1
@@ -339,9 +349,26 @@ DisplayError SDMDisplayBuilder::CreateVirtualDisplayObj(
   // Request to get virtual display id corresponds writeback block, which could
   // be used for WFD.
   int32_t display_id = -1;
-  auto err = core_intf_->RequestVirtualDisplayId(&display_id);
-  if (err != kErrorNone || display_id == -1) {
-    return kErrorResources;
+  int wb_count = 0;
+  core_intf_->GetMaxDisplaysSupported(kVirtual, &wb_count);
+
+  if (wb_count) {
+    // Request to get virtual display id corresponds writeback block, which could be used for WFD.
+    auto err = core_intf_->RequestVirtualDisplayId(&display_id);
+    if (err != kErrorNone || display_id == -1) {
+      return kErrorResources;
+    }
+  } else if (virtual_display_factory_.IsGPUColorConvertSupported()) {
+    //checking property here, whether gpu color convert is supported.
+    for (auto &vdl : virtual_display_list_) {
+      display_id = GetVirtualDisplayId(vdl);
+      if (display_id == -1) {
+        continue;
+      }
+      break;
+    }
+  } else {
+    return kErrorNotSupported;
   }
 
   // Lock confined to this scope
@@ -421,6 +448,22 @@ void SDMDisplayBuilder::GetVirtualDisplayList() {
 
     virtual_display_list_.push_back(info);
   }
+  if (virtual_display_list_.empty() && virtual_display_factory_.IsGPUColorConvertSupported()) {
+    AddGpuBasedVirtualDisplay(&hw_displays_info);
+  }
+}
+
+void SDMDisplayBuilder::AddGpuBasedVirtualDisplay(const HWDisplaysInfo *const hw_displays_info) {
+  HWDisplayInfo hw_info = {};
+  hw_info.display_type = kVirtual;
+  hw_info.is_connected = true;
+  hw_info.is_primary = false;
+  hw_info.is_wb_ubwc_supported = true;
+  hw_info.display_id = 0;
+  while (hw_displays_info->find(hw_info.display_id) != hw_displays_info->end()) {
+    hw_info.display_id++;
+  }
+  virtual_display_list_.push_back(hw_info);
 }
 
 uint32_t SDMDisplayBuilder::GetVirtualDisplayCount() {
@@ -428,13 +471,15 @@ uint32_t SDMDisplayBuilder::GetVirtualDisplayCount() {
 }
 
 int SDMDisplayBuilder::CreatePrimaryDisplay() {
-  int status = -EINVAL;
+  int status = 0;
   HWDisplaysInfo hw_displays_info = {};
+  SDMDisplay *sdm_display = nullptr;
+  Display client_id = map_info_primary_[0].client_id;
 
   DisplayError error = core_intf_->GetDisplaysStatus(&hw_displays_info);
   if (error != kErrorNone) {
     DLOGE("Failed to get connected display list. Error = %d", error);
-    return status;
+    return -EINVAL;
   }
 
   for (auto &iter : hw_displays_info) {
@@ -443,8 +488,7 @@ int SDMDisplayBuilder::CreatePrimaryDisplay() {
       continue;
     }
 
-    SDMDisplay *sdm_display = nullptr;
-    Display client_id = map_info_primary_[0].client_id;
+    sdm_display = nullptr;
     pluggable_is_primary_ = (info.display_type == kPluggable);
 
     // Create Null display if Primary is not connected
@@ -472,6 +516,7 @@ int SDMDisplayBuilder::CreatePrimaryDisplay() {
           info.display_id, 0, 0, false, &sdm_display);
     } else {
       DLOGE("Spurious primary display type = %d", info.display_type);
+      status = -EINVAL;
       break;
     }
 
@@ -496,6 +541,19 @@ int SDMDisplayBuilder::CreatePrimaryDisplay() {
 
     // Primary display is found, no need to parse more.
     break;
+  }
+
+  // primary display is not connected, create a null display
+  sdm_display = cb_->GetDisplayFromClientId(client_id);
+  if (!status && sdm_display == nullptr) {
+    status = SDMDisplayNull::Create(core_intf_, buffer_allocator_, callbacks_, evt_handler_,
+                                    client_id, 1, &sdm_display);
+    null_display_active_ = true;
+    map_info_primary_[0].disp_type = kBuiltIn;
+    map_info_primary_[0].sdm_id = 1;
+    null_display_ = sdm_display;
+
+    cb_->SetDisplayByClientId(client_id, sdm_display);
   }
 
   return status;
@@ -1018,8 +1076,7 @@ void SDMDisplayBuilder::DestroyDisplay(DisplayMapInfo *map_info) {
     callbacks_->OnHotplug(map_info->client_id, false);
 
     // Wait until all commands are flushed.
-    std::lock_guard<std::mutex> sdm_lock(cb_->command_seq_mutex_);
-
+    std::lock_guard<std::mutex> cmd_lock(cb_->display_command_mutex_[map_info->client_id]);
     cb_->SetPowerMode(map_info->client_id,
                       static_cast<int32_t>(SDMPowerMode::POWER_MODE_OFF));
     DestroyPluggableDisplay(map_info);
@@ -1182,6 +1239,16 @@ DisplayError SDMDisplayBuilder::GetDisplayHwId(uint64_t disp_id,
   }
 
   for (auto &info : GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_BUILTIN_2)) {
+    if (disp_id == info.client_id) {
+      if (info.sdm_id >= 0) {
+        *disp_hw_id = static_cast<uint32_t>(info.sdm_id);
+        return kErrorNone;
+      }
+    }
+  }
+
+  // Support for external displays
+  for (auto &info : GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_EXTERNAL)) {
     if (disp_id == info.client_id) {
       if (info.sdm_id >= 0) {
         *disp_hw_id = static_cast<uint32_t>(info.sdm_id);

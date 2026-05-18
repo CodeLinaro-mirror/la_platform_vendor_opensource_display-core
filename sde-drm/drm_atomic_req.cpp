@@ -96,11 +96,11 @@ int DRMAtomicReq::Perform(DRMOps opcode, uint32_t obj_id, ...) {
     case DRMOps::PLANE_SET_BG_ALPHA:
     case DRMOps::PLANE_SET_IMG_SIZE_RECT:
     case DRMOps::PLANE_SET_REFERENCE_SPACE_TYPE:
-    case DRMOps::PLANE_SET_RENDER_TYPE:
     case DRMOps::PLANE_SET_RENDER_POSE:
     case DRMOps::PLANE_SET_RENDER_FRUSTUM:
     case DRMOps::PLANE_SET_PLANE_EQUATION:
-    case DRMOps::PLANE_SET_LAYER_GAMMA: {
+    case DRMOps::PLANE_SET_LAYER_GAMMA:
+    case DRMOps::PLANE_SET_DISPARITY_PHASE: {
       drm_mgr_->GetPlaneMgr()->Perform(opcode, obj_id, drm_atomic_req_, args);
     } break;
     case DRMOps::PLANE_SET_FP16_CSC_CONFIG:
@@ -176,6 +176,7 @@ int DRMAtomicReq::Perform(DRMOps opcode, uint32_t obj_id, ...) {
     case DRMOps::CONNECTOR_EARLY_FENCE_LINE:
     case DRMOps::CONNECTOR_DNSC_BLR:
     case DRMOps::CONNECTOR_WB_USAGE_TYPE:
+    case DRMOps::CONNECTOR_WB_NUM_BUFFERS:
     case DRMOps::CONNECTOR_WB_CSC_CONFIG:
     case DRMOps::CONNECTOR_SET_CACHE_STATE:
     case DRMOps::CONNECTOR_SET_EPT:
@@ -197,13 +198,12 @@ int DRMAtomicReq::Perform(DRMOps opcode, uint32_t obj_id, ...) {
     case DRMOps::CONNECTOR_SET_REPROJ_OPTICAL_AXIS_OFFSET:
     case DRMOps::CONNECTOR_SET_REPROJ_GRID_SIZE:
     case DRMOps::CONNECTOR_SET_REPROJ_R_MAX:
-    case DRMOps::CONNECTOR_SET_REPROJ_TO_LRGB:
-    case DRMOps::CONNECTOR_SET_REPROJ_ERROR_TO_L:
+    case DRMOps::CONNECTOR_SET_REPROJ_TOL_RGB:
+    case DRMOps::CONNECTOR_SET_REPROJ_ERROR_TOL:
     case DRMOps::CONNECTOR_SET_REPROJ_DISP_IM_SIZE:
-    case DRMOps::CONNECTOR_SET_REPROJ_TILE_SIZE:
-    case DRMOps::CONNECTOR_SET_REPROJ_MIN_BBOX_SIZE:
     case DRMOps::CONNECTOR_SET_REPROJ_MODE:
     case DRMOps::CONNECTOR_SET_POSE_FB_ID:
+    case DRMOps::CONNECTOR_SET_VSYNC_OFFSET:
     case DRMOps::CONNECTOR_SET_PRIVACY_REGIONS_V2: {
       drm_mgr_->GetConnectorMgr()->Perform(opcode, obj_id, drm_atomic_req_, args);
     } break;

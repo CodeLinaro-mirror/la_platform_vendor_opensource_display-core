@@ -77,6 +77,7 @@ typedef enum : unsigned int {
       0x164,  // YUV format with flexible alignment defined by individual APIs
   CAMERA_PIXEL_FORMAT_P210_UBWC_FLEX_8_BATCH =
       0x165,  // YUV format with flexible alignment defined by individual APIs
+  CAMERA_PIXEL_FORMAT_YCbCr_422_I = 0x14,
 } CamxPixelFormat;
 
 // Camera Result Codes
@@ -112,10 +113,10 @@ enum PlaneComponent {
   PLANE_COMPONENT_B = 1 << 12,
 
   /* alpha */
-  PLANE_COMPONENT_A = 1 << 20,
+  PLANE_COMPONENT_A = 1 << 30,
 
   /* raw data plane */
-  PLANE_COMPONENT_RAW = 1 << 30,
+  PLANE_COMPONENT_RAW = 1 << 20,
 
   /* meta information plane */
   PLANE_COMPONENT_META = 1 << 31,
@@ -324,7 +325,13 @@ class CameraConstraintProvider : public SnapConstraintProvider {
            CAMERA_PIXEL_FORMAT_P210_UBWC_FLEX_4_BATCH},
           {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_P210,
             .modifier = PIXEL_FORMAT_MODIFIER_UBWC_FLEX_8_BATCH},
-           CAMERA_PIXEL_FORMAT_P210_UBWC_FLEX_8_BATCH}};
+           CAMERA_PIXEL_FORMAT_P210_UBWC_FLEX_8_BATCH},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_422_I,
+            .modifier = PIXEL_FORMAT_MODIFIER_VENUS},
+           CAMERA_PIXEL_FORMAT_YCbCr_422_I},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCBCR_422_I,
+            .modifier = PIXEL_FORMAT_MODIFIER_NONE},
+           CAMERA_PIXEL_FORMAT_YCbCr_422_I}};
 };
 }  // namespace snapalloc
 

@@ -175,6 +175,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   FieldFd right_field_fds_;
   PanelShiftFd left_panel_shifts_;
   PanelShiftFd right_panel_shifts_;
+  uint64_t vsync_offset_ns_ = 0;
 };
 
 }  // namespace sdm

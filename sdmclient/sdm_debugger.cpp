@@ -27,12 +27,11 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #include <display_properties.h>
 #include <utils/constants.h>
 #include <cstdarg>
@@ -225,6 +224,30 @@ void SDMDebugHandler::DebugDemura(bool enable, int verbose_level) {
     debug_handler_.verbose_level_ = verbose_level;
   } else {
     debug_handler_.log_mask_[kTagDemura] = 0;
+    debug_handler_.verbose_level_ = 0;
+  }
+
+  DebugHandler::SetLogMask(debug_handler_.log_mask_);
+}
+
+void SDMDebugHandler::DebugColorProc(bool enable, int verbose_level) {
+  if (enable) {
+    debug_handler_.log_mask_[kTagColorProc] = 1;
+    debug_handler_.verbose_level_ = verbose_level;
+  } else {
+    debug_handler_.log_mask_[kTagColorProc] = 0;
+    debug_handler_.verbose_level_ = 0;
+  }
+
+  DebugHandler::SetLogMask(debug_handler_.log_mask_);
+}
+
+void SDMDebugHandler::DebugRefreshRate(bool enable, int verbose_level) {
+  if (enable) {
+    debug_handler_.log_mask_[kTagRefreshRate] = 1;
+    debug_handler_.verbose_level_ = verbose_level;
+  } else {
+    debug_handler_.log_mask_[kTagRefreshRate] = 0;
     debug_handler_.verbose_level_ = 0;
   }
 

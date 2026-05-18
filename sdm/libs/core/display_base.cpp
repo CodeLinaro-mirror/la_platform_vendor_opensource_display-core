@@ -53,6 +53,7 @@
 namespace sdm {
 
 #define ABC_LIBRARY_NAME "libabc.so"
+#define QRTC_LIBRARY_NAME "libqrtc.so"
 
 std::atomic<uint32_t> DisplayBase::hw_rc_blocks_in_use_(0);
 bool DisplayBase::display_power_reset_pending_ = false;
@@ -148,6 +149,10 @@ DisplayBase::~DisplayBase() {
     lock.NotifyWorker();
   }
 
+  if (refresh_rate_mgr_) {
+    delete refresh_rate_mgr_;
+  }
+
   commit_thread_.join();
 }
 
@@ -178,7 +183,7 @@ DisplayError DisplayBase::Init() {
   for (auto info_intf = hw_info_intf_.Begin(); info_intf != hw_info_intf_.End(); info_intf++) {
     HWResourceInfo res_info;
     info_intf->second->GetHWResourceInfo(&res_info);
-    wb_downscale_supports_ |= !!info_intf->second->GetMaxDNSCBlurBlockCount();
+    wb_downscale_supports_ |= info_intf->second->IsDownscaledCwbSupported(-1 /* For any WB */);
     hw_resource_info_.push_back(res_info);
   }
 
@@ -382,6 +387,8 @@ DisplayError DisplayBase::Init() {
   InitBorderLayers();
   // Assume unified draw is supported.
   unified_draw_supported_ = true;
+
+  refresh_rate_mgr_ = new RefreshRateManager(display_id_, display_type_, avr_step_);
 
   return kErrorNone;
 
@@ -616,6 +623,27 @@ DisplayError DisplayBase::SetupPanelFeatureFactory() {
     abc_factory_ = get_abc_factory_ptr();
     if (!abc_factory_) {
       DLOGE("Failed to create ABC feature Factory");
+      return kErrorNone;
+    }
+  }
+
+  int enable_qrtc = 1;
+  GetQrtcFactory get_qrtc_factory_ptr = nullptr;
+  if (enable_qrtc) {
+    if (qrtc_feature_impl_lib_.Open(QRTC_LIBRARY_NAME)) {
+      if (!qrtc_feature_impl_lib_.Sym(GET_QRTC_FACTORY,
+                                      reinterpret_cast<void **>(&get_qrtc_factory_ptr))) {
+        DLOGW("Unable to load Qrtc symbols, error = %s", qrtc_feature_impl_lib_.Error());
+        return kErrorNone;
+      }
+    } else {
+      DLOGW("Unable to load = %s, error = %s", QRTC_LIBRARY_NAME, qrtc_feature_impl_lib_.Error());
+      return kErrorNone;
+    }
+
+    qrtc_factory_ = get_qrtc_factory_ptr();
+    if (!qrtc_factory_) {
+      DLOGE("Failed to create Qrtc feature Factory");
       return kErrorNone;
     }
   }
@@ -1103,6 +1131,8 @@ void DisplayBase::EnableLlccDuringAodMode(LayerStack *layer_stack) {
       } else if (layer->composition == kCompositionDemura) {
         size_ff++;
       } else if (layer->composition == kCompositionCWBTarget) {
+        size_ff++;
+      } else if (layer->composition == kCompositionQrtc) {
         size_ff++;
       }
     }
@@ -1658,7 +1688,15 @@ DisplayError DisplayBase::CommitOrPrepare(LayerStack *layer_stack) {
     lock.NotifyWorker();
   }
 
+  if (refresh_rate_mgr_) {
+    refresh_rate_mgr_->CalculateRefreshRate(disp_layer_stack_, client_ctx_, /*is_idle*/ false);
+  }
+
   return async_commit ? kErrorNone : kErrorNeedsCommit;
+}
+
+bool DisplayBase::IsLSRSupported() {
+  return client_ctx_.hw_panel_info.is_lsr_display;
 }
 
 bool DisplayBase::IsPrimaryCommitNeeded() {
@@ -1745,6 +1783,10 @@ void DisplayBase::CommitThread() {
       if (self_refresh_state) {
         PerformSelfRefresh(srEPT);
         continue;
+      } else {
+        if (refresh_rate_mgr_) {
+          refresh_rate_mgr_->CalculateRefreshRate(disp_layer_stack_, client_ctx_, /*is_idle*/ true);
+        }
       }
 
       event_handler_->HandleEvent(kIdleTimeout);
@@ -1804,7 +1846,8 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
   }
 
   for (auto& info : disp_layer_stack_->info) {
-    info.second.retire_fence_offset = retire_fence_offset_;
+    info.second.retire_fence_offset =
+        (disp_layer_stack_->stack_info.iwe_repro_left_index == -1) ? retire_fence_offset_ : 0;
   }
   // Regiser for power events on first cycle in unified draw.
   if (first_cycle_ && display_type_ == kBuiltIn) {
@@ -2538,7 +2581,12 @@ DisplayError DisplayBase::SetActiveConfig(uint32_t index) {
   active_config_index_ = index;
   active_refresh_rate_ = client_ctx.display_attributes.fps;
 
-  return ReconfigureDisplay();
+  error = ReconfigureDisplay();
+  if (refresh_rate_mgr_) {
+    refresh_rate_mgr_->CalculateRefreshRate(disp_layer_stack_, client_ctx_, /*is_idle*/ false);
+  }
+
+  return error;
 }
 
 DisplayError DisplayBase::SetMaxMixerStages(uint32_t max_mixer_stages) {
@@ -2818,6 +2866,8 @@ const char * DisplayBase::GetName(const LayerComposition &composition) {
     case kCompositionStitchTarget:  return "STITCH_TARGET";
     case kCompositionDemura:        return "DEMURA";
     case kCompositionCWBTarget:     return "CWB_TARGET";
+    case kCompositionQrtc:
+      return "QRTC";
     default:                        return "UNKNOWN";
   }
 }
@@ -3567,7 +3617,7 @@ bool DisplayBase::NeedsMixerReconfiguration(LayerStack *layer_stack, uint32_t *n
 
   for (uint32_t i = 0; i < layer_count; i++) {
     Layer *layer = layers.at(i);
-    if (layer->flags.is_demura || layer->flags.is_abc) {
+    if (layer->flags.is_demura || layer->flags.is_abc || layer->flags.is_qrtc) {
       continue;
     }
 
@@ -3832,6 +3882,7 @@ void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
   }
 
   UpdateFrameBuffer();
+  UpdateFrameBufferForCWB();
 
   if (layer_stack->elapse_timestamp) {
     disp_layer_stack_->stack_info.common_info.elapse_timestamp = layer_stack->elapse_timestamp;
@@ -3849,16 +3900,7 @@ void DisplayBase::UpdateFrameBuffer() {
     return;
   }
 
-  bool client_target_present = false;
-  for (auto& info : disp_layer_stack_->info) {
-    for (auto &hw_layer : info.second.hw_layers) {
-      if (hw_layer.composition == kCompositionGPUTarget) {
-        client_target_present = true;
-        break;
-      }
-    }
-  }
-  bool need_cached_fb = !gpu_comp_frame_ && client_target_present;
+  bool need_cached_fb = !gpu_comp_frame_ && IsFrameBufferPresent();
   if (!need_cached_fb) {
     return;
   }
@@ -3876,6 +3918,20 @@ void DisplayBase::UpdateFrameBuffer() {
       }
     }
   }
+}
+
+bool DisplayBase::IsFrameBufferPresent() {
+  bool client_target_present = false;
+  for (auto &info : disp_layer_stack_->info) {
+    for (auto &hw_layer : info.second.hw_layers) {
+      if (hw_layer.composition == kCompositionGPUTarget) {
+        client_target_present = true;
+        break;
+      }
+    }
+  }
+
+  return client_target_present;
 }
 
 void DisplayBase::PostCommitLayerParams() {
@@ -4909,9 +4965,18 @@ DisplayError DisplayBase::SetPPConfig(void *payload, size_t size) {
   }
 
   DLOGI_IF(kTagDisplay, "PP Event is set successfully");
-  struct sde_drm::DRMPPFeatureInfo *info = reinterpret_cast<sde_drm::DRMPPFeatureInfo *>(payload);
-  if (info->id != sde_drm::kFeaturePaHistIrq) {
-    HandleSelfRefresh();
+
+  auto info = reinterpret_cast<sde_drm::DRMPPFeatureInfo *>(payload);
+  switch (info->id) {
+    case sde_drm::kFeaturePaHistIrq:
+    case sde_drm::kFeatureRgbHistQueueBuffer:
+    case sde_drm::kFeatureRgbHistQueueBuffer2:
+    case sde_drm::kFeatureRgbHistQueueBuffer3:
+      // No action needed for these cases
+      break;
+    default:
+      HandleSelfRefresh();
+      break;
   }
   return kErrorNone;
 }
@@ -5399,6 +5464,16 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
   cwb_active_ = true;
 
   return kErrorNone;
+}
+
+DisplayError DisplayBase::ReserveWBForDisplay(int32_t *wb_id) {
+  ClientLock lock(disp_mutex_);
+  return comp_manager_->ReserveWBForDisplay(display_comp_ctx_, wb_id);
+}
+
+void DisplayBase::ReleaseWBFromDisplay(int32_t wb_id) {
+  ClientLock lock(disp_mutex_);
+  comp_manager_->ReleaseWBFromDisplay(display_comp_ctx_, wb_id);
 }
 
 bool DisplayBase::HandleCwbTeardown() {

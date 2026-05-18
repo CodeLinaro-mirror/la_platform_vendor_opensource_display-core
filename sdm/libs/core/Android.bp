@@ -10,6 +10,8 @@ cc_library_shared {
         "qti_kernel_headers",
         "qti_display_kernel_headers",
         "device_kernel_headers",
+        "libqrtc_headers",
+        "display_color_headers",
     ],
     cflags: [
         "-fno-operator-names",
@@ -25,6 +27,7 @@ cc_library_shared {
         "libsdedrm",
         "libsdmdal",
         "libtinyxml2",
+        "librgbhistogram",
     ],
 
     srcs: [
@@ -46,6 +49,7 @@ cc_library_shared {
         "dpu_multi_core.cpp",
         "privacy_region_manager.cpp",
         "pu_subject_intf_impl.cpp",
+        "refresh_rate_manager.cpp",
     ],
 
 }

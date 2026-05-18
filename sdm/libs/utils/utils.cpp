@@ -192,10 +192,54 @@ const char *GetCompositionName(const LayerComposition &composition) {
   case kCompositionIWE:           return "IWE";
   case kCompositionIWECSC:        return "IWE_CSC";
   case kCompositionIWERepro:      return "IWE_REPRO";
+  case kCompositionQrtc:          return "QRTC";
   default:                        return "UNKNOWN";
   }
 }
 // clang-format on
+
+const char *GetCompositionLayerTypeName(const SDMCompositionLayerType &type) {
+  switch (type) {
+    case COMPOSITION_LAYER_NONE:
+      return "None";
+    case COMPOSITION_LAYER_QUAD:
+      return "Quad";
+    case COMPOSITION_LAYER_PROJECTION:
+      return "Proj";
+    default:
+      return "Unknown";
+  }
+}
+
+const char *GetRenderLayerReferenceSpaceName(const SDMRenderLayerReferenceSpaceType &type) {
+  switch (type) {
+    case RENDER_LAYER_REFERENCE_SPACE_NONE:
+      return "None";
+    case RENDER_LAYER_REFERENCE_SPACE_WORLD:
+      return "World";
+    case RENDER_LAYER_REFERENCE_SPACE_HEAD:
+      return "Head";
+    case RENDER_LAYER_REFERENCE_SPACE_SPHERE:
+      return "Sphere";
+    default:
+      return "Unknown";
+  }
+}
+
+const char *GetLayerVisibilityName(const SDMLayerVisibilityType &type) {
+  switch (type) {
+    case LAYER_VISIBILITY_NONE:
+      return "None";
+    case LAYER_VISIBILITY_LEFT_EYE:
+      return "Left";
+    case LAYER_VISIBILITY_RIGHT_EYE:
+      return "Rght";
+    case LAYER_VISIBILITY_BOTH_EYES:
+      return "Both";
+    default:
+      return "Unknown";
+  }
+}
 
 const char* GetSocName() {
   string soc_id;
@@ -249,6 +293,8 @@ const char* GetSocName() {
     case kCanoeSSocId1:
       return kCanoeSocName;
     case kArtSocId:
+    case kPebbleSocId1:
+    case kPebbleSocId2:
       return kArtSocName;
     case kShikraSocId1:
     case kShikraSocId2:

@@ -133,10 +133,13 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
 
   bool GetComposerStatus() override;
 
-  void CompositorSync(CompositorSyncType sync_type) override;
+  void CompositorSync(uint64_t display, CompositorSyncType sync_type) override;
 
-  DisplayError PostBuffer(const CwbConfig &cwb_config, void *buffer,
-                          int32_t display_type);
+  DisplayError PostBuffer(const CwbConfig &cwb_config, void *buffer, int32_t display_type);
+
+  DisplayError PostBufferWithOwner(const CwbConfig &cwb_config, void *buffer, int32_t display_type,
+                                   SDMSideBandCompositorCbIntf *owner);
+
   DisplayError SetPoseConfig(uint64_t disp_id, void *buffer);
 
   template <typename... Args>
@@ -384,6 +387,8 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError GetActiveBuiltinDisplay(uint64_t *disp_id) override;
 
   void RegisterSideBandCallback(SDMSideBandCompositorCbIntf *cb, bool enable) override;
+  void RegisterSideBandCallbackEx(SDMSideBandCompositorCbIntf *cb, bool enable,
+                                  SideBandCallbackClient intf_type) override;
 
   void GetCapabilities(uint32_t *outCount, int32_t *outCapabilities);
   void Dump(uint32_t *out_size, char *out_buffer);
@@ -554,8 +559,13 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError SetAIScalerMode(uint64_t display_id, uint32_t mode_id);
   DisplayError SetPanelFeatureConfig(Display display, int32_t type, void *data);
   DisplayError GetPanelFeatureConfig(Display display, int32_t type, void *data, uint32_t data_size);
+  DisplayError SetStcFeatureConfig(Display display, void *data);
   DisplayError ClearBuffersMappedToLayer(uint64_t display, LayerId layer_id,
                                          const SnapHandle *layerBuffer);
+  DisplayError SetRgbHistObserverConfig(Display display, bool state, void *data);
+  DisplayError SetQrtcFeatureConfig(Display display, int32_t type, void *data);
+
+  void SetPrimaryConnected(bool state) { primary_connected_ = state; }
 
   void SetPrimaryConnected(bool state) { primary_connected_ = state; }
 

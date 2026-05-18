@@ -329,7 +329,7 @@ Error SnapConstraintManager::ConvertAlignedWidthFromBytesToPixels(
     sample_increment_bits *= 4;
   }
   *width_in_pixels = width_in_bytes / (sample_increment_bits / 8);
-  if (format == vendor_qti_hardware_display_common_PixelFormat::TP10) {
+  if (format == vendor_qti_hardware_display_common_PixelFormat::TP10 || format == vendor_qti_hardware_display_common_PixelFormat::GBRTP10_UBWC) {
     OVERFLOW_ERR_RETURN(*width_in_pixels, 3, OverflowType::MUL);
     *width_in_pixels = (*width_in_pixels) * 3;
   }

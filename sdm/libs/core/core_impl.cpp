@@ -164,6 +164,9 @@ DisplayError CoreImpl::Init() {
   if (ReserveDemuraPipeResources() != kErrorNone) {
     comp_mgr_.SetDemuraStatus(false);
   }
+
+  ReserveQrtcPipeResources();
+
 #ifndef TRUSTED_VM
   vm_cb_intf_ = new CoreIPCVmCallbackImpl(ipc_intf_, hw_info_intf_[0]);
   if (vm_cb_intf_) {
@@ -198,6 +201,10 @@ DisplayError CoreImpl::Deinit() {
   }
 
   ReleaseDemuraResources();
+
+  for (auto &it : qrtc_display_ids_) {
+    comp_mgr_.FreeQrtcFetchResources(it);
+  }
 
   if (demuratn_validator_intf_ && demuratn_validator_intf_.use_count() == 1) {
     demuratn_validator_intf_->Deinit();
@@ -527,53 +534,6 @@ void CoreImpl::InitializeSDMUtils() {
   sdm_utils_factory_intf_->CreateSDMPropUtils(hw_resource_);
 }
 
-void CoreImpl::OverRideDemuraPanelIds(std::vector<uint64_t> *panel_ids) {
-  uint64_t panel_id_prim = 0, panel_id_sec = 0;
-  int panel_id_w = 0;
-  uint32_t count;
-
-  if (!panel_ids)
-    return;
-
-  panel_id_w = 0;
-  // primary panel id
-  Debug::Get()->GetProperty(DEMURA_PRIMARY_PANEL_OVERRIDE_LOW, &panel_id_w);
-  panel_id_prim = static_cast<uint32_t>(panel_id_w);
-  Debug::Get()->GetProperty(DEMURA_PRIMARY_PANEL_OVERRIDE_HIGH, &panel_id_w);
-  panel_id_prim |=  ((static_cast<uint64_t>(panel_id_w)) << 32);
-
-  panel_id_w = 0;
-  // secondary panel id
-  Debug::Get()->GetProperty(DEMURA_SECONDARY_PANEL_OVERRIDE_LOW, &panel_id_w);
-  panel_id_sec = static_cast<uint32_t>(panel_id_w);
-  Debug::Get()->GetProperty(DEMURA_SECONDARY_PANEL_OVERRIDE_HIGH, &panel_id_w);
-  panel_id_sec |=  ((static_cast<uint64_t>(panel_id_w)) << 32);
-
-  count = panel_ids->size();
-
-  if (count >= 2 && (!panel_id_prim || !panel_id_sec)) {
-    DLOGI("skip panel override count 2 panel_id_prim %" PRIX64 " panel_id_sec %" PRIX64 "\n",
-      panel_id_prim, panel_id_sec);
-    return;
-  }
-
-  if (count == 1 && !panel_id_prim && !panel_id_sec) {
-    DLOGI("skip panel override count 1 panel_id_prim %" PRIX64 " panel_id_sec %" PRIX64 "\n",
-      panel_id_prim, panel_id_sec);
-    return;
-  }
-
-  panel_ids->clear();
-  if (panel_id_prim) {
-    DLOGI("override primary panel id %" PRIX64 "\n", panel_id_prim);
-    panel_ids->push_back(panel_id_prim);
-  }
-  if (panel_id_sec) {
-    DLOGI("override secondary panel id %" PRIX64 "\n", panel_id_sec);
-    panel_ids->push_back(panel_id_sec);
-  }
-}
-
 DisplayError CoreImpl::ReserveABCResources(std::map<uint32_t, uint8_t> required_demura_fetch_cnt) {
   DisplayError err = kErrorNone;
   int primary_off = 0;
@@ -636,10 +596,42 @@ DisplayError CoreImpl::ReserveDemuraResources(
   int primary_off = 0;
   int secondary_off = 0;
   int available_blocks = 0;
+  int ret = 0;
 
   available_blocks = hw_resource_[0].demura_count;
-  Debug::Get()->GetProperty(DISABLE_DEMURA_PRIMARY, &primary_off);
-  Debug::Get()->GetProperty(DISABLE_DEMURA_SECONDARY, &secondary_off);
+
+  std::shared_ptr<DucDacConfigParserIntf> duc_dac_config_parser =
+      panel_feature_factory_intf_->CreateDucDacConfigParserIntf();
+  if (!duc_dac_config_parser) {
+    DLOGE("Invalid duc dac config parser instance");
+    return kErrorUndefined;
+  }
+  if (duc_dac_config_parser->Init() != kErrorNone) {
+    DLOGE("Failed to initialize duc dac config parser");
+    return kErrorUndefined;
+  }
+
+  int *duc_off = nullptr;
+  GenericPayload duc_off_pl;
+  ret = duc_off_pl.CreatePayload<int>(duc_off);
+  if (ret || duc_off == nullptr) {
+    DLOGE("Failed to create secondary_off payload: ret %d, duc_off %d", ret, duc_off == nullptr);
+    return kErrorUndefined;
+  }
+
+  ret = duc_dac_config_parser->GetParameter(kDucDisable, &duc_off_pl);
+  if (ret || duc_off == nullptr) {
+    DLOGE("Failed to get disable demura status: ret %d, duc_off_pl %d", ret, duc_off == nullptr);
+    return kErrorUndefined;
+  }
+  primary_off = *duc_off;
+
+  ret = duc_dac_config_parser->GetParameter(kDucDisableSecondary, &duc_off_pl);
+  if (ret || duc_off == nullptr) {
+    DLOGE("Failed to get disable demura status: ret %d, duc_off_pl %d", ret, duc_off == nullptr);
+    return kErrorUndefined;
+  }
+  secondary_off = *duc_off;
 
   for (auto r = required_demura_fetch_cnt.begin(); r != required_demura_fetch_cnt.end();) {
     HWDisplayInfo &info = hw_displays_info_[r->first];
@@ -683,7 +675,11 @@ DisplayError CoreImpl::ReserveDemuraResources(
       // When req_cnt == 1 (Single LM topology usecase), pass rect number
       // based on the index of demura instance.
       int8_t preferred_rect = -1;
-      if (req_cnt == 1) {
+      if (hw_resource_[0].support_demura_with_single_rec &&
+          hw_resource_[0].panel_feature_rect_mode_enabled_) {
+        preferred_rect = 0;
+        DLOGI("[%u] Supports single rect. Requesting Demura rect %d", req.first, preferred_rect);
+      } else if (req_cnt == 1) {
         int8_t demura_instance_index = -1;
         HWDisplayInfo &info = hw_displays_info_[req.first];
         for (int i = 0; i < hw_resource_[0].demura_count; ++i) {
@@ -716,6 +712,72 @@ DisplayError CoreImpl::ReserveDemuraResources(
       demura_display_ids_.push_back(req.first);
     }
   }
+  return err;
+}
+
+DisplayError CoreImpl::ReserveQrtcResources(std::map<uint32_t, uint8_t> required_demura_fetch_cnt) {
+  DisplayError err = kErrorNone;
+  int primary_off = 0;
+  int secondary_off = 0;
+  int available_blocks = 0;
+
+  available_blocks = hw_resource_[0].qrtc_count;
+  Debug::Get()->GetProperty(DISABLE_QRTC_PRIMARY, &primary_off);
+  Debug::Get()->GetProperty(DISABLE_QRTC_SECONDARY, &secondary_off);
+
+  for (auto r = required_demura_fetch_cnt.begin(); r != required_demura_fetch_cnt.end();) {
+    HWDisplayInfo &info = hw_displays_info_[r->first];
+    DLOGI("[%d] is_primary = %d, p_off = %d, s_off = %d", r->first, info.is_primary, primary_off,
+          secondary_off);
+    if (info.is_primary && primary_off) {
+      r = required_demura_fetch_cnt.erase(r);
+      continue;
+    } else if (!info.is_primary && secondary_off) {
+      r = required_demura_fetch_cnt.erase(r);
+      continue;
+    }
+
+    available_blocks -= r->second;
+    if (available_blocks < 0) {
+      DLOGE("Not enough Qrtc blocks (%u)", hw_resource_[0].qrtc_count);
+      return kErrorResources;
+    }
+    ++r;
+  }
+
+  // map(display id, map(core_id, count))
+  MultiDpuDemuraMap fetch_resource_cnt;
+  comp_mgr_.GetDemuraFetchResourceCount(&fetch_resource_cnt);
+
+  for (auto &req : required_demura_fetch_cnt) {
+    DLOGI("Reserving qrtc resources for [%u] %u", req.first, req.second);
+    uint8_t req_cnt = req.second;
+    if (req_cnt != 0) {
+      int8_t preferred_rect = 0;
+      DLOGI("[%u] Needs qrtc resources %u", req.first, req_cnt);
+      if (hw_resource_[0].panel_feature_rect_mode_enabled_) {
+        // ToDO: hard code to rect 0 now since rect 1 is not work
+        preferred_rect = 0;
+        DLOGI("[%u] Supports single rect. Requesting Qrtc rect %d", req.first, preferred_rect);
+      } else if (req_cnt == 1) {
+        // ToDO: hard code to rect 0 now since rect 1 is not work
+        preferred_rect = 0;
+        DLOGI("[%u] Requesting qrtc rect %d", req.first, preferred_rect);
+      } else if (req_cnt == 2) {
+        preferred_rect = -1;
+      } else {
+        DLOGE("Invalid qrtc requirement count = %d", req_cnt);
+        return kErrorResources;
+      }
+
+      if ((err = comp_mgr_.ReserveQrtcFetchResources(req.first, preferred_rect)) != kErrorNone) {
+        DLOGE("Failed to reserve resources error = %d", err);
+        return err;
+      }
+      qrtc_display_ids_.push_back(req.first);
+    }
+  }
+
   return err;
 }
 
@@ -779,11 +841,6 @@ DisplayError CoreImpl::ReserveDemuraPipeResources() {
       return err;
     }
   } else if (enable_demura) {
-    if ((err = ReserveDemuraResources(required_demura_fetch_cnt)) != kErrorNone) {
-      DLOGE("Failed to reserve Demura feature resources error = %d", err);
-      return err;
-    }
-
     GetPanelFeatureFactory get_factory_f_ptr = nullptr;
     if (!extension_lib_.Sym(GET_PANEL_FEATURE_FACTORY,
                             reinterpret_cast<void **>(&get_factory_f_ptr))) {
@@ -797,10 +854,68 @@ DisplayError CoreImpl::ReserveDemuraPipeResources() {
       return kErrorResources;
     }
 
+    if ((err = ReserveDemuraResources(required_demura_fetch_cnt)) != kErrorNone) {
+      DLOGE("Failed to reserve Demura feature resources error = %d", err);
+      return err;
+    }
+
     ValidateAndCleanupDemuraFiles();
   }
 
   reserve_done_ = true;
+  return err;
+}
+
+DisplayError CoreImpl::ReserveQrtcPipeResources() {
+  DisplayError err = kErrorNone;
+  int enable_qrtc = 0;
+  if (qrtc_reserve_done_)
+    return kErrorNone;
+
+  Debug::Get()->GetProperty(ENABLE_QRTC, &enable_qrtc);
+  DLOGI("Feature Enable Qrtc = %d", enable_qrtc);
+
+  if (!enable_qrtc) {
+    return kErrorNone;
+  }
+
+  // TODO(user): demura fetch resouce count is the counts of LM,
+  // not specific to demura. Qrtc also need to reserve the pipes
+  // base on the LM counts for each of display in pipe mode.
+  std::map<uint32_t, uint8_t> dpu_required_demura_fetch_cnt;  // display_id, count
+  if ((err = hw_info_intf_[0]->GetRequiredDemuraFetchResourceCount(
+           &dpu_required_demura_fetch_cnt)) != kErrorNone) {
+    DLOGE("Unable to get required qrtc pipes count");
+    return err;
+  }
+
+  // TODO(user): Workaround to append core_id to get display_id
+  // to be removed after making changes for Demura on multi-dpu
+  std::map<uint32_t, uint8_t> required_demura_fetch_cnt;
+  for (auto r = dpu_required_demura_fetch_cnt.begin(); r != dpu_required_demura_fetch_cnt.end();
+       r++) {
+    uint32_t disp_id = r->first;
+    for (auto display_info : hw_displays_info_) {
+      uint32_t base_core_id = DisplayId::GetBaseCoreId(display_info.first);
+      if (DisplayId::GetConnId(display_info.first, base_core_id) == r->first) {
+        disp_id = display_info.first;
+      }
+    }
+
+    required_demura_fetch_cnt.insert({disp_id, r->second});
+  }
+
+  if (!required_demura_fetch_cnt.size()) {
+    DLOGW("Qrtc is enabled but no panels support it. Disabling..");
+    return kErrorNone;
+  }
+
+  if ((err = ReserveQrtcResources(required_demura_fetch_cnt)) != kErrorNone) {
+    DLOGE("Failed to reserve Qrtc feature resources error = %d", err);
+    return err;
+  }
+
+  qrtc_reserve_done_ = true;
   return err;
 }
 

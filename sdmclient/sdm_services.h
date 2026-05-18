@@ -41,6 +41,7 @@
 #include <vector>
 #include <core/buffer_allocator.h>
 #include <core/socket_handler.h>
+#include <private/snapdragon_color_intf.h>
 
 #include "sdm_color_manager.h"
 #include "sdm_display.h"
@@ -51,6 +52,8 @@
 #include "sdm_tui.h"
 
 namespace sdm {
+
+using snapdragoncolor::StcFeatureCmdType;
 
 enum {
   SDM_SERVICE_COMMAND_LIST_START = 1,
@@ -114,6 +117,10 @@ enum {
   SDM_SERVICE_SET_STANDBY_MODE = 66,          // Set standby mode
   SDM_SERVICE_SET_PRIVACY_REGIONS = 67,       // Set PrivacyRegions on given layers in frame
   SDM_SERVICE_GET_PANEL_FEATURE_CONFIG = 68,  // Get panel feature configuration
+  SDM_SERVICE_SET_FRAME_DUMP_STREAMING_CONFIG = 69,  // Set continuous frame dump streaming config
+  SDM_SERVICE_SET_RGB_HISTOGRAM_CONFIG = 70,         // Set rgb histogram config
+  SDM_SERVICE_SET_QRTC_FEATURE_CONFIG = 71,  // Common function for setting QRTC configuration
+  SDM_SERVICE_SET_STC_FEATURE_CONFIG = 72,   // Common function, Set cfg for stc feature
   SDM_SERVICE_COMMAND_LIST_END = 400,
 };
 
@@ -137,10 +144,12 @@ enum {
   SDM_SERVICE_DEBUG_IWE,
   SDM_SERVICE_DEBUG_WB_USAGE,
   SDM_SERVICE_DEBUG_DEMURA,
+  SDM_SERVICE_DEBUG_COLOR_PROCESSING,
+  SDM_SERVICE_DEBUG_REFRESH_RATE,
   SDM_SERVICE_DEBUG_MAX_VAL =
-      SDM_SERVICE_DEBUG_DEMURA,  // Used to check each bit of the debug command
-                                 // paramater. Update DEBUG_MAX_VAL when adding
-                                 // new debug tag.
+      SDM_SERVICE_DEBUG_REFRESH_RATE,  // Used to check each bit of the debug command
+                                       // paramater. Update DEBUG_MAX_VAL when adding
+                                       // new debug tag.
 };
 
 enum {
@@ -213,6 +222,7 @@ private:
                                   uint32_t bit_mask_layer_type,
                                   int32_t processable_cwb_requests,
                                   int32_t output_format, CwbConfig cwb_config);
+  DisplayError ConfigureFrameDumpStreaming(int disp_id, CWBPacketData &data);
   DisplayError SetMaxMixerStages(std::bitset<32> bit_mask_display_type,
                                  int max_mixer_stages);
   DisplayError SetDisplayMode(int mode);
@@ -252,6 +262,7 @@ private:
   DisplayError SetIdleTimeout(SDMParcel *input_parcel);
   DisplayError SetRGBASplit(SDMParcel *input_parcel);
   DisplayError SetFrameDumpConfig(SDMParcel *input_parcel);
+  DisplayError SetFrameDumpStreamingConfig(SDMParcel *input_parcel);
   DisplayError SetMaxMixerStages(SDMParcel *input_parcel);
   DisplayError SetDisplayMode(SDMParcel *input_parcel);
   DisplayError ConfigureRefreshRate(SDMParcel *input_parcel);
@@ -321,10 +332,17 @@ private:
                                            SDMParcel *output_parcel);
   DisplayError GetDisplayPortId(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError SetPanelFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
+  DisplayError SetStcManualAls(int disp_id, StcFeatureCmdType cmd_type, SDMParcel *input_parcel);
+  DisplayError SetStcAlphaValue(int disp_id, StcFeatureCmdType cmd_type, SDMParcel *input_parcel);
+  DisplayError SetSatCompensationState(int disp_id, StcFeatureCmdType cmd_type,
+                                       SDMParcel *input_parcel);
+  DisplayError SetStcFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError GetPanelFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError GetPanelResolution(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError SetStandbyMode(SDMParcel *input_parcel);
   DisplayError SetPrivacyRegions(SDMParcel *input_parcel);
+  DisplayError SetRgbHistObserverConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
+  DisplayError SetQrtcFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
 
   typedef DisplayError (SDMServices::*VndCmdSetHandler)(
       SDMParcel *input_parcel);
@@ -337,6 +355,7 @@ private:
       {SDM_SERVICE_SET_IDLE_TIMEOUT, &SDMServices::SetIdleTimeout},
       {SDM_SERVICE_RGBA_SPLIT, &SDMServices::SetRGBASplit},
       {SDM_SERVICE_SET_FRAME_DUMP_CONFIG, &SDMServices::SetFrameDumpConfig},
+      {SDM_SERVICE_SET_FRAME_DUMP_STREAMING_CONFIG, &SDMServices::SetFrameDumpStreamingConfig},
       {SDM_SERVICE_SET_MAX_PIPES_PER_MIXER, &SDMServices::SetMaxMixerStages},
       {SDM_SERVICE_SET_DISPLAY_MODE, &SDMServices::SetDisplayMode},
       {SDM_SERVICE_CONFIGURE_DYN_REFRESH_RATE, &SDMServices::ConfigureRefreshRate},
@@ -394,9 +413,13 @@ private:
       {SDM_SERVICE_SET_PANEL_FEATURE_CONFIG, &SDMServices::SetPanelFeatureConfig},
       {SDM_SERVICE_GET_PANEL_RESOLUTION, &SDMServices::GetPanelResolution},
       {SDM_SERVICE_GET_PANEL_FEATURE_CONFIG, &SDMServices::GetPanelFeatureConfig},
+      {SDM_SERVICE_SET_STC_FEATURE_CONFIG, &SDMServices::SetStcFeatureConfig},
+      {SDM_SERVICE_SET_RGB_HISTOGRAM_CONFIG, &SDMServices::SetRgbHistObserverConfig},
+      {SDM_SERVICE_SET_QRTC_FEATURE_CONFIG, &SDMServices::SetQrtcFeatureConfig},
   };
 
   int bw_mode_release_fd_ = -1;
+  bool composer_driven_hdcp_ = false;
 
   SDMServicesCbIntf *cb_ = nullptr;
   SDMDisplayBuilder *disp_ = nullptr;
@@ -406,6 +429,9 @@ private:
   BufferAllocator *buffer_allocator_ = nullptr;
   SocketHandler *socket_handler_ = nullptr;
   std::map<PanelFeatureVendorServiceType, std::string> panel_feature_data_type_map_ = {};
+  typedef DisplayError (SDMServices::*SetStcFeatureFunc)(int disp_id, StcFeatureCmdType cmd_type,
+                                                         SDMParcel *input_parcel);
+  std::map<StcFeatureCmdType, SetStcFeatureFunc> stc_feature_funcs_ = {};
 };
 
 } // namespace sdm

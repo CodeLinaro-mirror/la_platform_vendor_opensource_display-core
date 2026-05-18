@@ -118,6 +118,9 @@ class CompManager : public CwbCallback {
   DisplayError GetDemuraFetchResources(Handle display_ctx, std::vector<FetchResourceList> *frl);
   DisplayError ReserveABCFetchResources(const uint32_t &display_id, bool is_primary,
                                         const int8_t &req_cnt);
+  DisplayError ReserveQrtcFetchResources(const uint32_t &display_id, const int8_t &preferred_rect);
+  DisplayError FreeQrtcFetchResources(const uint32_t &display_id);
+
   void SetDemuraStatus(bool status);
   bool GetDemuraStatus();
   void SetDemuraStatusForDisplay(const int32_t &display_id, bool status);
@@ -133,6 +136,8 @@ class CompManager : public CwbCallback {
   DisplayError HandleCwbFrequencyBoost(bool isRequest);
   DisplayError PreCommit(Handle display_ctx);
   DisplayError CaptureCwb(Handle display_ctx, const LayerBuffer &buffer, const CwbConfig &config);
+  DisplayError ReserveWBForDisplay(Handle display_ctx, int32_t *wb_id);
+  void ReleaseWBFromDisplay(Handle display_ctx, int32_t wb_id);
   bool HasPendingCwbRequest(Handle display_ctx);
   bool HandleCwbTeardown(Handle display_ctx);
   DisplayError RequestVirtualDisplayId(int32_t *vdisp_id);

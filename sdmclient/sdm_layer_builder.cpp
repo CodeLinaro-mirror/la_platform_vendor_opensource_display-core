@@ -461,4 +461,8 @@ DisplayError SDMLayerBuilder::SetLayerCornerRadius(uint64_t display, int64_t lay
   return CallLayerFunction(display, layer, &SDMLayer::SetLayerCornerRadius, corner_radius);
 }
 
+DisplayError SDMLayerBuilder::SetLayerLuts(uint64_t display, int64_t layer, Lut3d *luts) {
+  return CallLayerFunction(display, layer, &SDMLayer::SetLayerLuts, luts);
+}
+
 } // namespace sdm

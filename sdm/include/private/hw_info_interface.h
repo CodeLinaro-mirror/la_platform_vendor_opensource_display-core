@@ -67,6 +67,9 @@ class HWInfoInterface {
   virtual DisplayError GetPanelBootParamString(std::string *panel_boot_param_string) = 0;
   virtual uint32_t GetMaxMixerCount() = 0;
   virtual uint32_t GetMaxDNSCBlurBlockCount() = 0;
+  virtual uint32_t GetMaxWritebackBlockCount() = 0;
+  virtual bool IsQrtcSupported() = 0;
+  virtual bool IsDownscaledCwbSupported(int32_t wb_block_index) = 0;
   virtual uint32_t GetCoreId() = 0;
   virtual DisplayError GetDemuraDoubleBufferCodebookFlags(bool *out) = 0;
 

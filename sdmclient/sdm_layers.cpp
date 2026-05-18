@@ -138,6 +138,10 @@ SDMLayer::SDMLayer(Display display_id, LayerId layer_id, BufferAllocator *buf_al
   } else {
     DLOGE("Failed to get snapalloc instance");
   }
+
+  int value = 0;
+  SDMDebugHandler::Get()->GetProperty(DISABLE_GET_SCREEN_DECORATOR_SUPPORT, &value);
+  disable_get_screen_decorator_support_ = (value == 1);
 }
 
 SDMLayer::~SDMLayer() {
@@ -151,9 +155,11 @@ SDMLayer::~SDMLayer() {
     // Delete luts if they are still valid
     if (layer_->lut_3d.lutEntries != nullptr) {
       delete[] layer_->lut_3d.lutEntries;
+      layer_->lut_3d.lutEntries = nullptr;
     }
     if (layer_->lut_3d.gridEntries != nullptr) {
       delete[] layer_->lut_3d.gridEntries;
+      layer_->lut_3d.gridEntries = nullptr;
     }
 
     delete layer_;
@@ -385,6 +391,9 @@ DisplayError SDMLayer::SetLayerCompositionType(SDMCompositionType type) {
   case SDMCompositionType::COMP_CURSOR:
     break;
   case SDMCompositionType::COMP_DISPLAY_DECORATION:
+    if (disable_get_screen_decorator_support_) {
+      return kErrorNotSupported;
+    }
     break;
   case SDMCompositionType::COMP_INVALID:
     return kErrorParameters;
@@ -555,37 +564,65 @@ DisplayError SDMLayer::SetLayerFlag(SDMLayerFlag flag) {
 
 DisplayError SDMLayer::SetRenderLayerReferenceSpaceType(
     SDMRenderLayerReferenceSpaceType reference_layer_space_type) {
-  layer_->reference_space_type = reference_layer_space_type;
+  if (layer_->reference_space_type != reference_layer_space_type) {
+    geometry_changes_ |= kReprojectionParams;
+    layer_->reference_space_type = reference_layer_space_type;
+  }
+
   return kErrorNone;
 }
 
 DisplayError SDMLayer::SetCompositionLayerType(SDMCompositionLayerType comp_layer_type) {
-  layer_->comp_layer_type = comp_layer_type;
+  if (layer_->comp_layer_type != comp_layer_type) {
+    geometry_changes_ |= kReprojectionParams;
+    layer_->comp_layer_type = comp_layer_type;
+  }
+
   return kErrorNone;
 }
 
 DisplayError SDMLayer::SetLayerPose(SDMLayerPose layer_pose) {
-  layer_->layer_pose = layer_pose;
+  if (layer_->layer_pose != layer_pose) {
+    geometry_changes_ |= kReprojectionParams;
+    layer_->layer_pose = layer_pose;
+  }
+
   return kErrorNone;
 }
 
 DisplayError SDMLayer::SetLayerQuadSize(SDMLayerQuadSize layer_quad_size) {
-  layer_->layer_quad_size = layer_quad_size;
+  if (layer_->layer_quad_size != layer_quad_size) {
+    geometry_changes_ |= kReprojectionParams;
+    layer_->layer_quad_size = layer_quad_size;
+  }
+
   return kErrorNone;
 }
 
 DisplayError SDMLayer::SetLayerFrustum(SDMLayerFrustum layer_frustum) {
-  layer_->layer_frustum = layer_frustum;
+  if (layer_->layer_frustum != layer_frustum) {
+    geometry_changes_ |= kReprojectionParams;
+    layer_->layer_frustum = layer_frustum;
+  }
+
   return kErrorNone;
 }
 
 DisplayError SDMLayer::SetLayerPlaneEquation(SDMLayerPlaneEquation plane_equation) {
-  layer_->plane_equation = plane_equation;
+  if (layer_->plane_equation != plane_equation) {
+    geometry_changes_ |= kReprojectionParams;
+    layer_->plane_equation = plane_equation;
+  }
+
   return kErrorNone;
 }
 
 DisplayError SDMLayer::SetLayerVisibilityType(SDMLayerVisibilityType layer_visibility_type) {
-  layer_->layer_visibility_type = layer_visibility_type;
+  if (layer_->layer_visibility_type != layer_visibility_type) {
+    geometry_changes_ |= kReprojectionParams;
+    layer_->layer_visibility_type = layer_visibility_type;
+  }
+
   return kErrorNone;
 }
 
@@ -869,6 +906,14 @@ DisplayError SDMLayer::SetMetaData(const SnapHandle *handle, Layer *layer) {
     if (err) {
       DLOGW("Failed to get anamorphic compression metadata");
     }
+  }
+
+  uint32_t disparity_phase = 0;
+  if (GetMetadata(handle, MetadataType::DISPARITY_PHASE, &disparity_phase, snapmapper_) ==
+      Error::NONE) {
+    layer_buffer->disparity_phase = disparity_phase;
+  } else {
+    layer_buffer->disparity_phase = 0;
   }
 
   if (!ignore_sdr_histogram_md_ || IsHdr(layer_buffer->dataspace.transfer)) {
@@ -1181,12 +1226,13 @@ DisplayError SDMLayer::SetLayerPrivacyRegions(const std::vector<PrivacyRegion> &
       if (Contains(dst_rect_, layer_rect) && (!is_area_mode || is_valid_index)) {
         layer_->privacy_regions.push_back(region);
       } else {
-        DLOGV_IF(
-            kTagClient,
-            "Invalid layer %d: region %f %f %f %f, dest_rect %f %f %f %f, privacy_region_mode %d "
-            "index %d",
-            id_, layer_rect.left, layer_rect.top, layer_rect.right, layer_rect.bottom,
-            dst_rect_.left, dst_rect_.top, dst_rect_.right, dst_rect_.bottom, mode, region.index);
+        DLOGV_IF(kTagClient,
+                 "Invalid layer %" PRIu64
+                 ": region %f %f %f %f, dest_rect %f %f %f %f, privacy_region_mode %d "
+                 "index %d",
+                 id_, layer_rect.left, layer_rect.top, layer_rect.right, layer_rect.bottom,
+                 dst_rect_.left, dst_rect_.top, dst_rect_.right, dst_rect_.bottom, mode,
+                 region.index);
       }
     }
   } else {
@@ -1220,6 +1266,14 @@ bool SDMLayer::IsPrivacyRegionUpdated() {
 
 bool SDMLayer::HasPrivacyRegions() {
   return (layer_->privacy_regions.size() > 0);
+}
+
+DisplayError SDMLayer::SetLayerLuts(Lut3d *luts) {
+  // TODO(user): Populate layer_->lut_3d once supported, we need to clear previous luts first
+  // and ensure client luts don't get overriden by hwc luts and is used correctly by planes
+  luts_set_ = luts->validLutEntries;
+
+  return kErrorNone;
 }
 
 } // namespace sdm
