@@ -76,7 +76,10 @@ struct HWCwbConfig {
   bool enabled_dnsc = false;
   sde_drm::DRMDisplayToken token = {};  // display token to be used for virtual connector while CWB
 #ifdef FEATURE_DNSC_BLUR
-  struct sde_drm_dnsc_blur_cfg dnsc_cfg = {};  //DNSC config for downscaling CWB output
+  struct sde_drm_dnsc_blur_cfg dnsc_cfg = {};  // DNSC config for downscaling CWB output
+#endif
+#ifdef FEATURE_WB_DNSC
+  struct sde_drm_wb_dnsc_cfg wb_dnsc_cfg = {};  // WB in-built DNSC config for cwb output
 #endif
 };
 
@@ -125,6 +128,8 @@ class HWDeviceDRM : public HWInterface {
 #endif
   virtual bool ConfigureDNSCforCwb(HWLayersInfo *hw_layers_info);
   virtual void DeconfigureDNSCfromCwb(void);
+  virtual bool ValidateAndConfigureDownscaleForCwb(HWLayersInfo *hw_layers_info);
+  virtual void DeconfigureDownscaleFromCWB();
   DisplayError SetupConcurrentWritebackModes(int32_t writeback_id);
   bool SetupConcurrentWriteback(const HWLayersInfo &hw_layer_info, bool validate,
                                 int64_t *release_fence_fd);
@@ -431,6 +436,8 @@ class HWDeviceDRM : public HWInterface {
   bool has_dedicated_cwb_ = false;  // virtual connector supports dedicated CWB feature.
   uint32_t max_cwb_ = 0;            // Max number of concurrent CWB operations on virtual connector.
   bool has_cwb_dither_ = false;     // virtual connector supports CWB Dither feature.
+  bool has_qrtc_ = false;           // virtual connector supports QRTC capture.
+  bool has_builtin_wb_dnsc_ = false;  // virtual connector supports built-in downscale HW.
   uint32_t transfer_time_updated_ = 0;
   std::unordered_map<uint32_t, HWCwbConfig> cwb_config_;
   std::vector<uint32_t> dnsc_associated_wb_ids_ = {};
