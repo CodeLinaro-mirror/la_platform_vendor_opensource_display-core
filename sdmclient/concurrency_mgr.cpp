@@ -196,6 +196,11 @@ DisplayError ConcurrencyMgr::Init(BufferAllocator *buffer_allocator, SocketHandl
   }
 
   value = 0;
+  Debug::Get()->GetProperty(ENABLE_AUTOMOTIVE_PLATFORM, &value);
+  auto_platform_support_ = (value == 1);
+  DLOGI("automotive_platform_support: %d", auto_platform_support_);
+
+  value = 0;
   Debug::Get()->GetProperty(ENABLE_ASYNC_VDS_CREATION, &value);
   async_vds_creation_ = (value == 1);
   DLOGI("async_vds_creation: %d", async_vds_creation_);
@@ -332,7 +337,7 @@ DisplayError ConcurrencyMgr::InitSubModules(DebugCallbackIntf *debug) {
   cwb_ = new SDMConcurrentWriteBack(this, snapmapper_);
   cwb_->Init();
 
-  disp_ = new SDMDisplayBuilder(this, buffer_allocator_, core_intf_, &callbacks_, this);
+  disp_ = new SDMDisplayBuilder(this, buffer_allocator_, core_intf_, &callbacks_, auto_platform_support_, this);
   disp_->Init(locker_);
 
   tui_ = new SDMTrustedUI(this);
@@ -789,16 +794,6 @@ void ConcurrencyMgr::GetPendingHotplug(vector<Display> &pending_hotplugs) {
       pending_hotplugs.push_back(static_cast<Display>(map_info.client_id));
     }
   }
-}
-
-void ConcurrencyMgr::GetSdmId(int64_t clientId, int64_t &sdmID) {
-  if (clientId < 0 || clientId >= kNumDisplays || (sdm_display_[clientId] == nullptr)) {
-    // display may come as -1  from VTS test case
-    DLOGW("Invalid Display %d ", UINT32(clientId));
-    return;
-  }
-
-  sdmID = sdm_display_[clientId]->GetSdmId();
 }
 
 void ConcurrencyMgr::RegisterCompositorCallback(SDMCompositorCbIntf *cb, bool enable) {

@@ -156,8 +156,10 @@ DisplayError SDMDisplayPluggable::PreValidateDisplay(bool *exit_validate) {
 
   if (sdm_layer_stack_->layer_set_.empty()) {
     flush_ = !client_connected_;
-    *exit_validate = true;
-    return status;
+    if (IsFirstCommitDone()) {
+      *exit_validate = true;
+      return status;
+    }
   }
 
   // Checks and replaces layer stack for solid fill

@@ -190,12 +190,6 @@ DisplayError DisplayBase::Init() {
     hw_resource_info_.push_back(res_info);
   }
 
-  uint32_t num_blending_stages = INT_MAX;
-  for (auto& res_info : hw_resource_info_) {
-    num_blending_stages = std::min(num_blending_stages, res_info.num_blending_stages);
-  }
-
-  auto max_mixer_stages = num_blending_stages;
   int property_value = Debug::GetMaxPipesPerMixer(display_type_);
   uint32_t active_index = 0;
   int drop_vsync = 0;
@@ -205,7 +199,8 @@ DisplayError DisplayBase::Init() {
   dpu_core_mux_->GetActiveConfig(&active_index);
   dpu_core_mux_->GetDisplayAttributes(active_index, &device_ctx_,
                                       &client_ctx_);
-
+  uint32_t num_blending_stages = client_ctx_.display_attributes.num_blending_stages;
+  auto max_mixer_stages = num_blending_stages;
   uint32_t available_mixers = GetAvailableMixerCount();
   uint32_t required_mixers = GetMixerCountFromTopology(client_ctx_.display_attributes.topology);
   if (available_mixers < required_mixers) {
@@ -239,7 +234,8 @@ DisplayError DisplayBase::Init() {
   dpu_core_mux_->GetFbConfig(client_ctx_.mixer_attributes.width,
                              client_ctx_.mixer_attributes.height, &device_ctx_, &client_ctx_);
 
-  if (IsPrimaryDisplayLocked()) {
+  Debug::GetProperty(ENABLE_SCALE_FOR_ALL_DISPLAYS, &enable_scale_for_all_displays_);
+  if (enable_scale_for_all_displays_ || IsPrimaryDisplayLocked()) {
     HWScaleLutInfo lut_info = {};
     error = comp_manager_->GetScaleLutConfig(&lut_info);
     if (error == kErrorNone) {
@@ -5382,6 +5378,103 @@ SdmDisplayCbInterface<CoprEventPayload> *cb_intf) {
   }
 
   return kErrorNone;
+}
+
+DppsInterface* DppsInfo::dpps_intf_ = NULL;
+std::vector<int32_t> DppsInfo::display_id_ = {};
+
+void DppsInfo::Init(DppsPropIntf *intf, const std::string &panel_name,
+                    DisplayInterface *display_intf, PanelFeaturePropertyIntf *prop_intf) {
+  std::lock_guard<std::mutex> guard(lock_);
+  int error = 0;
+  int disable_dpps_features = 0;
+
+  if (!intf || !display_intf || !prop_intf) {
+    DLOGE("Invalid intf %pK display_intf %pK prop_intf %pK", intf, display_intf, prop_intf);
+    return;
+  }
+
+  DppsDisplayInfo info_payload = {};
+  DisplayError ret = intf->DppsProcessOps(kDppsGetDisplayInfo, &info_payload, sizeof(info_payload));
+  if (ret != kErrorNone) {
+    DLOGE("Get display information failed, ret %d", ret);
+    return;
+  }
+
+  if (std::find(display_id_.begin(), display_id_.end(), info_payload.display_id)
+    != display_id_.end()) {
+    return;
+  }
+  DLOGI("Ready to register display %d-%d ", info_payload.display_id,
+        info_payload.display_type);
+
+  Debug::Get()->GetProperty(DISABLE_DPPS_FEATURES, &disable_dpps_features);
+  if (disable_dpps_features) {
+    if (!dpps_intf_) {
+      dpps_intf_ = new DppsDummyImpl();
+    }
+  }
+
+  if (!dpps_intf_) {
+    if (!dpps_impl_lib_.Open(kDppsLib_)) {
+      DLOGW("Failed to load Dpps lib %s", kDppsLib_);
+      goto exit;
+    }
+    DLOGE("load Dpps lib %s", kDppsLib_);
+
+    if (!dpps_impl_lib_.Sym("GetDppsInterface", reinterpret_cast<void **>(&GetDppsInterface))) {
+      DLOGE("GetDppsInterface not found!, err %s", dlerror());
+      goto exit;
+    }
+
+    dpps_intf_ = GetDppsInterface();
+    if (!dpps_intf_) {
+      DLOGE("Failed to get Dpps Interface!");
+      goto exit;
+    }
+  }
+  error = dpps_intf_->Init(intf, panel_name, display_intf, prop_intf);
+  if (error) {
+    DLOGE("DPPS Interface init failure with err %d", error);
+    goto exit;
+  }
+
+  display_id_.push_back(info_payload.display_id);
+  DLOGE("Registered display %d-%d successfully", info_payload.display_id,
+        info_payload.display_type);
+  return;
+
+exit:
+  Deinit_nolock();
+  if (!dpps_intf_) {
+    dpps_intf_ = new DppsDummyImpl();
+    display_id_.push_back(info_payload.display_id);
+  }
+}
+
+void DppsInfo::Deinit_nolock() {
+  if (dpps_intf_) {
+    dpps_intf_->Deinit();
+    dpps_intf_ = NULL;
+  }
+  dpps_impl_lib_.~DynLib();
+  DLOGI("Dpps info deinit done");
+}
+
+void DppsInfo::Deinit() {
+  std::lock_guard<std::mutex> guard(lock_);
+  Deinit_nolock();
+}
+
+void DppsInfo::DppsNotifyOps(enum DppsNotifyOps op, void *payload, size_t size) {
+  int ret = 0;
+  if (!dpps_intf_) {
+    DLOGW("Dpps intf nullptr");
+    return;
+  }
+  ret = dpps_intf_->DppsNotifyOps(op, payload, size);
+  if (ret)
+    DLOGE("DppsNotifyOps op %d error %d", op, ret);
 }
 
 }  // namespace sdm

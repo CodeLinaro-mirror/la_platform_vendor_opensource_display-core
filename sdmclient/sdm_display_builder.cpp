@@ -489,7 +489,8 @@ int SDMDisplayBuilder::CreatePrimaryDisplay() {
         is_hdr_display_[UINT32(client_id)] = HasHDRSupport(sdm_display);
       }
 
-      map_info_primary_[0].disp_type = info.display_type;
+      // Force the primary display as primary type, even the it's plugable
+      map_info_primary_[0].disp_type = sdm::kPrimary;
       map_info_primary_[0].sdm_id = info.display_id;
 
       map_active_displays_.insert(
@@ -710,37 +711,39 @@ int SDMDisplayBuilder::HandleConnectedDisplays(HWDisplaysInfo *displays_info,
     }
 
     // Count active pluggable display slots and slots with no commits.
-    bool first_commit_pending = false;
-    std::for_each(map_info_pluggable_.begin(), map_info_pluggable_.end(),
-                  [&](auto &p) { // NOLINT
-                    auto disp = cb_->GetDisplayFromClientId(p.client_id);
-                    if (disp) {
-                      if (!disp->IsFirstCommitDone()) {
-                        DLOGI("Display commit pending on display %d-1",
-                              p.sdm_id);
-                        first_commit_pending = true;
+    if(!auto_platform_support_) {
+      bool first_commit_pending = false;
+      std::for_each(map_info_pluggable_.begin(), map_info_pluggable_.end(),
+                    [&](auto &p) { // NOLINT
+                      auto disp = cb_->GetDisplayFromClientId(p.client_id);
+                      if (disp) {
+                        if (!disp->IsFirstCommitDone()) {
+                          DLOGI("Display commit pending on display %d-1",
+                                p.sdm_id);
+                          first_commit_pending = true;
+                        }
                       }
-                    }
-                  });
+                    });
 
-    if (!disable_hotplug_bwcheck_ && first_commit_pending) {
-      // Hotplug bandwidth check is accomplished by creating and hotplugging a
-      // new display after a display commit has happened on previous hotplugged
-      // displays. This allows the driver to return updated modes for the new
-      // display based on available link bandwidth.
-      DLOGI("Pending display commit on one of the displays. Deferring display "
-            "creation.");
-      status = -EAGAIN;
-      if (cb_->IsClientConnected()) {
-        // Trigger a display refresh since we depend on PresentDisplay() to
-        // handle pending hotplugs.
-        Display active_builtin_disp_id = GetActiveBuiltinDisplay();
-        if (active_builtin_disp_id >= kNumDisplays) {
-          active_builtin_disp_id = SDM_DISPLAY_PRIMARY;
+      if (!disable_hotplug_bwcheck_ && first_commit_pending) {
+        // Hotplug bandwidth check is accomplished by creating and hotplugging a
+        // new display after a display commit has happened on previous hotplugged
+        // displays. This allows the driver to return updated modes for the new
+        // display based on available link bandwidth.
+        DLOGI("Pending display commit on one of the displays. Deferring display "
+              "creation.");
+        status = -EAGAIN;
+        if (cb_->IsClientConnected()) {
+          // Trigger a display refresh since we depend on PresentDisplay() to
+          // handle pending hotplugs.
+          Display active_builtin_disp_id = GetActiveBuiltinDisplay();
+          if (active_builtin_disp_id >= kNumDisplays) {
+            active_builtin_disp_id = SDM_DISPLAY_PRIMARY;
+          }
+          callbacks_->OnRefresh(active_builtin_disp_id);
         }
-        callbacks_->OnRefresh(active_builtin_disp_id);
+        break;
       }
-      break;
     }
 
     int hpd_bpp = 0;

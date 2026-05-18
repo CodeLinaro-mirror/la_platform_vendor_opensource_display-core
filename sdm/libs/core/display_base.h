@@ -677,6 +677,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool needs_mirror_source_validation_ = false;
   bool enable_ai_scaler_ = false;
   uint64_t next_expected_present_ = 0;
+  int enable_scale_for_all_displays_ = 0;
 };
 
 }  // namespace sdm
