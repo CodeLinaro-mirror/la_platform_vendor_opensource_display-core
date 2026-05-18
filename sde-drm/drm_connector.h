@@ -124,6 +124,9 @@ class DRMConnector {
   DRMStatus status_ = DRMStatus::FREE;
   std::unique_ptr<DRMPPManager> pp_mgr_{};
   DRMJitterConfig jitter_cfg_ = {};
+#ifdef FEATURE_WB_DNSC
+  uint32_t wb_dnsc_blob_id_ = 0;
+#endif
   uint32_t wb_gamma_blob_id_ = 0;
   uint32_t wb_session_config_blob_id_ = 0;
   uint32_t wb_session_config_data_blob_id_ = 0;

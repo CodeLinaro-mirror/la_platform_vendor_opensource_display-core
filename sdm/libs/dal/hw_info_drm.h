@@ -66,6 +66,7 @@ class HWInfoDRM : public HWInfoInterface {
   virtual uint32_t GetMaxMixerCount();
   virtual uint32_t GetMaxDNSCBlurBlockCount();
   virtual uint32_t GetMaxWritebackBlockCount();
+  virtual bool WbHwSupportsBuiltInDownscale();
   virtual bool IsQrtcSupported();
   virtual bool IsDownscaledCwbSupported(int32_t wb_block_index);
   virtual uint32_t GetCoreId() { return core_id_; }

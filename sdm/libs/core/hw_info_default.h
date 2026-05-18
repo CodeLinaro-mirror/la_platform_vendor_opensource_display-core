@@ -31,6 +31,7 @@ class HWInfoDefault : public HWInfoInterface {
   virtual uint32_t GetMaxMixerCount();
   virtual uint32_t GetMaxDNSCBlurBlockCount() { return 0; }
   virtual uint32_t GetMaxWritebackBlockCount() { return 0; }
+  virtual bool WbHwSupportsBuiltInDownscale() { return false; }
   virtual bool IsQrtcSupported() { return false; }
   virtual bool IsDownscaledCwbSupported(int32_t wb_block_index) { return false; }
   virtual uint32_t GetCoreId() { return 0; }

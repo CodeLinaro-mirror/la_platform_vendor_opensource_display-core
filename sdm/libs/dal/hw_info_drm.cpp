@@ -1134,6 +1134,8 @@ DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
     return kErrorUndefined;
   }
 
+  DRMCrtcInfo crtc_info = {};
+  drm_mgr_intf_->GetCrtcInfo(0 /* system_info */, &crtc_info);
   for (auto &iter : conns_info) {
     HWDisplayInfo hw_info = {};
     hw_info.display_id =
@@ -1174,7 +1176,10 @@ DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
     }
     hw_info.is_reserved = iter.second.is_reserved;
     hw_info.max_linewidth = iter.second.max_linewidth;
-    hw_info.is_wb_downscale_supported = iter.second.is_wb_downscale_supported;
+    hw_info.is_wb_downscale_supported = iter.second.is_wb_dnsc_supported;
+    hw_info.wb_dnsc_min_ratio = iter.second.wb_dnsc_min_ratio;
+    hw_info.wb_dnsc_max_ratio = iter.second.wb_dnsc_max_ratio;
+    hw_info.is_wb_qrtc_supported = !!crtc_info.qrtc_count;
 
     if (iter.second.type == DRM_MODE_CONNECTOR_DSI) {
       uint32_t mode_index = 0;
@@ -1234,6 +1239,9 @@ DisplayError HWInfoDRM::GetVirtualDisplayStatus(VirtualDisplayType type, HWDispl
     return kErrorUndefined;
   }
 
+  DRMCrtcInfo crtc_info = {};
+  drm_mgr_intf_->GetCrtcInfo(0 /* system_info */, &crtc_info);
+
   bool connector_found = false;
   SDMDisplayType display_type = kVirtual;
   for (auto &iter : conns_info) {
@@ -1291,7 +1299,10 @@ DisplayError HWInfoDRM::GetVirtualDisplayStatus(VirtualDisplayType type, HWDispl
     hw_info->is_wb_ubwc_supported = iter.second.is_wb_ubwc_supported;
     hw_info->is_reserved = iter.second.is_reserved;
     hw_info->max_linewidth = iter.second.max_linewidth;
-    hw_info->is_wb_downscale_supported = iter.second.is_wb_downscale_supported;
+    hw_info->is_wb_downscale_supported = iter.second.is_wb_dnsc_supported;
+    hw_info->wb_dnsc_min_ratio = iter.second.wb_dnsc_min_ratio;
+    hw_info->wb_dnsc_max_ratio = iter.second.wb_dnsc_max_ratio;
+    hw_info->is_wb_qrtc_supported = !!crtc_info.qrtc_count;
 
     if (!hw_info->max_cwb) {
       auto &conn_mode = iter.second.modes[0];
@@ -1503,6 +1514,23 @@ uint32_t HWInfoDRM::GetMaxWritebackBlockCount() {
   return wb_count;
 }
 
+bool HWInfoDRM::WbHwSupportsBuiltInDownscale() {
+  sde_drm::DRMConnectorsInfo conns_info = {};
+  auto drm_err = drm_mgr_intf_->GetConnectorsInfo(&conns_info);
+  if (drm_err) {
+    DLOGE("DRM Driver get connector error %d while getting max displays supported!", drm_err);
+    return false;
+  }
+
+  for (auto &iter : conns_info) {
+    if (iter.second.type == DRM_MODE_CONNECTOR_VIRTUAL && iter.second.is_wb_dnsc_supported) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 bool HWInfoDRM::IsQrtcSupported() {
   return false;
 }
@@ -1515,20 +1543,22 @@ bool HWInfoDRM::IsDownscaledCwbSupported(int32_t wb_block_index) {
     return false;
   }
 
-  uint32_t wb_count = 0;
+  int32_t wb_count = 0;
   for (auto &iter : conns_info) {
     if (iter.second.type == DRM_MODE_CONNECTOR_VIRTUAL) {
-      if (iter.second.is_wb_downscale_supported &&
-          (wb_block_index == wb_count || wb_block_index < 0)) {
+      if (iter.second.is_wb_dnsc_supported && (wb_block_index == wb_count || wb_block_index < 0)) {
         return true;
       }
-
       wb_count++;
     }
   }
+  // If QRTC supports, legacy downscale support would not be compatible anymore.
+  if (wb_block_index >= wb_count || IsQrtcSupported()) {
+    return false;
+  }
 
-  // For legacy compatibility.
-  if (wb_count < 3 && wb_block_index <= 0) {
+  // As till here, no any built-in downscale supported WB found, so keep legacy compatibility.
+  if (wb_block_index <= 0) {
     return !!GetMaxDNSCBlurBlockCount();
   }
 
