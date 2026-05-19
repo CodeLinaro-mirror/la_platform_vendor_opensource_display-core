@@ -155,7 +155,14 @@ DisplayError SDMDisplayPluggable::PreValidateDisplay(bool *exit_validate) {
   BuildLayerStack();
 
   if (sdm_layer_stack_->layer_set_.empty()) {
-    flush_ = !client_connected_;
+    flush_ = (flush_on_layerset_empty_ && GetGeometryChanges()) || !client_connected_;
+    if (flush_) {
+      DisplayConfigFixedInfo fixed_info = {};
+      if (display_intf_->GetConfig(&fixed_info) == kErrorNone && !fixed_info.is_cmdmode) {
+        status = display_intf_->Flush(&layer_stack_);
+      }
+      flush_ = false;
+    }
     *exit_validate = true;
     return status;
   }

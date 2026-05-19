@@ -584,6 +584,8 @@ DisplayError SDMDisplay::Init() {
 
   client_target_ = new SDMLayer(id_, buffer_allocator_);
 
+  SDMDebugHandler::Get()->GetProperty(FLUSH_ON_LAYERSET_EMPTY, &flush_on_layerset_empty_);
+
   error = display_intf_->GetNumVariableInfoConfigs(&num_configs_);
   if (error != kErrorNone) {
     DLOGE("Getting config count failed. Error = %d", error);
