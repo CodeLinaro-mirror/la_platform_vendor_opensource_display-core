@@ -656,6 +656,7 @@ public:
   std::vector<uint32_t> sdm_config_map_;
   bool client_connected_ = true;
   bool pending_config_ = false;
+  int flush_on_layerset_empty_ = 0;
   bool has_client_composition_ = false;
   LayerRect window_rect_ = {};
   bool windowed_display_ = false;
