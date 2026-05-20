@@ -1737,9 +1737,28 @@ bool DisplayBase::IsLSRSupported() {
 bool DisplayBase::IsPrimaryCommitNeeded() {
   if (!client_ctx_.hw_panel_info.is_lsr_display) {
     lsr_first_commit_ = true;
+    gpu_reproj_init_commit_count_ = 0;
     return true;
   }
 
+  // GPU reproj (seraph/GPU LSR path): commit exactly twice — once per ping-pong slot —
+  // to register both output buffers with the DPU.  After that, DCP drives the buffer
+  // switching autonomously via IPCC; no further SDM commits are needed.
+  if (gpu_reproj_active_) {
+    if (gpu_reproj_init_commit_count_ < 2) {
+      gpu_reproj_init_commit_count_++;
+      DLOGI("GPU reproj: init commit %d/2 — registering slot buffer with DPU",
+            gpu_reproj_init_commit_count_);
+      return true;
+    }
+    DLOGV_IF(kTagDisplay, "GPU reproj: skipping primary commit — DCP/IPCC drives buffer flip");
+    return false;
+  }
+
+  // GPU reproj not active — reset counter for next activation.
+  gpu_reproj_init_commit_count_ = 0;
+
+  // IWE LSR path (original logic unchanged).
   bool lsr_enabled = (disp_layer_stack_->stack_info.iwe_repro_left_index != -1) ||
                      (disp_layer_stack_->stack_info.iwe_repro_right_index != -1);
   bool is_cwb_commit = (disp_layer_stack_->stack_info.output_buffer != nullptr);
@@ -3874,9 +3893,15 @@ void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
   }
 
   bool is_lsr_commit = (disp_layer_stack_->stack_info.iwe_repro_left_index != -1);
+
   // Copy the acquire fence from clients layers  to HWLayers
   for (auto& info : disp_layer_stack_->info) {
     info.second.lsr_commit = is_lsr_commit;
+    // GPU reproj init commit batch params — forwarded to hw_peripheral_drm for DRM property set.
+    info.second.gpu_reproj_batch_size = layer_stack->gpu_reproj_batch_size;
+    info.second.gpu_reproj_batch_index = layer_stack->gpu_reproj_batch_index;
+    info.second.gpu_reproj_batch_type = layer_stack->gpu_reproj_batch_type;
+    info.second.gpu_reproj_shared_buffer = layer_stack->gpu_reproj_shared_buffer;
     uint32_t hw_layers_count = UINT32(info.second.hw_layers.size());
 
     for (uint32_t i = 0; i < hw_layers_count; i++) {

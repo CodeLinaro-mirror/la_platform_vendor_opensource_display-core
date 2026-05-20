@@ -546,6 +546,8 @@ DisplayError HWPeripheralDRM::Commit(HWLayersInfo *hw_layers_info) {
   drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_LSR_MODE, token_.crtc_id,
                             hw_layers_info->lsr_commit);
 
+  SetGpuReprojBatchCommitParams(hw_layers_info);
+
   error = HWDeviceDRM::Commit(hw_layers_info);
   shared_ptr<Fence> cwb_fence = Fence::Create(INT(cwb_fence_fd), "cwb_fence");
   if (error != kErrorNone) {
@@ -1839,6 +1841,90 @@ void HWPeripheralDRM::PrintBrightnessPolicy() {
     DLOGI("Brightness node permissions: %s", result.c_str());
   } else {
     DLOGW("Failed to execute command: %s", ls_cmd.c_str());
+  }
+}
+
+DisplayError HWPeripheralDRM::ConfigureGpuReprojSharedBuffer(
+    std::shared_ptr<LayerBuffer> shared_buffer) {
+  if (!shared_buffer || shared_buffer->planes[0].fd < 0) {
+    DLOGE("Invalid GPU reproj shared buffer");
+    return kErrorParameters;
+  }
+
+  uint64_t handle_id = shared_buffer->handle_id;
+  bool secure_present = (shared_buffer->flags.secure || shared_buffer->flags.secure_display ||
+                         shared_buffer->flags.secure_camera);
+
+  // Re-create FB only if the buffer handle changed.
+  bool need_fb_id_creation = true;
+  if (handle_id && (handle_id == previous_gpu_reproj_shared_handle_)) {
+    if (gpu_reproj_shared_fb_obj_ &&
+        gpu_reproj_shared_fb_obj_->IsEqual(shared_buffer->format, shared_buffer->width,
+                                           shared_buffer->height, secure_present)) {
+      need_fb_id_creation = false;
+    }
+  }
+
+  if (need_fb_id_creation) {
+    std::vector<uint32_t> fb_id(1);
+    int ret = registry_.CreateFbId(*shared_buffer, &fb_id);
+    if (ret >= 0) {
+      gpu_reproj_shared_fb_obj_ = std::make_shared<FrameBufferObject>(
+          fb_id[kColorNone], core_id_, shared_buffer->format, shared_buffer->width,
+          shared_buffer->height, false /* shallow */, secure_present);
+      previous_gpu_reproj_shared_handle_ = handle_id;
+    } else {
+      DLOGE("CreateFbId failed for GPU reproj shared buffer, ret=%d", ret);
+      return kErrorHardware;
+    }
+  }
+
+  uint32_t shared_fb_id = gpu_reproj_shared_fb_obj_->GetFbId();
+  if (!shared_fb_id) {
+    DLOGE("Invalid GPU reproj shared buffer FB ID");
+    return kErrorHardware;
+  }
+
+  drm_atomic_intf_->Perform(sde_drm::DRMOps::CONNECTOR_SET_GMU_DCP_INTF_MEM, token_.conn_id,
+                            shared_fb_id);
+  DLOGD_IF(kTagDriverConfig, "GPU reproj gmu_dcp_intf_mem fb_id=%d set on connector %d",
+           shared_fb_id, token_.conn_id);
+  return kErrorNone;
+}
+
+void HWPeripheralDRM::SetGpuReprojBatchCommitParams(HWLayersInfo *hw_layers_info) {
+  if (!hw_resource_.max_lsr_batch_size) {
+    return;  // batch commit not supported on this target (kernel missing SDE_FEATURE_BATCH_COMMIT)
+  }
+  DLOGV_IF(kTagDriverConfig,
+           "lsr_commit=%d gpu_reproj_batch_size=%u "
+           "batch_index=%u batch_type=%u crtc_id=%u",
+           hw_layers_info->lsr_commit, hw_layers_info->gpu_reproj_batch_size,
+           hw_layers_info->gpu_reproj_batch_index, hw_layers_info->gpu_reproj_batch_type,
+           token_.crtc_id);
+
+  if (hw_layers_info->gpu_reproj_batch_size > 0) {
+    // Init commits (batch_size=2): register ping-pong output buffers with DCP.
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_BATCH_SIZE, token_.crtc_id,
+                              hw_layers_info->gpu_reproj_batch_size);
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_BATCH_INDEX, token_.crtc_id,
+                              hw_layers_info->gpu_reproj_batch_index);
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_BATCH_TYPE, token_.crtc_id,
+                              hw_layers_info->gpu_reproj_batch_type);
+    // Shared coord buffer (gmu_dcp_intf_mem) only needs to be registered on the
+    // first init commit (batch_index=1). The second init commit carries slot-1
+    // output buffers but does not need to re-register the shared buffer.
+    if (hw_layers_info->gpu_reproj_batch_index == 1 && hw_layers_info->gpu_reproj_shared_buffer) {
+      ConfigureGpuReprojSharedBuffer(hw_layers_info->gpu_reproj_shared_buffer);
+    }
+  } else {
+    // Steady-state: reset batch properties to 0. AddProperty's cache ensures these
+    // are only sent to the kernel once (on transition away from init-commit values).
+    DLOGV_IF(kTagDriverConfig, "Resetting batch props to 0 (lsr_commit=%d) crtc_id=%u",
+             hw_layers_info->lsr_commit, token_.crtc_id);
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_BATCH_SIZE, token_.crtc_id, 0);
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_BATCH_INDEX, token_.crtc_id, 0);
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_BATCH_TYPE, token_.crtc_id, 0);
   }
 }
 

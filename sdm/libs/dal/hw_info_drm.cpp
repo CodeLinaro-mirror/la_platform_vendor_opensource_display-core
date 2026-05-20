@@ -1,7 +1,6 @@
 /*
 * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
 *
-* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are
@@ -472,6 +471,7 @@ void HWInfoDRM::GetSystemInfo(HWResourceInfo *hw_resource) {
   hw_resource->rc_total_mem_size = info.rc_total_mem_size;
   hw_resource->dsc_block_count = info.dsc_block_count;
   hw_resource->hw_ai_scaler_count = info.ai_scaler_count;
+  hw_resource->max_lsr_batch_size = info.max_lsr_batch_size;
 }
 
 void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
@@ -1071,15 +1071,22 @@ void HWInfoDRM::GetSDMFormat(uint32_t drm_format, uint64_t drm_format_modifier,
       }
       break;
     case DRM_FORMAT_C8:
-      if (drm_format_modifier & DRM_FORMAT_MOD_QCOM_COMPRESSED) {
-        if (drm_format_modifier & DRM_FORMAT_MOD_QCOM_FSC_TILE) {
+      // All QCOM modifiers share the vendor prefix 0x0500000000000000.
+      // A bare & check is always non-zero for any QCOM modifier, so use ==
+      // to check for the exact bit combination (vendor prefix + specific bits).
+      if ((drm_format_modifier & DRM_FORMAT_MOD_QCOM_COMPRESSED) ==
+          DRM_FORMAT_MOD_QCOM_COMPRESSED) {
+        if ((drm_format_modifier & DRM_FORMAT_MOD_QCOM_FSC_TILE) == DRM_FORMAT_MOD_QCOM_FSC_TILE) {
           fmts.push_back(kFormatC8Ubwc);
-        } else if (drm_format_modifier & DRM_FORMAT_MOD_QCOM_FSC_4R_TILE) {
+        } else if ((drm_format_modifier & DRM_FORMAT_MOD_QCOM_FSC_4R_TILE) ==
+                   DRM_FORMAT_MOD_QCOM_FSC_4R_TILE) {
           fmts.push_back(kFormatC84RUbwc);
-        } else if (drm_format_modifier & DRM_FORMAT_MOD_QCOM_NV12_4R_4Y) {
+        } else if ((drm_format_modifier & DRM_FORMAT_MOD_QCOM_NV12_4R_4Y) ==
+                   DRM_FORMAT_MOD_QCOM_NV12_4R_4Y) {
           fmts.push_back(kFormatC84R4YUbwc);
         }
-      } else if (drm_format_modifier & DRM_FORMAT_MOD_QCOM_FSC_TILE) {
+      } else if ((drm_format_modifier & DRM_FORMAT_MOD_QCOM_FSC_TILE) ==
+                 DRM_FORMAT_MOD_QCOM_FSC_TILE) {
         fmts.push_back(kFormatC8);
       }
       break;
