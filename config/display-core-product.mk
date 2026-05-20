@@ -124,3 +124,8 @@ PRODUCT_COPY_FILES += $(PRIVACY_REGIONS_OFFSETS_XML_PATH)/privacy_regions_offset
 
 #Demura feature config xml file
 PRODUCT_COPY_FILES += $(PRIVACY_REGIONS_OFFSETS_XML_PATH)/duc_dac_config.xml:$(TARGET_COPY_OUT_VENDOR)/etc/display/duc_dac_config.xml
+
+#Demura feature config file
+PRODUCT_COPY_FILES += $(PRIVACY_REGIONS_OFFSETS_XML_PATH)/demura_config_0122e70000000471:$(PRODUCT_OUT)/persist/display/demura_config_0122e70000000471
+PRODUCT_COPY_FILES += $(PRIVACY_REGIONS_OFFSETS_XML_PATH)/demura_publickey_0122e70000000471:$(PRODUCT_OUT)/persist/display/demura_publickey_0122e70000000471
+PRODUCT_COPY_FILES += $(PRIVACY_REGIONS_OFFSETS_XML_PATH)/demura_signature_0122e70000000471:$(PRODUCT_OUT)/persist/display/demura_signature_0122e70000000471
