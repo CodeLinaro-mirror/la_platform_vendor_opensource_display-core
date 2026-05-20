@@ -1738,8 +1738,8 @@ DisplayError ConcurrencyMgr::GetDisplayBrightnessSupport(Display display,
   return kErrorNone;
 }
 
-DisplayError ConcurrencyMgr::SetDisplayBrightness(Display display,
-                                                  float brightness) {
+DisplayError ConcurrencyMgr::SetDisplayBrightness(Display display, float brightness,
+                                                  bool performing_commit) {
   if (display >= kNumDisplays) {
     return kErrorParameters;
   }

@@ -417,7 +417,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   GetDisplayCapabilities(Display display,
                          vector<SDMDisplayCapability> *capabilities);
   DisplayError GetDisplayBrightnessSupport(Display display, bool *outSupport);
-  DisplayError SetDisplayBrightness(Display display, float brightness);
+  DisplayError SetDisplayBrightness(Display display, float brightness, bool performing_commit);
   DisplayError WaitForResources(bool wait_for_resources,
                                 Display active_builtin_id,
                                 Display display_id) override;
