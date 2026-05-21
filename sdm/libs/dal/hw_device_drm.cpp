@@ -1620,7 +1620,9 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   }
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_POWER_MODE, token_.conn_id, DRMPowerMode::OFF);
   drm_atomic_intf_->Perform(DRMOps::CRTC_SET_ACTIVE, token_.crtc_id, 0);
-  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_GET_RETIRE_FENCE, token_.conn_id, &retire_fence_fd);
+  if (disp_type_ != DRMDisplayType::VIRTUAL) {
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_GET_RETIRE_FENCE, token_.conn_id, &retire_fence_fd);
+  }
 
   if (cwb_config_[core_id_].enabled) {
     DeconfigureDNSCfromCwb();
@@ -1629,7 +1631,7 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   }
 
   bool is_synchronous = false;
-  if (hw_panel_info_.dpu_ctl_op_sync) {
+  if (hw_panel_info_.dpu_ctl_op_sync || (disp_type_ == DRMDisplayType::VIRTUAL)) {
     is_synchronous = true;
   }
   int ret = NullCommit(is_synchronous, false /* retain_planes */);
