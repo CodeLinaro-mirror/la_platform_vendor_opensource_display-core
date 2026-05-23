@@ -59,7 +59,17 @@
 #include "drm_interface.h"
 #include "pu_subject_intf_impl.h"
 
+#ifndef TRUSTED_VM
+#include "rgb_hist_feature_intf.h"
+#include "rgb_hist_manager_intf.h"
+#include "rgb_hist_fact_intf_impl.h"
+#endif
+
 namespace sdm {
+
+#ifndef TRUSTED_VM
+using rgb_histogram::HistData;
+#endif
 
 struct DeferFpsConfig {
   uint32_t frame_count = 0;
@@ -166,7 +176,7 @@ class DisplayIPCVmCallbackImpl : public IPCVmCallbackIntf {
   virtual ~DisplayIPCVmCallbackImpl() {}
 
  private:
-  BufferAllocator *buffer_allocator_ {};
+  BufferAllocator *buffer_allocator_{};
   int *cb_hnd_out_ = nullptr;
   std::shared_ptr<IPCIntf> ipc_intf_ = nullptr;
   BufferInfo buffer_info_hfc_ = {};
@@ -177,10 +187,28 @@ class DisplayIPCVmCallbackImpl : public IPCVmCallbackIntf {
   recursive_mutex cb_mutex_;
 };
 
+class QrtcScreenRefreshImp : public qrtc::QrtcScreenRefreshIntf {
+ public:
+  QrtcScreenRefreshImp(DisplayInterface *display_intf);
+  int TriggerUpdate();
+  int ScreenRefreshControl(bool enable);
+  virtual ~QrtcScreenRefreshImp();
+
+ private:
+  bool enabled_ = false;
+  DisplayInterface *display_intf_ = nullptr;
+  std::mutex lock_;
+};
+
 class DisplayBuiltIn : public DisplayBase,
                        HWEventHandler,
                        DppsPropIntf,
-                       SdmDisplayCbInterface<TvmServiceCbEvent> {
+                       SdmDisplayCbInterface<TvmServiceCbEvent>
+#ifndef TRUSTED_VM
+    ,
+                       rgb_histogram::NotifyInterface<HistData>
+#endif
+{
  public:
   DisplayBuiltIn(DisplayEventHandler *event_handler,
                  sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> hw_info_intf,
@@ -282,6 +310,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError GetScalerCount(uint32_t *scaler_count) override;
   DisplayError DumpDemuraSurface(const char *dir_path, uint32_t frame_index) override;
   DisplayError SetIllumination(uint32_t eye, const IlluminationConfig &config) override;
+  DisplayError SetRgbHistObserverConfig(bool state, void *data) override;
 
   // Implement the HWEventHandlers
   DisplayError VSync(int64_t timestamp) override;
@@ -319,6 +348,11 @@ class DisplayBuiltIn : public DisplayBase,
   // Implement SdmDisplayCbInterface
   int Notify(const TvmServiceCbEvent &) override;
 
+#ifndef TRUSTED_VM
+  // Implement rgb histogram callback interface
+  int Notify(const HistData &data) override;
+#endif
+
   DisplayError SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config) override;
   DisplayError SetPoseConfig(const LayerBuffer &buffer) override;
 
@@ -335,12 +369,19 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetupCorrectionLayer();
   DisplayError SetupDemuraLayer();
   DisplayError SetupABCLayer();
+  DisplayError SetupQrtcLayer();
   DisplayError SetupDemuraTn();
   DisplayError EnableDemuraTn(bool enable);
   DisplayError SetupDemuraT0AndTn();
   DisplayError SetupDemuraT0(int current_idx = kDemuraDefaultIdx);
   DisplayError SetupABCFeature();
   DisplayError SetupABC();
+  DisplayError SetupQrtc();
+  DisplayError SetupQrtcConfig(qrtc::QrtcFeatureConfig &config);
+  DisplayError SetQrtcState(int state);
+  DisplayError SetQrtcSubsample(int subsample);
+  DisplayError DumpQrtcBuffer(int count);
+  DisplayError SetQrtcFeatureConfig(int32_t type, void *data) override;
   DisplayError SetDisplayStateForDemuraTn(DisplayState state);
   DisplayError BuildLayerStackStats(LayerStack *layer_stack) override;
   void UpdateDisplayModeParams();
@@ -358,6 +399,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetPartialUpdateControl(bool enable);
   DisplayError SetDppsFeatureLocked(void *payload, size_t size);
   DisplayError HandleDemuraLayer(LayerStack *layer_stack);
+  DisplayError HandleQrtcLayer(LayerStack *layer_stack);
   void NotifyDppsHdrPresent(LayerStack *layer_stack);
   bool IdleFallbackLowerFps(bool idle_screen);
   void HandleUpdateTransferTime(QSyncMode mode);
@@ -394,6 +436,9 @@ class DisplayBuiltIn : public DisplayBase,
   void PollLedDriver();
   void UpdateCalibration(DisplayState state);
   DisplayError SetIlluminationInternal(uint32_t eye, const IlluminationConfig &config);
+  DisplayError CreateDisplayEventProxyIntf(const std::string &panel_name, DisplayInterface *intf,
+                                           PanelFeaturePropertyIntf *prop_intf);
+  DisplayError SetupRgbHistogram();
 
   const uint32_t kPuTimeOutMs = 1000;
   std::map<uint32_t, std::vector<HWEvent>> event_list_;
@@ -493,6 +538,13 @@ class DisplayBuiltIn : public DisplayBase,
   bool previous_frame_default_strategy_ = false;
   PrivacyRegionManager *privacy_region_mgr_ = nullptr;
 
+  bool qrtc_enabled_ = false;
+  std::shared_ptr<DisplayEventProxyIntf> event_proxy_intf_;
+  qrtc::QrtcScreenRefreshIntf *qrtc_refresh_intf_ = nullptr;
+  std::unique_ptr<qrtc::QrtcFeatureIntf> qrtc_ = nullptr;
+  std::vector<Layer> qrtc_layer_ = {};
+  qrtc::QrtcFeatureConfig qrtc_config_;
+
   friend class PuSubjectIntfImpl;
   std::unique_ptr<PuSubjectIntf> pu_subject_ = nullptr;
   std::string kPuPanelClient = "panel_client";
@@ -501,6 +553,14 @@ class DisplayBuiltIn : public DisplayBase,
   IlluminationConfig left_illum_data_;
   IlluminationConfig right_illum_data_;
   std::future<void> calibration_future_;
+
+  // RGB Histogram
+  bool rgb_histogram_enable_ = false;
+#ifndef TRUSTED_VM
+  rgb_histogram::RgbHistFactIntf *rgb_hist_fact_intf_ = nullptr;
+  std::shared_ptr<rgb_histogram::RgbHistManagerIntf> rgb_hist_manager_intf_ = nullptr;
+  std::string kRgbHistogramClient_ = "rgb_histogram_client";
+#endif
 };
 
 }  // namespace sdm

@@ -62,10 +62,16 @@ class DRMPPManager {
   int SetPPRangeProperty(drmModeAtomicReq *req, uint32_t obj_id, struct DRMPPPropInfo *prop_info,
                         DRMPPFeatureInfo &feature);
   void SetPPEvent(uint32_t obj_id, DRMPPFeatureInfo &feature);
+  int InitRgbHistBuffers(uint32_t obj_id, DRMPPFeatureInfo *info);
+  int DeInitRgbHistBuffers();
 
   int fd_ = -1;
   uint32_t object_type_ = std::numeric_limits<uint32_t>::max();
   DRMPPPropInfo pp_prop_map_[kPPFeaturesMax] = {};
+
+  // RGB hist
+  std::vector<std::pair<uint32_t, DRMRgbHistBuffers>> rgb_hist_buffers_map_ = {};
+  std::vector<std::pair<uint32_t, drm_msm_rgb_hist_buffers_ctrl>> rgb_hist_buffers_ctrl_map_ = {};
 };
 
 }  // namespace sde_drm

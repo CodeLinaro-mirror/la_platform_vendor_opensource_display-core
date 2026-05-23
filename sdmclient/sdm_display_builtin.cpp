@@ -1808,6 +1808,10 @@ DisplayError SDMDisplayBuiltIn::SetDemuraConfig(int demura_idx) {
   return kErrorNone;
 }
 
+DisplayError SDMDisplayBuiltIn::SetQrtcFeatureConfig(int32_t type, void *data) {
+  return display_intf_->SetQrtcFeatureConfig(type, data);
+}
+
 DisplayError SDMDisplayBuiltIn::SetABCState(bool state) {
   DLOGV("Display ID: %" PRId64 " state: %d", id_, state);
   DisplayError error = display_intf_->SetABCState(state);
@@ -1951,6 +1955,10 @@ DisplayError SDMDisplayBuiltIn::SetPanelFeatureConfig(int32_t type, void *data) 
 DisplayError SDMDisplayBuiltIn::GetPanelFeatureConfig(int32_t type, void *data,
                                                       uint32_t data_size) {
   return display_intf_->GetPanelFeatureConfig(type, data, data_size);
+}
+
+DisplayError SDMDisplayBuiltIn::SetRgbHistObserverConfig(bool state, void *data) {
+  return display_intf_->SetRgbHistObserverConfig(state, data);
 }
 
 DisplayError SDMDisplayBuiltIn::EnableCopr(bool en) {

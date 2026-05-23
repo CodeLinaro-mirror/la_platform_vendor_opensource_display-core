@@ -46,6 +46,7 @@
 #include <VideoTranscodeStatsMetadata.h>
 #include <QtiViews.h>
 #include <ThreeDimensionalRefInfo.h>
+#include <ROIRectMetadata.h>
 #include <CWBMetadata.h>
 #include <unordered_map>
 

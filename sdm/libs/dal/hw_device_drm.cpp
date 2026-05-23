@@ -1538,6 +1538,10 @@ DisplayError HWDeviceDRM::PowerOn(const HWQosData &qos_data, SyncPoints *sync_po
     }
   }
 
+  if (offload_transition_pending_) {
+    is_synchronous = false;
+  }
+
   // Set panel mode if panel is in active state
   if (last_power_mode_ != DRMPowerMode::OFF &&
       (panel_mode_changed_ & DRM_MODE_FLAG_VID_MODE_PANEL)) {
@@ -2031,6 +2035,8 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
           }
           SetBlending(layer_blend, &blending);
           drm_atomic_intf_->Perform(DRMOps::PLANE_SET_BLEND_TYPE, pipe_id, blending);
+          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_DISPARITY_PHASE, pipe_id,
+                                    input_buffer->disparity_phase);
 
           drm_atomic_intf_->Perform(DRMOps::PLANE_SET_COLOR_MASK_OVERRIDE, pipe_id, 0x0);
           if (hw_layers_info->layer_exts.size() && hw_layers_info->layer_exts.at(i).rgba_split) {
@@ -2124,13 +2130,6 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
           SetDrmRenderPose(pipe_id, layer.layer_pose);
           SetDrmFrustum(pipe_id, layer.layer_frustum);
           SetDrmPlaneEquation(pipe_id, layer.plane_equation);
-          // TODO: Need to revisit
-          // + enum sde_drm_lsr_layer_type {
-          // +  SDE_LSR_LAYER_LOCAL = 0,
-          // +  SDE_LSR_LAYER_REMOTE
-          // +};
-          // driver has layer type structe as above (layer.comp_layer_type)
-          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_RENDER_TYPE, pipe_id, SDE_LSR_LAYER_LOCAL);
 
           // enum sde_drm_layer_gamma_type {
           // SDE_LAYER_GAMMA_NONE = 0,
@@ -2243,7 +2242,8 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
         drm_atomic_intf_->Perform(DRMOps::PLANE_SET_FB_ID, pipe_id, fb_id[pipe_info->cac_color]);
         drm_atomic_intf_->Perform(DRMOps::PLANE_SET_CRTC, pipe_id, token_.crtc_id);
 
-        if (!validate && input_buffer->acquire_fence) {
+        if (!validate && input_buffer->acquire_fence &&
+            !(hw_panel_info_.is_lsr_display && hw_layers_info->lsr_commit)) {
           drm_atomic_intf_->Perform(DRMOps::PLANE_SET_INPUT_FENCE, pipe_id,
                                     scoped_ref.Get(input_buffer->acquire_fence));
         }
@@ -2395,7 +2395,10 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_MODE, token_.crtc_id, &current_mode.mode);
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_DSC_MODE, token_.conn_id,
                               current_mode.curr_compression_mode);
-    update_mode_ = false;
+    // Only reset update_mode_ after real commit, not after validate
+    if (!validate) {
+      update_mode_ = false;
+    }
   }
 
   if (!validate && (hw_layers_info->common_info->set_idle_time_ms >= 0)) {
@@ -2695,6 +2698,7 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
 
   panel_compression_changed_ = 0;
   first_cycle_ = false;
+  offload_transition_pending_ = false;
   pending_power_state_ = kPowerStateNone;
   pending_cwb_teardown_ = false;
   // Inherently a real commit ensures null commit properties have happened, so update the member
@@ -4105,7 +4109,8 @@ void HWDeviceDRM::ConfigureConcurrentWriteback(const HWLayersInfo &hw_layer_info
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, vitual_conn_id, token_.crtc_id);
   // Set WB usage type as CWB
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_WB_USAGE_TYPE, vitual_conn_id, cwb_usage);
-
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_WB_NUM_BUFFERS, vitual_conn_id,
+                            cwb_config->num_parallel_buffers);
   // Set CRTC Capture Mode
   DRMCWbCaptureMode capture_mode = DRMCWbCaptureMode::MIXER_OUT;
   if (cwb_config->tap_point == CwbTapPoint::kDsppTapPoint) {

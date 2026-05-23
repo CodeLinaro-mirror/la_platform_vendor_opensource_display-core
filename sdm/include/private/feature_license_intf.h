@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -25,6 +25,7 @@ enum FeatureLicenseParams {
 // Feature license intf ops as enum
 enum FeatureLicenseOps {
   kValidatePermission,
+  kCloseFeatenabler,
   kFeatureLicenseOpsMax = 255,
 };
 

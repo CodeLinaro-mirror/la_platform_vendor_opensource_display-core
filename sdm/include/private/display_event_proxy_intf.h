@@ -22,6 +22,9 @@ enum SdmDisplayEvents {
   kSdmOprEvent,  // OPR register value
   kSdmPaHistEvent,
   kSdmCoprEvent,  // COPR statistics
+  kSdmFrameDoneEvent,
+  kSdmBacklightEvent,  // Panel backlight brightness
+  kSdmPowerStateEvent,
   kSdmDisplayEventsMax = 0xff
 };
 
@@ -31,10 +34,12 @@ enum DispEventProxyParams {
   kSetPaHistCollection,
   kSetPanelBLInfoEnable,
   kSetCoprEnable,
+  kSetFrameDoneEnable,
+  kSetBackLightEnable,
 
   // Getter
   kGetPaHistBins,
-
+  kGetBackLight,
   kDispEventProxyParamMax = 0xff,
 };
 
@@ -92,6 +97,17 @@ struct CoprParam {
   std::string name;
   bool enable;
   SdmDisplayCbInterface<CoprEventPayload> *cb_intf = nullptr;
+};
+
+struct FrameDonePayload {
+  uint32_t version = sizeof(FrameDonePayload);
+  bool frame_done;
+};
+
+struct FrameDoneParam {
+  std::string name;
+  bool enable;
+  SdmDisplayCbInterface<FrameDonePayload> *cb_intf = nullptr;
 };
 
 using DisplayEventProxyIntf =
