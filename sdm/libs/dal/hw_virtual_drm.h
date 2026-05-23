@@ -48,7 +48,7 @@ struct DeferredPPParams {
   bool crtc_feature = true;
 };
 
-class HWVirtualDRM : public HWDeviceDRM {
+class HWVirtualDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
  public:
   HWVirtualDRM(int32_t display_id, BufferAllocator *buffer_allocator,
                HWInfoInterface *hw_info_intf);
@@ -80,6 +80,16 @@ class HWVirtualDRM : public HWDeviceDRM {
   virtual DisplayError SetReprojectionConfig(const struct ReprojectionConfig &reprojection_config);
   virtual DisplayError SetHdrCapabilities(const std::vector<Hdr> &hdr_types,
                                           float max_avg_luminance, float min_luminance);
+
+  // LTM is enabled when virtual PQ is active. A dummy FeaturePropIntf is provided to allow init.
+  virtual PanelFeaturePropertyIntf *GetPanelFeaturePropertyIntf() { return this; }
+  virtual int GetPanelFeature(PanelFeaturePropertyInfo *feature_info) { return 0; }
+  virtual int SetPanelFeature(const PanelFeaturePropertyInfo &feature_info) { return 0; }
+
+  // Implementations required for DPPS.
+  virtual DisplayError GetDppsFeatureInfo(void *payload, size_t size);
+  virtual DisplayError SetDppsFeature(void *payload, size_t size);
+  virtual DisplayError GetPanelBrightnessBasePath(std::string *base_path) const;
 
   std::vector<Hdr> set_hdr_types_;
   float set_max_lum_ = -1.0;
