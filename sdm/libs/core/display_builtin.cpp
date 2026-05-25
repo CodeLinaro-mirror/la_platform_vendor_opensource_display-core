@@ -4182,6 +4182,7 @@ DisplayError DisplayBuiltIn::PostHandleSecureEvent(SecureEvent secure_event) {
       //  disable demura before TUI transition start
       SetDemuraIntfStatus(false, demura_current_idx_);
     }
+
     if (secure_event == kTUITransitionStart && qrtc_ && qrtc_enabled_) {
       //  disable QRTC before TUI transition start
       SetQrtcState(0);
@@ -6668,8 +6669,8 @@ DisplayError DisplayBuiltIn::SetQrtcFeatureConfig(int32_t type, void *data) {
   DisplayError ret = kErrorNone;
   int val = 0;
 
-  if (!data || !qrtc_ || !qrtc_enabled_) {
-    DLOGE("data %pK qrtc_ %pK qrtc_enabled_ %d", data, qrtc_.get(), qrtc_enabled_);
+  if (!data || !qrtc_) {
+    DLOGE("data %pK qrtc_ %pK", data, qrtc_.get());
     return kErrorUndefined;
   }
 
@@ -6678,6 +6679,8 @@ DisplayError DisplayBuiltIn::SetQrtcFeatureConfig(int32_t type, void *data) {
   switch (type) {
     case kTypeQrtcState:
       ret = SetQrtcState(val);
+      if (ret == kErrorNone)
+        qrtc_enabled_ = val;
       break;
     case kTypeQrtcSubsample:
       ret = SetQrtcSubsample(val);
@@ -6914,20 +6917,17 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
 
   if (SetupQrtcConfig(qrtc_config_) != kErrorNone) {
     DLOGE("Unable to setup Qrtc config on Display %d-%d", display_id_, display_type_);
+    qrtc_.reset();
+    qrtc_ = nullptr;
     return kErrorUndefined;
   }
 
   if (SetupQrtcLayer() != kErrorNone) {
     DLOGE("Unable to setup Qrtc layer on Display %d-%d", display_id_, display_type_);
+    qrtc_.reset();
+    qrtc_ = nullptr;
     return kErrorUndefined;
   }
-
-  if (SetQrtcState(1) != kErrorNone) {
-    DLOGE("Unable to setup Qrtc state on Display %d-%d", display_id_, display_type_);
-    return kErrorUndefined;
-  }
-
-  qrtc_enabled_ = true;
 
   return kErrorNone;
 }
@@ -6961,7 +6961,7 @@ DisplayError DisplayBuiltIn::SetupQrtcConfig(qrtc::QrtcFeatureConfig &config) {
 DisplayError DisplayBuiltIn::SetQrtcState(int state) {
   int ret = 0;
   if (!qrtc_) {
-    DLOGI("Qrtc feature intf is not available");
+    DLOGI("Invaid Qrtc feature intf %pK", qrtc_.get());
     return kErrorUndefined;
   }
 

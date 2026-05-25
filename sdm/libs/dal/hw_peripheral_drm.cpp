@@ -214,21 +214,15 @@ void HWPeripheralDRM::PopulateBitClkRates() {
     return;
   }
 
-  // Group all bit_clk_rates corresponding to DRM_PREFERRED mode.
-  uint32_t width = connector_info_.modes[current_mode_index_].mode.hdisplay;
-  uint32_t height = connector_info_.modes[current_mode_index_].mode.vdisplay;
+  bitclk_rates_.clear();
 
-  for (auto &mode_info : connector_info_.modes) {
-    auto &mode = mode_info.mode;
-    if (mode.hdisplay == width && mode.vdisplay == height) {
-      for (auto &sub_mode_info : mode_info.sub_modes) {
-        for (uint32_t index = 0; index < sub_mode_info.dyn_bitclk_list.size(); index++) {
-          if (std::find(bitclk_rates_.begin(), bitclk_rates_.end(),
-                sub_mode_info.dyn_bitclk_list[index]) == bitclk_rates_.end()) {
-            bitclk_rates_.push_back(sub_mode_info.dyn_bitclk_list[index]);
-            DLOGI("Possible bit_clk_rates %" PRIu64, sub_mode_info.dyn_bitclk_list[index]);
-          }
-        }
+  // Collect bit_clk_rates only from the current active mode's sub-modes.
+  for (auto &sub_mode_info : connector_info_.modes[current_mode_index_].sub_modes) {
+    for (uint32_t index = 0; index < sub_mode_info.dyn_bitclk_list.size(); index++) {
+      if (std::find(bitclk_rates_.begin(), bitclk_rates_.end(),
+                    sub_mode_info.dyn_bitclk_list[index]) == bitclk_rates_.end()) {
+        bitclk_rates_.push_back(sub_mode_info.dyn_bitclk_list[index]);
+        DLOGI("Possible bit_clk_rates %" PRIu64, sub_mode_info.dyn_bitclk_list[index]);
       }
     }
   }
@@ -1024,7 +1018,7 @@ DisplayError HWPeripheralDRM::PowerOn(const HWQosData &qos_data, SyncPoints *syn
 
 DisplayError HWPeripheralDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   DTRACE_SCOPED();
-  if ((tui_state_ != kTUIStateNone && tui_state_ != kTUIStateEnd) || pending_cwb_teardown_) {
+  if ((tui_state_ != kTUIStateNone) || pending_cwb_teardown_) {
     DLOGI("Request deferred TUI state %d pending cwb teardown %d", tui_state_,
           pending_cwb_teardown_);
     pending_power_state_ = kPowerStateOff;
@@ -1134,8 +1128,8 @@ DisplayError HWPeripheralDRM::SetDisplayAttributes(uint32_t index) {
   }
 
   HWDeviceDRM::SetDisplayAttributes(index);
-  // update bit clk rates.
-  hw_panel_info_.bitclk_rates = bitclk_rates_;
+
+  PopulateBitClkRates();
 
   return kErrorNone;
 }
