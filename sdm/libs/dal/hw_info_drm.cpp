@@ -1497,23 +1497,6 @@ uint32_t HWInfoDRM::GetMaxDNSCBlurBlockCount() {
 #endif
 }
 
-uint32_t HWInfoDRM::GetMaxWritebackBlockCount() {
-  sde_drm::DRMConnectorsInfo conns_info = {};
-  auto drm_err = drm_mgr_intf_->GetConnectorsInfo(&conns_info);
-  if (drm_err) {
-    DLOGE("DRM Driver get connector error %d while getting max displays supported!", drm_err);
-    return 0;
-  }
-
-  uint32_t wb_count = 0;
-  for (auto &iter : conns_info) {
-    if (iter.second.type == DRM_MODE_CONNECTOR_VIRTUAL) {
-      wb_count++;
-    }
-  }
-  return wb_count;
-}
-
 bool HWInfoDRM::WbHwSupportsBuiltInDownscale() {
   sde_drm::DRMConnectorsInfo conns_info = {};
   auto drm_err = drm_mgr_intf_->GetConnectorsInfo(&conns_info);
@@ -1532,7 +1515,10 @@ bool HWInfoDRM::WbHwSupportsBuiltInDownscale() {
 }
 
 bool HWInfoDRM::IsQrtcSupported() {
-  return false;
+  DRMCrtcInfo crtc_info = {};
+  drm_mgr_intf_->GetCrtcInfo(0 /* system_info */, &crtc_info);
+
+  return !!crtc_info.qrtc_count;
 }
 
 bool HWInfoDRM::IsDownscaledCwbSupported(int32_t wb_block_index) {
