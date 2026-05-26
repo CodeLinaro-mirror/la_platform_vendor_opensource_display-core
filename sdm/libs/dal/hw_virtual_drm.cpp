@@ -202,6 +202,12 @@ DisplayError HWVirtualDRM::SetWbConfigs(const HWDisplayAttributes &display_attri
   struct sde_drm_wb_cfg wb_cfg = {};
   wb_cfg.connector_id = token_.conn_id;
   wb_cfg.flags = SDE_DRM_WB_CFG_FLAGS_CONNECTED;
+
+  // If the caller requests DSPP for this WB display, set the DSPP hint flag.
+  if (display_attributes.needs_dspp) {
+    wb_cfg.flags |= SDE_DRM_WB_CFG_FLAGS_DSPP;
+    DLOGI("WB DSPP hint set: requesting DSPP-capable LM allocation");
+  }
   wb_cfg.count_modes = UINT32(modes.size());
   wb_cfg.modes = (uint64_t)modes.data();
 
