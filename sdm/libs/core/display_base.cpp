@@ -5420,7 +5420,7 @@ void DppsInfo::Init(DppsPropIntf *intf, const std::string &panel_name,
       DLOGW("Failed to load Dpps lib %s", kDppsLib_);
       goto exit;
     }
-    DLOGE("load Dpps lib %s", kDppsLib_);
+    DLOGI("load Dpps lib %s", kDppsLib_);
 
     if (!dpps_impl_lib_.Sym("GetDppsInterface", reinterpret_cast<void **>(&GetDppsInterface))) {
       DLOGE("GetDppsInterface not found!, err %s", dlerror());
