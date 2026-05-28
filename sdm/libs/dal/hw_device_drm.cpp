@@ -376,6 +376,14 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
       *drm_format = DRM_FORMAT_NV12;
       *drm_format_modifier = DRM_FORMAT_MOD_QCOM_DMA;
       break;
+    case kFormatNV12Y10:
+      *drm_format = DRM_FORMAT_NV12;
+      *drm_format_modifier = DRM_FORMAT_MOD_QCOM_DX | DRM_FORMAT_MOD_QCOM_LUMA_ONLY;
+      break;
+    case kFormatNV12A10:
+      *drm_format = DRM_FORMAT_NV12;
+      *drm_format_modifier = DRM_FORMAT_MOD_QCOM_DX | DRM_FORMAT_MOD_QCOM_ALPHA_ONLY;
+      break;
     default:
       DLOGW("Unsupported format %s", GetFormatString(format));
   }

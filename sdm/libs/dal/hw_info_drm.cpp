@@ -81,6 +81,12 @@
 #ifndef DRM_FORMAT_MOD_QCOM_DMA
 #define DRM_FORMAT_MOD_QCOM_DMA fourcc_mod_code(QCOM, 0x400)
 #endif
+#ifndef DRM_FORMAT_MOD_QCOM_ALPHA_ONLY
+#define DRM_FORMAT_MOD_QCOM_ALPHA_ONLY fourcc_mod_code(QCOM, 0x8000)
+#endif
+#ifndef DRM_FORMAT_MOD_QCOM_LUMA_ONLY
+#define DRM_FORMAT_MOD_QCOM_LUMA_ONLY fourcc_mod_code(QCOM, 0x10000)
+#endif
 
 #define __CLASS__ "HWInfoDRM"
 
@@ -1046,9 +1052,17 @@ void HWInfoDRM::GetSDMFormat(uint32_t drm_format, uint64_t drm_format_modifier,
         fmts.push_back(kFormatYCbCr420P010Venus);
       } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_DMA) {
         fmts.push_back(kFormatNV12Y);
+      } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_LUMA_ONLY) {
+        fmts.push_back(kFormatNV12Y10);
+      } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_ALPHA_ONLY) {
+        fmts.push_back(kFormatNV12A10);
       } else {
-        fmts.push_back(kFormatYCbCr420SemiPlanarVenus);
-        fmts.push_back(kFormatYCbCr420SemiPlanar);
+        if (drm_format_modifier == 0) {
+          fmts.push_back(kFormatYCbCr420SemiPlanarVenus);
+          fmts.push_back(kFormatYCbCr420SemiPlanar);
+        } else {
+          fmts.push_back(kFormatNV12Y);
+        }
       }
       break;
     case DRM_FORMAT_NV21:
