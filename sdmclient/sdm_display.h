@@ -551,6 +551,7 @@ public:
   virtual DisplayError SetRgbHistObserverConfig(bool state, void *data) {
     return kErrorNotSupported;
   }
+  virtual DisplayError TurnOffColorFeature() { return kErrorNotSupported; }
 
  protected:
   static uint32_t throttling_refresh_rate_;

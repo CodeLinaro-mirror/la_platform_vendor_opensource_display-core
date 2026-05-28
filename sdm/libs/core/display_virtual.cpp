@@ -604,6 +604,15 @@ DisplayError DisplayVirtualPQ::PostCommit() {
   return kErrorNone;
 }
 
+DisplayError DisplayVirtualPQ::TurnOffColorFeature() {
+  int display_type = display_type_;
+
+  DLOGV_IF(kTagDisplay, "Turn off ltm feature on display %d-%d", display_id_, display_type_);
+
+  dpps_info_.DppsNotifyOps(kDppsLtmForceOffEvent, &display_type, sizeof(display_type));
+  return kErrorNone;
+}
+
 DisplayError DisplayVirtualPQ::DppsProcessOps(enum DppsOps op, void *payload, size_t size) {
   DisplayError error = kErrorNone;
   DppsDisplayInfo *info = nullptr;

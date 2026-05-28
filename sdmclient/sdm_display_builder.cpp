@@ -337,7 +337,12 @@ DisplayError SDMDisplayBuilder::DestroyVirtualDisplay(Display display) {
       DLOGI("Retaining virtual display id:%" PRIu64 " for reuse", display);
       auto sdm_display = cb_->GetDisplayFromClientId(display);
       if (sdm_display) {
-        auto status = sdm_display->PrepareRetainedDisplay();
+        auto status = sdm_display->TurnOffColorFeature();
+        if (status != kErrorNone) {
+          DLOGW("Failed to turn off color feature, display:%" PRIu64 " status=%d", display, status);
+        }
+
+        status = sdm_display->PrepareRetainedDisplay();
         if (status != kErrorNone) {
           DLOGW("Failed to prepare retained virtual display id:%" PRIu64 " status=%d",
                 display, status);

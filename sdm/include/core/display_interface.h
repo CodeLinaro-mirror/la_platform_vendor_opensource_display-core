@@ -1808,6 +1808,13 @@ class DisplayInterface {
   */
   virtual DisplayError UpdateRgbHistogramRoi(const void *data) = 0;
 
+  /*! @brief Method to force disable color features (e.g., LTM).
+    This is typically used when a virtual display is retained for future reuse.
+
+    @return \link kErrorNotSupported \endlink by default.
+  */
+  virtual DisplayError TurnOffColorFeature() { return kErrorNotSupported; }
+
  protected:
   virtual ~DisplayInterface() { }
 };
