@@ -952,13 +952,20 @@ void ConcurrencyMgr::RegisterCompositorCallback(SDMCompositorCbIntf *cb, bool en
   // Notfify all displays.
   NotifyClientStatus(client_connected_);
 
-  // On SF stop, disable the idle time.
+  // On SF stop, disable the idle time and mark all displays inactive.
   if (!enable && is_client_up_ &&
       sdm_display_[SDM_DISPLAY_PRIMARY]) { // De-registering…
     DLOGI("disable idle time");
     sdm_display_[SDM_DISPLAY_PRIMARY]->SetIdleTimeoutMs(0, 0);
     is_client_up_ = false;
-    sdm_display_[SDM_DISPLAY_PRIMARY]->MarkClientActive(false);
+
+    for (Display disp = SDM_DISPLAY_PRIMARY; disp < kNumDisplays; disp++) {
+      auto err =
+          CallDisplayFunction(static_cast<Display>(disp), &SDMDisplay::MarkClientActive, false);
+      if (err == kErrorNone) {
+        DLOGI("MarkClientActive(false) for disp=%" PRIu64, disp);
+      }
+    }
   }
 
   client_lock_.Broadcast();
@@ -1755,10 +1762,6 @@ DisplayError ConcurrencyMgr::GetReadbackBufferAttributes(Display display,
     return kErrorParameters;
   }
 
-  if (display != SDM_DISPLAY_PRIMARY) {
-    return kErrorNotSupported;
-  }
-
   SDMDisplay *sdm_display = sdm_display_[display];
   if (sdm_display == nullptr) {
     return kErrorParameters;
@@ -1785,10 +1788,6 @@ ConcurrencyMgr::SetReadbackBuffer(uint64_t display, void *buffer,
 
   if (display >= kNumDisplays) {
     return kErrorParameters;
-  }
-
-  if (display != SDM_DISPLAY_PRIMARY) {
-    return kErrorNotSupported;
   }
 
   CwbConfig cwb_config = {}; /* SF uses LM tappoint*/
@@ -1831,10 +1830,6 @@ ConcurrencyMgr::GetReadbackBufferFence(uint64_t display,
 
   if (display >= kNumDisplays) {
     return kErrorParameters;
-  }
-
-  if (display != SDM_DISPLAY_PRIMARY) {
-    return kErrorNotSupported;
   }
 
   return CallDisplayFunction(display, &SDMDisplay::GetReadbackBufferFence,
@@ -2594,13 +2589,12 @@ void ConcurrencyMgr::UpdateVSyncSourceOnPowerModeDoze() {
 void ConcurrencyMgr::SetClientUp() {
   is_client_up_ = true;
 
-  auto display = sdm_display_[SDM_DISPLAY_PRIMARY];
-  if (!display) {
-    DLOGW("display is null");
-    return;
+  for (Display disp = SDM_DISPLAY_PRIMARY; disp < kNumDisplays; disp++) {
+    auto err = CallDisplayFunction(static_cast<Display>(disp), &SDMDisplay::MarkClientActive, true);
+    if (err == kErrorNone) {
+      DLOGI("MarkClientActive(true) for disp=%" PRIu64, disp);
+    }
   }
-
-  display->MarkClientActive(true);
 }
 
 bool ConcurrencyMgr::IsBuiltInDisplay(uint64_t display) {
@@ -2932,6 +2926,10 @@ DisplayError ConcurrencyMgr::ClearBuffersMappedToLayer(uint64_t display, LayerId
                              layerBuffer);
 }
 
+void ConcurrencyMgr::SendFeatenablerCommand(FeatenablerCommand cmd) {
+  auto ret = callbacks_.SendFeatenablerCommand(cmd);
+}
+
 void ConcurrencyMgr::PerformSubsystemRestart(bool start) {
   DTRACE_SCOPED();
   DLOGI("Perform Subsystem Restart: %s", start ? "Start" : "End");
@@ -2965,6 +2963,10 @@ void ConcurrencyMgr::PerformSubsystemRestart(bool start) {
       }
     }
   } else {
+    // Re-enable all features in separate thread so as not to block
+    // the rest of the SSR event
+    std::thread(&ConcurrencyMgr::SendFeatenablerCommand, this, kValidateAndEnable).detach();
+
     // SSR End
     for (Display display = SDM_DISPLAY_PRIMARY; display < kNumDisplays; display++) {
       if (sdm_display_[display] != NULL) {
