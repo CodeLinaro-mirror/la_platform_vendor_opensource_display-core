@@ -101,6 +101,11 @@ struct SnapMetadata {
   char heapName[QTI_MAX_NAME_LEN];
   vendor_qti_hardware_display_common_PixelFormat pixel_format_requested;
   int64_t bufferDequeueDuration;
+  std::vector<uint8_t> custom_content_metadata;
+  bool is_format_SMPTE2094_50 = false;
+  vendor_qti_hardware_display_common_SMPTE2094_50Metadata smpte2094_50_metadata;
+  vendor_qti_hardware_display_common_ThreeDimensionalRefInfo three_dimensional_ref_info;
+  uint32_t viewId;
   /* Set by camera to indicate areas where encoding quality should be improved */
   vendor_qti_hardware_display_common_ROIRectMetadata roiRectMetadata;
 };

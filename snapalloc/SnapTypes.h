@@ -4,6 +4,8 @@
 #ifndef __SNAP_TYPES_H__
 #define __SNAP_TYPES_H__
 
+#include <cstdint>
+
 #include <Address.h>
 #include <AllocationResult.h>
 #include <BlendMode.h>
@@ -47,6 +49,20 @@
 #include <QtiViews.h>
 #include <ROIRectMetadata.h>
 #include <unordered_map>
+
+#if defined(__has_include) && __has_include(<SMPTE2094_50.h>)
+#include <SMPTE2094_50.h>
+#else
+constexpr uint32_t QTI_SMPTE2094_50_METADATA_SIZE_BYTES = 1024 * 42;
+
+typedef struct vendor_qti_hardware_display_common_SMPTE2094_50Metadata {
+  uint64_t size;
+  uint8_t metadataPayload[QTI_SMPTE2094_50_METADATA_SIZE_BYTES];
+} vendor_qti_hardware_display_common_SMPTE2094_50Metadata;
+#endif
+
+constexpr vendor_qti_hardware_display_common_MetadataType QTI_SMPTE2094_50_METADATA_TYPE =
+    static_cast<vendor_qti_hardware_display_common_MetadataType>(24);
 
 using vendor::qti::hardware::display::snapalloc::AllocationResult;
 using vendor::qti::hardware::display::snapalloc::BufferDescriptor;
