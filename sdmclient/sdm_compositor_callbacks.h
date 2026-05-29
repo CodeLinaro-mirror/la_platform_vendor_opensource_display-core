@@ -85,6 +85,7 @@ class SDMCompositorCallbacks {
   int NextUevent(char *buffer, int buffer_length);
 
   nsecs_t SystemTime(int clock);
+  DisplayError SendFeatenablerCommand(FeatenablerCommand cmd);
 
  private:
   // non-owning reference - must always be reset to null on/before client deinit

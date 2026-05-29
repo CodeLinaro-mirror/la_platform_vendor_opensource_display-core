@@ -2926,6 +2926,10 @@ DisplayError ConcurrencyMgr::ClearBuffersMappedToLayer(uint64_t display, LayerId
                              layerBuffer);
 }
 
+void ConcurrencyMgr::SendFeatenablerCommand(FeatenablerCommand cmd) {
+  auto ret = callbacks_.SendFeatenablerCommand(cmd);
+}
+
 void ConcurrencyMgr::PerformSubsystemRestart(bool start) {
   DTRACE_SCOPED();
   DLOGI("Perform Subsystem Restart: %s", start ? "Start" : "End");
@@ -2959,6 +2963,10 @@ void ConcurrencyMgr::PerformSubsystemRestart(bool start) {
       }
     }
   } else {
+    // Re-enable all features in separate thread so as not to block
+    // the rest of the SSR event
+    std::thread(&ConcurrencyMgr::SendFeatenablerCommand, this, kValidateAndEnable).detach();
+
     // SSR End
     for (Display display = SDM_DISPLAY_PRIMARY; display < kNumDisplays; display++) {
       if (sdm_display_[display] != NULL) {

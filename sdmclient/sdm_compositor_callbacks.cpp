@@ -440,4 +440,13 @@ nsecs_t SDMCompositorCallbacks::SystemTime(int clock) {
   return sideband_->SystemTime(clock);
 }
 
+DisplayError SDMCompositorCallbacks::SendFeatenablerCommand(FeatenablerCommand cmd) {
+  if (!sideband_) {
+    DLOGW("Sideband intf is not initialized!");
+    return kErrorResources;
+  }
+
+  return sideband_->SendFeatenablerCommand(cmd);
+}
+
 }  // namespace sdm
