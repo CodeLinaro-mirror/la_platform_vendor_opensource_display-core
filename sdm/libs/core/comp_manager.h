@@ -136,8 +136,8 @@ class CompManager : public CwbCallback {
   DisplayError HandleCwbFrequencyBoost(bool isRequest);
   DisplayError PreCommit(Handle display_ctx);
   DisplayError CaptureCwb(Handle display_ctx, const LayerBuffer &buffer, const CwbConfig &config);
-  DisplayError ReserveWBForDisplay(Handle display_ctx, int32_t *wb_id);
-  void ReleaseWBFromDisplay(Handle display_ctx, int32_t wb_id);
+  DisplayError ReserveWBForDisplay(Handle display_ctx, WbMapInfo *wb_info);
+  void ReleaseWBFromDisplay(Handle display_ctx);
   bool HasPendingCwbRequest(Handle display_ctx);
   bool HandleCwbTeardown(Handle display_ctx);
   DisplayError RequestVirtualDisplayId(int32_t *vdisp_id);

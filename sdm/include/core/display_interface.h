@@ -1455,20 +1455,18 @@ class DisplayInterface {
 
   /*! @brief Method to allocate Writeback connector for QRTC.
 
-    @param[out] writeback connector id
+    @param[out] writeback connector map info
 
     @return \link DisplayError \endlink
   */
 
-  virtual DisplayError ReserveWBForDisplay(int32_t *wb_id) = 0;
+  virtual DisplayError ReserveWBForDisplay(WbMapInfo *wb_info) = 0;
 
-  /*! @brief Method to deallocate Writeback connector QRTC in use by QRTC.
-
-    @param[in] writeback connector id
+  /*! @brief Method to deallocate Writeback connector which is in use by QRTC.
 
     @return \link void \endlink
   */
-  virtual void ReleaseWBFromDisplay(int32_t wb_id) = 0;
+  virtual void ReleaseWBFromDisplay() = 0;
 
   /*! @brief Method to handle CWB teardown on the display
 
