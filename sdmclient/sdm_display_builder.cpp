@@ -20,6 +20,24 @@ std::map<Display, DisplayMapInfo *> &SDMDisplayBuilder::GetActiveDisplays() {
   return map_active_displays_;
 }
 
+void SDMDisplayBuilder::InsertActiveDisplay(Display client_id, DisplayMapInfo *info) {
+  std::lock_guard<std::mutex> lock(active_displays_lock_);
+  map_active_displays_.insert(std::make_pair(client_id, info));
+}
+
+void SDMDisplayBuilder::EraseActiveDisplay(Display client_id) {
+  std::lock_guard<std::mutex> lock(active_displays_lock_);
+  auto it = map_active_displays_.find(client_id);
+  if (it != map_active_displays_.end()) {
+    map_active_displays_.erase(it);
+  }
+}
+
+size_t SDMDisplayBuilder::GetActiveDisplayCount() {
+  std::lock_guard<std::mutex> lock(active_displays_lock_);
+  return map_active_displays_.size();
+}
+
 int SDMDisplayBuilder::GetDisplayIndex(int dpy) {
   DisplayMapInfo *map_info = nullptr;
   switch (dpy) {
@@ -1176,7 +1194,7 @@ void SDMDisplayBuilder::DestroyPluggableDisplayLocked(
     SDMDisplayPluggableTest::Destroy(sdm_display);
   }
 
-  map_active_displays_.erase(client_id);
+  EraseActiveDisplay(client_id);
   cb_->SetDisplayByClientId(client_id, nullptr);
   map_info->Reset();
 }
@@ -1212,7 +1230,7 @@ void SDMDisplayBuilder::DestroyNonPluggableDisplayLocked(
     break;
   }
 
-  map_active_displays_.erase(client_id);
+  EraseActiveDisplay(client_id);
 
   cb_->SetDisplayByClientId(client_id, nullptr);
   map_info->Reset();

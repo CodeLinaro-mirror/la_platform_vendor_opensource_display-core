@@ -1229,7 +1229,7 @@ DisplayError ConcurrencyMgr::SetPowerMode(uint64_t display, int32_t int_mode) {
   }
 
   if (mode == SDMPowerMode::POWER_MODE_OFF || mode == SDMPowerMode::POWER_MODE_DOZE_SUSPEND) {
-    disp_->GetActiveDisplays().erase(display);
+    disp_->EraseActiveDisplay(display);
   } else {
     DisplayMapInfo *disp_map_info = nullptr;
     int display_type = qdutilsDisplayType::DISPLAY_PRIMARY;
@@ -1244,7 +1244,7 @@ DisplayError ConcurrencyMgr::SetPowerMode(uint64_t display, int32_t int_mode) {
       }
 
       if (disp_map_info != nullptr) {
-        disp_->GetActiveDisplays().insert(std::make_pair(disp_map_info->client_id, disp_map_info));
+        disp_->InsertActiveDisplay(disp_map_info->client_id, disp_map_info);
         break;
       }
     }
@@ -1698,10 +1698,10 @@ void ConcurrencyMgr::HandlePendingPowerMode(
 
     if (pending_mode == SDMPowerMode::POWER_MODE_OFF ||
         pending_mode == SDMPowerMode::POWER_MODE_DOZE_SUSPEND) {
-      disp_->GetActiveDisplays().erase(display);
+      disp_->EraseActiveDisplay(display);
     } else {
       if (disp_map_info != nullptr) {
-        disp_->GetActiveDisplays().insert(std::make_pair(disp_map_info->client_id, disp_map_info));
+        disp_->InsertActiveDisplay(disp_map_info->client_id, disp_map_info);
       }
     }
     DisplayError error =
@@ -2239,8 +2239,7 @@ DisplayError ConcurrencyMgr::CommitOrPrepare(
   {
     SEQUENCE_ENTRY_SCOPE_LOCK(locker_[display]);
     sdm_display_[display]->ProcessActiveConfigChange();
-    sdm_display_[display]->IsMultiDisplay(
-        (disp_->GetActiveDisplays().size() > 1) ? true : false);
+    sdm_display_[display]->IsMultiDisplay(disp_->GetActiveDisplayCount() > 1);
     status = sdm_display_[display]->CommitOrPrepare(
         validate_only, out_retire_fence, out_num_types, out_num_requests,
         needs_commit);
