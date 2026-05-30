@@ -2636,6 +2636,17 @@ DisplayError ConcurrencyMgr::CreateVirtualDisplay(int width, int height,
   return status;
 }
 
+DisplayError ConcurrencyMgr::SetVirtualDispType(SDMVirtualDispType type) {
+  std::shared_lock<std::shared_mutex> tui_lock(tui_mutex_);
+
+  auto status = core_intf_->SetVirtualDispType(type);
+  if (status != kErrorNone) {
+    DLOGE("Failed to set virtual display type %d, status %d", type, status);
+    return status;
+  }
+  return kErrorNone;
+}
+
 DisplayError
 ConcurrencyMgr::GetSupportedDSIClock(uint64_t disp_id,
                                      std::vector<int64_t> *bit_clks) {

@@ -376,6 +376,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   bool IsBuiltInDisplay(uint64_t disp_id) override;
   bool IsAsyncVDSCreationSupported() override;
   DisplayError CreateVirtualDisplay(int width, int height, int format) override;
+  DisplayError SetVirtualDispType(SDMVirtualDispType type) override;
   DisplayError GetDSIClk(uint64_t disp_id, uint64_t *bit_clk) override;
   DisplayError SetDSIClk(uint64_t disp_id, uint64_t bit_clk) override;
   DisplayError SetQsyncMode(uint64_t disp_id, QSyncMode mode) override;

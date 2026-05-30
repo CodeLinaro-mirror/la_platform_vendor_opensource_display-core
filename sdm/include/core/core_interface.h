@@ -356,6 +356,22 @@ class CoreInterface {
   virtual void SetHdrCapabilities(Display display, const std::vector<Hdr> &hdr_types,
                                   float max_avg_luminance, float min_luminance) = 0;
 
+  /*! @brief Method to set the virtual display type used for virtual display creation.
+
+    @param[in] type \link SDMVirtualDispType \endlink
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetVirtualDispType(SDMVirtualDispType type) = 0;
+
+  /*! @brief Method to get the current virtual display type.
+
+    @param[out] out \link SDMVirtualDispType \endlink
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError GetVirtualDispType(SDMVirtualDispType *out) = 0;
+
  protected:
   virtual ~CoreInterface() { }
 };
