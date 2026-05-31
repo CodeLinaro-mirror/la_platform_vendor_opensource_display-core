@@ -417,7 +417,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   GetDisplayCapabilities(Display display,
                          vector<SDMDisplayCapability> *capabilities);
   DisplayError GetDisplayBrightnessSupport(Display display, bool *outSupport);
-  DisplayError SetDisplayBrightness(Display display, float brightness);
+  DisplayError SetDisplayBrightness(Display display, float brightness, bool performing_commit);
   DisplayError WaitForResources(bool wait_for_resources,
                                 Display active_builtin_id,
                                 Display display_id) override;
@@ -665,6 +665,7 @@ private:
   std::bitset<kNumDisplays>
       client_pending_refresh_; // compositor refresh pending
 
+  bool auto_platform_support_ = false;
   bool async_vds_creation_ = false;
   bool tui_state_transition_[kNumDisplays] = {};
   bool secure_session_active_ = false;

@@ -51,6 +51,10 @@
 #define IDLE_TIME_PROP                       DISPLAY_PROP("idle_time")
 #define IDLE_TIME_INACTIVE_PROP              DISPLAY_PROP("idle_time_inactive")
 #define DISABLE_ROTATOR_DOWNSCALE_PROP       DISPLAY_PROP("disable_rotator_downscale")
+
+// Enables for automotive platform
+#define ENABLE_AUTOMOTIVE_PLATFORM           DISPLAY_PROP("enable_automotive_platform")
+
 // Enables rotator for UI
 #define ENABLE_ROTATOR_UI_PROP               DISPLAY_PROP("enable_rotator_ui")
 #define DISABLE_DECIMATION_PROP              DISPLAY_PROP("disable_decimation")
@@ -254,6 +258,7 @@
 #define DISABLE_IDLE_TIME_HDR                DISPLAY_PROP("disable_idle_time_hdr")
 #define DISABLE_IDLE_TIME_VIDEO              DISPLAY_PROP("disable_idle_time_video")
 #define DISABLE_IDLE_FPS_SWITCH              DISPLAY_PROP("disable_idle_fps_switch")
+#define FLUSH_ON_LAYERSET_EMPTY              DISPLAY_PROP("flush_on_layer_set_empty")
 #define DISABLE_IDLE_SCALING_LAYERS          DISPLAY_PROP("disable_idle_scaling_layers")
 #define DISABLE_LLCC_DURING_AOD              DISPLAY_PROP("disable_llcc_during_aod")
 #define DISABLE_CWB_IDLE_FALLBACK            DISPLAY_PROP("disable_cwb_idle_fallback")

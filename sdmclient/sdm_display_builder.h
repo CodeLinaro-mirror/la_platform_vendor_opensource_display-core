@@ -48,11 +48,12 @@ class SDMDisplayBuilder {
  public:
   explicit SDMDisplayBuilder(SDMDisplayBuilderCbIntf *cb, BufferAllocator *buffer_allocator,
                              CoreInterface *core_intf, SDMCompositorCallbacks *callbacks,
-                             SDMDisplayEventHandler *event_handler)
+                             bool auto_platform_support, SDMDisplayEventHandler *event_handler)
       : cb_(cb),
         buffer_allocator_(buffer_allocator),
         core_intf_(core_intf),
         callbacks_(callbacks),
+        auto_platform_support_(auto_platform_support),
         evt_handler_(event_handler) {}
   virtual ~SDMDisplayBuilder() {}
 
@@ -114,6 +115,7 @@ class SDMDisplayBuilder {
   BufferAllocator *buffer_allocator_ = nullptr;
   CoreInterface *core_intf_ = nullptr;
   SDMCompositorCallbacks *callbacks_ = nullptr;
+  bool auto_platform_support_ = false;
   SDMDisplayEventHandler *evt_handler_ = nullptr;
 
   std::map<Display, DisplayMapInfo *> map_active_displays_;

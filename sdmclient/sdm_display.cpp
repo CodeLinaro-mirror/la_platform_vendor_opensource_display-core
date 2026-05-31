@@ -584,6 +584,8 @@ DisplayError SDMDisplay::Init() {
 
   client_target_ = new SDMLayer(id_, buffer_allocator_);
 
+  SDMDebugHandler::Get()->GetProperty(FLUSH_ON_LAYERSET_EMPTY, &flush_on_layerset_empty_);
+
   error = display_intf_->GetNumVariableInfoConfigs(&num_configs_);
   if (error != kErrorNone) {
     DLOGE("Getting config count failed. Error = %d", error);
@@ -1888,6 +1890,11 @@ DisplayError SDMDisplay::CommitOrPrepare(bool validate_only,
   // Mask error if needed.
   auto status = HandlePrepareError(error);
   if (status != kErrorNone) {
+    if (first_cycle_ && error == kErrorNoAppLayers) {
+      first_cycle_ = false;
+      client_target_3_1_set_ = false;
+      return kErrorNone;
+    }
     client_target_3_1_set_ = false;
     return status;
   }
