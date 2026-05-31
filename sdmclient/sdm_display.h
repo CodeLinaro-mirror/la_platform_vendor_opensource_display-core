@@ -26,11 +26,13 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 /*
  * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #ifndef __SDM_DISPLAY_H__
 #define __SDM_DISPLAY_H__
 
@@ -389,6 +391,10 @@ public:
                                           uint32_t *out_num_elements,
                                           LayerId *out_layers,
                                           int32_t *out_layer_requests);
+  virtual DisplayError GetDisplayLuts(
+      std::unique_ptr<std::vector<std::pair<LayerId, Lut3d *>>> &out_luts);
+  virtual DisplayError GetBufferLuts(const std::vector<SnapHandle *> &buffers,
+                                     std::unique_ptr<std::vector<Lut3d *>> &out_luts);
   virtual DisplayError GetDisplayName(uint32_t *out_size, char *out_name);
   virtual DisplayError GetDisplayType(int32_t *out_type);
   virtual DisplayError SetCursorPosition(LayerId layer, int x, int y);
@@ -602,6 +608,7 @@ public:
   void DumpInputBuffers(void);
   void RetrieveFences(shared_ptr<Fence> *out_retire_fence);
   void SetDrawMethod();
+  void ClearRequestMaps();
 
   // CWB related methods
   void HandleFrameOutput();
@@ -624,6 +631,9 @@ public:
 
   std::map<LayerId, SDMCompositionType> layer_changes_;
   std::map<LayerId, SDMLayerRequest> layer_requests_;
+  // mapping 3d luts to layer id and handle id to retrieve info and pass to client
+  std::map<LayerId, Lut3d *> display_luts_;
+  std::map<uint64_t, Lut3d *> buffer_luts_;
   bool flush_on_error_ = false;
   bool flush_ = false;
   SDMPowerMode current_power_mode_ = SDMPowerMode::POWER_MODE_OFF;
@@ -656,6 +666,7 @@ public:
   std::vector<uint32_t> sdm_config_map_;
   bool client_connected_ = true;
   bool pending_config_ = false;
+  int flush_on_layerset_empty_ = 0;
   bool has_client_composition_ = false;
   LayerRect window_rect_ = {};
   bool windowed_display_ = false;

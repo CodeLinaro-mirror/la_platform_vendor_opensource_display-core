@@ -258,6 +258,7 @@
 #define DISABLE_IDLE_TIME_HDR                DISPLAY_PROP("disable_idle_time_hdr")
 #define DISABLE_IDLE_TIME_VIDEO              DISPLAY_PROP("disable_idle_time_video")
 #define DISABLE_IDLE_FPS_SWITCH              DISPLAY_PROP("disable_idle_fps_switch")
+#define FLUSH_ON_LAYERSET_EMPTY              DISPLAY_PROP("flush_on_layer_set_empty")
 #define DISABLE_IDLE_SCALING_LAYERS          DISPLAY_PROP("disable_idle_scaling_layers")
 #define DISABLE_LLCC_DURING_AOD              DISPLAY_PROP("disable_llcc_during_aod")
 #define DISABLE_CWB_IDLE_FALLBACK            DISPLAY_PROP("disable_cwb_idle_fallback")
@@ -288,6 +289,8 @@
 
 // Scale support for non-primary display, Auto use case
 #define ENABLE_SCALE_FOR_ALL_DISPLAYS        DISPLAY_PROP("enable_scale_for_all_displays")
+// Disable client querying luts
+#define DISABLE_QUERY_LUTS                DISPLAY_PROP("disable_query_luts")
 
 // Add all other.properties above
 // End of property

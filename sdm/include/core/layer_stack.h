@@ -23,40 +23,10 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted (subject to the limitations in the
-* disclaimer below) provided that the following conditions are met:
-*
-*    * Redistributions of source code must retain the above copyright
-*      notice, this list of conditions and the following disclaimer.
-*
-*    * Redistributions in binary form must reproduce the above
-*      copyright notice, this list of conditions and the following
-*      disclaimer in the documentation and/or other materials provided
-*      with the distribution.
-*
-*    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
-*      contributors may be used to endorse or promote products derived
-*      from this software without specific prior written permission.
-*
-* NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
-* GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
-* HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
-* WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-* IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
-* GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-* INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
-* IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-* OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-* IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 /*! @file layer_stack.h
   @brief File for display layer stack structure which represents a drawing buffer.
@@ -529,8 +499,9 @@ struct Layer {
 
   LayerRequest request = {};                       //!< o/p - request on this Layer by SDM.
 
-  Lut3d lut_3d = {};                               //!< o/p - Populated by SDM when tone mapping is
-                                                   //!< needed on this layer.
+  Lut3d lut_3d = { .lutEntries = nullptr, .validLutEntries = false, .gridEntries = nullptr,
+                   .validGridEntries = false };    //!< o/p - layer LUTs populated by SDM to be sent
+                                                   //!< to client to achieve unified tonemapping
   LayerSolidFill solid_fill_info = {};             //!< solid fill info along with depth.
   std::shared_ptr<LayerBufferMap> buffer_map = nullptr;  //!< Map of handle_id and fb_id.
   float color_transform_matrix[kColorTransformMatrixSize] = { 1.0, 0.0, 0.0, 0.0,
@@ -575,6 +546,19 @@ struct CacConfig {
   uint32_t mid_re_y_offset = 0;
   uint32_t mid_re_x_offset = 0;
   uint32_t skip_inc = 0;
+};
+
+struct DynamicCacV2Poly {
+  double rhc[3]; // red horizontal rhc[2] * (x ^ 2) + rhc[1] * x + rhc[0]
+  double bhc[3]; // blue horizontal
+  double rvc[3]; // red vertical rvc[2] * (y ^ 2) + rvc[1] * y + rvc[0]
+  double bvc[3]; // blue vertical
+  uint32_t gpu_coef_flags; // bit 0: GPU coefficient mode, bit 1: right eye mode
+};
+
+struct DynamicCacV2Config {
+  DynamicCacV2Poly poly_ctrl_left;
+  DynamicCacV2Poly poly_ctrl_right;
 };
 
 /*! @brief This structure defines a layer stack that contains layers which need to be composed and

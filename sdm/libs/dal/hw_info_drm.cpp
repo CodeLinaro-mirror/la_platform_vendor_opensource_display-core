@@ -544,7 +544,8 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
     pipe_caps.id = pipe_obj.first;
     auto it = hw_resource->plane_to_connector.find(pipe_caps.id);
     if (it != hw_resource->plane_to_connector.end()) {
-      pipe_caps.cont_splash_disp_id = it->second;
+      DisplayId ToDisplayId(core_id_, it->second);
+      pipe_caps.cont_splash_disp_id = ToDisplayId.GetDisplayId();
       auto it2 = std::find(hw_resource->initial_demura_planes.begin(),
                            hw_resource->initial_demura_planes.end(), pipe_caps.id);
       pipe_caps.splash_type = (it2 != hw_resource->initial_demura_planes.end()) ? kSplashDemura

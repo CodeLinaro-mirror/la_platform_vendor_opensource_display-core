@@ -26,11 +26,13 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 /*
  * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #include <algorithm>
 #include <bitset>
 #include <core/buffer_allocator.h>
@@ -568,6 +570,39 @@ DisplayError ConcurrencyMgr::GetDisplayRequests(Display display,
   return CallDisplayFunction(display, &SDMDisplay::GetDisplayRequests,
                              out_display_requests, out_num_elements, out_layers,
                              out_layer_requests);
+}
+
+DisplayError ConcurrencyMgr::GetDisplayLuts(
+    Display display, std::unique_ptr<std::vector<std::pair<LayerId, Lut3d *>>> &out_luts) {
+  if (display >= kNumDisplays) {
+    return kErrorParameters;
+  }
+
+  SCOPE_LOCK(locker_[display]);
+  auto status = kErrorParameters;
+  if (sdm_display_[display]) {
+    auto sdm_display = sdm_display_[display];
+    status = sdm_display->GetDisplayLuts(out_luts);
+  }
+
+  return status;
+}
+
+DisplayError ConcurrencyMgr::GetBufferLuts(Display display,
+                                           const std::vector<SnapHandle *> &buffers,
+                                           std::unique_ptr<std::vector<Lut3d *>> &out_luts) {
+  if (display >= kNumDisplays) {
+    return kErrorParameters;
+  }
+
+  SCOPE_LOCK(locker_[display]);
+  auto status = kErrorParameters;
+  if (sdm_display_[display]) {
+    auto sdm_display = sdm_display_[display];
+    status = sdm_display->GetBufferLuts(buffers, out_luts);
+  }
+
+  return status;
 }
 
 DisplayError ConcurrencyMgr::GetDisplayType(uint64_t display,
@@ -1738,8 +1773,8 @@ DisplayError ConcurrencyMgr::GetDisplayBrightnessSupport(Display display,
   return kErrorNone;
 }
 
-DisplayError ConcurrencyMgr::SetDisplayBrightness(Display display,
-                                                  float brightness) {
+DisplayError ConcurrencyMgr::SetDisplayBrightness(Display display, float brightness,
+                                                  bool performing_commit) {
   if (display >= kNumDisplays) {
     return kErrorParameters;
   }

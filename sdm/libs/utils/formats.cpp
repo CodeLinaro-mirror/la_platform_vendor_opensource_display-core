@@ -369,6 +369,27 @@ bool IsExtendedRange(LayerBuffer buffer) {
   return (Is16BitFormat(buffer.format) && buffer.dataspace.range == QtiRange_Extended);
 }
 
+bool IsFP16ExtendedRange(LayerBuffer buffer) {
+  return (Is16BitFormat(buffer.format) && buffer.dataspace.range == QtiRange_Extended);
+}
+
+bool HasHDRMetadata(LayerBuffer buffer) {
+  return (buffer.dynamicMetadata.dynamicMetaDataValid ||
+          buffer.masteringDisplayInfo.colorVolumeSEIEnabled ||
+          buffer.contentLightLevel.lightLevelSEIEnabled);
+}
+
+bool IsSCRGB(LayerBuffer buffer) {
+  return (IsFP16ExtendedRange(buffer) &&
+          buffer.dataspace.colorPrimaries == QtiColorPrimaries_BT709_5 &&
+          (buffer.dataspace.transfer == QtiTransfer_sRGB ||
+           buffer.dataspace.transfer == QtiTransfer_Linear)
+#ifdef ANDROID
+          && HasHDRMetadata(buffer)
+#endif
+  );
+}
+
 // TODO(user): eventually we should upgrade the legacy ColorMetadata struct in
 // snapdragon_color_intf.h so we don't have to do all this
 ColorMetaData convertToLegacyColorMetadata(const LayerBuffer *buffer) {

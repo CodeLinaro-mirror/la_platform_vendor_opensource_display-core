@@ -1531,10 +1531,11 @@ DisplayError SDMServices::SetDisplayBrightness(SDMParcel *input_parcel,
   int level = input_parcel->readInt32();
   DisplayError ret = kErrorNone;
   if (level == 0) {
-    ret = cb_->SetDisplayBrightness(display, -1.0f);
+    ret = cb_->SetDisplayBrightness(display, -1.0f, /*apply_immediately*/ true);
   } else {
     ret = cb_->SetDisplayBrightness(
-        display, (level - 1) / (static_cast<float>(max_brightness_level - 1)));
+        display, (level - 1) / (static_cast<float>(max_brightness_level - 1)),
+                  /*apply_immediately*/ true);
   }
   if (ret != kErrorNone) {
     return ret;
@@ -1708,8 +1709,8 @@ DisplayError SDMServices::QdcmCMDHandler(SDMParcel *input_parcel,
           DLOGE("Brightness payload is Null");
           ret = kErrorParameters;
         } else {
-          auto err = cb_->SetDisplayBrightness(static_cast<Display>(display_id),
-                                               *brightness);
+          auto err = cb_->SetDisplayBrightness(static_cast<Display>(display_id), *brightness,
+                                               /*apply_immediately*/ true);
           if (err != kErrorNone) {
             ret = kErrorNotSupported;
           }
