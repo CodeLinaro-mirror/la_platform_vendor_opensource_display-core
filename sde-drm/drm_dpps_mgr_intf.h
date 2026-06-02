@@ -42,6 +42,7 @@ class DRMDppsManagerIntf {
   virtual void GetDppsFeatureInfo(DRMDppsFeatureInfo *info) = 0;
 };
 
-extern "C" DRMDppsManagerIntf* GetDppsManagerIntf();
+extern "C" DRMDppsManagerIntf* GetDppsManagerIntf(int fd);
+extern "C" void DestroyDppsManagerIntf(int fd);
 }  // namespace sde_drm
 #endif  // __DRM_DPPS_MGR_INTF_H__
