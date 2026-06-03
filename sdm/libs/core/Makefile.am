@@ -8,6 +8,7 @@ c_sources = core_interface.cpp \
             display_pluggable.cpp \
             display_virtual.cpp \
             display_null.cpp \
+            dpps_info.cpp \
             comp_manager.cpp \
             strategy.cpp \
             resource_default.cpp \
