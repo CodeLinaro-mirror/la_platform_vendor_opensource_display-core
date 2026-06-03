@@ -777,6 +777,7 @@ public:
   bool pending_privregions_update_ = false;
   FrameCaptureIntf *fcm_ = nullptr;
   bool composer_driven_hdcp_ = false;
+  bool disable_luts_overlay_support_ = false;
 };
 
 inline DisplayError SDMDisplay::Perform(uint32_t operation, ...) {
