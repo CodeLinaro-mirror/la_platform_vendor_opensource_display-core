@@ -5440,7 +5440,7 @@ void DppsInfo::Init(DppsPropIntf *intf, const std::string &panel_name,
   }
 
   display_id_.push_back(info_payload.display_id);
-  DLOGE("Registered display %d-%d successfully", info_payload.display_id,
+  DLOGI("Registered display %d-%d successfully", info_payload.display_id,
         info_payload.display_type);
   return;
 
