@@ -161,26 +161,23 @@ private:
 
 class SDMDisplay : public DisplayEventHandler {
 public:
-  virtual ~SDMDisplay() {}
+ virtual ~SDMDisplay();
 
-  virtual DisplayError Init();
-  virtual DisplayError Deinit();
+ virtual DisplayError Init();
+ virtual DisplayError Deinit();
 
-  virtual DisplayError GetFixedConfig(DisplayConfigFixedInfo *info);
+ virtual DisplayError GetFixedConfig(DisplayConfigFixedInfo *info);
 
-  // Framebuffer configurations
-  virtual void SetIdleTimeoutMs(uint32_t timeout_ms, uint32_t inactive_ms);
-  virtual DisplayError SetFrameDumpConfig(uint32_t count,
-                                          uint32_t bit_mask_layer_type,
-                                          int32_t format);
-  virtual DisplayError SetFrameDumpConfig(uint32_t count,
-                                          uint32_t bit_mask_layer_type,
-                                          int32_t format,
-                                          CwbConfig &cwb_config);
-  virtual DisplayError SetMaxMixerStages(uint32_t max_mixer_stages);
-  virtual DisplayError ControlPartialUpdate(bool enable, uint32_t *pending) {
-    return kErrorNotSupported;
-  }
+ // Framebuffer configurations
+ virtual void SetIdleTimeoutMs(uint32_t timeout_ms, uint32_t inactive_ms);
+ virtual DisplayError SetFrameDumpConfig(uint32_t count, uint32_t bit_mask_layer_type,
+                                         int32_t format);
+ virtual DisplayError SetFrameDumpConfig(uint32_t count, uint32_t bit_mask_layer_type,
+                                         int32_t format, CwbConfig &cwb_config);
+ virtual DisplayError SetMaxMixerStages(uint32_t max_mixer_stages);
+ virtual DisplayError ControlPartialUpdate(bool enable, uint32_t *pending) {
+   return kErrorNotSupported;
+ }
   virtual SDMPowerMode GetCurrentPowerMode();
   virtual DisplayError SetFrameBufferResolution(uint32_t x_pixels,
                                                 uint32_t y_pixels);
@@ -637,7 +634,7 @@ public:
   std::map<LayerId, SDMLayerRequest> layer_requests_;
   // mapping 3d luts to layer id and handle id to retrieve info and pass to client
   std::map<LayerId, Lut3d *> display_luts_;
-  std::map<uint64_t, Lut3d *> buffer_luts_;
+  std::map<uint64_t, Lut3d> buffer_luts_;
   bool flush_on_error_ = false;
   bool flush_ = false;
   SDMPowerMode current_power_mode_ = SDMPowerMode::POWER_MODE_OFF;

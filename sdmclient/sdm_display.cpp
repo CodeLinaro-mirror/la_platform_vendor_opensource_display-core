@@ -557,6 +557,16 @@ SDMDisplay::SDMDisplay(CoreInterface *core_intf, BufferAllocator *buffer_allocat
   }
 }
 
+SDMDisplay::~SDMDisplay() {
+  for (auto &it : buffer_luts_) {
+    if (it.second.lutEntries != nullptr) {
+      delete[] it.second.lutEntries;
+      it.second.lutEntries = nullptr;
+    }
+  }
+  buffer_luts_.clear();
+}
+
 DisplayError SDMDisplay::Init() {
   DisplayError error = kErrorNone;
 
@@ -1754,8 +1764,12 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
     // map handle ids to luts so client can retrieve it through getLuts call
     // used in screenshot layer during rotation, suspend resume, etc.
     if (layer->lut_3d.lutEntries != nullptr) {
-      buffer_luts_[layer->input_buffer.handle_id] = &layer->lut_3d;
+      CopyLut3D(layer->lut_3d, &buffer_luts_[layer->input_buffer.handle_id]);
     } else if (buffer_luts_.find(layer->input_buffer.handle_id) != buffer_luts_.end()) {
+      if (buffer_luts_[layer->input_buffer.handle_id].lutEntries != nullptr) {
+        delete[] buffer_luts_[layer->input_buffer.handle_id].lutEntries;
+        buffer_luts_[layer->input_buffer.handle_id].lutEntries = nullptr;
+      }
       buffer_luts_.erase(layer->input_buffer.handle_id);
     }
 
@@ -1929,7 +1943,7 @@ DisplayError SDMDisplay::GetBufferLuts(const std::vector<SnapHandle *> &buffers,
     GetMetadata(buffers.at(i), MetadataType::BUFFER_ID, &handle_id, snapmapper_);
     auto it = buffer_luts_.find(handle_id);
     if (it != buffer_luts_.end()) {
-      out_luts->push_back(it->second);
+      out_luts->push_back(&it->second);
     } else {
       out_luts->push_back(nullptr);
     }
