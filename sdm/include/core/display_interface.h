@@ -1813,6 +1813,13 @@ class DisplayInterface {
   */
   virtual DisplayError TurnOffColorFeature() { return kErrorNotSupported; }
 
+  /*! @brief Method to get display view mode for XR systems
+   @param[out] SDMDisplayViewMode : display view mode type
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError GetDisplayViewMode(SDMDisplayViewMode *view_mode) = 0;
+
  protected:
   virtual ~DisplayInterface() { }
 };

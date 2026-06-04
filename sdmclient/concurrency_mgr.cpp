@@ -3029,4 +3029,8 @@ DisplayError ConcurrencyMgr::SetRgbHistObserverConfig(Display display, bool stat
   return CallDisplayFunction(display, &SDMDisplay::SetRgbHistObserverConfig, state, data);
 }
 
+DisplayError ConcurrencyMgr::GetDisplayViewMode(Display display, SDMDisplayViewMode *view_mode) {
+  return CallDisplayFunction(display, &SDMDisplay::GetDisplayViewMode, view_mode);
+}
+
 }  // namespace sdm

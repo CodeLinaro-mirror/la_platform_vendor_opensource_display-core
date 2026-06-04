@@ -552,6 +552,7 @@ public:
     return kErrorNotSupported;
   }
   virtual DisplayError TurnOffColorFeature() { return kErrorNotSupported; }
+  DisplayError GetDisplayViewMode(SDMDisplayViewMode *view_mode);
 
  protected:
   static uint32_t throttling_refresh_rate_;

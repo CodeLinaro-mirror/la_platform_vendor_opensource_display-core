@@ -7237,4 +7237,18 @@ bool DisplayBuiltIn::isSPREnabled() {
   return enable ? true : false;
 }
 
+DisplayError DisplayBuiltIn::GetDisplayViewMode(SDMDisplayViewMode *view_mode) {
+  if (!client_ctx_.hw_panel_info.is_lsr_display) {
+    *view_mode = kViewModeNone;
+    return kErrorNone;
+  }
+
+  if (client_ctx_.hw_panel_info.is_monocular_display) {
+    *view_mode = kViewModeMonocular;
+  } else {
+    *view_mode = kViewModeStereo;
+  }
+  return kErrorNone;
+}
+
 }  // namespace sdm
