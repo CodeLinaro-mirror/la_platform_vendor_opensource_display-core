@@ -5,6 +5,7 @@
 
 #include <iostream>
 
+#include "Debug.h"
 #include "GraphicsConstraintProvider.h"
 #include "SnapConstraintParser.h"
 #include "SnapTypes.h"
@@ -52,6 +53,8 @@ void SnapConstraintManager::Init() {
   providers_.push_back(video_provider);
 
   debug_ = Debug::GetInstance();
+
+  debug_->GetProperty(ENABLE_UBWC_LOSSY_FORMAT_FBT, &enable_ubwc_lossy_fbt_);
 }
 
 bool SnapConstraintManager::CanAllocateZSLForSecureCamera() {
@@ -277,6 +280,15 @@ Error SnapConstraintManager::GetAllocationData(
       }
     }
     ubwc_caps_.version = ubwc_version;
+    // Apply UBWC lossy usage if UBWC allocation is requested
+    const uint64_t lossy_usage = GetUBWCLossyUsage(*out_desc);
+
+    if (lossy_usage != 0) {
+      out_desc->usage |= static_cast<vendor_qti_hardware_display_common_BufferUsage>(lossy_usage);
+      DLOGD_IF(enable_logs, "%s: UBWC lossy flag enabled. Updated usage=0x%lx", __func__,
+               out_desc->usage);
+    }
+
     err = ubwc_policy_->GetUBWCAlloc(*out_desc, cap_map, ubwc_caps_, out_ad, out_layout,
                                      &used_adreno_for_size);
   } else {
@@ -758,6 +770,21 @@ bool SnapConstraintManager::UseUncached(vendor_qti_hardware_display_common_Pixel
   }
 
   return false;
+}
+
+uint64_t SnapConstraintManager::GetUBWCLossyUsage(BufferDescriptor out_desc) {
+  if (!enable_ubwc_lossy_fbt_ || !ubwc_policy_->IsUBWCAlloc(out_desc)) {
+    DLOGD_IF(enable_logs, "%s: Lossy UBWC usage not set", __func__);
+    return 0;
+  }
+
+  if ((out_desc.usage & vendor_qti_hardware_display_common_BufferUsage::COMPOSER_CLIENT_TARGET) &&
+      (out_desc.usage & vendor_qti_hardware_display_common_BufferUsage::COMPOSER_OVERLAY) &&
+      (out_desc.format == vendor_qti_hardware_display_common_PixelFormat::RGBA_8888)) {
+    DLOGD_IF(enable_logs, "%s: Enabling UBWC lossy format", __func__);
+    return vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC_L_2_TO_1;
+  }
+  return 0;
 }
 
 }  // namespace snapalloc

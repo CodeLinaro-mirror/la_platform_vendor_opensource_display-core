@@ -82,6 +82,9 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
     BufferDescriptor out_desc;
     SnapHandleInternal *hnd;
     int out_priv_flags = 0;
+    uint64_t lossy_usage = constraint_mgr_->GetUBWCLossyUsage(desc);
+    desc.usage =
+        desc.usage | static_cast<vendor_qti_hardware_display_common_BufferUsage>(lossy_usage);
     auto err = constraint_mgr_->GetAllocationData(desc, &ad, &layout, &out_desc, &out_priv_flags);
     if (err != Error::NONE) {
       DLOGE("Constraint manager failed to get allocation data - err %d", err);
