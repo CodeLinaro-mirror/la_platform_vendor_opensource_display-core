@@ -1127,7 +1127,12 @@ DisplayError SDMDisplay::SetVsyncEnabled(bool enabled) {
   SDMDebugHandler::ATRACE_INT("SetVsyncState ", enabled);
   DisplayError error = kErrorNone;
 
-  if (shutdown_pending_ || !event_handler_->VsyncCallbackRegistered()) {
+  if (shutdown_pending_ || !event_handler_ || !event_handler_->VsyncCallbackRegistered()) {
+    return kErrorNone;
+  }
+
+  if (!display_intf_) {
+    DLOGW("display_intf_ is null, cannot set VSync state.");
     return kErrorNone;
   }
 
@@ -2151,6 +2156,7 @@ SDMDisplay::PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence) {
 
   for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
     sdm_layer->ResetGeometryChanges();
+    sdm_layer->ResetBufferFlip();
     Layer *layer = sdm_layer->GetSDMLayer();
     LayerBuffer *layer_buffer = &layer->input_buffer;
     layer->request.flags = {};

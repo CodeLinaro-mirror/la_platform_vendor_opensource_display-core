@@ -168,6 +168,9 @@ DisplayError CompManager::RegisterDisplay(DisplayId display_id, SDMDisplayType t
   // resources for the added display is configured properly.
   if (!display_comp_ctx->is_primary_panel) {
     max_sde_secondary_fetch_layers_ = UINT32(Debug::GetSecondaryMaxFetchLayers());
+    if (display_comp_ctx->display_type == kBuiltIn) {
+      max_sde_builtin_fetch_layers_ = UINT32(Debug::GetBuiltinMaxFetchLayers());
+    }
   }
 
   display_demura_status_[display_id.GetDisplayId()] = false;
@@ -333,7 +336,7 @@ void CompManager::PrepareStrategyConstraints(Handle comp_handle,
     constraints->safe_mode = true;
   }
 
-  if (secure_event_ == kTUITransitionStart) {
+  if (secure_event_ == kTUITransitionStart || secure_event_ == kTUITransitionEnd) {
     constraints->max_layers = 1;
   }
 
@@ -858,9 +861,10 @@ void CompManager::HandleSecureEvent(Handle display_ctx, SecureEvent secure_event
     resource_intf_->Perform(ResourceInterface::kCmdResetLUT,
                             display_comp_ctx->display_resource_ctx);
     resource_intf_->HandleTUITransition(display_comp_ctx->display_resource_ctx, false);
-    safe_mode_ = false;
   }
-  safe_mode_ = (secure_event == kTUITransitionStart) ? true : safe_mode_;
+  safe_mode_ = (secure_event == kTUITransitionStart || secure_event == kTUITransitionEnd)
+                   ? true
+                   : safe_mode_;
   secure_event_ = secure_event;
 }
 
@@ -872,6 +876,8 @@ void CompManager::PostHandleSecureEvent(Handle display_ctx, SecureEvent secure_e
 
   if (secure_event == kSecureDisplayEnd) {
     resource_intf_->HandleTUITransition(display_comp_ctx->display_resource_ctx, false);
+    secure_event_ = kSecureEventMax;
+  } else if (secure_event_ == kTUITransitionEnd) {
     secure_event_ = kSecureEventMax;
   }
 }

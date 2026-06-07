@@ -119,6 +119,8 @@ class CoreImpl : public CoreInterface {
 #endif
   virtual void SetHdrCapabilities(Display display, const std::vector<Hdr> &hdr_types,
                                   float max_avg_luminance, float min_luminance);
+  virtual DisplayError SetVirtualDispType(SDMVirtualDispType type);
+  virtual DisplayError GetVirtualDispType(SDMVirtualDispType *out);
 
  protected:
   void InitializeSDMUtils();
@@ -158,6 +160,7 @@ class CoreImpl : public CoreInterface {
   std::vector<Hdr> set_hdr_types_ = {};
   float set_max_lum_ = -1.0;
   float set_min_lum_ = -1.0;
+  SDMVirtualDispType set_virtual_disp_type_ = kVirtualTypeDefault;
 };
 
 }  // namespace sdm

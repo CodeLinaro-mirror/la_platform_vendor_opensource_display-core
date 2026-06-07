@@ -70,6 +70,7 @@
 #define NULL_DISPLAY_RESOLUTION_PROP         DISPLAY_PROP("null_display_resolution")
 #define SIMULATED_CONFIG_PROP                DISPLAY_PROP("simulated_config")
 #define MAX_SECONDARY_FETCH_LAYERS_PROP      DISPLAY_PROP("max_secondary_fetch_layers")
+#define MAX_BUILTIN_FETCH_LAYERS_PROP        DISPLAY_PROP("max_builtin_fetch_layers")
 #define ENABLE_EXTERNAL_DOWNSCALE_PROP       DISPLAY_PROP("enable_external_downscale")
 #define EXTERNAL_ACTION_SAFE_WIDTH_PROP      DISPLAY_PROP("external_action_safe_width")
 #define EXTERNAL_ACTION_SAFE_HEIGHT_PROP     DISPLAY_PROP("external_action_safe_height")

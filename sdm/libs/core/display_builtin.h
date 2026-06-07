@@ -58,6 +58,7 @@
 
 #include "display_base.h"
 #include "drm_interface.h"
+#include "dpps_info.h"
 #include "pu_subject_intf_impl.h"
 #include "rgb_hist_feature_intf.h"
 #include "rgb_hist_manager_intf.h"
@@ -107,25 +108,6 @@ struct DeferFpsConfig {
     dirty = false;
     apply = false;
   }
-};
-
-class DppsInfo {
- public:
-  void Init(DppsPropIntf *intf, const std::string &panel_name, DisplayInterface *display_intf,
-            PanelFeaturePropertyIntf *prop_intf);
-  void Deinit();
-  void DppsNotifyOps(enum DppsNotifyOps op, void *payload, size_t size);
-  bool disable_pu_ = false;
-
- private:
-  const char *kDppsLib_ = "libdpps.so";
-  DynLib dpps_impl_lib_;
-  static DppsInterface *dpps_intf_;
-  static std::vector<int32_t> display_id_;
-  std::mutex lock_;
-  DppsInterface *(*GetDppsInterface)() = NULL;
-
-  void Deinit_nolock();
 };
 
 class EventProxyInfo {
@@ -534,6 +516,7 @@ class DisplayBuiltIn : public DisplayBase,
   std::shared_ptr<TvmDispServiceManagerIntf> service_manager_intf_ = nullptr;
   std::shared_ptr<DemuraParserManagerIntf> pm_intf_ = nullptr;
   std::shared_ptr<VMFileXferIntf> vm_file_xfer_intf_ = nullptr;
+  std::mutex file_xfer_intf_mutex_;
   bool demura_allowed_ = false;
   bool demuratn_allowed_ = false;
   bool demura_enable_ = false;

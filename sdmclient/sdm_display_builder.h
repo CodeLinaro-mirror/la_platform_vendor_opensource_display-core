@@ -8,6 +8,7 @@
 #include <core/core_interface.h>
 
 #include <map>
+#include <mutex>
 #include <vector>
 
 #include "sdm_display.h"
@@ -42,6 +43,7 @@ struct VirtualDisplayData {
   uint32_t width;
   uint32_t height;
   int32_t format;
+  SDMVirtualDispType type = kVirtualTypeDefault;
   bool in_use = false;
 };
 
@@ -79,6 +81,9 @@ class SDMDisplayBuilder {
   void DestroyNonPluggableDisplayLocked(DisplayMapInfo *map_info);
   std::vector<DisplayMapInfo> &GetDisplayMapInfo(int display_id);
   std::map<Display, DisplayMapInfo *> &GetActiveDisplays();
+  void InsertActiveDisplay(Display client_id, DisplayMapInfo *info);
+  void EraseActiveDisplay(Display client_id);
+  size_t GetActiveDisplayCount();
   int GetDisplayIndex(int dpy);
   Display GetActiveBuiltinDisplay();
 
@@ -94,6 +99,7 @@ class SDMDisplayBuilder {
   bool HasHDRSupport(SDMDisplay *sdm_display);
   bool TeardownPluggableDisplays();
   bool IsHDRDisplay(uint32_t disp_id);
+  bool ShouldRetainVirtualDisplay(uint32_t disp_id);
   uint32_t GetVirtualDisplayCount();
   void SetLuminance(float min_lum, float max_lum);
   void SetProperties(int32_t enable_primary_reconfig_req) {
@@ -122,6 +128,7 @@ class SDMDisplayBuilder {
   SDMDisplayEventHandler *evt_handler_ = nullptr;
 
   std::map<Display, DisplayMapInfo *> map_active_displays_;
+  std::mutex active_displays_lock_;
   vector<HWDisplayInfo> virtual_display_list_{};
 
   float set_max_lum_ = -1.0;
