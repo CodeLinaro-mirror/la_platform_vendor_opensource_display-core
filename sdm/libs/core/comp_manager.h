@@ -169,6 +169,8 @@ class CompManager : public CwbCallback {
   DisplayError GetIllumination(uint32_t eye, const IlluminationConfig &in_config,
                                IlluminationConfig *out_config);
   DisplayError GetPixelShiftData(std::vector<PixelShiftConfig> *pixel_shift_config);
+  DisplayError GetQrtcFetchResources(Handle display_ctx, std::vector<FetchResourceList> *frl);
+  DisplayError ConfigureDynamicCacConfig(Handle display_ctx, DispLayerStack *disp_layer_stack);
 
  private:
   static const int kMaxThermalLevel = 3;

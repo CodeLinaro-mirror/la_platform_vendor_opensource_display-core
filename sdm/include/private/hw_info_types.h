@@ -1138,8 +1138,10 @@ struct LayerStackInfo {
   RCLayersInfo rc_layers_info = {};
   CommonStackInfo common_info = {};
   bool enable_cac = false;  // This field hints to enable CAC
+  bool enable_dynamic_cac = false;     // This field hints to enable dynamic CAC
   bool enable_anamorphic_fov = false;  // This field hints to enable anamorphic foveation
   CacConfig cac_config = {};
+  DynamicCacV2Config cac_config_dynamic_v2 = {};
   Handle comp_stack = nullptr;
   SelfRefreshState self_refresh_state = kSelfRefreshNone;
   int32_t rgba_split_enable = 0;
@@ -1223,6 +1225,7 @@ struct HWDisplayAttributes : DisplayConfigVariableInfo {
   uint32_t clock_khz = 0;      //!< Stores the pixel clock of panel in khz
   HWTopology topology = kUnknown;   //!< Stores the topology information.
   uint32_t topology_num_split = 1;  //!< Stores the topology split number information.
+  bool needs_dspp = false;  //!< Stores the dspp required information.
 
   bool operator !=(const HWDisplayAttributes &display_attributes) {
     return ((is_device_split != display_attributes.is_device_split) ||

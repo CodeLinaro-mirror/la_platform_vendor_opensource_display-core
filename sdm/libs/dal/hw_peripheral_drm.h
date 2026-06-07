@@ -108,12 +108,8 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   virtual DisplayError IsLedDriverUp(bool *is_led_driver_up);
 
  private:
-  void InitDestScaler();
-  void SetDestScalarData(const DestScaleInfoMap dest_scale_info_map);
   void SetAIScalerData(const AIScalerInfoMap ai_scale_info_map);
-  void ResetDestScalarCache();
   void ResetAIScalarCache();
-  void ResetDestScalarData();
   void CreatePanelFeaturePropertyMap();
   void SetIdlePCState() {
     drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_IDLE_PC_STATE, token_.crtc_id,
@@ -131,11 +127,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   DisplayError ReadFromNode(const std::string node_name, int32_t *fd, uint32_t *data);
   void InitCalibrationNodes();
   DisplayError OpenNode(std::string node_name, int32_t *fd);
-
-  struct DestScalarCache {
-    SDEScaler scalar_data = {};
-    uint32_t flags = {};
-  };
+  void PrintBrightnessPolicy();
 
 #ifndef TARGET_INCLUDES_NEO
   struct AIScalerCache {
@@ -151,13 +143,9 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   const std::string kPathRightEyeIllumination = "/sys/bus/i2c/devices/4-0029/";
   const std::string kPathLeftEyePanelShift = "/sys/kernel/rtimd/rtimd_eye/left_eye_shift_";
   const std::string kPathRightEyePanelShift = "/sys/kernel/rtimd/rtimd_eye/right_eye_shift_";
-  sde_drm_dest_scaler_data sde_dest_scalar_data_ = {};
-  std::vector<SDEScaler> scalar_data_ = {};
   sde_drm::DRMIdlePCState idle_pc_state_ = sde_drm::DRMIdlePCState::NONE;
   bool idle_pc_enabled_ = true;
-  std::vector<DestScalarCache> dest_scalar_cache_ = {};
   drm_msm_ad4_roi_cfg ad4_roi_cfg_ = {};
-  bool needs_ds_update_ = false;
   bool needs_ai_scaler_update_ = false;
   void PopulateBitClkRates();
   std::vector<uint64_t> bitclk_rates_;

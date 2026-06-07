@@ -406,8 +406,6 @@ struct PanelFeatureInfo {
 */
 struct RgbHistConfigWrapper {
   bool enable = false;
-  uint32_t disp_width = 0;
-  uint32_t disp_height = 0;
   void *payload = nullptr;
   void *observer = nullptr;
   std::string observer_id;
@@ -479,6 +477,7 @@ enum QrtcVendorServiceType {
 enum ClientCapability {
   kPunchholeSupported,
   kHDRSupported,
+  kGPUCompositionSupported,
   kClientCapabilityMax,
 };
 
@@ -1522,6 +1521,14 @@ class DisplayInterface {
   */
   virtual DisplayError PerformCacConfig(CacConfig config, bool enable) = 0;
 
+  /*! @brief Method to handle Dynamic CAC coefficients.
+
+    @param[in] config \link DynamicCacV2Config \endlink
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetDynamicCacConfig(DynamicCacV2Config config, bool enable) = 0;
+
   /*! @brief Method to enable/disable panel OPR info.
 
    @param[in] client_name : client name
@@ -1775,6 +1782,13 @@ class DisplayInterface {
    @return \link DisplayError \endlink
   */
   virtual DisplayError SetQrtcFeatureConfig(int32_t type, void *data) = 0;
+
+  /*! @brief Method to set and cache the rgb histogram roi
+   @param[in] data : RGB Histogram data (ObserverConfig)
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError UpdateRgbHistogramRoi(const void *data) = 0;
 
  protected:
   virtual ~DisplayInterface() { }

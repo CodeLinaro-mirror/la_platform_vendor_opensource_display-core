@@ -1132,7 +1132,6 @@ Error SnapMetadataManager::DynamicMetadataHelper(SnapMetadata *metadata, SnapHan
     if (out_get != nullptr) {
       vendor_qti_hardware_display_common_QtiDynamicMetadata *dyn_md_out =
           reinterpret_cast<vendor_qti_hardware_display_common_QtiDynamicMetadata *>(out_get);
-
       // Extract dynamicMetadata from each FrameMetadata entry
       for (int i = 0; i < batch_size; i++) {
         dyn_md_out[i] = frame_metadata_ptr[i].dynamicMetadata;
@@ -1313,6 +1312,21 @@ Error SnapMetadataManager::ROIRectMetadataHelper(SnapMetadata *metadata, SnapHan
   } else if (in_set != nullptr) {
     metadata->roiRectMetadata =
         *static_cast<vendor_qti_hardware_display_common_ROIRectMetadata *>(in_set);
+    return Error::NONE;
+  }
+  return Error::BAD_VALUE;
+}
+
+Error SnapMetadataManager::SMPTE2094_40Helper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                                              void *in_set, void *out_get,
+                                              BufferDescriptor *buf_des) {
+  if (out_get != nullptr) {
+    *static_cast<vendor_qti_hardware_display_common_QtiDynamicMetadata *>(out_get) =
+        metadata->color.dynamicMetadata;
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    metadata->color.dynamicMetadata =
+        *static_cast<vendor_qti_hardware_display_common_QtiDynamicMetadata *>(in_set);
     return Error::NONE;
   }
   return Error::BAD_VALUE;

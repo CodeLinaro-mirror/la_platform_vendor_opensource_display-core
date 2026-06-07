@@ -98,6 +98,9 @@ class DisplayNull : public DisplayInterface {
   virtual bool IsDpuDmaModeEnabled() { return false; }
   virtual bool IsEPTSupported() { return false; }
   virtual bool IsLSRSupported() { return false; }
+  virtual DisplayError SetDynamicCacConfig(DynamicCacV2Config config, bool enable) {
+    return kErrorNotSupported;
+  }
 
   MAKE_NO_OP(CommitOrPrepare(LayerStack *))
   MAKE_NO_OP(PrePrepare(LayerStack *))
@@ -209,6 +212,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(SetIllumination(uint32_t eye, const IlluminationConfig &config))
   MAKE_NO_OP(SetRgbHistObserverConfig(bool, void *))
   MAKE_NO_OP(SetQrtcFeatureConfig(int32_t type, void *data))
+  MAKE_NO_OP(UpdateRgbHistogramRoi(const void *));
 
  protected:
   DisplayConfigVariableInfo default_variable_config_ = {};

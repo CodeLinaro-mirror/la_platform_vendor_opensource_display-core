@@ -75,8 +75,12 @@ DisplayError CoreImpl::Init() {
   SCOPE_LOCK(locker_);
   DisplayError error = kErrorNone;
 
-  // Try to load extension library & get handle to its interface.
-  if (extension_lib_.Open(EXTENSION_LIBRARY_NAME)) {
+  int value = 0;
+  Debug::Get()->GetProperty(SPI_DISPLAY_PRESENT, &value);
+  bool is_spi_display = (value == 1);
+
+  // Try to load extension library & get handle to its interface, if it not a SPI Display.
+  if (!is_spi_display && extension_lib_.Open(EXTENSION_LIBRARY_NAME)) {
     if (!extension_lib_.Sym(CREATE_EXTENSION_INTERFACE_NAME,
                             reinterpret_cast<void **>(&create_extension_intf_)) ||
         !extension_lib_.Sym(DESTROY_EXTENSION_INTERFACE_NAME,
@@ -100,7 +104,7 @@ DisplayError CoreImpl::Init() {
 #endif
   }
 
-  int value = 0;
+  value = 0;
   Debug::Get()->GetProperty(ENABLE_NULL_DISPLAY_PROP, &value);
   enable_null_display_ = (value == 1);
   DLOGI("property: enable_null_display_ = %d", enable_null_display_);
@@ -342,8 +346,20 @@ DisplayError CoreImpl::CreateDisplay(int32_t display_id, DisplayEventHandler *ev
                                           buffer_allocator_, &comp_mgr_);
       break;
     case kVirtual:
-      display_base = new DisplayVirtual(disp_id, event_handler, hw_info_intf, buffer_allocator_,
-                                        &comp_mgr_, set_hdr_types_, set_max_lum_, set_min_lum_);
+      switch (set_virtual_disp_type_) {
+        case kVirtualTypeDefault:
+          display_base = new DisplayVirtual(disp_id, event_handler, hw_info_intf, buffer_allocator_,
+                                            &comp_mgr_, set_hdr_types_, set_max_lum_, set_min_lum_);
+          break;
+        case kVirtualTypePQ:
+          display_base =
+              new DisplayVirtualPQ(disp_id, event_handler, hw_info_intf, buffer_allocator_,
+                                   &comp_mgr_, set_hdr_types_, set_max_lum_, set_min_lum_);
+          break;
+        default:
+          DLOGE("Unexpected virtual display type %d", set_virtual_disp_type_);
+          break;
+      }
       ResetCachedHDRCaps();
       break;
     default:
@@ -1127,6 +1143,27 @@ void CoreImpl::SetHdrCapabilities(Display display, const std::vector<Hdr> &hdr_t
   set_hdr_types_ = hdr_types;
   set_max_lum_ = max_avg_luminance;
   set_min_lum_ = min_luminance;
+}
+
+DisplayError CoreImpl::SetVirtualDispType(SDMVirtualDispType type) {
+  if (type >= kVirtualTypeMax) {
+    DLOGE("Invalid virtual display type %d", type);
+    return kErrorParameters;
+  }
+
+  set_virtual_disp_type_ = type;
+  DLOGI("Set virtual display type %d", type);
+  return kErrorNone;
+}
+
+DisplayError CoreImpl::GetVirtualDispType(SDMVirtualDispType *out) {
+  if (!out) {
+    DLOGE("Invalid out is nullptr");
+    return kErrorParameters;
+  }
+
+  *out = set_virtual_disp_type_;
+  return kErrorNone;
 }
 
 void CoreImpl::ResetCachedHDRCaps() {

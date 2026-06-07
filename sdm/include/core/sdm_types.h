@@ -123,6 +123,7 @@ enum DisplayError {
   kErrorNeedsQosRecalc,   //!< QoS data recalculation is needed for this draw cycle.
   kErrorNeedsQosRecalcAndLutRegen,  //!< QoS data recalculation and Tonemapping LUT regen is needed
                                     //   for this draw cycle.
+  kErrorNeedsDynamicCac,  //!< Configure dynamic CAC.
   kSeamlessNotAllowed,    //!< Seemless switch between configs not allowed.
   kErrorDeviceBusy,       //!< Device is currently busy with other tasks.
   kErrorTryAgain,         //!< Try the task again.
@@ -642,6 +643,7 @@ enum SDMCapability {
   kHdrOutputConversionConfig = 6,
   kRefreshRateChangedCallbackDebug = 7,
   kLayerLifeCycleBatchCommand = 8,
+  kDisplayCommandConfigChange = 9,
 };
 
 enum SDMFormatColorComponent {
@@ -784,6 +786,13 @@ enum CWBClient {
   kCWBClientColor,     // Internal client i.e. Color Manager
   kCWBClientExternal,  // External client calling through private APIs
   kCWBClientComposer,  // Client to SDM i.e. SurfaceFlinger
+};
+
+// Virtual display type supported by SDM.
+enum SDMVirtualDispType {
+  kVirtualTypeDefault = 0,  // Default virtual display type.
+  kVirtualTypePQ,           // Virtual display type with PQ processing enabled.
+  kVirtualTypeMax,          // Maximum value for virtual display types.
 };
 
 }  // namespace sdm

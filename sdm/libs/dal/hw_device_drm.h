@@ -80,6 +80,11 @@ struct HWCwbConfig {
 #endif
 };
 
+struct DestScalarCache {
+  SDEScaler scalar_data = {};
+  uint32_t flags = {};
+};
+
 class HWDeviceDRM : public HWInterface {
  public:
   HWDeviceDRM(BufferAllocator *buffer_allocator, HWInfoInterface *hw_info_intf);
@@ -306,9 +311,13 @@ class HWDeviceDRM : public HWInterface {
   DisplayError GetPanelBlMaxLvl(uint32_t *bl_max);
   DisplayError SetPPConfig(void *payload, size_t size);
   DisplayError GetQsyncFps(uint32_t *qsync_fps) { return kErrorNotSupported; }
-  void SetDestScalarData(const HWLayersInfo &hw_layer_info) {
-    return;
-  };
+
+  void InitDestScaler();
+  void SetDestScalarData(const HWLayersInfo &hw_layer_info);
+  void SetDestScalarData(const DestScaleInfoMap dest_scale_info_map);
+  void CacheDestScalarData();
+  void ResetDestScalarCache();
+  void ResetDestScalarData();
   void SetCacType(const HWPipeCacMode &cac_mode, sde_drm::DRMCacMode *target);
   void SetPrivacyRegionsData(std::vector<PrivacyRegion> *privacy_regions, PrivacyRegionMode mode);
   void SetDrmReferenceSpaceType(const uint32_t &pipe_id,
@@ -409,6 +418,10 @@ class HWDeviceDRM : public HWInterface {
   bool pending_cwb_teardown_ = false;
   PrimariesTransfer blend_space_ = {};
   DRMPowerMode last_power_mode_ = DRMPowerMode::OFF;
+  sde_drm_dest_scaler_data sde_dest_scalar_data_ = {};
+  std::vector<SDEScaler> scalar_data_ = {};
+  std::vector<DestScalarCache> dest_scalar_cache_ = {};
+  bool needs_ds_update_ = false;
   uint32_t dest_scaler_blocks_used_ = 0;  // Dest scaler blocks in use by this HWDeviceDRM instance.
   static bool reset_planes_luts_;
   // Destination scaler blocks in use by all HWDeviceDRM instances.
@@ -439,6 +452,7 @@ class HWDeviceDRM : public HWInterface {
 #endif
   bool is_ssr_active_ = false;
   bool is_lsr_ssr_active_ = false;
+  std::unique_ptr<HWColorManagerDrm> hw_color_mgr_ = {};
 
  private:
   void GetCWBCapabilities();
@@ -447,7 +461,6 @@ class HWDeviceDRM : public HWInterface {
 
   std::string interface_str_ = "DSI";
   bool autorefresh_ = false;
-  std::unique_ptr<HWColorManagerDrm> hw_color_mgr_ = {};
   bool seamless_mode_switch_ = false;
   float aspect_ratio_threshold_ = 1.0;
 };

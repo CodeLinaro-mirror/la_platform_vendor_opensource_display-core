@@ -308,11 +308,9 @@ const char* GetSocName() {
 }
 
 bool IsXRVariant() {
-  if (!strcmp(GetSocName(), kAnorakSocName) || !strcmp(GetSocName(), kNiobeSocName)) {
-    return true;
-  }
-
-  return false;
+  static bool is_xr_variant =
+      !strcmp(GetSocName(), kAnorakSocName) || !strcmp(GetSocName(), kNiobeSocName);
+  return is_xr_variant;
 }
 
 // TODO(user): Use FP16 library instead for conversions

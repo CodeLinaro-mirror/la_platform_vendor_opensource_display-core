@@ -1127,7 +1127,12 @@ DisplayError SDMDisplay::SetVsyncEnabled(bool enabled) {
   SDMDebugHandler::ATRACE_INT("SetVsyncState ", enabled);
   DisplayError error = kErrorNone;
 
-  if (shutdown_pending_ || !event_handler_->VsyncCallbackRegistered()) {
+  if (shutdown_pending_ || !event_handler_ || !event_handler_->VsyncCallbackRegistered()) {
+    return kErrorNone;
+  }
+
+  if (!display_intf_) {
+    DLOGW("display_intf_ is null, cannot set VSync state.");
     return kErrorNone;
   }
 
@@ -2151,6 +2156,7 @@ SDMDisplay::PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence) {
 
   for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
     sdm_layer->ResetGeometryChanges();
+    sdm_layer->ResetBufferFlip();
     Layer *layer = sdm_layer->GetSDMLayer();
     LayerBuffer *layer_buffer = &layer->input_buffer;
     layer->request.flags = {};
@@ -2923,7 +2929,8 @@ DisplayError SDMDisplay::GetSupportedDisplayRefreshRates(
   Config active_config = 0;
   GetActiveConfig(false, &active_config);
 
-  uint32_t active_config_group = GetDisplayConfigGroup(variable_config_map_[active_config]);
+  uint32_t active_config_group = GetDisplayConfigGroup(variable_config_map_[active_config],
+                                                       variable_config_map_[active_config].fps);
   if (active_config_group == -1) {
     DLOGE("Failed to get config group of active config");
     return kErrorNotSupported;
@@ -2931,7 +2938,7 @@ DisplayError SDMDisplay::GetSupportedDisplayRefreshRates(
 
   supported_refresh_rates->resize(0);
   for (auto &config : variable_config_map_) {
-    uint32_t config_group = GetDisplayConfigGroup(config.second);
+    uint32_t config_group = GetDisplayConfigGroup(config.second, config.second.fps);
     if (config_group == -1) {
       DLOGE("Failed to get config group for config index: %u", config.first);
       return kErrorNotSupported;
@@ -3229,6 +3236,21 @@ SDMDisplay::GetDisplayConfigGroup(DisplayConfigGroupInfo variable_config) {
   for (auto &config : variable_config_map_) {
     DisplayConfigGroupInfo const &group_info = config.second;
     if (group_info == variable_config) {
+      return INT32(config.first);
+    }
+  }
+
+  return -1;
+}
+
+int32_t SDMDisplay::GetDisplayConfigGroup(DisplayConfigGroupInfo variable_config, uint32_t fps) {
+  for (auto &config : variable_config_map_) {
+    DisplayConfigGroupInfo const &group_info = config.second;
+    if (type_ == kPluggable) {
+      if (group_info == variable_config && fps == config.second.fps) {
+        return INT32(config.first);
+      }
+    } else if (group_info == variable_config) {
       return INT32(config.first);
     }
   }
@@ -4334,8 +4356,9 @@ void SDMDisplay::NotifyCwbDone(int32_t status, const LayerBuffer &buffer) {
 
 void SDMDisplay::Abort() { display_intf_->Abort(); }
 
-void SDMDisplay::MarkClientActive(bool is_client_up) {
+DisplayError SDMDisplay::MarkClientActive(bool is_client_up) {
   is_client_up_ = is_client_up;
+  return kErrorNone;
 }
 
 bool SDMDisplay::NotifyIdleNow() {

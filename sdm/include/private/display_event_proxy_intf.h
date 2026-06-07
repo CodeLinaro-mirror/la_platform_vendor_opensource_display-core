@@ -36,6 +36,7 @@ enum DispEventProxyParams {
   kSetCoprEnable,
   kSetFrameDoneEnable,
   kSetBackLightEnable,
+  kSetMisrEnable,
 
   // Getter
   kGetPaHistBins,
@@ -108,6 +109,17 @@ struct FrameDoneParam {
   std::string name;
   bool enable;
   SdmDisplayCbInterface<FrameDonePayload> *cb_intf = nullptr;
+};
+
+struct MisrPayload {
+  uint32_t version = sizeof(MisrPayload);
+  bool misr_update;
+};
+
+struct MisrParam {
+  std::string name;
+  bool enable;
+  SdmDisplayCbInterface<MisrPayload> *cb_intf = nullptr;
 };
 
 using DisplayEventProxyIntf =
