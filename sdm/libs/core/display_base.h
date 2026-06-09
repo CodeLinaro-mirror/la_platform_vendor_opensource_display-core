@@ -543,6 +543,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool rc_panel_feature_init_ = false;
   bool spr_enable_ = false;
   bool spr_bypassed_ = false;
+  bool demura_enable_ = false;
   bool rc_enable_prop_ = false;
   bool rc_config_enable_ = false;  // Specifies if RC is enabled by RCCore
   RCLayersInfo rc_info_ = {};  // when rc_config_enable_ is true, this holds RC top/bottom info

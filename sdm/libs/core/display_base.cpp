@@ -5671,7 +5671,8 @@ void DisplayBase::RefreshOnIdleTimeoutForCwb(bool is_cwb_requested) {
   }
 
   bool qsync_enabled = qsync_mode_ != kQSyncModeNone;
-  if (state_ == kStateOn && !enable_client_control_cwb_refresh_ && !force_refresh_to_process_cwb_ &&
+  bool demura_on_doze = demura_enable_ && (state_ == kStateDoze || state_ == kStateDozeSuspend);
+  if (!demura_on_doze && !enable_client_control_cwb_refresh_ && !force_refresh_to_process_cwb_ &&
       (mirror_src_display_id_ == -1 || comp_manager_->IsActiveDisplay(mirror_src_display_id_)) &&
       (handle_idle_timeout_ || idle_hint_set_ || idle_time_ms <= 0) && !qsync_enabled &&
       (is_cwb_requested || comp_manager_->HasPendingCwbRequest(display_comp_ctx_))) {

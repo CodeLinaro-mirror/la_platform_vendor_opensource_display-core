@@ -522,7 +522,6 @@ class DisplayBuiltIn : public DisplayBase,
   std::mutex file_xfer_intf_mutex_;
   bool demura_allowed_ = false;
   bool demuratn_allowed_ = false;
-  bool demura_enable_ = false;
   bool demura_calib_files_reloaded_ = false;
   VmFileXferClientFactIntfExtn *factory_extn_ = nullptr;
   std::shared_ptr<FeatureLicenseIntf> feat_license_intf_ = nullptr;
