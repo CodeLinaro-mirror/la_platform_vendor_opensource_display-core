@@ -335,6 +335,14 @@ DisplayError SDMDisplayBuilder::DestroyVirtualDisplay(Display display) {
 
     if (retain_virtual_display) {
       DLOGI("Retaining virtual display id:%" PRIu64 " for reuse", display);
+      auto sdm_display = cb_->GetDisplayFromClientId(display);
+      if (sdm_display) {
+        auto status = sdm_display->PrepareRetainedDisplay();
+        if (status != kErrorNone) {
+          DLOGW("Failed to prepare retained virtual display id:%" PRIu64 " status=%d",
+                display, status);
+        }
+      }
     } else {
       DLOGI("Destroying virtual display id:%" PRIu64, display);
       DestroyDisplay(&map_info);
@@ -371,6 +379,19 @@ DisplayError SDMDisplayBuilder::CreateVirtualDisplayObj(
     if (vds_map.second.width == width && vds_map.second.height == height &&
         vds_map.second.format == *format && vds_map.second.type == requested_virtual_disp_type &&
         !vds_map.second.in_use) {
+      auto sdm_display = cb_->GetDisplayFromClientId(vds_map.first);
+      if (!sdm_display) {
+        DLOGE("Cached virtual display id:%" PRIu64 " missing SDM display", vds_map.first);
+        return kErrorResources;
+      }
+
+      auto status = sdm_display->RestoreRetainedDisplay();
+      if (status != kErrorNone) {
+        DLOGE("Failed to restore cached virtual display id:%" PRIu64 " status=%d",
+              vds_map.first, status);
+        return status;
+      }
+
       vds_map.second.in_use = true;
       *out_display_id = vds_map.first;
       DLOGI("Reusing cached virtual display id:%" PRIu64 " %dx%d format: %d type: %d",

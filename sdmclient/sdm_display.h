@@ -168,6 +168,8 @@ public:
 
  virtual DisplayError Init();
  virtual DisplayError Deinit(bool deinit_layer_builder = true);
+ virtual DisplayError PrepareRetainedDisplay() { return kErrorNotSupported; }
+ virtual DisplayError RestoreRetainedDisplay() { return kErrorNotSupported; }
 
  virtual DisplayError GetFixedConfig(DisplayConfigFixedInfo *info);
  void DumpXRInputProjectionTable(std::ostringstream *os);
