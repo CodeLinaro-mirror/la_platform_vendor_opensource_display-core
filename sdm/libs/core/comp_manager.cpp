@@ -169,7 +169,7 @@ DisplayError CompManager::RegisterDisplay(DisplayId display_id, SDMDisplayType t
   if (!display_comp_ctx->is_primary_panel) {
     max_sde_secondary_fetch_layers_ = UINT32(Debug::GetSecondaryMaxFetchLayers());
     if (display_comp_ctx->display_type == kBuiltIn) {
-      max_sde_builtin_fetch_layers_ = max_sde_secondary_fetch_layers_;
+      max_sde_builtin_fetch_layers_ = UINT32(Debug::GetBuiltinMaxFetchLayers());
     }
   }
 

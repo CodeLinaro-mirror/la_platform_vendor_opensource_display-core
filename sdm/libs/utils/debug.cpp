@@ -29,9 +29,8 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- *
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -258,6 +257,13 @@ int Debug::GetSecondaryMaxFetchLayers() {
   DebugHandler::Get()->GetProperty(MAX_SECONDARY_FETCH_LAYERS_PROP, &max_secondary_fetch_layers);
 
   return std::max(max_secondary_fetch_layers, 2);
+}
+
+int Debug::GetBuiltinMaxFetchLayers() {
+  int max_builtin_fetch_layers = 0;
+  DebugHandler::Get()->GetProperty(MAX_BUILTIN_FETCH_LAYERS_PROP, &max_builtin_fetch_layers);
+
+  return std::max(max_builtin_fetch_layers, 2);
 }
 
 bool Debug::IsIWEEnabled() {
