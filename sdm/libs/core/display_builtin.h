@@ -407,6 +407,7 @@ class DisplayBuiltIn : public DisplayBase,
   void UpdateCWBLayer(LayerBuffer &layer_buffer);
   void ClearDemuraMultiCfgParsers();
   void ClearDemuraLayerWrappers();
+  void MarkOldDemuraLayerWrapperForClear();
   DemuraLayerWrapper *GetActiveDemuraLayerWrapper();
   DemuraLayerWrapper *GetFreeDemuraLayerWrapper();
   int StartVmFileServiceAndExportFiles();

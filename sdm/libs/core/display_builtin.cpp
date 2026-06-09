@@ -1105,6 +1105,7 @@ DisplayError DisplayBuiltIn::SetupCorrectionLayer() {
 DisplayError DisplayBuiltIn::SetupDemuraLayer() {
   int ret = 0;
   GenericPayload pl;
+  bool valid = false;
 
   DemuraCorrectionSurfaces *corrdata = nullptr;
   if ((ret = pl.CreatePayload<DemuraCorrectionSurfaces>(corrdata))) {
@@ -1175,6 +1176,11 @@ DisplayError DisplayBuiltIn::SetupDemuraLayer() {
     LogI(kTagNone, "Demura dst: ", demura_layer.dst_rect);
     demura_layer.buffer_map = std::make_shared<LayerBufferMap>();
     layer_wrapper->demura_layer.push_back(demura_layer);
+    valid = true;
+  }
+
+  if (valid) {
+    MarkOldDemuraLayerWrapperForClear();
   }
   return kErrorNone;
 }
@@ -1229,6 +1235,7 @@ DisplayError DisplayBuiltIn::DumpDemuraSurface(const char *dir_path, uint32_t fr
 DisplayError DisplayBuiltIn::SetupABCLayer() {
   int ret = 0;
   GenericPayload pl;
+  bool valid = false;
 
   DemuraCorrectionSurfaces *corrdata = nullptr;
   if ((ret = pl.CreatePayload<DemuraCorrectionSurfaces>(corrdata))) {
@@ -1285,6 +1292,11 @@ DisplayError DisplayBuiltIn::SetupABCLayer() {
     LogI(kTagNone, "Demura dst: ", demura_layer.dst_rect);
     demura_layer.buffer_map = std::make_shared<LayerBufferMap>();
     layer_wrapper->demura_layer.push_back(demura_layer);
+    valid = true;
+  }
+
+  if (valid) {
+    MarkOldDemuraLayerWrapperForClear();
   }
   return kErrorNone;
 }
@@ -4786,9 +4798,6 @@ DisplayError DisplayBuiltIn::SetDemuraConfig(int demura_idx) {
     return kErrorUndefined;
   }
 
-  // Idx is updated, clear the last demura layers
-  ClearDemuraLayerWrappers();
-
   // Update demura config
   if ((ret = pl.CreatePayload<uConfigIdx>(idx))) {
     DLOGE("Failed to create payload for enable, error = %d", ret);
@@ -6410,6 +6419,18 @@ void DisplayBuiltIn::ClearDemuraLayerWrappers() {
         wrapper.demura_layer.clear();
         wrapper.pending_cleared = false;
       } else {
+        DLOGV_IF(kTagDisplay, "Mark wrapper[%d] to pending clear", i);
+        wrapper.pending_cleared = true;
+      }
+    }
+  }
+}
+
+void DisplayBuiltIn::MarkOldDemuraLayerWrapperForClear() {
+  for (int i = 0; i < demura_layer_wrappers_.size(); i++) {
+    auto &wrapper = demura_layer_wrappers_[i];
+    if (!wrapper.demura_layer.empty()) {
+      if (wrapper.applied) {
         DLOGV_IF(kTagDisplay, "Mark wrapper[%d] to pending clear", i);
         wrapper.pending_cleared = true;
       }
