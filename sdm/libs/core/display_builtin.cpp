@@ -4345,7 +4345,10 @@ void DisplayBuiltIn::InitCWBBuffer() {
 
 void DisplayBuiltIn::DeinitCWBBuffer() {
   if (!disable_fbt_for_cwb_fallback_) {
-    CloseFd(&cwb_layer_.input_buffer.planes[0].fd);
+    // Don't close cwb_layer_ buffer FD here, as it's managed externally (by the caller
+    // who provided the buffer).
+    // Premature closure causes CreateFbId failures when the cache is cleared and the
+    // closed FD is reused in MapOutputBufferToFbId.
     cwb_layer_ = {};
     return;
   }

@@ -410,7 +410,12 @@ FrameBufferObject::~FrameBufferObject() {
   DRMMaster::GetInstance(&master, core_id_);
   int ret = master->RemoveFbId(fb_id_);
   if (ret < 0) {
-    DLOGE("Removing fb_id %d failed with error %d", fb_id_, errno);
+    if (errno == EBUSY) {
+      // fb_id is still in use by a concurrent commit, defer removal
+      master->DeferRemoveFbId(fb_id_);
+    } else {
+      DLOGE("Removing fb_id %d failed with error %d", fb_id_, errno);
+    }
   }
 }
 
@@ -518,6 +523,11 @@ int HWDeviceDRM::Registry::CreateFbId(const LayerBuffer &buffer, std::vector<uin
     GetDRMFormat(buf_info.format, &layout.drm_format, &layout.drm_format_modifier, color_field);
     ret = master->CreateFbId(layout, fb_id_data);
     if (ret < 0) {
+      // Check whether FD is still valid
+      struct stat fd_stat;
+      if (fstat(buffer.planes[0].fd, &fd_stat) < 0) {
+        DLOGE("buffer FD %d is invalid: %s", buffer.planes[0].fd, strerror(errno));
+      }
       DLOGE(
           "CreateFbId failed. width %d, height %d, format: %s, stride %u, "
           "color_field %d, usage %" PRIu64 " error %d",
@@ -598,26 +608,32 @@ int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buff
   if (is_cac_buffer) {
     fb_id.resize(4);
   }
-  if (CreateFbId(buffer, &fb_id, &loopback_cac_info) >= 0) {
-    // Create and cache the fb_id in map
-    std::vector<std::shared_ptr<LayerBufferObject>> fb_id_vec;
-    for (int i = 0; i < fb_id.size(); i++) {
-      std::shared_ptr<LayerBufferObject> bo =
-          std::make_shared<FrameBufferObject>(fb_id[i], core_id_, buffer.format, buffer.width,
-                                              buffer.height, false /* shallow */, secure_present);
-      fb_id_vec.push_back(bo);
-    }
-
-    auto it = layer->buffer_map->buffer_map.find(handle_id);
-    if (it != layer->buffer_map->buffer_map.end()) {
-      it->second.insert({core_id_, fb_id_vec});
-    } else {
-      std::unordered_map<uint32_t, std::vector<std::shared_ptr<LayerBufferObject>>> dpu_buffer_map;
-      dpu_buffer_map[core_id_] = fb_id_vec;
-      layer->buffer_map->buffer_map[handle_id] = dpu_buffer_map;
-    }
-    *fb_modified = true;
+  int ret = CreateFbId(buffer, &fb_id, &loopback_cac_info);
+  if (ret < 0) {
+    // CreateFbId failed - return error to prevent FD leak and stale fb_id caching
+    // The gem_handle cleanup is now handled in DRMMaster::CreateFbId
+    DLOGE("CreateFbId failed for buffer handle_id %" PRIu64 ", error: %d", handle_id, ret);
+    return ret;
   }
+
+  // Create and cache the fb_id in map
+  std::vector<std::shared_ptr<LayerBufferObject>> fb_id_vec;
+  for (int i = 0; i < fb_id.size(); i++) {
+    std::shared_ptr<LayerBufferObject> bo =
+        std::make_shared<FrameBufferObject>(fb_id[i], core_id_, buffer.format, buffer.width,
+                                            buffer.height, false /* shallow */, secure_present);
+    fb_id_vec.push_back(bo);
+  }
+
+  auto it = layer->buffer_map->buffer_map.find(handle_id);
+  if (it != layer->buffer_map->buffer_map.end()) {
+    it->second.insert({core_id_, fb_id_vec});
+  } else {
+    std::unordered_map<uint32_t, std::vector<std::shared_ptr<LayerBufferObject>>> dpu_buffer_map;
+    dpu_buffer_map[core_id_] = fb_id_vec;
+    layer->buffer_map->buffer_map[handle_id] = dpu_buffer_map;
+  }
+  *fb_modified = true;
   return 0;
 }
 
@@ -645,28 +661,44 @@ int HWDeviceDRM::Registry::MapOutputBufferToFbId(std::shared_ptr<LayerBuffer> ou
                             secure_present)) {
           return 0;
         } else {
+          // Buffer properties changed (resolution/format/security) - erase stale fb_id
           output_buffer_map_.erase(it);
+          DLOGV_IF(kTagDriverConfig,
+                   "Output buffer properties changed, clearing stale fb_id for handle %" PRIu64,
+                   handle_id);
         }
       }
     }
 
-    if (output_buffer_map_.size() >= output_fbid_cache_limit_) {
+    // More aggressive cache management for CWB to prevent FD staleness
+    // Reduce cache limit from default 64 to 32 for better cache turnover
+    uint32_t cwb_cache_limit = std::min(UINT32(output_fbid_cache_limit_), 32u);
+    if (output_buffer_map_.size() >= cwb_cache_limit) {
       // Clear output buffer map, if the size reaches cache limit.
+      DLOGV_IF(kTagDriverConfig, "Clearing output buffer cache at size %zu (limit %u)",
+               output_buffer_map_.size(), cwb_cache_limit);
       output_buffer_map_.clear();
     }
   }
 
   std::vector<uint32_t> fb_id(1);
   int ret = CreateFbId(*output_buffer, &fb_id);
-  if (ret >= 0) {
-    std::unordered_map<uint32_t, std::shared_ptr<LayerBufferObject>> dpu_buffer_map;
-    dpu_buffer_map[core_id_] = std::make_shared<FrameBufferObject>(
-        fb_id[kColorNone], core_id_, output_buffer->format, output_buffer->width,
-        output_buffer->height, false /* shallow */, secure_present);
-    output_buffer_map_[handle_id] = dpu_buffer_map;
-    *fb_modified = true;
+  if (ret < 0) {
+    // CreateFbId failed - return error to prevent FD leak and stale fb_id caching
+    // This can happen during mode switch when output buffer resolution doesn't match new mode
+    DLOGE("CreateFbId failed for output buffer handle_id %" PRIu64
+          ", wxh: %dx%d, format: %d, error: %d",
+          handle_id, output_buffer->width, output_buffer->height, output_buffer->format, ret);
+    return ret;
   }
-  return ret;
+
+  std::unordered_map<uint32_t, std::shared_ptr<LayerBufferObject>> dpu_buffer_map;
+  dpu_buffer_map[core_id_] = std::make_shared<FrameBufferObject>(
+      fb_id[kColorNone], core_id_, output_buffer->format, output_buffer->width,
+      output_buffer->height, false /* shallow */, secure_present);
+  output_buffer_map_[handle_id] = dpu_buffer_map;
+  *fb_modified = true;
+  return 0;
 }
 
 void HWDeviceDRM::Registry::Clear() {
@@ -2747,7 +2779,11 @@ DisplayError HWDeviceDRM::Commit(HWLayersInfo *hw_layers_info) {
   DTRACE_SCOPED();
 
   DisplayError err = kErrorNone;
-  registry_.Register(hw_layers_info);
+  int ret = registry_.Register(hw_layers_info);
+  if (ret) {
+    DLOGE("Registry::Register failed with error %d for %s, skipping commit", ret, device_name_);
+    return kErrorParameters;
+  }
 
   if (default_mode_) {
     err = DefaultCommit(hw_layers_info);
@@ -2970,6 +3006,12 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
   drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_VM_REQ_STATE, token_.crtc_id,
                             sde_drm::DRMVMRequestState::NONE);
 #endif
+
+  // Flush any deferred fb_id removals now that commit is complete
+  DRMMaster *master = nullptr;
+  if (DRMMaster::GetInstance(&master, core_id_) == 0 && master) {
+    master->FlushDeferredRemovals();
+  }
 
   return kErrorNone;
 }
@@ -4372,6 +4414,22 @@ bool HWDeviceDRM::SetupConcurrentWriteback(const HWLayersInfo &hw_layer_info, bo
     return false;
   }
 
+#ifndef SDM_VIRTUAL_DRIVER
+  if (enable) {
+    bool fb_modified = false;
+    int map_ret = registry_.MapOutputBufferToFbId(hw_layer_info.output_buffer, &fb_modified);
+    if (map_ret < 0) {
+      // CreateFbId failed (e.g. drmPrimeFDToHandle returned -EINVAL due to a
+      // recycled or still-tearing-down DMA-buf FD).  Abort CWB configuration
+      // so we never submit a commit with a zero/stale fb_id.
+      DLOGE("MapOutputBufferToFbId failed for CWB output buffer handle_id %" PRIu64
+            ", error: %d.  Aborting CWB configuration for display %d-%d.",
+            hw_layer_info.output_buffer->handle_id, map_ret, display_id_, disp_type_);
+      return false;
+    }
+  }
+#endif
+
   bool setup_modes = enable && !cwb_config_[core_id_].enabled;
   // Modes can be setup in prepare or commit path.
   if (setup_modes && (SetupConcurrentWritebackModes(hw_layer_info.cwb_id) == kErrorNone)) {
@@ -4439,8 +4497,6 @@ DisplayError HWDeviceDRM::SetupConcurrentWritebackModes(int32_t writeback_id) {
 void HWDeviceDRM::ConfigureConcurrentWriteback(const HWLayersInfo &hw_layer_info) {
   CwbConfig *cwb_config = hw_layer_info.hw_cwb_config;
   std::shared_ptr<LayerBuffer> output_buffer = hw_layer_info.output_buffer;
-  bool fb_modified = false;
-  registry_.MapOutputBufferToFbId(output_buffer, &fb_modified);
   uint32_t &vitual_conn_id = cwb_config_[core_id_].token.conn_id;
   sde_drm::DRMWBUsageType cwb_usage = sde_drm::DRMWBUsageType::WB_USAGE_CWB;
 

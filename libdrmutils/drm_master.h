@@ -33,6 +33,7 @@
 #include <utils/multi_core_instantiator.h>
 #include <mutex>
 #include <map>
+#include <vector>
 #include <cstring>
 
 #include "drm_logger.h"
@@ -79,6 +80,10 @@ class DRMMaster {
   void CreateEventHandle(int *fd);
   /* Returns true if the ref counted version of rmfb is being used */
   bool IsRmFbRefCounted();
+  /* Defers removal of fb_id if it's still in use by a concurrent commit */
+  void DeferRemoveFbId(uint32_t fb_id);
+  /* Attempts to flush all deferred fb_id removals after a successful commit */
+  void FlushDeferredRemovals();
 
   /* Creates an instance of DRMMaster if it doesn't exist and initializes it. Threadsafe.
    * Input:
@@ -96,6 +101,7 @@ class DRMMaster {
   int dev_fd_ = -1;              // Master fd for DRM
   uint32_t core_id_ = 0;            // Master core_id index
   char path_[64];                // Path of master core_id
+  std::vector<uint32_t> deferred_remove_fb_ids_;  // fb_ids pending removal
   static sdm::MultiCoreInstance<uint32_t, DRMMaster*> s_instance;
   static std::mutex s_lock;
   std::mutex lock_;
