@@ -120,6 +120,8 @@ class CompManager : public CwbCallback {
                                         const int8_t &req_cnt);
   DisplayError ReserveQrtcFetchResources(const uint32_t &display_id, const int8_t &preferred_rect);
   DisplayError FreeQrtcFetchResources(const uint32_t &display_id);
+  DisplayError CanSupportQrtcWithSubsampling(Handle display_ctx,
+                                             QrtcSubsamplingSupport *qrtc_support);
 
   void SetDemuraStatus(bool status);
   bool GetDemuraStatus();
