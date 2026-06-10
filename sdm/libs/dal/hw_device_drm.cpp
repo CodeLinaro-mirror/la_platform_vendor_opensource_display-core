@@ -1599,6 +1599,9 @@ void HWDeviceDRM::SetDisplaySwitchMode(uint32_t index) {
     current_mode.mode.vdisplay == to_set.mode.vdisplay) {
     seamless_mode_switch_ = true;
   }
+
+  // If bit clock rate is overriden by RFI, preserve it across mode (fps) switches
+  connector_info_.modes[current_mode_index_].curr_bit_clk_rate = to_set.curr_bit_clk_rate;
 }
 
 DisplayError HWDeviceDRM::SetDisplayAttributes(uint32_t index) {
