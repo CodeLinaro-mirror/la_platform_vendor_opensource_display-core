@@ -443,11 +443,6 @@ Error SnapConstraintManager::ConstraintsToBufferLayout(
   }
   layout->size_in_bytes = ALIGN(layout->size_in_bytes, constraints->size_align_bytes);
 
-  vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
-      static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
-          GetPixelFormatModifier(desc));
-  layout->size_in_bytes *= GetBatchSize(pixel_format_modifier);
-
   return Error::NONE;
 }
 
