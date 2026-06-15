@@ -1200,13 +1200,12 @@ DisplayError SDMDisplayBuiltIn::SetBLScale(uint32_t level) {
 }
 
 DisplayError SDMDisplayBuiltIn::SetClientTarget(const SnapHandle *target,
-                                                shared_ptr<Fence> acquire_fence,
-                                                int32_t dataspace,
-                                                const SDMRegion &damage,
-                                                uint32_t version) {
+                                                shared_ptr<Fence> acquire_fence, int32_t dataspace,
+                                                const SDMRegion &damage, uint32_t version,
+                                                float hdr_sdr_ratio) {
   DTRACE_SCOPED();
-  DisplayError error = SDMDisplay::SetClientTarget(target, acquire_fence,
-                                                   dataspace, damage, version);
+  DisplayError error =
+      SDMDisplay::SetClientTarget(target, acquire_fence, dataspace, damage, version, hdr_sdr_ratio);
   if (error != kErrorNone) {
     return error;
   }
