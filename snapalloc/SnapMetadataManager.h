@@ -261,6 +261,12 @@ class SnapMetadataManager {
   Error DisparityPhaseHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
                              void *in_set = nullptr, void *out_get = nullptr,
                              BufferDescriptor *buf_des = nullptr);
+  Error CustomTuningMetadataHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                                   void *in_set = nullptr, void *out_get = nullptr,
+                                   BufferDescriptor *buf_des = nullptr);
+  Error SMPTE2094_40Helper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                           void *in_set = nullptr, void *out_get = nullptr,
+                           BufferDescriptor *buf_des = nullptr);
 
   struct DRMFormatDescriptor {
     uint32_t drm_format;
@@ -501,6 +507,8 @@ class SnapMetadataManager {
           {ROI_RECT_METADATA, &SnapMetadataManager::ROIRectMetadataHelper},
           {CWB_METADATA, &SnapMetadataManager::CWBMetadataHelper},
           {DISPARITY_PHASE, &SnapMetadataManager::DisparityPhaseHelper},
+          {CUSTOM_TUNING_METADATA, &SnapMetadataManager::CustomTuningMetadataHelper},
+          {SMPTE2094_40, &SnapMetadataManager::SMPTE2094_40Helper},
   };
   struct metadata_traits {
     bool is_settable;
@@ -576,6 +584,8 @@ class SnapMetadataManager {
           {ROI_RECT_METADATA, {true}},
           {CWB_METADATA, {true}},
           {DISPARITY_PHASE, {true}},
+          {CUSTOM_TUNING_METADATA, {true}},
+          {SMPTE2094_40, {true}},
       };
 };
 }  // namespace snapalloc

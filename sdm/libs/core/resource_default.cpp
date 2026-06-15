@@ -182,6 +182,19 @@ DisplayError ResourceDefault::RegisterDisplay(DisplayId disp_id, SDMDisplayType 
       }
       break;
 
+    case kVirtual:
+      if (!hw_block_ctx_[kHWWriteback0].is_in_use) {
+        hw_block_type = kHWWriteback0;
+      } else if (!hw_block_ctx_[kHWWriteback1].is_in_use) {
+        hw_block_type = kHWWriteback1;
+      } else if (!hw_block_ctx_[kHWWriteback2].is_in_use) {
+        hw_block_type = kHWWriteback2;
+      } else {
+        DLOGE("No more Writeback blocks available");
+        return kErrorResources;
+      }
+      break;
+
     default:
       DLOGW("RegisterDisplay, invalid type %d", type);
       return kErrorParameters;

@@ -948,6 +948,21 @@ Error SnapMetadataManager::CustomContentMetadataHelper(SnapMetadata *metadata,
   return Error::BAD_VALUE;
 }
 
+Error SnapMetadataManager::CustomTuningMetadataHelper(SnapMetadata *metadata,
+                                                      SnapHandleInternal *handle, void *in_set,
+                                                      void *out_get, BufferDescriptor *buf_des) {
+  if (out_get != nullptr) {
+    *static_cast<vendor_qti_hardware_display_common_CustomTuningMetadata *>(out_get) =
+        metadata->custom_tuning_metadata;
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    metadata->custom_tuning_metadata =
+        *static_cast<vendor_qti_hardware_display_common_CustomTuningMetadata *>(in_set);
+    return Error::NONE;
+  }
+  return Error::BAD_VALUE;
+}
+
 Error SnapMetadataManager::SMPTE2094_10Helper(SnapMetadata *metadata, SnapHandleInternal *handle,
                                               void *in_set, void *out_get,
                                               BufferDescriptor *buf_des) {
@@ -1117,7 +1132,6 @@ Error SnapMetadataManager::DynamicMetadataHelper(SnapMetadata *metadata, SnapHan
     if (out_get != nullptr) {
       vendor_qti_hardware_display_common_QtiDynamicMetadata *dyn_md_out =
           reinterpret_cast<vendor_qti_hardware_display_common_QtiDynamicMetadata *>(out_get);
-
       // Extract dynamicMetadata from each FrameMetadata entry
       for (int i = 0; i < batch_size; i++) {
         dyn_md_out[i] = frame_metadata_ptr[i].dynamicMetadata;
@@ -1298,6 +1312,21 @@ Error SnapMetadataManager::ROIRectMetadataHelper(SnapMetadata *metadata, SnapHan
   } else if (in_set != nullptr) {
     metadata->roiRectMetadata =
         *static_cast<vendor_qti_hardware_display_common_ROIRectMetadata *>(in_set);
+    return Error::NONE;
+  }
+  return Error::BAD_VALUE;
+}
+
+Error SnapMetadataManager::SMPTE2094_40Helper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                                              void *in_set, void *out_get,
+                                              BufferDescriptor *buf_des) {
+  if (out_get != nullptr) {
+    *static_cast<vendor_qti_hardware_display_common_QtiDynamicMetadata *>(out_get) =
+        metadata->color.dynamicMetadata;
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    metadata->color.dynamicMetadata =
+        *static_cast<vendor_qti_hardware_display_common_QtiDynamicMetadata *>(in_set);
     return Error::NONE;
   }
   return Error::BAD_VALUE;
@@ -1746,6 +1775,9 @@ Error SnapMetadataManager::Set(SnapHandleInternal *hnd,
         break;
       case vendor_qti_hardware_display_common_MetadataType::ROI_RECT_METADATA:
         metadata->roiRectMetadata.size = 0;
+        break;
+      case vendor_qti_hardware_display_common_MetadataType::CUSTOM_TUNING_METADATA:
+        metadata->custom_tuning_metadata.size = 0;
         break;
       default:
         DLOGE("Input is null when setting metadata type %d", type);

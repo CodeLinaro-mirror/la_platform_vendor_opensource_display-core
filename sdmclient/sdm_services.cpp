@@ -73,6 +73,10 @@ void SDMServices::Init(SDMDisplayBuilder *disp,
   stc_feature_funcs_[snapdragoncolor::kTypeSetManualAls] = &SDMServices::SetStcManualAls;
   stc_feature_funcs_[snapdragoncolor::kTypeSetAlpha] = &SDMServices::SetStcAlphaValue;
   stc_feature_funcs_[snapdragoncolor::kTypeSetState] = &SDMServices::SetSatCompensationState;
+
+  int value = 0;
+  SDMDebugHandler::Get()->GetProperty(COMPOSER_DRIVEN_HDCP, &value);
+  composer_driven_hdcp_ = (value == 1);
 }
 
 void SDMServices::Deinit() {
@@ -361,7 +365,10 @@ SDMServices::MinHdcpEncryptionLevelChanged(int disp_id,
   // SSG team hardcoded disp_id as external because it applies to external only
   // but SSG team sends this level irrespective of external connected or not. So
   // to honor the call, make disp_id to primary & set level.
-  disp_id = SDM_DISPLAY_PRIMARY;
+  if (!composer_driven_hdcp_) {
+    disp_id = SDM_DISPLAY_PRIMARY;
+  }
+
   int disp_idx = disp_->GetDisplayIndex(disp_id);
   if (disp_idx == -1) {
     DLOGE("Invalid display = %d", disp_id);

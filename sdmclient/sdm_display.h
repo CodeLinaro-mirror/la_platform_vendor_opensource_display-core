@@ -498,11 +498,14 @@ public:
       std::map<uint32_t, DisplayConfigVariableInfo> &variable_config_map,
       int active_config_index, uint32_t num_configs){};
   virtual void Abort();
-  virtual void MarkClientActive(bool is_client_up);
+  virtual DisplayError MarkClientActive(bool is_client_up);
   virtual void SetExpectedPresentTime(uint64_t time) {
     expected_present_time_ = time;
   }
   virtual DisplayError PerformCacConfig(CacConfig config, bool enable) {
+    return kErrorNotSupported;
+  }
+  virtual DisplayError PerformDynamicCac(DynamicCacV2Config config, bool enable) {
     return kErrorNotSupported;
   }
   virtual DisplayError IsCacV2Supported(bool *supported) {
@@ -510,6 +513,7 @@ public:
     return kErrorNotSupported;
   }
   int32_t GetDisplayConfigGroup(DisplayConfigGroupInfo variable_config);
+  int32_t GetDisplayConfigGroup(DisplayConfigGroupInfo variable_config, uint32_t fps);
 
   void LayerStackUpdated() {
     layer_stack_invalid_ = true;
@@ -775,6 +779,7 @@ public:
   bool is_poms_mode_ = false;
   bool pending_privregions_update_ = false;
   FrameCaptureIntf *fcm_ = nullptr;
+  bool composer_driven_hdcp_ = false;
 };
 
 inline DisplayError SDMDisplay::Perform(uint32_t operation, ...) {

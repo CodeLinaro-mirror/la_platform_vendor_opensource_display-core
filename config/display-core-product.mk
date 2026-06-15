@@ -45,6 +45,8 @@ ifneq (,$(filter art, $(TARGET_BOARD_PLATFORM)))
 #QDCM calibration json file for nt37802 panel
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_nt37802_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_nt37802_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY.json
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_nt37802_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY_using_I2C.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_nt37802_amoled_cmd_mode_dsi_csot_panel_with_DSC_CPHY_using_I2C.json
+PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_nt37802_amoled_cmd_mode_dsi_csot_panel_with_DSC_DPHY_using_I2C.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_nt37802_amoled_cmd_mode_dsi_csot_panel_with_DSC_DPHY_using_I2C.json
+PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_nt37802_amoled_video_mode_dsi_csot_panel_with_DSC_DPHY_using_I2C.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_nt37802_amoled_video_mode_dsi_csot_panel_with_DSC_DPHY_using_I2C.json
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_nt37802_amoled_video_i2c_mode_dsi_csot_panel_with_DSC.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_nt37802_amoled_video_i2c_mode_dsi_csot_panel_with_DSC.json
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_nt37802_VHM_amoled_video_mode_dsi_csot_panel_with_DSC.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_nt37802_VHM_amoled_video_mode_dsi_csot_panel_with_DSC.json
 endif
@@ -123,3 +125,8 @@ PRODUCT_COPY_FILES += $(PRIVACY_REGIONS_OFFSETS_XML_PATH)/privacy_regions_offset
 
 #Demura feature config xml file
 PRODUCT_COPY_FILES += $(PRIVACY_REGIONS_OFFSETS_XML_PATH)/duc_dac_config.xml:$(TARGET_COPY_OUT_VENDOR)/etc/display/duc_dac_config.xml
+
+#Demura feature config file
+PRODUCT_COPY_FILES += $(PRIVACY_REGIONS_OFFSETS_XML_PATH)/demura_config_0122e70000000471:$(PRODUCT_OUT)/persist/display/demura_config_0122e70000000471
+PRODUCT_COPY_FILES += $(PRIVACY_REGIONS_OFFSETS_XML_PATH)/demura_publickey_0122e70000000471:$(PRODUCT_OUT)/persist/display/demura_publickey_0122e70000000471
+PRODUCT_COPY_FILES += $(PRIVACY_REGIONS_OFFSETS_XML_PATH)/demura_signature_0122e70000000471:$(PRODUCT_OUT)/persist/display/demura_signature_0122e70000000471

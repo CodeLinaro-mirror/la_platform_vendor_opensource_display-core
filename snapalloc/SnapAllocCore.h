@@ -17,6 +17,8 @@
 #include <map>
 #include <vector>
 #include <atomic>
+#include <cstdint>
+#include <shared_mutex>
 
 namespace snapalloc {
 
@@ -69,7 +71,7 @@ class SnapAllocCore {
   SnapConstraintManager *constraint_mgr_ = nullptr;
   SnapMetadataManager *metadata_mgr_ = nullptr;
   SnapMemAllocator *mem_alloc_intf_ = nullptr;
-  std::mutex buffer_lock_;
+  std::shared_mutex buffer_lock_;
   std::atomic<uint64_t> next_id_;
   std::mutex handles_map_lock_;
   std::unordered_map<SnapHandle *, SnapHandleInternal *> handles_map_ = {};
