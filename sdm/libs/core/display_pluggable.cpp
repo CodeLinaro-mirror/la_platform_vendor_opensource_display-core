@@ -2324,7 +2324,8 @@ DisplayError DisplayPluggable::PostCommit() {
     dpps_info_.DppsNotifyOps(kDppsCommitEvent, &display_type_, sizeof(display_type_));
   }
 
-  dpps_info_.Init(this, client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
+  if (prop_intf_)
+    dpps_info_.Init(this, client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
 
   return kErrorNone;
 }
