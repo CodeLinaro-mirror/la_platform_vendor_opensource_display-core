@@ -361,6 +361,18 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
     }
   }
 
+  void AcquireDisplayLock(uint64_t display, bool release_lock) override {
+    if (display >= kNumDisplays) {
+      return;
+    }
+
+    if (!release_lock) {
+      locker_[display].Lock();
+    } else {
+      locker_[display].Unlock();
+    }
+  }
+
   int GetProperty(const char *property_name, char *value) override;
   int GetProperty(const char *property_name, int *value) override;
 
