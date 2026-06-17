@@ -1074,14 +1074,47 @@ Error SnapMetadataManager::ContentLightLevelHelper(SnapMetadata *metadata,
 Error SnapMetadataManager::DynamicMetadataHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
                                                  void *in_set, void *out_get,
                                                  BufferDescriptor *buf_des) {
-  if (out_get != nullptr) {
-    *static_cast<vendor_qti_hardware_display_common_QtiDynamicMetadata *>(out_get) =
-        metadata->color.dynamicMetadata;
-    return Error::NONE;
-  } else if (in_set != nullptr) {
-    metadata->color.dynamicMetadata =
-        *static_cast<vendor_qti_hardware_display_common_QtiDynamicMetadata *>(in_set);
-    return Error::NONE;
+  // Check if this is a batch mode buffer
+  int batch_size = GetBatchSize(static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
+      handle->pixel_format_modifier()));
+  if (batch_size > 1) {
+    // Batch mode: handle array of dynamic metadata from FrameMetadata structures
+    if (handle->batch_mode_dyn_md_region_base() == 0 ||
+        handle->batch_mode_dyn_md_reserved_size() != batch_size * sizeof(FrameMetadata)) {
+      return Error::UNSUPPORTED;
+    }
+    FrameMetadata *frame_metadata_ptr =
+        reinterpret_cast<FrameMetadata *>(handle->batch_mode_dyn_md_region_base());
+    if (out_get != nullptr) {
+      vendor_qti_hardware_display_common_QtiDynamicMetadata *dyn_md_out =
+          reinterpret_cast<vendor_qti_hardware_display_common_QtiDynamicMetadata *>(out_get);
+
+      // Extract dynamicMetadata from each FrameMetadata entry
+      for (int i = 0; i < batch_size; i++) {
+        dyn_md_out[i] = frame_metadata_ptr[i].dynamicMetadata;
+      }
+      return Error::NONE;
+    } else if (in_set != nullptr) {
+      vendor_qti_hardware_display_common_QtiDynamicMetadata *dyn_md_in =
+          reinterpret_cast<vendor_qti_hardware_display_common_QtiDynamicMetadata *>(in_set);
+
+      // Fill dynamicMetadata field in each FrameMetadata entry
+      for (int i = 0; i < batch_size; i++) {
+        frame_metadata_ptr[i].dynamicMetadata = dyn_md_in[i];
+      }
+      return Error::NONE;
+    }
+  } else {
+    // Single frame: handle single dynamic metadata from SnapMetadata
+    if (out_get != nullptr) {
+      *static_cast<vendor_qti_hardware_display_common_QtiDynamicMetadata *>(out_get) =
+          metadata->color.dynamicMetadata;
+      return Error::NONE;
+    } else if (in_set != nullptr) {
+      metadata->color.dynamicMetadata =
+          *static_cast<vendor_qti_hardware_display_common_QtiDynamicMetadata *>(in_set);
+      return Error::NONE;
+    }
   }
   return Error::BAD_VALUE;
 }
@@ -1227,9 +1260,11 @@ Error SnapMetadataManager::HeapNameHelper(SnapMetadata *metadata, SnapHandleInte
 }
 
 uint64_t SnapMetadataManager::GetMetaDataSize(uint64_t reserved_region_size,
-                                              uint64_t custom_content_md_region_size) {
+                                              uint64_t custom_content_md_region_size,
+                                              uint64_t batch_mode_md_size) {
   return static_cast<uint64_t>(ROUND_UP_PAGESIZE(sizeof(SnapMetadata) + reserved_region_size +
-                                                 custom_content_md_region_size));
+                                                 custom_content_md_region_size +
+                                                 batch_mode_md_size));
 }
 
 bool SnapMetadataManager::IsFormatSupportedByGPU(BufferDescriptor desc) {
@@ -1246,6 +1281,15 @@ uint32_t SnapMetadataManager::GetCustomContentMetadataSize(
     return sizeof(vendor_qti_hardware_display_common_CustomContentMetadata);
   }
   return 0;
+}
+
+uint64_t SnapMetadataManager::GetBatchModeDynamicMetadataSize(uint64_t pixel_format_modifier) {
+  int batch_size = GetBatchSize(
+      static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(pixel_format_modifier));
+  if (batch_size <= 1) {
+    return 0;
+  }
+  return batch_size * sizeof(FrameMetadata);
 }
 
 Error SnapMetadataManager::InitializeMetadata(
@@ -1475,9 +1519,13 @@ Error SnapMetadataManager::ValidateAndMap(SnapHandleInternal *hnd) {
   if (!hnd->base_metadata()) {
     uint64_t reserved_region_size = hnd->reserved_size();
     uint64_t custom_content_md_reserved_size = hnd->custom_content_md_reserved_size();
-    DLOGD_IF(enable_logs, "from handle - reserved size %lu custom content metadata size %lu",
-             reserved_region_size, custom_content_md_reserved_size);
-    uint64_t size = GetMetaDataSize(reserved_region_size, custom_content_md_reserved_size);
+    uint64_t batch_mode_md_size = hnd->batch_mode_dyn_md_reserved_size();
+    DLOGD_IF(enable_logs,
+             "from handle - reserved size %lu custom content metadata size %lu batch mode metadata "
+             "size %lu",
+             reserved_region_size, custom_content_md_reserved_size, batch_mode_md_size);
+    uint64_t size =
+        GetMetaDataSize(reserved_region_size, custom_content_md_reserved_size, batch_mode_md_size);
     void *base = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, hnd->fd_metadata(), 0);
     if (base == reinterpret_cast<void *>(MAP_FAILED)) {
       DLOGE("%s: mmap failed - err %s", __FUNCTION__, strerror(errno));
@@ -1492,7 +1540,8 @@ Error SnapMetadataManager::ValidateAndMap(SnapHandleInternal *hnd) {
 void SnapMetadataManager::UnmapAndReset(SnapHandleInternal *hnd) {
   if (hnd->base_metadata()) {
     munmap(reinterpret_cast<void *>(hnd->base_metadata()),
-           GetMetaDataSize(hnd->reserved_size(), hnd->custom_content_md_reserved_size()));
+           GetMetaDataSize(hnd->reserved_size(), hnd->custom_content_md_reserved_size(),
+                           hnd->batch_mode_dyn_md_reserved_size()));
     hnd->base_metadata() = 0;
   }
 }
