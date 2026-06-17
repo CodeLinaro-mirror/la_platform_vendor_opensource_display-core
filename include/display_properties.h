@@ -317,6 +317,8 @@
 
 #define ENABLE_PRIVACY_LAYERS             DISPLAY_PROP("enable_privacy_layers")
 
+#define ENABLE_ROTATOR_CONCURRENCY           DISPLAY_PROP("enable_rotator_concurrency")
+
 // Add all other.properties above
 // End of property
 // clang-format on
