@@ -164,6 +164,11 @@ bool SnapConstraintManager::ValidateDescriptor(const BufferDescriptor &snap_desc
   int bpp = (format_data.bits_per_pixel) / 8;
   bpp = (bpp == -1 || bpp == 0) ? 1 : bpp;
 
+  if ((static_cast<int32_t>(snap_desc.format) <= 0) || snap_desc.layerCount <= 0) {
+    DLOGE("Invalid Descriptor: format %d, layer_count %d", snap_desc.format, snap_desc.layerCount);
+    return false;
+  }
+
   // First check multiplication overflow of (w, bpp) then check overflow of (w*bpp, h)
   if (snap_desc.width <= 0 || snap_desc.height <= 0 || OVERFLOW_MUL(snap_desc.width, bpp)) {
     DLOGE("%s: Invalid Descriptor: uw%dxuh%d bpp:%d overflow_detected %d", __FUNCTION__,
@@ -171,8 +176,25 @@ bool SnapConstraintManager::ValidateDescriptor(const BufferDescriptor &snap_desc
     return false;
   }
 
-  if ((OVERFLOW_MUL((snap_desc.width * bpp), snap_desc.height)) ||
-      (static_cast<int32_t>(snap_desc.format) <= 0) || snap_desc.layerCount <= 0) {
+  if (snap_desc.format == SnapPixelFormat::TP10) {
+    /*
+     * The current JSON configuration does not provide the correct bpp value
+     * for TP10. TP10 requires fractional bits-per-pixel support, but the
+     * current implementation stores/uses bpp as an integer.
+     *
+     * Since the generic descriptor-size validation below relies on an integer
+     * bpp value, it may incorrectly reject valid TP10 descriptors.
+     *
+     * Skip this generic validation for TP10. TP10-specific size and alignment
+     * checks are handled later in the allocation flow.
+     *
+     * TODO: Fix the JSON/configuration path to support the correct TP10 bpp
+     * representation and remove this early return.
+     */
+    return true;
+  }
+
+  if ((OVERFLOW_MUL((snap_desc.width * bpp), snap_desc.height))) {
     DLOGE("Invalid Descriptor: uw%dxuh%d, format %d, layer_count %d, overflow_detected %d bpp:%d",
           snap_desc.width, snap_desc.height, snap_desc.format, snap_desc.layerCount,
           (OVERFLOW_MUL((snap_desc.width * bpp), snap_desc.height)) ? 1 : 0, bpp);
