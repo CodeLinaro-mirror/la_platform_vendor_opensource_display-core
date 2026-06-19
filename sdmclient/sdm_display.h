@@ -319,9 +319,9 @@ public:
                                                    float max_lum) {
     return kErrorNotSupported;
   }
-  virtual DisplayError
-  SetClientTarget(const SnapHandle *target, shared_ptr<Fence> acquire_fence,
-                  int32_t dataspace, const SDMRegion &damage, uint32_t version);
+  virtual DisplayError SetClientTarget(const SnapHandle *target, shared_ptr<Fence> acquire_fence,
+                                       int32_t dataspace, const SDMRegion &damage, uint32_t version,
+                                       float hdr_sdr_ratio);
   virtual DisplayError GetClientTarget(const SnapHandle *target,
                                        shared_ptr<Fence> acquire_fence,
                                        int32_t dataspace, SDMRegion damage);

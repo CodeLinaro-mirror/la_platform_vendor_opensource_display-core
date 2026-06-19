@@ -147,7 +147,7 @@ int DRMManager::Init(int drm_fd) {
   }
   plane_mgr_->Init();
 
-  dpps_mgr_intf_ = GetDppsManagerIntf();
+  dpps_mgr_intf_ = GetDppsManagerIntf(fd_);
   if (dpps_mgr_intf_)
     dpps_mgr_intf_->Init(fd_, resource);
 
@@ -366,6 +366,8 @@ DRMManager::~DRMManager() {
   if (panel_feature_mgr_intf_) {
     panel_feature_mgr_intf_->Deinit();
   }
+  DestroyDppsManagerIntf(fd_);
+  dpps_mgr_intf_ = nullptr;
 }
 
 int DRMManager::CreateAtomicReq(const DRMDisplayToken &token, DRMAtomicReqInterface **intf) {

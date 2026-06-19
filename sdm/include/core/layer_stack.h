@@ -518,6 +518,8 @@ struct Layer {
 
   std::string layer_name = "";                     //!< Layer full name
   float layer_brightness = 1.0;                    //!< Layer brightness
+  float hdr_sdr_ratio = 1.0;                       //!< HDR/SDR ratio for extended range layer.
+                                                   //!< Only valid for client target in android.
 };
 
 /*! @brief This structure defines the color space + transfer of a given layer.
