@@ -254,6 +254,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError UpdateTransferTime(uint32_t transfer_time) override;
   DisplayError RetrieveDemuraTnFiles() override;
   DisplayError SetDemuraState(int state, int demura_idx) override;
+  DisplayError SetSPRState(int state) override;
   DisplayError SetDemuraConfig(int demura_idx) override;
   DisplayError PerformCacConfig(CacConfig config, bool enable) override;
   DisplayError SetDynamicCacConfig(DynamicCacV2Config config, bool enable) override;
@@ -426,6 +427,7 @@ class DisplayBuiltIn : public DisplayBase,
                                            PanelFeaturePropertyIntf *prop_intf);
   DisplayError SetupRgbHistogram();
   DisplayError UpdateRgbHistogramRoi(const void *data) override;
+  bool isSPREnabled();
 
   const uint32_t kPuTimeOutMs = 1000;
   std::map<uint32_t, std::vector<HWEvent>> event_list_;

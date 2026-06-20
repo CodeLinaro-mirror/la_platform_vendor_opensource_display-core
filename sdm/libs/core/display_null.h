@@ -164,6 +164,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(SetDimmingMinBl(int min_bl))
   MAKE_NO_OP(RetrieveDemuraTnFiles())
   MAKE_NO_OP(SetDemuraState(int state, int demura_idx))
+  MAKE_NO_OP(SetSPRState(int state))
   MAKE_NO_OP(SetDemuraConfig(int demura_idx))
   MAKE_NO_OP(SetABCState(bool state))
   MAKE_NO_OP(SetABCReconfig())

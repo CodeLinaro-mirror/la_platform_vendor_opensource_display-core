@@ -281,6 +281,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual bool HandleCwbTeardown();
   virtual uint32_t GetAvailableMixerCount();
   virtual DisplayError SetDemuraState(int state, int demura_idx) { return kErrorNotSupported; }
+  virtual DisplayError SetSPRState(int state) { return kErrorNotSupported; }
   virtual DisplayError SetDemuraConfig(int demura_idx) { return kErrorNotSupported; }
   virtual DisplayError SetABCState(bool state) { return kErrorNotSupported; }
   virtual DisplayError SetABCReconfig() { return kErrorNotSupported; }
