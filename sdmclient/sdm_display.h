@@ -164,44 +164,37 @@ private:
 
 class SDMDisplay : public DisplayEventHandler {
 public:
-  virtual ~SDMDisplay() {}
+ virtual ~SDMDisplay();
 
-  virtual DisplayError Init();
-  virtual DisplayError Deinit(bool deinit_layer_builder = true);
+ virtual DisplayError Init();
+ virtual DisplayError Deinit(bool deinit_layer_builder = true);
 
-  virtual DisplayError GetFixedConfig(DisplayConfigFixedInfo *info);
-  void DumpXRInputProjectionTable(std::ostringstream *os);
-  bool HasProjectionInputLayers() const;
+ virtual DisplayError GetFixedConfig(DisplayConfigFixedInfo *info);
+ void DumpXRInputProjectionTable(std::ostringstream *os);
+ bool HasProjectionInputLayers() const;
 
-  // Framebuffer configurations
-  virtual void SetIdleTimeoutMs(uint32_t timeout_ms, uint32_t inactive_ms);
-  virtual DisplayError SetFrameDumpConfig(uint32_t count,
-                                          uint32_t bit_mask_layer_type,
-                                          int32_t format);
-  virtual DisplayError SetFrameDumpConfig(uint32_t count,
-                                          uint32_t bit_mask_layer_type,
-                                          int32_t format,
-                                          CwbConfig &cwb_config);
-  virtual DisplayError SetMaxMixerStages(uint32_t max_mixer_stages);
-  virtual DisplayError ControlPartialUpdate(bool enable) { return kErrorNotSupported; }
-  virtual SDMPowerMode GetCurrentPowerMode();
-  virtual DisplayError SetFrameBufferResolution(uint32_t x_pixels,
-                                                uint32_t y_pixels);
-  virtual void GetFrameBufferResolution(uint32_t *x_pixels, uint32_t *y_pixels);
-  virtual DisplayError SetDisplayStatus(SDMDisplayStatus display_status);
-  virtual DisplayError OnMinHdcpEncryptionLevelChange(uint32_t min_enc_level);
-  virtual DisplayError Perform(uint32_t operation, ...);
-  virtual DisplayError
-  HandleSecureSession(const std::bitset<kSecureMax> &secure_sessions,
-                      bool *power_on_pending, bool is_active_secure_display);
-  virtual DisplayError HandleSecureEvent(SecureEvent secure_event,
-                                         bool *needs_refresh,
-                                         bool update_event_only);
-  virtual DisplayError PostHandleSecureEvent(SecureEvent secure_event);
-  virtual DisplayError
-  GetActiveSecureSession(std::bitset<kSecureMax> *secure_sessions) {
-    return kErrorNone;
-  };
+ // Framebuffer configurations
+ virtual void SetIdleTimeoutMs(uint32_t timeout_ms, uint32_t inactive_ms);
+ virtual DisplayError SetFrameDumpConfig(uint32_t count, uint32_t bit_mask_layer_type,
+                                         int32_t format);
+ virtual DisplayError SetFrameDumpConfig(uint32_t count, uint32_t bit_mask_layer_type,
+                                         int32_t format, CwbConfig &cwb_config);
+ virtual DisplayError SetMaxMixerStages(uint32_t max_mixer_stages);
+ virtual DisplayError ControlPartialUpdate(bool enable) { return kErrorNotSupported; }
+ virtual SDMPowerMode GetCurrentPowerMode();
+ virtual DisplayError SetFrameBufferResolution(uint32_t x_pixels, uint32_t y_pixels);
+ virtual void GetFrameBufferResolution(uint32_t *x_pixels, uint32_t *y_pixels);
+ virtual DisplayError SetDisplayStatus(SDMDisplayStatus display_status);
+ virtual DisplayError OnMinHdcpEncryptionLevelChange(uint32_t min_enc_level);
+ virtual DisplayError Perform(uint32_t operation, ...);
+ virtual DisplayError HandleSecureSession(const std::bitset<kSecureMax> &secure_sessions,
+                                          bool *power_on_pending, bool is_active_secure_display);
+ virtual DisplayError HandleSecureEvent(SecureEvent secure_event, bool *needs_refresh,
+                                        bool update_event_only);
+ virtual DisplayError PostHandleSecureEvent(SecureEvent secure_event);
+ virtual DisplayError GetActiveSecureSession(std::bitset<kSecureMax> *secure_sessions) {
+   return kErrorNone;
+ };
   virtual DisplayError SetMixerResolution(uint32_t width, uint32_t height);
   virtual DisplayError GetMixerResolution(uint32_t *width, uint32_t *height);
   virtual uint32_t GetAvailableMixerCount();
@@ -658,7 +651,7 @@ public:
   std::map<LayerId, SDMLayerRequest> layer_requests_;
   // mapping 3d luts to layer id and handle id to retrieve info and pass to client
   std::map<LayerId, Lut3d *> display_luts_;
-  std::map<uint64_t, Lut3d *> buffer_luts_;
+  std::map<uint64_t, Lut3d> buffer_luts_;
   bool flush_on_error_ = false;
   bool flush_ = false;
   SDMPowerMode current_power_mode_ = SDMPowerMode::POWER_MODE_OFF;
