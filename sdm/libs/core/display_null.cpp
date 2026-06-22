@@ -28,9 +28,8 @@
 */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- *
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -54,9 +53,9 @@ DisplayError DisplayNull::Init() {
   default_variable_config_.is_yuv = false;
 
   if (!Debug::GetNullDisplayResolution(&(default_variable_config_.x_pixels),
-                                       &(default_variable_config_.x_pixels))) {
+                                       &(default_variable_config_.y_pixels))) {
     DLOGI("Custom Null display resolution WxH: %ux%u", default_variable_config_.x_pixels,
-           default_variable_config_.x_pixels);
+           default_variable_config_.y_pixels);
   } else {
     DLOGV("Custom Null display resolution values are not available.");
   }
