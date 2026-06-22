@@ -15,6 +15,7 @@
 #include <vector>
 #include <string>
 #include "frame_capture_impl.h"
+#include <debug_handler.h>
 
 #define __CLASS__ "FrameCaptureImpl"
 
@@ -111,6 +112,9 @@ int FrameCaptureImpl::ConfigureFCM(CWBPacketData &data) {
   DLOGI("Display cwb_roi: [l t r b] : [%f %f %f %f]", actual_roi.left, actual_roi.top,
         actual_roi.right, actual_roi.bottom);
 
+  cwb_buffer_pool_size_ = std::max(1, static_cast<int>(data.buffer_depth));
+  enable_compression_ = data.enable_compression;
+
   if (AllocateOutputBuffers(data.cwb_config)) {
     DLOGE("Failed to allocate CWB buffers");
     TeardownConcurrentWriteback();
@@ -133,6 +137,7 @@ int FrameCaptureImpl::ConfigureFCM(CWBPacketData &data) {
 
   dump_frame_count_ = data.frame_dump_count;
   dump_frame_index_ = 0;
+  teardown_done_ = false;
   trigger_cwb_ = true;
 
   // initialise Async task to sumbit CWB buffer to SDM
@@ -165,6 +170,7 @@ int FrameCaptureImpl::InitCompressionCtx() {
   config.buf_size = info.alloc_buffer_info.size;
   config.target_time = 1000 / static_cast<float>(display_config_.fps);
   config.dynamic_comp_ratio = true;
+  config.buffer_count = static_cast<uint32_t>(cwb_buffer_pool_size_);
 
   if (compressor_->Init(config, cwb_fp_, this) != 0) {
     DLOGE("Failed to init compressor buf size %d time: %f fp: %p", config.buf_size,
@@ -345,7 +351,13 @@ void FrameCaptureImpl::NotifyCwbDone(int32_t status, const LayerBuffer &buffer) 
   {
     std::unique_lock<std::mutex> lock(buffer_manage_lock_);
     notify_count_++;
-    DLOGV("Notify count: %d buf_fd: %d", notify_count_, buffer.planes[0].fd);
+    char trace_str[64];
+    snprintf(trace_str, sizeof(trace_str), "CWBDone_%d", notify_count_);
+    DTRACE_BEGIN(trace_str);
+    DTRACE_END();
+    DLOGI("status=%d fd=%d notify_count=%d pending_notify=%d release_fence=%s", status,
+          buffer.planes[0].fd, notify_count_, pending_notify_ - 1,
+          Fence::GetStr(buffer.release_fence).c_str());
 
     Metadata data;
     data.qtimer_ticks = GetQtimerTicks();
@@ -383,8 +395,9 @@ void FrameCaptureImpl::SubmitCWBConfig() {
     }
 
     {
+      const uint32_t max_in_flight = (cwb_config_.num_parallel_buffers > 1) ? 2u : 4u;
       std::unique_lock<std::mutex> lock(buffer_manage_lock_);
-      while (available_out_buffer_.empty()) {
+      while (available_out_buffer_.empty() || currently_used_buffers_.size() >= max_in_flight) {
         buf_cv_.wait(lock);
       }
     }
@@ -406,6 +419,16 @@ void FrameCaptureImpl::SubmitCWBConfig() {
     }
 
     clock_t cap_start = clock();
+    DLOGI("frame=%d num_parallel_buffers=%u available=%zu currently_used=%zu buffer_fd %d",
+          requested_frames_ + 1, cwb_config_.num_parallel_buffers, available_out_buffer_.size(),
+          currently_used_buffers_.size(), output_buffer_.planes[0].fd);
+
+    {
+      char trace_str[64];
+      snprintf(trace_str, sizeof(trace_str), "CWBTrigger_%d", requested_frames_ + 1);
+      DTRACE_BEGIN(trace_str);
+      DTRACE_END();
+    }
     DisplayError error =
         display_intf_->CaptureCwb(output_buffer_, cwb_config_, kCWBClientFrameDump);
     if (error != kErrorNone) {
@@ -413,6 +436,13 @@ void FrameCaptureImpl::SubmitCWBConfig() {
       TeardownConcurrentWriteback();
       exit = true;
       return;
+    }
+
+    // Wait for this CWB request to be picked up by a display commit (CWBProgram fired)
+    // before submitting the next trigger. This prevents queue buildup in the CWB manager
+    // and ensures 1 trigger per display commit, eliminating frame misses.
+    while (display_intf_->HasPendingCwbRequest() && trigger_cwb_) {
+      usleep(500);
     }
 
     dump_frame_index_++;
@@ -445,12 +475,17 @@ void FrameCaptureImpl::SubmitCWBConfig() {
 }
 
 int FrameCaptureImpl::TeardownConcurrentWriteback() {
-  DLOGV("CWB Teardown started");
+  if (teardown_done_.exchange(true)) {
+    DLOGW("Teardown already done, skipping duplicate call");
+    return 0;
+  }
 
   dump_frame_count_ = 0;
   dumped_frames_ = 0;
   requested_frames_ = 0;
   notify_count_ = 0;
+  cwb_buffer_pool_size_ = 5;
+  enable_compression_ = true;
   // Unmap and Free buffer
   DestroyOutputBuffers();
   cwb_config_ = {};
@@ -471,11 +506,15 @@ int FrameCaptureImpl::TeardownConcurrentWriteback() {
     std::lock_guard<std::mutex> lock(metadata_lock_);
     metadata_map_.clear();
     if (metadata_file_.is_open()) {
-      metadata_file_ << metadata_.str();
-      DLOGV("CWB metadata written to file");
+      std::string content = metadata_.str();
+      metadata_file_ << content;
+      if (metadata_file_.fail() || metadata_file_.bad()) {
+        DLOGE("metadata teardown write failed errno=%d (%s) bad=%d fail=%d", errno, strerror(errno),
+              (int)metadata_file_.bad(), (int)metadata_file_.fail());
+      }
       metadata_file_.close();
+      metadata_.str(std::string());
     }
-    metadata_.str(std::string());
   }
 
   {
@@ -527,73 +566,214 @@ int FrameCaptureImpl::SetupCWBFile(BufferInfo buffer_info) {
 
 int FrameCaptureImpl::UpdateCWBRoi(sdm::LayerRect cwb_roi, int32_t eye_index, int32_t field_index,
                                    sdm::LayerRect *out_roi) {
-  uint32_t lm_width = display_config_.x_pixels / 2;
-  uint32_t lm_height = display_config_.y_pixels;
+  uint32_t disp_width = display_config_.x_pixels;
+  uint32_t disp_height = display_config_.y_pixels;
 
-  uint32_t eye_width = lm_width;
-  uint32_t eye_height = lm_height;
-  if (display_config_.fsc_panel) {
-    // For fsc lm_width will be actual width / num_fsc_field and
-    // height will be actual height * num_fsc_field
-    eye_width = lm_width * display_config_.num_fsc_fields;
-    eye_height = lm_height / display_config_.num_fsc_fields;
+  SDMDisplayViewMode view_mode = kViewModeNone;
+  display_intf_->GetDisplayViewMode(&view_mode);
 
-    if ((INT(cwb_roi.left) % display_config_.num_fsc_fields != 0) ||
-        (INT(cwb_roi.top) % display_config_.num_fsc_fields != 0) ||
-        (INT(cwb_roi.right) % display_config_.num_fsc_fields != 0) ||
-        (INT(cwb_roi.bottom) % display_config_.num_fsc_fields != 0)) {
-      DLOGE("ROI should be multiple of %d", display_config_.num_fsc_fields);
+  DLOGI("view_mode=%d eye_index=%d field_index=%d cwb_roi=[%f %f %f %f]", view_mode, eye_index,
+        field_index, cwb_roi.left, cwb_roi.top, cwb_roi.right, cwb_roi.bottom);
+
+  if (view_mode == kViewModeStereo) {
+    // Binocular: display is split left/right per eye.
+    // For single-eye capture (kLeftEye/kRightEye): client ROI is in per-eye space
+    //   {0..half_width, 0..height}. The right-eye offset is applied internally.
+    // For both-eyes capture (kBothEyes): client ROI is in full-display space
+    //   {0..disp_width, 0..height} and can span across both eyes.
+    uint32_t half_width = disp_width / 2;
+    uint32_t eye_width = half_width;
+    uint32_t eye_height = disp_height;
+
+    if (display_config_.fsc_panel) {
+      // for FSC if the actual display resolution is 1200X1200 dal will convert it 400X3600
+      // converting it back to client space
+      eye_width = half_width * display_config_.num_fsc_fields;
+      eye_height = disp_height / display_config_.num_fsc_fields;
+
+      if ((INT(cwb_roi.left) % display_config_.num_fsc_fields != 0) ||
+          (INT(cwb_roi.top) % display_config_.num_fsc_fields != 0) ||
+          (INT(cwb_roi.right) % display_config_.num_fsc_fields != 0) ||
+          (INT(cwb_roi.bottom) % display_config_.num_fsc_fields != 0)) {
+        DLOGE("ROI should be multiple of %d", display_config_.num_fsc_fields);
+        return -1;
+      }
+    }
+
+    if (eye_index == kBothEyes) {
+      // Both eyes: capture full display width.
+      // Client ROI is in hardware display space {0..hw_width, 0..hw_height}.
+      if (cwb_roi == (sdm::LayerRect){0, 0, 0, 0}) {
+        out_roi->left = 0;
+        out_roi->top = 0;
+        out_roi->right = static_cast<float>(disp_width);
+        out_roi->bottom = static_cast<float>(disp_height);
+      } else if (display_config_.fsc_panel) {
+        // Client ROI is in hardware space (e.g., {0, 0, 2400, 1200}).
+        // Validate against hardware full-display bounds.
+        uint32_t hw_full_width = eye_width * 2;  // = disp_width * num_fsc_fields
+        sdm::LayerRect hw_full_rect = {0, 0, static_cast<float>(hw_full_width),
+                                       static_cast<float>(eye_height)};
+        if (!Contains(hw_full_rect, cwb_roi)) {
+          DLOGE("cwb roi is not within hardware full display rect for kBothEyes FSC");
+          return -1;
+        }
+        // Convert from hardware space to FSC-transformed space.
+        // top is not multiplied; bottom = top + roi_height * num_fsc_fields.
+        uint32_t roi_height = UINT32(cwb_roi.bottom - cwb_roi.top);
+        out_roi->left = cwb_roi.left / display_config_.num_fsc_fields;
+        out_roi->top = cwb_roi.top;
+        out_roi->right = cwb_roi.right / display_config_.num_fsc_fields;
+        out_roi->bottom = cwb_roi.top + roi_height * display_config_.num_fsc_fields;
+      } else {
+        // Client ROI in full-display space; validate and use directly.
+        sdm::LayerRect full_rect = {0, 0, static_cast<float>(disp_width),
+                                    static_cast<float>(disp_height)};
+        if (!Contains(full_rect, cwb_roi)) {
+          DLOGE("cwb roi is not within full display rect for kBothEyes");
+          return -1;
+        }
+        *out_roi = cwb_roi;
+      }
+      // No eye offset needed for both-eyes capture.
+    } else {
+      // Single eye (left or right): client ROI is in per-eye space.
+      if (cwb_roi == (sdm::LayerRect){0, 0, 0, 0}) {
+        out_roi->left = 0;
+        out_roi->top = 0;
+        out_roi->right = static_cast<float>(half_width);
+        out_roi->bottom = static_cast<float>(disp_height);
+      } else if (display_config_.fsc_panel) {
+        // Client ROI is in hardware display space.
+        // eye_width = half_width * num_fsc_fields = hardware half-width.
+        // eye_height = disp_height / num_fsc_fields = hardware full height.
+        // Validate against hardware-space eye bounds.
+        if (cwb_roi.right > eye_width) {
+          DLOGE("Invalid ROI for FSC binocular [l t r b] : [%f %f %f %f]", cwb_roi.left,
+                cwb_roi.top, cwb_roi.right, cwb_roi.bottom);
+          return -1;
+        }
+        // Convert from hardware space to FSC-transformed space used internally by SDM.
+        // top is not multiplied; bottom = top + roi_height * num_fsc_fields.
+        uint32_t roi_height = UINT32(cwb_roi.bottom - cwb_roi.top);
+        out_roi->left = cwb_roi.left / display_config_.num_fsc_fields;
+        out_roi->top = cwb_roi.top;
+        out_roi->right = cwb_roi.right / display_config_.num_fsc_fields;
+        out_roi->bottom = cwb_roi.top + roi_height * display_config_.num_fsc_fields;
+      } else {
+        *out_roi = cwb_roi;
+      }
+
+      // Validate ROI is within single-eye bounds.
+      sdm::LayerRect eye_rect = {0, 0, static_cast<float>(half_width),
+                                 static_cast<float>(disp_height)};
+      if (!Contains(eye_rect, *out_roi)) {
+        DLOGE("cwb roi is not within Eye roi [l t r b] : [%f %f %f %f]", out_roi->left,
+              out_roi->top, out_roi->right, out_roi->bottom);
+        return -1;
+      }
+
+      // Apply right-eye offset. Use half_width (hardware space) since out_roi
+      // has already been transformed to hardware coordinates by the FSC transform above.
+      if (eye_index == kRightEye) {
+        out_roi->left += half_width;
+        out_roi->right += half_width;
+      }
+    }
+
+    // Apply FSC field offset.
+    if (!display_config_.fsc_panel && field_index != kAllFSCField) {
+      DLOGE("RGB display does not support Field dump");
       return -1;
+    }
+    if (display_config_.fsc_panel && field_index != kAllFSCField) {
+      // Field selection is only supported when the ROI covers the full display height.
+      uint32_t roi_height_hw =
+          UINT32(out_roi->bottom - out_roi->top) / display_config_.num_fsc_fields;
+      if (roi_height_hw != eye_height) {
+        DLOGE("Field dump only supported for full-height ROI (roi_height=%u eye_height=%u)",
+              roi_height_hw, eye_height);
+        return -1;
+      }
+      if (field_index == kRedFscField) {
+        out_roi->bottom /= display_config_.num_fsc_fields;
+      } else if (field_index == kGreenFscField) {
+        out_roi->top += eye_height;
+        out_roi->bottom -= eye_height;
+      } else if (field_index == kBlueFscField) {
+        out_roi->top += eye_height * 2;
+      }
+    }
+
+  } else {
+    // kViewModeNone (mobile) or kViewModeMonocular: eye_index is ignored.
+    // Client ROI is in hardware display space.
+    // For FSC panels: hardware space = (x_pixels*num_fsc_fields) x (y_pixels/num_fsc_fields).
+    // For non-FSC panels: hardware space = x_pixels x y_pixels (= disp_width x disp_height).
+    if (cwb_roi == (sdm::LayerRect){0, 0, 0, 0}) {
+      out_roi->left = 0;
+      out_roi->top = 0;
+      out_roi->right = static_cast<float>(disp_width);
+      out_roi->bottom = static_cast<float>(disp_height);
+    } else if (display_config_.fsc_panel) {
+      // Client ROI is in hardware space (e.g., 2400x1200).
+      // Validate against hardware full-display bounds.
+      uint32_t hw_width = disp_width * display_config_.num_fsc_fields;
+      uint32_t hw_height = disp_height / display_config_.num_fsc_fields;
+      sdm::LayerRect hw_full_rect = {0, 0, static_cast<float>(hw_width),
+                                     static_cast<float>(hw_height)};
+      if (!Contains(hw_full_rect, cwb_roi)) {
+        DLOGE("cwb roi is not within hardware display rect [l t r b] : [%f %f %f %f]", cwb_roi.left,
+              cwb_roi.top, cwb_roi.right, cwb_roi.bottom);
+        return -1;
+      }
+      // Convert from hardware space to FSC-transformed space used internally by SDM.
+      // top is not multiplied; bottom = top + roi_height * num_fsc_fields.
+      uint32_t roi_height = UINT32(cwb_roi.bottom - cwb_roi.top);
+      out_roi->left = cwb_roi.left / display_config_.num_fsc_fields;
+      out_roi->top = cwb_roi.top;
+      out_roi->right = cwb_roi.right / display_config_.num_fsc_fields;
+      out_roi->bottom = cwb_roi.top + roi_height * display_config_.num_fsc_fields;
+    } else {
+      sdm::LayerRect full_rect = {0, 0, static_cast<float>(disp_width),
+                                  static_cast<float>(disp_height)};
+      if (!Contains(full_rect, cwb_roi)) {
+        DLOGE("cwb roi is not within display rect [l t r b] : [%f %f %f %f]", cwb_roi.left,
+              cwb_roi.top, cwb_roi.right, cwb_roi.bottom);
+        return -1;
+      }
+      *out_roi = cwb_roi;
+    }
+
+    if (!display_config_.fsc_panel && field_index != kAllFSCField) {
+      DLOGE("Field dump not supported on non-FSC non-binocular display");
+      return -1;
+    }
+    if (display_config_.fsc_panel && field_index != kAllFSCField) {
+      // Field selection is only supported when the ROI covers the full display height.
+      uint32_t hw_height = disp_height / display_config_.num_fsc_fields;
+      uint32_t roi_height_hw =
+          UINT32(out_roi->bottom - out_roi->top) / display_config_.num_fsc_fields;
+      if (roi_height_hw != hw_height) {
+        DLOGE("Field dump only supported for full-height ROI (roi_height=%u hw_height=%u)",
+              roi_height_hw, hw_height);
+        return -1;
+      }
+      uint32_t field_height = hw_height;
+      if (field_index == kRedFscField) {
+        out_roi->bottom = out_roi->top + field_height;
+      } else if (field_index == kGreenFscField) {
+        out_roi->top += field_height;
+        out_roi->bottom = out_roi->top + field_height;
+      } else if (field_index == kBlueFscField) {
+        out_roi->top += field_height * 2;
+        out_roi->bottom = out_roi->top + field_height;
+      }
     }
   }
 
-  if (cwb_roi == (sdm::LayerRect){0, 0, 0, 0}) {
-    // Client has not specified any ROI, Update the roi based on eye_index and field_index
-    out_roi->left = 0;
-    out_roi->top = 0;
-    out_roi->right = lm_width;
-    out_roi->bottom = lm_height;
-  } else if (display_config_.fsc_panel) {
-    // Error checking for FSC panel for ROI specified by the client.
-    if ((cwb_roi.top != 0) || (cwb_roi.bottom != eye_height) || (cwb_roi.right > eye_width)) {
-      DLOGE("Invalid ROI for FSC [l t r b] : [%f %f %f %f]", cwb_roi.left, cwb_roi.top,
-            cwb_roi.right, cwb_roi.bottom);
-      return -1;
-    }
-    out_roi->left = cwb_roi.left / display_config_.num_fsc_fields;
-    out_roi->top = cwb_roi.top;
-    out_roi->right = cwb_roi.right / display_config_.num_fsc_fields;
-    out_roi->bottom = cwb_roi.bottom * display_config_.num_fsc_fields;
-  }
-
-  sdm::LayerRect disp_eye_rect = {0, 0, static_cast<float>(lm_width),
-                                  static_cast<float>(lm_height)};
-  if (!Contains(disp_eye_rect, *out_roi)) {
-    DLOGE("cwb roi is not within Eye roi");
-    return -1;
-  }
-
-  if (eye_index == kRightEye) {
-    out_roi->left += lm_width;
-    out_roi->right += lm_width;
-  }
-
-  if (!display_config_.fsc_panel && field_index != kAllFSCField) {
-    DLOGE("RGB display does not support Field dump");
-    return -1;
-  }
-
-  if (field_index == kRedFscField) {
-    out_roi->bottom /= display_config_.num_fsc_fields;
-  }
-  if (field_index == kGreenFscField) {
-    out_roi->top += eye_height;
-    out_roi->bottom -= eye_height;
-  }
-  if (field_index == kBlueFscField) {
-    out_roi->top += eye_height * 2;
-  }
-
+  DLOGI("Final CWB ROI: [l t r b] : [%f %f %f %f]", out_roi->left, out_roi->top, out_roi->right,
+        out_roi->bottom);
   return 0;
 }
 
@@ -648,7 +828,7 @@ int FrameCaptureImpl::AllocateOutputBuffers(CwbConfig &cwb_config) {
 
   output_buffer_info.buffer_config.format = kFormatBGR888;
   output_buffer_info.buffer_config.buffer_count = 1;
-  for (int i = 0; i < kCWBBufferDepth; i++) {
+  for (int i = 0; i < cwb_buffer_pool_size_; i++) {
     if (buffer_allocator_->AllocateBuffer(&output_buffer_info) != 0) {
       DLOGE("Buffer allocation failed");
       output_buffer_info = {};

@@ -525,6 +525,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                                  std::vector<int32_t> *out_configs);
   DisplayError GetVsyncPeriod(Display disp, uint32_t *vsync_period);
   void Refresh(uint64_t display);
+  void OnSelfRefresh(uint64_t display);
   void TriggerTimeoutOnBuiltins();
 
   DisplayError GetDisplayVsyncPeriod(Display display,
@@ -599,6 +600,7 @@ private:
   void SendHotplug(Display display, bool state);
   DisplayError Hotplug(Display display, bool state);
   void SendRefresh(Display display);
+  void SelfRefreshThread(uint32_t display_idx);
 
   DisplayError GetConfigCount(uint64_t disp_id, uint32_t *count);
   DisplayError GetActiveConfigIndex(uint64_t disp_id, uint32_t *config);
@@ -699,6 +701,13 @@ private:
       pending_refresh_; // Displays waiting to get refreshed
   std::bitset<kNumDisplays>
       client_pending_refresh_; // compositor refresh pending
+
+  std::thread self_refresh_thread_[kNumDisplays];
+  std::mutex self_refresh_mutex_[kNumDisplays];
+  std::condition_variable self_refresh_cv_[kNumDisplays];
+  uint32_t self_refresh_count_[kNumDisplays] = {};  // pending refresh requests
+  bool self_refresh_exit_[kNumDisplays] = {};
+  bool self_refresh_thread_started_[kNumDisplays] = {};
 
   bool async_vds_creation_ = false;
   bool tui_state_transition_[kNumDisplays] = {};

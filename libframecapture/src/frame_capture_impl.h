@@ -19,6 +19,7 @@
 #include <condition_variable>
 #include <sstream>
 #include <fstream>
+#include <atomic>
 
 #include "frame_capture_intf.h"
 #include "Compressor.h"
@@ -85,7 +86,8 @@ class FrameCaptureImpl : public FrameCaptureIntf, public CompressorCallback {
   uint32_t dump_frame_index_ = 0;
 
   // buffer management
-  static const int kCWBBufferDepth = 20;
+  int cwb_buffer_pool_size_ = 5;
+  std::atomic<bool> teardown_done_{false};
   std::mutex buffer_manage_lock_;
   std::list<BufferInfo> available_out_buffer_ = {};
   std::list<BufferInfo> dump_out_buffer_ = {};

@@ -555,6 +555,7 @@ public:
   }
   virtual DisplayError TurnOffColorFeature() { return kErrorNotSupported; }
   DisplayError GetDisplayViewMode(SDMDisplayViewMode *view_mode);
+  virtual DisplayError PerformSelfRefresh();
 
  protected:
   static uint32_t throttling_refresh_rate_;
@@ -567,7 +568,7 @@ public:
 
   // DisplayEventHandler methods
   virtual DisplayError VSync(const DisplayEventVSync &vsync);
-  virtual DisplayError Refresh();
+  virtual DisplayError Refresh(RefreshType type);
   virtual DisplayError CECMessage(char *message);
   virtual DisplayError HistogramEvent(int source_fd, uint32_t blob_id);
   virtual DisplayError HandleEvent(DisplayEvent event);

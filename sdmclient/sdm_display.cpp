@@ -1647,8 +1647,49 @@ DisplayError SDMDisplay::VSync(const DisplayEventVSync &vsync) {
   return kErrorNone;
 }
 
-DisplayError SDMDisplay::Refresh() {
+DisplayError SDMDisplay::Refresh(RefreshType type) {
+  if (type == kSelfRefresh) {
+    event_handler_->OnSelfRefresh(id_);
+    return kErrorNone;
+  }
+
   callbacks_->OnRefresh(id_);
+  return kErrorNone;
+}
+
+DisplayError SDMDisplay::PerformSelfRefresh() {
+  DTRACE_SCOPED();
+  if (shutdown_pending_ || layer_stack_.layers.empty()) {
+    DLOGW("SelfRefresh skipped: shutdown=%d layers=%zu", shutdown_pending_,
+          layer_stack_.layers.size());
+    return kErrorNone;
+  }
+
+  if (current_power_mode_ != SDMPowerMode::POWER_MODE_ON) {
+    DLOGW("SelfRefresh skipped: display not in ON state (mode=%d)", current_power_mode_);
+    return kErrorNone;
+  }
+
+  shared_ptr<Fence> retire_fence;
+  uint32_t num_types = 0, num_requests = 0;
+  bool needs_commit = false;
+  DisplayError error = CommitOrPrepare(/*validate_only=*/false, &retire_fence, &num_types,
+                                       &num_requests, &needs_commit);
+  if (error != kErrorNone && error != kErrorNeedsCommit) {
+    DLOGW("SelfRefresh: CommitOrPrepare failed. Error = %d", error);
+    return error;
+  }
+
+  if (needs_commit) {
+    DLOGW("Composition decision might be changed for GPU composition");
+    error = CommitLayerStack();
+    if (error != kErrorNone) {
+      DLOGW("SelfRefresh: CommitLayerStack fallback failed. Error = %d", error);
+      return error;
+    }
+    PostCommitLayerStack(&retire_fence);
+  }
+
   return kErrorNone;
 }
 

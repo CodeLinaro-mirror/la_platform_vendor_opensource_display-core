@@ -513,6 +513,12 @@ enum CwbTapPoint {
   kDemuraTapPoint,  // This is set by client to use Demura output for CWB.
 };
 
+/*! @brief This enum represents the refresh mechanism type. */
+enum RefreshType {
+  kClientRefresh = 0,  //!< Trigger refresh via SurfaceFlinger callback (default).
+  kSelfRefresh = 1,    //!< Use internal self-refresh; no SurfaceFlinger dependency.
+};
+
 /*! @brief This structure defines the configuration variables needed to perform CWB.
 
   @sa LayerStack
@@ -533,6 +539,7 @@ struct CwbConfig {
   uint32_t downscale_y = 1;                          //!< Downscale factor for CWB output height.
   uint32_t num_parallel_buffers = 1;                 //!< number of parallel buffer of cwb ROI
                                                      //!< in output buffer
+  RefreshType refresh_type = kClientRefresh;         //!< Refresh mechanism for CWB capture.
 };
 
 // intermediate struct to hold some color metadata values which will be queried
