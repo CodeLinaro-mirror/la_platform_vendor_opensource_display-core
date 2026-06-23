@@ -72,10 +72,10 @@ class CwbManagerInterface {
                           const LayerBuffer &output_buffer, const CwbConfig &config,
                           CwbCallback *cwb_callback) = 0;
   // ---------QRTC specific APIs-----------------
-  virtual DisplayError ReserveWBForDisplay(uint32_t display_id, int32_t *wb_id) {
-    return kErrorResources;
+  virtual DisplayError ReserveWBForDisplay(uint32_t display_id, WbMapInfo *wb_info) {
+    return kErrorNotSupported;
   }
-  virtual void ReleaseWBFromDisplay(uint32_t display_id, int32_t wb_id) {}
+  virtual void ReleaseWBFromDisplay(uint32_t display_id) {}
   // --------------------------------------------
 
   virtual void TeardownCwb(uint32_t display_id) {}

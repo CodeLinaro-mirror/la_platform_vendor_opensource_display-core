@@ -5625,14 +5625,14 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
   return kErrorNone;
 }
 
-DisplayError DisplayBase::ReserveWBForDisplay(int32_t *wb_id) {
+DisplayError DisplayBase::ReserveWBForDisplay(WbMapInfo *wb_info) {
   ClientLock lock(disp_mutex_);
-  return comp_manager_->ReserveWBForDisplay(display_comp_ctx_, wb_id);
+  return comp_manager_->ReserveWBForDisplay(display_comp_ctx_, wb_info);
 }
 
-void DisplayBase::ReleaseWBFromDisplay(int32_t wb_id) {
+void DisplayBase::ReleaseWBFromDisplay() {
   ClientLock lock(disp_mutex_);
-  comp_manager_->ReleaseWBFromDisplay(display_comp_ctx_, wb_id);
+  comp_manager_->ReleaseWBFromDisplay(display_comp_ctx_);
 }
 
 bool DisplayBase::HandleCwbTeardown() {

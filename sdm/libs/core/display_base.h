@@ -204,8 +204,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
                                              CwbConfig &cwb_config);
   virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config,
                                   const CWBClient &client);
-  virtual DisplayError ReserveWBForDisplay(int32_t *wb_id);
-  virtual void ReleaseWBFromDisplay(int32_t wb_id);
+  virtual DisplayError ReserveWBForDisplay(WbMapInfo *wb_info);
+  virtual void ReleaseWBFromDisplay();
   virtual DisplayError PostHandleSecureEvent(SecureEvent secure_event) {
     return kErrorNotSupported;
   }
