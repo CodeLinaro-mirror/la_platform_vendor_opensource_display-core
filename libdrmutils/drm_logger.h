@@ -26,6 +26,11 @@
 * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __DRM_LOGGER_H__
 #define __DRM_LOGGER_H__
@@ -39,7 +44,7 @@ namespace drm_utils {
 
 #define DRM_LOGE(format, ...) DLOGE(format, ##__VA_ARGS__)
 #define DRM_LOGW(format, ...) DLOGW_IF(DRM_LOG_TAG, format, ##__VA_ARGS__)
-#define DRM_LOGI(format, ...) DLOGI_IF(DRM_LOG_TAG, format, ##__VA_ARGS__)
+#define DRM_LOGI(format, ...) DLOGI(format, ##__VA_ARGS__)
 #define DRM_LOGD(format, ...) DLOGD_IF(DRM_LOG_TAG, format, ##__VA_ARGS__)
 #define DRM_LOGV(format, ...) DLOGV_IF(DRM_LOG_TAG, format, ##__VA_ARGS__)
 

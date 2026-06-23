@@ -1174,6 +1174,7 @@ DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
     }
     hw_info.is_reserved = iter.second.is_reserved;
     hw_info.max_linewidth = iter.second.max_linewidth;
+    hw_info.is_wb_downscale_supported = iter.second.is_wb_downscale_supported;
 
     if (iter.second.type == DRM_MODE_CONNECTOR_DSI) {
       uint32_t mode_index = 0;
@@ -1290,6 +1291,7 @@ DisplayError HWInfoDRM::GetVirtualDisplayStatus(VirtualDisplayType type, HWDispl
     hw_info->is_wb_ubwc_supported = iter.second.is_wb_ubwc_supported;
     hw_info->is_reserved = iter.second.is_reserved;
     hw_info->max_linewidth = iter.second.max_linewidth;
+    hw_info->is_wb_downscale_supported = iter.second.is_wb_downscale_supported;
 
     if (!hw_info->max_cwb) {
       auto &conn_mode = iter.second.modes[0];
@@ -1482,6 +1484,55 @@ uint32_t HWInfoDRM::GetMaxDNSCBlurBlockCount() {
 #else
   return 0;
 #endif
+}
+
+uint32_t HWInfoDRM::GetMaxWritebackBlockCount() {
+  sde_drm::DRMConnectorsInfo conns_info = {};
+  auto drm_err = drm_mgr_intf_->GetConnectorsInfo(&conns_info);
+  if (drm_err) {
+    DLOGE("DRM Driver get connector error %d while getting max displays supported!", drm_err);
+    return 0;
+  }
+
+  uint32_t wb_count = 0;
+  for (auto &iter : conns_info) {
+    if (iter.second.type == DRM_MODE_CONNECTOR_VIRTUAL) {
+      wb_count++;
+    }
+  }
+  return wb_count;
+}
+
+bool HWInfoDRM::IsQrtcSupported() {
+  return false;
+}
+
+bool HWInfoDRM::IsDownscaledCwbSupported(int32_t wb_block_index) {
+  sde_drm::DRMConnectorsInfo conns_info = {};
+  auto drm_err = drm_mgr_intf_->GetConnectorsInfo(&conns_info);
+  if (drm_err) {
+    DLOGE("DRM Driver get connector error %d while getting max displays supported!", drm_err);
+    return false;
+  }
+
+  uint32_t wb_count = 0;
+  for (auto &iter : conns_info) {
+    if (iter.second.type == DRM_MODE_CONNECTOR_VIRTUAL) {
+      if (iter.second.is_wb_downscale_supported &&
+          (wb_block_index == wb_count || wb_block_index < 0)) {
+        return true;
+      }
+
+      wb_count++;
+    }
+  }
+
+  // For legacy compatibility.
+  if (wb_count < 3 && wb_block_index <= 0) {
+    return !!GetMaxDNSCBlurBlockCount();
+  }
+
+  return false;
 }
 
 int HWInfoDRM::GetConnectorTypeforTMDS(uint32_t encoder_id, sde_drm::DRMEncoderInfo info) {

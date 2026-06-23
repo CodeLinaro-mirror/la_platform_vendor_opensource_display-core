@@ -43,6 +43,7 @@
 #include <bitset>
 #include <core/buffer_sync_handler.h>
 #include <core/core_interface.h>
+#include <core/sdm_types.h>
 #include <map>
 #include <private/color_params.h>
 #include <queue>
@@ -52,6 +53,7 @@
 #include <utility>
 #include <vector>
 #include <climits>
+#include <sstream>
 
 #include "sdm_compositor_callbacks.h"
 #include "sdm_layer_builder.h"
@@ -168,6 +170,8 @@ public:
   virtual DisplayError Deinit(bool deinit_layer_builder = true);
 
   virtual DisplayError GetFixedConfig(DisplayConfigFixedInfo *info);
+  void DumpXRInputProjectionTable(std::ostringstream *os);
+  bool HasProjectionInputLayers() const;
 
   // Framebuffer configurations
   virtual void SetIdleTimeoutMs(uint32_t timeout_ms, uint32_t inactive_ms);
@@ -494,11 +498,14 @@ public:
       std::map<uint32_t, DisplayConfigVariableInfo> &variable_config_map,
       int active_config_index, uint32_t num_configs){};
   virtual void Abort();
-  virtual void MarkClientActive(bool is_client_up);
+  virtual DisplayError MarkClientActive(bool is_client_up);
   virtual void SetExpectedPresentTime(uint64_t time) {
     expected_present_time_ = time;
   }
   virtual DisplayError PerformCacConfig(CacConfig config, bool enable) {
+    return kErrorNotSupported;
+  }
+  virtual DisplayError PerformDynamicCac(DynamicCacV2Config config, bool enable) {
     return kErrorNotSupported;
   }
   virtual DisplayError IsCacV2Supported(bool *supported) {
@@ -506,6 +513,7 @@ public:
     return kErrorNotSupported;
   }
   int32_t GetDisplayConfigGroup(DisplayConfigGroupInfo variable_config);
+  int32_t GetDisplayConfigGroup(DisplayConfigGroupInfo variable_config, uint32_t fps);
 
   void LayerStackUpdated() {
     layer_stack_invalid_ = true;
@@ -532,6 +540,7 @@ public:
   virtual DisplayError GetPanelFeatureConfig(int32_t type, void *data, uint32_t input_size) {
     return kErrorNotSupported;
   }
+  virtual DisplayError SetStcFeatureConfig(void *data) { return kErrorNotSupported; }
   DisplayError GetCachedActiveConfig(bool get_real_config, Config *config);
   virtual void TimeoutOnBuiltins(){};
   virtual void IdleTimeout(){};
@@ -770,6 +779,7 @@ public:
   bool is_poms_mode_ = false;
   bool pending_privregions_update_ = false;
   FrameCaptureIntf *fcm_ = nullptr;
+  bool composer_driven_hdcp_ = false;
 };
 
 inline DisplayError SDMDisplay::Perform(uint32_t operation, ...) {

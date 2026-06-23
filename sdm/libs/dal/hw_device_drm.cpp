@@ -823,6 +823,14 @@ DisplayError HWDeviceDRM::Deinit() {
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_POWER_MODE, token_.conn_id, DRMPowerMode::OFF);
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_MODE, token_.crtc_id, nullptr);
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_ACTIVE, token_.crtc_id, 0);
+    if (hw_resource_.cac_version == kCacVersionLoopback && loopback_conn_id_ != -1 &&
+        loopback_cac_configured_) {
+      DLOGV_IF(kTagDriverConfig, "Teardown CAC loopback");
+      drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, loopback_token_.conn_id, 0);
+      drm_mgr_intf_->UnregisterDisplay(&loopback_token_);
+      loopback_token_ = {};
+      loopback_cac_configured_ = false;
+    }
 #ifdef TRUSTED_VM
     drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_VM_REQ_STATE, token_.crtc_id,
                               sde_drm::DRMVMRequestState::RELEASE);
@@ -1086,6 +1094,133 @@ DisplayError HWDeviceDRM::PopulateDisplayAttributes(uint32_t index) {
       mixer_attributes_.split_type, display_attributes_[index].avr_step);
 
   return kErrorNone;
+}
+
+void HWDeviceDRM::InitDestScaler() {
+  if (hw_resource_.hw_dest_scalar_info.count) {
+    // Do all destination scaler block resource allocations here.
+    dest_scaler_blocks_used_ = 1;
+    if (kQuadSplit == mixer_attributes_.split_type) {
+      dest_scaler_blocks_used_ = 4;
+    } else if (kDualSplit == mixer_attributes_.split_type) {
+      dest_scaler_blocks_used_ = 2;
+    }
+    if (hw_resource_.hw_dest_scalar_info.count >=
+        (hw_dest_scaler_blocks_used_[core_id_] + dest_scaler_blocks_used_)) {
+      // Enough destination scaler blocks available so update the static counter.
+      hw_dest_scaler_blocks_used_[core_id_] += dest_scaler_blocks_used_;
+    } else {
+      dest_scaler_blocks_used_ = 0;
+    }
+    scalar_data_.resize(dest_scaler_blocks_used_);
+    dest_scalar_cache_.resize(dest_scaler_blocks_used_);
+    // Update crtc (layer-mixer) configuration info.
+    mixer_attributes_.dest_scaler_blocks_used = dest_scaler_blocks_used_;
+  }
+
+  topology_control_ = UINT32(sde_drm::DRMTopologyControl::DSPP);
+  if (dest_scaler_blocks_used_) {
+    topology_control_ |= UINT32(sde_drm::DRMTopologyControl::DEST_SCALER);
+  }
+}
+
+void HWDeviceDRM::SetDestScalarData(const HWLayersInfo &hw_layer_info) {
+  if (dest_scaler_blocks_used_ > 0) {
+    SetDestScalarData(hw_layer_info.dest_scale_info_map);
+  }
+}
+
+void HWDeviceDRM::SetDestScalarData(const DestScaleInfoMap dest_scale_info_map) {
+  if (!hw_scale_ || !dest_scaler_blocks_used_) {
+    return;
+  }
+
+  for (uint32_t i = 0; i < dest_scaler_blocks_used_; i++) {
+    auto it = dest_scale_info_map.find(i);
+    if (it == dest_scale_info_map.end()) {
+      continue;
+    }
+
+    HWDestScaleInfo *dest_scale_info = it->second;
+    SDEScaler *scale = &scalar_data_[i];
+    hw_scale_->SetScaler(dest_scale_info->scale_data, scale);
+
+    sde_drm_dest_scaler_cfg *dest_scalar_data = &sde_dest_scalar_data_.ds_cfg[i];
+    dest_scalar_data->flags = 0;
+    if (scale->scaler_v2.enable) {
+      dest_scalar_data->flags |= SDE_DRM_DESTSCALER_ENABLE;
+    }
+    if (scale->scaler_v2.de.enable) {
+      dest_scalar_data->flags |= SDE_DRM_DESTSCALER_ENHANCER_UPDATE;
+    }
+    if (dest_scale_info->scale_update) {
+      dest_scalar_data->flags |= SDE_DRM_DESTSCALER_SCALE_UPDATE;
+    }
+    if (hw_panel_info_.partial_update) {
+      dest_scalar_data->flags |= SDE_DRM_DESTSCALER_PU_ENABLE;
+    }
+    dest_scalar_data->index = i;
+    dest_scalar_data->lm_width = dest_scale_info->mixer_width;
+    dest_scalar_data->lm_height = dest_scale_info->mixer_height;
+    dest_scalar_data->scaler_cfg = reinterpret_cast<uint64_t>(&scale->scaler_v2);
+#ifndef TARGET_INCLUDES_NEO
+    switch (dest_scale_info->mixer_merge_mode) {
+      case kDestScalerSinglePipe:
+        dest_scalar_data->merge_mode = DEST_SCALER_SINGLE_PIPE;
+        break;
+      case kDestScalerDualPipe:
+        dest_scalar_data->merge_mode = DEST_SCALER_DUAL_PIPE;
+        break;
+      case kDestScalerQuadPipe:
+        dest_scalar_data->merge_mode = DEST_SCALER_QUAD_PIPE;
+        break;
+      default:
+        DLOGI("Invalid destination scaler merge mode");
+        break;
+    }
+#endif
+
+    if (std::memcmp(&dest_scalar_cache_[i].scalar_data, scale, sizeof(SDEScaler)) ||
+        dest_scalar_cache_[i].flags != dest_scalar_data->flags) {
+      needs_ds_update_ = true;
+    }
+  }
+
+  if (needs_ds_update_) {
+    sde_dest_scalar_data_.num_dest_scaler = UINT32(dest_scale_info_map.size());
+    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_DEST_SCALER_CONFIG, token_.crtc_id,
+                              reinterpret_cast<uint64_t>(&sde_dest_scalar_data_));
+  }
+}
+
+void HWDeviceDRM::CacheDestScalarData() {
+  if ((dest_scaler_blocks_used_ > 0) && needs_ds_update_) {
+    for (uint32_t i = 0; i < sde_dest_scalar_data_.num_dest_scaler; i++) {
+      dest_scalar_cache_[i].flags = sde_dest_scalar_data_.ds_cfg[i].flags;
+      dest_scalar_cache_[i].scalar_data = scalar_data_[i];
+    }
+    needs_ds_update_ = false;
+  }
+}
+
+void HWDeviceDRM::ResetDestScalarCache() {
+  if (dest_scaler_blocks_used_ > 0) {
+    for (uint32_t j = 0; j < scalar_data_.size(); j++) {
+      dest_scalar_cache_[j] = {};
+    }
+  }
+}
+
+void HWDeviceDRM::ResetDestScalarData() {
+  if (sde_dest_scalar_data_.num_dest_scaler) {
+    for (uint32_t i = 0; i < dest_scaler_blocks_used_; i++) {
+      sde_drm_dest_scaler_cfg *dest_scalar_data = &sde_dest_scalar_data_.ds_cfg[i];
+      *dest_scalar_data = {};
+    }
+    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_DEST_SCALER_CONFIG, token_.crtc_id,
+                              reinterpret_cast<uint64_t>(&sde_dest_scalar_data_));
+    ResetDestScalarCache();
+  }
 }
 
 void HWDeviceDRM::UpdateDisplayAttributesForFSC(HWDisplayAttributes *display_attributes) {
@@ -1612,7 +1747,9 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   }
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_POWER_MODE, token_.conn_id, DRMPowerMode::OFF);
   drm_atomic_intf_->Perform(DRMOps::CRTC_SET_ACTIVE, token_.crtc_id, 0);
-  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_GET_RETIRE_FENCE, token_.conn_id, &retire_fence_fd);
+  if (disp_type_ != DRMDisplayType::VIRTUAL) {
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_GET_RETIRE_FENCE, token_.conn_id, &retire_fence_fd);
+  }
 
   if (cwb_config_[core_id_].enabled) {
     DeconfigureDNSCfromCwb();
@@ -1621,7 +1758,7 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   }
 
   bool is_synchronous = false;
-  if (hw_panel_info_.dpu_ctl_op_sync) {
+  if (hw_panel_info_.dpu_ctl_op_sync || (disp_type_ == DRMDisplayType::VIRTUAL)) {
     is_synchronous = true;
   }
   int ret = NullCommit(is_synchronous, false /* retain_planes */);
@@ -4187,6 +4324,13 @@ void HWDeviceDRM::ConfigureConcurrentWriteback(const HWLayersInfo &hw_layer_info
   } else if (has_cwb_crop_) {  // If CWB ROI feature is supported, then set WB connector's roi_v1
     // property to PU ROI and DST_* properties to CWB ROI. Else, set DST_* properties to full
     // frame ROI.
+
+    // To avoid driver error on downscale resource starvation, downscale rectangle configuration
+    // treats as CWB ROI configuration.
+    if (cwb_config->cwb_control_params.needs_downscale) {
+      cwb_config->cwb_roi = cwb_config->cwb_downscaled_rect;
+    }
+
     // Set WB connector's roi_v1 property to PU_ROI.
     if (is_full_frame_update) {
       drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_ROI, vitual_conn_id, 0, nullptr);
@@ -4406,6 +4550,10 @@ void HWDeviceDRM::HandleCwbTeardown(bool sync_teardown) {
 
 DisplayError HWDeviceDRM::NotifyExpectedPresent(uint64_t expected_present_time,
                                                 uint32_t frame_interval_ns) {
+  if (hw_panel_info_.vhm_support) {
+    DisplayEarlyWakeUp();
+  }
+
 #ifdef DRM_IOCTL_MSM_EARLY_EPT
   int ret = -1;
   struct drm_msm_display_early_ept early_ept_cfg = {};

@@ -1,0 +1,25 @@
+{
+  "activeuserId": "display_service_user",
+  "smartSelection": [
+    {
+      "appName": "com.test.cwb.imagealgo",
+      "selector": {
+        "accept_threshold": 0.05,
+        "remove_threshold": 0.05,
+        "max_size": 128
+      },
+      "extractor": {
+        "top_k": 4096,
+        "height": 640,
+        "detection_threshold": 0.05,
+        "is_path": true,
+        "device": "npu",
+        "featheat_qnn_config": "/vendor/etc/smartselection/models/npu/heat_config.json",
+        "kpts_qnn_config": "/vendor/etc/smartselection/models/npu/keypts_config.json"
+      },
+      "matcher": {
+        "min_cossim": 0.82
+      }
+    }
+  ]
+}

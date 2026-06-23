@@ -1,5 +1,7 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include "Debug.h"
 
@@ -57,9 +59,12 @@ bool Debug::IsSecurePreviewOnlyEnabled() {
   return (value == 1);
 }
 bool Debug::UseDMABufHeaps() {
-  int value = 0;
-  GetProperty(USE_DMA_BUF_HEAPS_PROP, &value);
-  return (value == 1);
+  static const bool use_dma_buf_heaps = [this]() {
+    int value = 0;
+    GetProperty(USE_DMA_BUF_HEAPS_PROP, &value);
+    return (value == 1);
+  }();
+  return use_dma_buf_heaps;
 }
 bool Debug::HwSupportsUBWCP() {
   int value = 0;

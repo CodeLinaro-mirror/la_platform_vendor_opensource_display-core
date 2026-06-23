@@ -592,6 +592,10 @@ DisplayError SDMDisplay::Init() {
     DLOGI("HDR Handling disabled");
   }
 
+  int composer_driven_hdcp;
+  SDMDebugHandler::Get()->GetProperty(COMPOSER_DRIVEN_HDCP, &composer_driven_hdcp);
+  composer_driven_hdcp_ = (composer_driven_hdcp == 1);
+
   int property_swap_interval = 1;
   SDMDebugHandler::Get()->GetProperty(ZERO_SWAP_INTERVAL,
                                       &property_swap_interval);
@@ -1123,7 +1127,12 @@ DisplayError SDMDisplay::SetVsyncEnabled(bool enabled) {
   SDMDebugHandler::ATRACE_INT("SetVsyncState ", enabled);
   DisplayError error = kErrorNone;
 
-  if (shutdown_pending_ || !event_handler_->VsyncCallbackRegistered()) {
+  if (shutdown_pending_ || !event_handler_ || !event_handler_->VsyncCallbackRegistered()) {
+    return kErrorNone;
+  }
+
+  if (!display_intf_) {
+    DLOGW("display_intf_ is null, cannot set VSync state.");
     return kErrorNone;
   }
 
@@ -2147,6 +2156,7 @@ SDMDisplay::PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence) {
 
   for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
     sdm_layer->ResetGeometryChanges();
+    sdm_layer->ResetBufferFlip();
     Layer *layer = sdm_layer->GetSDMLayer();
     LayerBuffer *layer_buffer = &layer->input_buffer;
     layer->request.flags = {};
@@ -2669,7 +2679,17 @@ DisplayError
 SDMDisplay::OnMinHdcpEncryptionLevelChange(uint32_t min_enc_level) {
   DisplayError error =
       display_intf_->OnMinHdcpEncryptionLevelChange(min_enc_level);
-  if (error != kErrorNone) {
+
+  // only send this callback if HDCP is driven by composer
+  if (composer_driven_hdcp_) {
+    if (error == kErrorNone) {
+      callbacks_->onHdcpLevelsChanged(id_, min_enc_level);
+    } else {
+      callbacks_->onHdcpLevelsChanged(id_, -1);
+    }
+  }
+
+  if (error) {
     DLOGE("Failed. Error = %d", error);
   }
 
@@ -2909,7 +2929,8 @@ DisplayError SDMDisplay::GetSupportedDisplayRefreshRates(
   Config active_config = 0;
   GetActiveConfig(false, &active_config);
 
-  uint32_t active_config_group = GetDisplayConfigGroup(variable_config_map_[active_config]);
+  uint32_t active_config_group = GetDisplayConfigGroup(variable_config_map_[active_config],
+                                                       variable_config_map_[active_config].fps);
   if (active_config_group == -1) {
     DLOGE("Failed to get config group of active config");
     return kErrorNotSupported;
@@ -2917,7 +2938,7 @@ DisplayError SDMDisplay::GetSupportedDisplayRefreshRates(
 
   supported_refresh_rates->resize(0);
   for (auto &config : variable_config_map_) {
-    uint32_t config_group = GetDisplayConfigGroup(config.second);
+    uint32_t config_group = GetDisplayConfigGroup(config.second, config.second.fps);
     if (config_group == -1) {
       DLOGE("Failed to get config group for config index: %u", config.first);
       return kErrorNotSupported;
@@ -2987,6 +3008,13 @@ void SDMDisplay::Dump(std::ostringstream *os) {
     *os << " secure: " << client_target_->IsProtected() << std::endl;
   }
 
+  if (!layer_stack_invalid_) {
+    const bool lsr_supported = (display_intf_ ? display_intf_->IsLSRSupported() : false);
+    if (lsr_supported && HasProjectionInputLayers()) {
+      DumpXRInputProjectionTable(os);
+    }
+  }
+
   if (layer_stack_invalid_) {
     *os << "\n Layers added or removed but not reflected to SDM's layer stack "
            "yet\n";
@@ -3004,6 +3032,64 @@ void SDMDisplay::Dump(std::ostringstream *os) {
   }
 
   *os << "\n";
+}
+
+bool SDMDisplay::HasProjectionInputLayers() const {
+  if (!sdm_layer_stack_) {
+    return false;
+  }
+  for (auto layer : sdm_layer_stack_->layer_set_) {
+    if (!layer)
+      continue;
+    const auto sdm_layer = layer->GetSDMLayer();
+    if (sdm_layer && sdm_layer->layer_visibility_type != LAYER_VISIBILITY_NONE) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void SDMDisplay::DumpXRInputProjectionTable(std::ostringstream *os) {
+  const char *line =
+      "|----------|-------|--------|------------|----------------------------|---------------------"
+      "----------------|-------------------|-------------------------------------|-----------------"
+      "--------------------|\n";
+  const char *header =
+      "| Layer_Id |  Type |  Space | Visibility |      Position (x,y,z)      |        Orientation "
+      "(x,y,z,w)        |     Quad (w,h)    |          Frustum (L,R,U,D)          |          Plane "
+      "Eq (a,b,c,d)         |\n";
+
+  *os << "\n-- VR/XR Input Layer Projection Info --\n";
+  *os << line << header << line;
+
+  for (auto layer : sdm_layer_stack_->layer_set_) {
+    const auto sdm_layer = layer->GetSDMLayer();
+    if (!sdm_layer || sdm_layer->comp_layer_type != 2)
+      continue;  // only PROJECTION
+
+    const int32_t idx = layer->GetId();
+    const char *type_str = GetCompositionLayerTypeName(sdm_layer->comp_layer_type);
+    const char *ref_str = GetRenderLayerReferenceSpaceName(sdm_layer->reference_space_type);
+    const char *vis_str = GetLayerVisibilityName(sdm_layer->layer_visibility_type);
+
+    char row[1024];
+    snprintf(row, sizeof(row),
+             "| %8d | %5s | %6s |  %8s  | %8.4f %8.4f %8.4f | "
+             "%8.4f %8.4f %8.4f %8.4f | %8.4f %8.4f | "
+             "%8.4f %8.4f %8.4f %8.4f | %8.4f %8.4f %8.4f %8.4f |\n",
+             idx, type_str, ref_str, vis_str, sdm_layer->layer_pose.pos.x,
+             sdm_layer->layer_pose.pos.y, sdm_layer->layer_pose.pos.z,
+             sdm_layer->layer_pose.orientation.x, sdm_layer->layer_pose.orientation.y,
+             sdm_layer->layer_pose.orientation.z, sdm_layer->layer_pose.orientation.w,
+             sdm_layer->layer_quad_size.width, sdm_layer->layer_quad_size.height,
+             sdm_layer->layer_frustum.angleLeft, sdm_layer->layer_frustum.angleRight,
+             sdm_layer->layer_frustum.angleUp, sdm_layer->layer_frustum.angleDown,
+             sdm_layer->plane_equation.a, sdm_layer->plane_equation.b, sdm_layer->plane_equation.c,
+             sdm_layer->plane_equation.d);
+
+    *os << row;
+  }
+  *os << line << "\n";
 }
 
 DisplayError SDMDisplay::GetDisplayIdentificationData(uint8_t *out_port,
@@ -3150,6 +3236,21 @@ SDMDisplay::GetDisplayConfigGroup(DisplayConfigGroupInfo variable_config) {
   for (auto &config : variable_config_map_) {
     DisplayConfigGroupInfo const &group_info = config.second;
     if (group_info == variable_config) {
+      return INT32(config.first);
+    }
+  }
+
+  return -1;
+}
+
+int32_t SDMDisplay::GetDisplayConfigGroup(DisplayConfigGroupInfo variable_config, uint32_t fps) {
+  for (auto &config : variable_config_map_) {
+    DisplayConfigGroupInfo const &group_info = config.second;
+    if (type_ == kPluggable) {
+      if (group_info == variable_config && fps == config.second.fps) {
+        return INT32(config.first);
+      }
+    } else if (group_info == variable_config) {
       return INT32(config.first);
     }
   }
@@ -4255,8 +4356,9 @@ void SDMDisplay::NotifyCwbDone(int32_t status, const LayerBuffer &buffer) {
 
 void SDMDisplay::Abort() { display_intf_->Abort(); }
 
-void SDMDisplay::MarkClientActive(bool is_client_up) {
+DisplayError SDMDisplay::MarkClientActive(bool is_client_up) {
   is_client_up_ = is_client_up;
+  return kErrorNone;
 }
 
 bool SDMDisplay::NotifyIdleNow() {

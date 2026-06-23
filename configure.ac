@@ -33,6 +33,8 @@ AC_ARG_WITH(sanitized-headers,
        [Specify the location of the sanitized Linux headers]),
    [CPPFLAGS="$CPPFLAGS -I$withval"])
 
+AC_SUBST([COLOR_CPPFLAGS], ["-I${includedir}/display-color"])
+
 AC_ARG_ENABLE([sdmhaldrm],
      AC_HELP_STRING([--enable-sdmhaldrm],
         [enable sdmhaldrm, build display-hal-linux with sdmhaldrm]),

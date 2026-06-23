@@ -740,7 +740,7 @@ void DRMPlane::GetTypeInfo(const PropertyMap &prop_map) {
   // We may have multiple lines with each one dedicated for something specific
   // like formats etc
   stringstream stream(fmt_str);
-  DRM_LOGI("stream str %s len %zu blob str %s len %d", stream.str().c_str(), stream.str().length(),
+  DRM_LOGV("stream str %s len %zu blob str %s len %d", stream.str().c_str(), stream.str().length(),
            (char *)(blob->data), blob->length);
 
   string line = {};
@@ -793,7 +793,7 @@ void DRMPlane::GetTypeInfo(const PropertyMap &prop_map) {
       info->max_vertical_deci = std::stoi(line.erase(0, max_vertical_deci.length()));
     } else if (line.find(master_plane_id) != string::npos) {
       info->master_plane_id = std::stoi(line.erase(0, master_plane_id.length()));
-      DRM_LOGI("info->master_plane_id: detected master_plane=%d", info->master_plane_id);
+      DRM_LOGV("info->master_plane_id: detected master_plane=%d", info->master_plane_id);
     } else if (line.find(max_pipe_bw) != string::npos) {
       info->max_pipe_bandwidth = std::stoull(line.erase(0, max_pipe_bw.length()));
     } else if (line.find(max_pipe_bw_high) != string::npos) {
@@ -1666,8 +1666,8 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       }
       uint32_t ref_space_type = va_arg(args, uint32_t);
       prop_id = prop_mgr_.GetPropertyId(DRMProperty::REFERENCE_SPACE_TYPE);
-      AddProperty(req, obj_id, prop_id, ref_space_type, true /* cache */, tmp_prop_val_map_);
-      DRM_LOGD("Plane %d: Setting reference space type %d", obj_id, ref_space_type);
+      AddProperty(req, obj_id, prop_id, ref_space_type, false /* cache */, tmp_prop_val_map_);
+      DRM_LOGI("Plane %d: Setting reference space type %d", obj_id, ref_space_type);
     } break;
     case DRMOps::PLANE_SET_RENDER_POSE: {
       if (!prop_mgr_.IsPropertyAvailable(DRMProperty::RENDER_POSE)) {
@@ -1677,8 +1677,12 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       render_pose_copy_ = *handle;
       prop_id = prop_mgr_.GetPropertyId(DRMProperty::RENDER_POSE);
       AddProperty(req, obj_id, prop_id, reinterpret_cast<uint64_t>(&render_pose_copy_),
-                  true /* cache */, tmp_prop_val_map_);
-      DRM_LOGD("Plane %d: Setting render_pose", obj_id);
+                  false /* cache */, tmp_prop_val_map_);
+      DRM_LOGI(
+          "Plane %d: Setting render_pose position [x, y, z] : [0x%x, 0x%x, 0x%x] , orientation [x, "
+          "y, z, w] : [0x%x, 0x%x, 0x%x, 0x%x]",
+          obj_id, handle->x_position, handle->y_position, handle->z_position, handle->x_orientation,
+          handle->y_orientation, handle->z_orientation, handle->w_orientation);
     } break;
     case DRMOps::PLANE_SET_RENDER_FRUSTUM: {
       if (!prop_mgr_.IsPropertyAvailable(DRMProperty::RENDER_FRUSTUM)) {
@@ -1688,8 +1692,11 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       render_frustum_copy_ = *handle;
       prop_id = prop_mgr_.GetPropertyId(DRMProperty::RENDER_FRUSTUM);
       AddProperty(req, obj_id, prop_id, reinterpret_cast<uint64_t>(&render_frustum_copy_),
-                  true /* cache */, tmp_prop_val_map_);
-      DRM_LOGD("Plane %d: Setting render_frustum", obj_id);
+                  false /* cache */, tmp_prop_val_map_);
+      DRM_LOGI(
+          "Plane %d: Setting render_frustum angle [left, right, up, down] : [0x%x, 0x%x, 0x%x, "
+          "0x%x]",
+          obj_id, handle->angle_left, handle->angle_right, handle->angle_up, handle->angle_down);
     } break;
     case DRMOps::PLANE_SET_PLANE_EQUATION: {
       if (!prop_mgr_.IsPropertyAvailable(DRMProperty::PLANE_EQUATION)) {
@@ -1699,8 +1706,9 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       plane_equation_copy_ = *handle;
       prop_id = prop_mgr_.GetPropertyId(DRMProperty::PLANE_EQUATION);
       AddProperty(req, obj_id, prop_id, reinterpret_cast<uint64_t>(&plane_equation_copy_),
-                  true /* cache */, tmp_prop_val_map_);
-      DRM_LOGD("Plane %d: Setting plane_equation", obj_id);
+                  false /* cache */, tmp_prop_val_map_);
+      DRM_LOGI("Plane %d: Setting plane_equation [a b c d] : [0x%x 0x%x 0x%x 0x%x]", obj_id,
+               handle->a, handle->b, handle->c, handle->d);
     } break;
     case DRMOps::PLANE_SET_LAYER_GAMMA: {
       if (!prop_mgr_.IsPropertyAvailable(DRMProperty::LAYER_GAMMA)) {
@@ -1708,8 +1716,8 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       }
       uint32_t layer_gamma = va_arg(args, uint32_t);
       prop_id = prop_mgr_.GetPropertyId(DRMProperty::LAYER_GAMMA);
-      AddProperty(req, obj_id, prop_id, layer_gamma, true /* cache */, tmp_prop_val_map_);
-      DRM_LOGD("Plane %d: Setting layer_gamma %d", obj_id, layer_gamma);
+      AddProperty(req, obj_id, prop_id, layer_gamma, false /* cache */, tmp_prop_val_map_);
+      DRM_LOGI("Plane %d: Setting layer_gamma %d", obj_id, layer_gamma);
     } break;
 
     case DRMOps::PLANE_SET_DISPARITY_PHASE: {
@@ -1719,7 +1727,7 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       uint32_t disparity_phase = va_arg(args, uint32_t);
       prop_id = prop_mgr_.GetPropertyId(DRMProperty::DISPARITY_PHASE);
       AddProperty(req, obj_id, prop_id, disparity_phase, true /* cache */, tmp_prop_val_map_);
-      DRM_LOGD("Plane %d: Setting disparity_phase %d", obj_id, disparity_phase);
+      DRM_LOGI("Plane %d: Setting disparity_phase %d", obj_id, disparity_phase);
     } break;
 
 #ifdef UCSC_SUPPORTED

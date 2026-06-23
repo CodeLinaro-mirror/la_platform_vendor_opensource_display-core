@@ -108,6 +108,8 @@ class ResourceInterface {
                                                std::vector<FetchResourceList> *frl) = 0;
   virtual DisplayError ReserveABCFetchResources(const uint32_t &display_id, bool is_primary,
                                                 const int8_t &req_cnt) = 0;
+  virtual DisplayError GetQrtcFetchResources(Handle display_ctx,
+                                             std::vector<FetchResourceList> *frl) = 0;
   virtual ~ResourceInterface() {}
   virtual DisplayError SetMaxSDEClk(Handle display_ctx, uint32_t clk) = 0;
   virtual DisplayError ForceToneMapConfigure(Handle display_ctx,
@@ -136,6 +138,8 @@ class ResourceInterface {
       Handle display_ctx, const SDMDisplayDeviceConfig &display_device_config) = 0;
   virtual DisplayError SetPoseConfig(Handle display_ctx, const LayerBuffer &buffer) = 0;
   virtual DisplayError CanTakeDPUScreenshot(uint32_t display_id) = 0;
+  virtual DisplayError ConfigureDynamicCaCConfig(Handle display_ctx,
+                                                 DispLayerStack *disp_layer_stack) = 0;
 };
 
 }  // namespace sdm

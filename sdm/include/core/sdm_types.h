@@ -123,6 +123,7 @@ enum DisplayError {
   kErrorNeedsQosRecalc,   //!< QoS data recalculation is needed for this draw cycle.
   kErrorNeedsQosRecalcAndLutRegen,  //!< QoS data recalculation and Tonemapping LUT regen is needed
                                     //   for this draw cycle.
+  kErrorNeedsDynamicCac,  //!< Configure dynamic CAC.
   kSeamlessNotAllowed,    //!< Seemless switch between configs not allowed.
   kErrorDeviceBusy,       //!< Device is currently busy with other tasks.
   kErrorTryAgain,         //!< Try the task again.
@@ -165,6 +166,7 @@ enum DebugTag {
   kTagSelfRefresh,      //!< Debug log is tagged for HAL Self-Refresh Implementation.
   kTagDemura,           //!< Debug log is tagged for Demura and DemuraTn Implementation.
   kTagColorProc,        //!< Debug log is tagged for Color Processing Implementation.
+  kTagRefreshRate,      //!< Debug log is tagged for refresh rate manager.
 };
 
 typedef std::vector<std::pair<std::string, std::string>> ColorModeAttributeVal;
@@ -398,6 +400,13 @@ struct SDMLayerPosition {
   float x = 0;
   float y = 0;
   float z = 0;
+  bool operator==(const SDMLayerPosition& position) const {
+    return x == position.x && y == position.y && z == position.z;
+  }
+
+  bool operator!=(const SDMLayerPosition& position) const {
+    return !operator==(position);
+  }
 };
 
 struct SDMLayerOrientation {
@@ -405,16 +414,37 @@ struct SDMLayerOrientation {
   float y = 0;
   float z = 0;
   float w = 0;
+  bool operator==(const SDMLayerOrientation& rotation) const {
+    return x == rotation.x && y == rotation.y && z == rotation.z && w == rotation.w;
+  }
+
+  bool operator!=(const SDMLayerOrientation& rotation) const {
+    return !operator==(rotation);
+  }
 };
 
 struct SDMLayerPose {
     SDMLayerPosition pos;
     SDMLayerOrientation orientation;
+  bool operator==(const SDMLayerPose& pose) const {
+    return pos == pose.pos && orientation == pose.orientation;
+  }
+
+  bool operator!=(const SDMLayerPose& pose) const {
+    return !operator==(pose);
+  }
 };
 
 struct SDMLayerQuadSize {
   float width = 0;
   float height = 0;
+  bool operator==(const SDMLayerQuadSize& quad_size) const {
+    return width == quad_size.width && height == quad_size.height;
+  }
+
+  bool operator!=(const SDMLayerQuadSize& quad_size) const {
+    return !operator==(quad_size);
+  }
 };
 
 // TODO: Fill default values
@@ -423,13 +453,28 @@ struct SDMLayerFrustum {
   float angleRight = 0;
   float angleUp = 0;
   float angleDown = 0;
+  bool operator==(const SDMLayerFrustum& frustum) const {
+    return angleLeft == frustum.angleLeft && angleRight == frustum.angleRight &&
+           angleUp == frustum.angleUp && angleDown == frustum.angleDown;
+  }
+
+  bool operator!=(const SDMLayerFrustum& frustum) const {
+    return !operator==(frustum);
+  }
 };
 
 struct SDMLayerPlaneEquation {
-    float a = 0;
-    float b = 0;
-    float c = 0;
-    float d = 0.000001;
+  float a = 0;
+  float b = 0;
+  float c = 0;
+  float d = 0.000001;
+  bool operator==(const SDMLayerPlaneEquation& plane_eq) const {
+    return a == plane_eq.a && b == plane_eq.b && c == plane_eq.c && d == plane_eq.d;
+  }
+
+  bool operator!=(const SDMLayerPlaneEquation& plane_eq) const {
+    return !operator==(plane_eq);
+  }
 };
 
 struct SDMDisplayProjectionMatrix {
@@ -598,6 +643,7 @@ enum SDMCapability {
   kHdrOutputConversionConfig = 6,
   kRefreshRateChangedCallbackDebug = 7,
   kLayerLifeCycleBatchCommand = 8,
+  kDisplayCommandConfigChange = 9,
 };
 
 enum SDMFormatColorComponent {
@@ -740,6 +786,13 @@ enum CWBClient {
   kCWBClientColor,     // Internal client i.e. Color Manager
   kCWBClientExternal,  // External client calling through private APIs
   kCWBClientComposer,  // Client to SDM i.e. SurfaceFlinger
+};
+
+// Virtual display type supported by SDM.
+enum SDMVirtualDispType {
+  kVirtualTypeDefault = 0,  // Default virtual display type.
+  kVirtualTypePQ,           // Virtual display type with PQ processing enabled.
+  kVirtualTypeMax,          // Maximum value for virtual display types.
 };
 
 }  // namespace sdm

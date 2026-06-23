@@ -136,6 +136,8 @@ class CompManager : public CwbCallback {
   DisplayError HandleCwbFrequencyBoost(bool isRequest);
   DisplayError PreCommit(Handle display_ctx);
   DisplayError CaptureCwb(Handle display_ctx, const LayerBuffer &buffer, const CwbConfig &config);
+  DisplayError ReserveWBForDisplay(Handle display_ctx, int32_t *wb_id);
+  void ReleaseWBFromDisplay(Handle display_ctx, int32_t wb_id);
   bool HasPendingCwbRequest(Handle display_ctx);
   bool HandleCwbTeardown(Handle display_ctx);
   DisplayError RequestVirtualDisplayId(int32_t *vdisp_id);
@@ -167,6 +169,8 @@ class CompManager : public CwbCallback {
   DisplayError GetIllumination(uint32_t eye, const IlluminationConfig &in_config,
                                IlluminationConfig *out_config);
   DisplayError GetPixelShiftData(std::vector<PixelShiftConfig> *pixel_shift_config);
+  DisplayError GetQrtcFetchResources(Handle display_ctx, std::vector<FetchResourceList> *frl);
+  DisplayError ConfigureDynamicCacConfig(Handle display_ctx, DispLayerStack *disp_layer_stack);
 
  private:
   static const int kMaxThermalLevel = 3;

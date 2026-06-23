@@ -149,6 +149,10 @@ DisplayBase::~DisplayBase() {
     lock.NotifyWorker();
   }
 
+  if (refresh_rate_mgr_) {
+    delete refresh_rate_mgr_;
+  }
+
   commit_thread_.join();
 }
 
@@ -179,7 +183,7 @@ DisplayError DisplayBase::Init() {
   for (auto info_intf = hw_info_intf_.Begin(); info_intf != hw_info_intf_.End(); info_intf++) {
     HWResourceInfo res_info;
     info_intf->second->GetHWResourceInfo(&res_info);
-    wb_downscale_supports_ |= !!info_intf->second->GetMaxDNSCBlurBlockCount();
+    wb_downscale_supports_ |= info_intf->second->IsDownscaledCwbSupported(-1 /* For any WB */);
     hw_resource_info_.push_back(res_info);
   }
 
@@ -196,6 +200,12 @@ DisplayError DisplayBase::Init() {
   int hw_recovery_threshold = 1;
   int32_t prop = 0;
   uint32_t inactive_ms = 0;
+
+  // Check if current display is SPI type before loading extension library
+  int value = 0;
+  Debug::Get()->GetProperty(SPI_DISPLAY_PRESENT, &value);
+  bool is_spi_display = (value == 1);
+
   dpu_core_mux_->GetActiveConfig(&active_index);
   dpu_core_mux_->GetDisplayAttributes(active_index, &device_ctx_,
                                       &client_ctx_);
@@ -293,8 +303,8 @@ DisplayError DisplayBase::Init() {
   }
   DisplayBase::SetMaxMixerStages(max_mixer_stages);
 
-  // Open extension lib
-  if (!extension_lib_) {
+  // Open extension lib only if it is not SPI display
+  if (!is_spi_display && !extension_lib_) {
     if (!extension_lib_.Open(EXTENSION_LIBRARY_NAME)) {
       DLOGW("Unable to open lib %s, error = %s", EXTENSION_LIBRARY_NAME,
             extension_lib_.Error());
@@ -383,6 +393,8 @@ DisplayError DisplayBase::Init() {
   InitBorderLayers();
   // Assume unified draw is supported.
   unified_draw_supported_ = true;
+
+  refresh_rate_mgr_ = new RefreshRateManager(display_id_, display_type_, avr_step_);
 
   return kErrorNone;
 
@@ -621,7 +633,8 @@ DisplayError DisplayBase::SetupPanelFeatureFactory() {
     }
   }
 
-  int enable_qrtc = 1;
+  int enable_qrtc = 0;
+  Debug::Get()->GetProperty(ENABLE_QRTC, &enable_qrtc);
   GetQrtcFactory get_qrtc_factory_ptr = nullptr;
   if (enable_qrtc) {
     if (qrtc_feature_impl_lib_.Open(QRTC_LIBRARY_NAME)) {
@@ -1682,6 +1695,10 @@ DisplayError DisplayBase::CommitOrPrepare(LayerStack *layer_stack) {
     lock.NotifyWorker();
   }
 
+  if (refresh_rate_mgr_) {
+    refresh_rate_mgr_->CalculateRefreshRate(disp_layer_stack_, client_ctx_, /*is_idle*/ false);
+  }
+
   return async_commit ? kErrorNone : kErrorNeedsCommit;
 }
 
@@ -1773,6 +1790,10 @@ void DisplayBase::CommitThread() {
       if (self_refresh_state) {
         PerformSelfRefresh(srEPT);
         continue;
+      } else {
+        if (refresh_rate_mgr_) {
+          refresh_rate_mgr_->CalculateRefreshRate(disp_layer_stack_, client_ctx_, /*is_idle*/ true);
+        }
       }
 
       event_handler_->HandleEvent(kIdleTimeout);
@@ -2104,6 +2125,7 @@ DisplayError DisplayBase::PostCommit() {
   }
 
   mixer_resolution_updated_ = false;
+  pending_rgb_histogram_roi_ = false;
   return error;
 }
 
@@ -2567,7 +2589,12 @@ DisplayError DisplayBase::SetActiveConfig(uint32_t index) {
   active_config_index_ = index;
   active_refresh_rate_ = client_ctx.display_attributes.fps;
 
-  return ReconfigureDisplay();
+  error = ReconfigureDisplay();
+  if (refresh_rate_mgr_) {
+    refresh_rate_mgr_->CalculateRefreshRate(disp_layer_stack_, client_ctx_, /*is_idle*/ false);
+  }
+
+  return error;
 }
 
 DisplayError DisplayBase::SetMaxMixerStages(uint32_t max_mixer_stages) {
@@ -3863,6 +3890,7 @@ void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
   }
 
   UpdateFrameBuffer();
+  UpdateFrameBufferForCWB();
 
   if (layer_stack->elapse_timestamp) {
     disp_layer_stack_->stack_info.common_info.elapse_timestamp = layer_stack->elapse_timestamp;
@@ -3880,16 +3908,7 @@ void DisplayBase::UpdateFrameBuffer() {
     return;
   }
 
-  bool client_target_present = false;
-  for (auto& info : disp_layer_stack_->info) {
-    for (auto &hw_layer : info.second.hw_layers) {
-      if (hw_layer.composition == kCompositionGPUTarget) {
-        client_target_present = true;
-        break;
-      }
-    }
-  }
-  bool need_cached_fb = !gpu_comp_frame_ && client_target_present;
+  bool need_cached_fb = !gpu_comp_frame_ && IsFrameBufferPresent();
   if (!need_cached_fb) {
     return;
   }
@@ -3907,6 +3926,20 @@ void DisplayBase::UpdateFrameBuffer() {
       }
     }
   }
+}
+
+bool DisplayBase::IsFrameBufferPresent() {
+  bool client_target_present = false;
+  for (auto &info : disp_layer_stack_->info) {
+    for (auto &hw_layer : info.second.hw_layers) {
+      if (hw_layer.composition == kCompositionGPUTarget) {
+        client_target_present = true;
+        break;
+      }
+    }
+  }
+
+  return client_target_present;
 }
 
 void DisplayBase::PostCommitLayerParams() {
@@ -5439,6 +5472,16 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
   cwb_active_ = true;
 
   return kErrorNone;
+}
+
+DisplayError DisplayBase::ReserveWBForDisplay(int32_t *wb_id) {
+  ClientLock lock(disp_mutex_);
+  return comp_manager_->ReserveWBForDisplay(display_comp_ctx_, wb_id);
+}
+
+void DisplayBase::ReleaseWBFromDisplay(int32_t wb_id) {
+  ClientLock lock(disp_mutex_);
+  comp_manager_->ReleaseWBFromDisplay(display_comp_ctx_, wb_id);
 }
 
 bool DisplayBase::HandleCwbTeardown() {

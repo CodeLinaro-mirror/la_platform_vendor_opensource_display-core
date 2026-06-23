@@ -41,6 +41,15 @@ DisplayError DPUMultiCore::Init() {
 }
 
 DisplayError DPUMultiCore::Destroy() {
+  for (uint32_t idx = 1; idx < op_sync_sequence_.size(); idx++) {
+    uint32_t core_id = core_ids_[op_sync_sequence_[idx]];
+    auto &commit_thread_map = display_commit_thread_map_[core_id];
+    std::unique_lock<std::mutex> lock(commit_thread_map.lock);
+    // Signal commit thread on each core to exit
+    commit_thread_map.commit_thread_running = false;
+    commit_thread_map.worker_thread_cv.notify_one();
+  }
+
   for (auto hw_intf : hw_intf_) {
     HWInterface::Destroy(hw_intf.second);
   }
@@ -403,12 +412,106 @@ DisplayError DPUMultiCore::Validate(std::map<uint32_t, HWLayersInfo> &hw_layers_
   return kErrorNone;
 }
 
-DisplayError DPUMultiCore::Commit(std::map<uint32_t, HWLayersInfo> &hw_layers_info) {
-  for (uint32_t i : op_sync_sequence_) {
-    DisplayError error = hw_intf_.at(core_ids_[i])->Commit(&hw_layers_info.at(core_ids_[i]));
-    if (error != kErrorNone) {
-      return error;
+void DPUMultiCore::PerformAsyncCommitOnCores(std::map<uint32_t, HWLayersInfo> &hw_layers_info) {
+  for (uint32_t idx = 1; idx < op_sync_sequence_.size(); idx++) {
+    uint32_t core_idx = op_sync_sequence_[idx];
+    uint32_t core_id = core_ids_[core_idx];
+    auto &commit_thread_map = display_commit_thread_map_[core_id];
+    std::unique_lock<std::mutex> lock(commit_thread_map.lock);
+    auto commit_req_node = std::make_shared<CommitRequest>(&hw_layers_info.at(core_id));
+
+    //queue commit to async commit thread for this core
+    commit_thread_map.commit_req = commit_req_node;
+    commit_thread_map.commit_pending = true;
+
+    if (commit_thread_map.commit_thread_running == true &&
+        commit_thread_map.commit_req != nullptr) {
+      // Wake up async commit thread for this core to handle new commit req
+      commit_thread_map.worker_thread_cv.notify_one();
     }
+
+    if (!commit_thread_map.commit_thread_running && commit_thread_map.commit_req != nullptr) {
+      // Spawn a new commit thread for this core. This thread will handle all commit requests.
+      commit_thread_map.commit_thread_running = true;
+      commit_thread_map.future =
+          std::async(std::launch::async, &DPUMultiCore::CommitOnCore, this, core_id);
+      DLOGI("Spawned commit thread for core id: %d", core_id);
+    }
+  }
+}
+
+void DPUMultiCore::CommitOnCore(int core_id) {
+  // Run with real time priority
+  SetRealTimePriority();
+  auto &commit_thread_map = display_commit_thread_map_[core_id];
+  while (true) {
+    std::shared_ptr<CommitRequest> commit_req = nullptr;
+    {
+      std::unique_lock<std::mutex> lock(commit_thread_map.lock);
+      if (commit_thread_map.commit_req == nullptr) {
+        //wait untill new commit job is queued for this core
+        commit_thread_map.worker_thread_cv.wait(lock);
+      }
+
+      if (commit_thread_map.commit_thread_running == false) {
+        //exit commit thread for this core
+        DLOGI("Exiting commit thread for core id: %d", core_id);
+        break;
+      }
+
+      commit_req = commit_thread_map.commit_req;
+      if (commit_req == nullptr || commit_req->hw_layers_info == nullptr ||
+          !commit_thread_map.commit_pending) {
+        //skip invalid commit request
+        commit_thread_map.commit_req = nullptr;
+        continue;
+      }
+
+      //trigger hw commit on this core
+      auto error = hw_intf_.at(core_id)->Commit(commit_req->hw_layers_info);
+      commit_thread_map.commit_req = nullptr;
+      commit_thread_map.commit_response = error;
+
+      //commit is finished and commit_response is available
+      commit_thread_map.commit_pending = false;
+      commit_thread_map.commit_response_cv.notify_one();
+    }
+  }
+}
+
+DisplayError DPUMultiCore::Commit(std::map<uint32_t, HWLayersInfo> &hw_layers_info) {
+  // For multiple dpu cores, spawn seperate async commit thread on all cores except first core
+  // in op_sync_sequence_. Commit on the first core is done on current commit thread.
+  if (op_sync_sequence_.size() > 1) {
+    PerformAsyncCommitOnCores(hw_layers_info);
+  }
+
+  // Initiate synchronous commit on first core in op_sync_sequence_
+  auto core_id = core_ids_[op_sync_sequence_[0]];
+  DisplayError error = hw_intf_.at(core_id)->Commit(&hw_layers_info.at(core_id));
+  if (error != kErrorNone) {
+    DLOGE("COMMIT failed on core_id: %d with error: %d ", core_id, error);
+  }
+
+  // For multiple dpu cores, wait for async commit to complete on respective cores, then check
+  // the commit return status
+  for (uint32_t idx = 1; idx < op_sync_sequence_.size(); idx++) {
+    uint32_t core_id = core_ids_[op_sync_sequence_[idx]];
+    auto &commit_thread_map = display_commit_thread_map_[core_id];
+    std::unique_lock<std::mutex> lock(commit_thread_map.lock);
+
+    //wait for completion of async commit on this core, then check the commit return status
+    commit_thread_map.commit_response_cv.wait(
+        lock, [&commit_thread_map] { return !commit_thread_map.commit_pending; });
+    DisplayError commit_response = commit_thread_map.commit_response;
+    if (commit_response != kErrorNone) {
+      DLOGE("COMMIT failed on core_id: %d with error: %d ", core_id, commit_response);
+      error = commit_response;
+    }
+  }
+
+  if (error != kErrorNone) {
+    return error;
   }
 
   shared_ptr<Fence> retire_fence = hw_layers_info.at(core_ids_[0]).retire_fence;

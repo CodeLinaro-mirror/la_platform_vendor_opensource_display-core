@@ -1,0 +1,83 @@
+cc_library_shared {
+    name: "libImageAlgoIntegration",
+    vendor: true,
+    proprietary: true,
+
+    required: [
+        "libImageAlgoAdapter_smartselection",
+    ],
+
+    srcs: [
+        "image_algo_adapter_factory.cpp",
+    ],
+
+    export_include_dirs: ["include"],
+
+    local_include_dirs: [
+        "include",
+        ".",
+        "common",
+    ],
+
+    header_libs: [
+        "display_headers",
+        "snapalloc_interface_headers",
+    ],
+
+    export_header_lib_headers: [
+        "display_headers",
+        "snapalloc_interface_headers",
+    ],
+
+    shared_libs: [
+        "libdisplaydebug",
+        "libc++",
+        "libdl",
+    ],
+
+    cflags: [
+        "-Wno-missing-field-initializers",
+        "-Wno-unused-parameter",
+    ],
+}
+
+cc_library_shared {
+    name: "libImageAlgoAdapter_smartselection",
+    vendor: true,
+    proprietary: true,
+
+    srcs: [
+        "smartselection_adapter/smartselection_adapter.cpp",
+        "common/image_algo_common.cpp",
+    ],
+
+    local_include_dirs: [
+        "include",
+        ".",
+        "common",
+        "smartselection_adapter",
+    ],
+
+    header_libs: [
+        "display_headers",
+        "snapalloc_interface_headers",
+    ],
+
+    shared_libs: [
+        "liblog",
+        "libc++",
+        "libdl",
+        "libdisplaydebug",
+        "libnativewindow",
+        "libui",
+    ],
+
+    sanitize: {
+        integer_overflow: true,
+    },
+
+    cflags: [
+        "-Wno-missing-field-initializers",
+        "-Wno-unused-parameter",
+    ],
+}
