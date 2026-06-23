@@ -877,6 +877,7 @@ void DRMConnector::ParseModeProperties(uint64_t blob_id, DRMConnectorInfo *info)
   // TODO(user): Add support for dyn_pclk_list
   const string submode_string = "submode_idx=";
   const string compression_mode = "dsc_mode=";
+  const string spr_mode = "spr_mode=";
   const string preferred_submode_string = "preferred_submode_idx=";
   const string qsync_min_fps = "qsync_min_fps=";
   const string bpp_mode = "bpp_mode=";
@@ -989,6 +990,14 @@ void DRMConnector::ParseModeProperties(uint64_t blob_id, DRMConnectorInfo *info)
         submode_index = 0;
       }
       submode_item->panel_compression_mode = std::stoi(string(line, compression_mode.length()));
+    } else if (line.find(spr_mode) != string::npos) {
+      if (!submode_item) {
+        DRMSubModeInfo submode = {};
+        mode_item->sub_modes.push_back(submode);
+        submode_item = &mode_item->sub_modes.at(submode_index++);
+        submode_index = 0;
+      }
+      submode_item->spr_mode = std::stoi(string(line, spr_mode.length()));
     } else if (line.find(qsync_min_fps) != string::npos) {
       mode_item->qsync_min_fps = std::stoi(string(line, qsync_min_fps.length()));
     } else if (line.find(bpp_mode) != string::npos) {
@@ -1459,6 +1468,22 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
                  " ret %d", obj_id, prop_id, drm_bit_clk_rate, ret);
       } else {
         DRM_LOGD("Connector %d: Setting dynamic bit clk rate %" PRIu64, obj_id, drm_bit_clk_rate);
+      }
+    } break;
+
+    case DRMOps::CONNECTOR_SET_SPR_MODE: {
+      uint32_t spr_mode = va_arg(args, uint32_t);
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::SPR_MODE)) {
+        DRM_LOGE("property not available\n");
+        return;
+      }
+      uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::SPR_MODE);
+      int ret = drmModeAtomicAddProperty(req, obj_id, prop_id, spr_mode);
+      if (ret < 0) {
+        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, spr_mode %u ret %d",
+                 obj_id, prop_id, spr_mode, ret);
+      } else {
+        DRM_LOGD("Connector %d: Setting SPR mode %u", obj_id, spr_mode);
       }
     } break;
 

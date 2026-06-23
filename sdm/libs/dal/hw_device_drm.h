@@ -313,6 +313,7 @@ class HWDeviceDRM : public HWInterface {
   void SetTopologySplit(HWTopology hw_topology, uint32_t *split_number);
   uint64_t GetSupportedBitClkRate(uint32_t new_mode_index,
                                   uint64_t bit_clk_rate_request);
+  virtual DisplayError SetDynamicSPRMode(bool spr_mode);
   DisplayError GetPanelBlMaxLvl(uint32_t *bl_max);
   DisplayError SetPPConfig(void *payload, size_t size);
   DisplayError GetQsyncFps(uint32_t *qsync_fps) { return kErrorNotSupported; }
@@ -373,7 +374,7 @@ class HWDeviceDRM : public HWInterface {
   DisplayError UpdateLoopBackConnector();
   bool IsSeamlessTransition() {
     return (hw_panel_info_.dynamic_fps && (vrefresh_ || seamless_mode_switch_)) ||
-     panel_mode_changed_ || bit_clk_rate_;
+     panel_mode_changed_ || bit_clk_rate_ || spr_mode_changed_;
   }
   uint32_t GetNumInterfaces(sde_drm::DRMTopology topology);
 
@@ -413,6 +414,8 @@ class HWDeviceDRM : public HWInterface {
   uint32_t bpp_mode_changed_ = 0;
   bool reset_output_fence_offset_ = false;
   uint64_t bit_clk_rate_ = 0;
+  bool spr_mode_ = false;
+  bool spr_mode_changed_ = false;
   bool update_mode_ = false;
   HWPowerState pending_power_state_ = kPowerStateNone;
   uint32_t video_mode_index_ = 0;

@@ -288,7 +288,7 @@ enum struct DRMProperty {
   SDE_QRTC_BUFFER_V1,
   DISPARITY_PHASE,
   VSYNC_OFFSET,
-
+  SPR_MODE,
   // Insert above
   MAX
 };
