@@ -46,6 +46,7 @@
 #include <private/strategy_interface.h>
 #include <utils/multi_core_instantiator.h>
 #include <qrtc_feature_fact_intf.h>
+#include <BufferUsage.h>
 
 #include <limits.h>
 #include <map>
@@ -77,6 +78,7 @@ namespace sdm {
 
 using std::recursive_mutex;
 using std::lock_guard;
+using BufferUsage = vendor_qti_hardware_display_common_BufferUsage;
 
 typedef PanelFeatureFactoryIntf* (*GetPanelFeatureFactory)();
 typedef DemuraTnCoreUvmFactoryIntf* (*GetDemuraTnFactory)();
@@ -456,6 +458,17 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   DisplayError ValidateExtendedDisplayResolutions(vector<pair<uint32_t, uint32_t>> ext_disp_res,
                                                   vector<pair<uint32_t, uint32_t>> *fin_disp_res);
   void UpdateColorModes();
+  bool AlignCwbDnscDim(const LayerBuffer &output_buffer, CwbConfig &cwb_config);
+
+  // Helper functions for AlignCwbDnscDim
+  bool ValidateAndAdjustCwbDnscDimensions(uint32_t &dnsc_width, uint32_t &dnsc_height,
+                                          uint32_t full_width, uint32_t full_height,
+                                          uint32_t buf_width, uint32_t buf_height);
+  uint32_t CalculateScaleFactors(uint32_t full_dim, uint32_t req_dim, uint32_t buf_dim);
+  uint32_t FindClosestScaleForIntDim(uint32_t full_dim, uint32_t req_dim, uint32_t buf_dim,
+                                     bool prefer_h_scale);
+  void AdjustCwbOutputOffset(LayerRect &ds_rect, uint32_t dnsc_width, uint32_t dnsc_height,
+                             uint32_t buf_width, uint32_t buf_height);
 
   DisplayMutex disp_mutex_;
   bool need_async_poweroff_wait_ = false;
@@ -653,6 +666,9 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   int32_t mirror_src_display_id_ = -1;
   bool needs_mirror_source_validation_ = false;
   bool wb_downscale_supports_ = false;
+  bool wb_qrtc_supports_ = false;
+  uint32_t wb_dnsc_min_ratio_ = 0;
+  uint32_t wb_dnsc_max_ratio_ = 0;
   bool enable_ai_scaler_ = false;
   uint64_t next_expected_present_ = 0;
   bool cwb_with_lsr_active_ = false;
