@@ -685,6 +685,11 @@ enum struct DRMOps {
    */
   CONNECTOR_DNSC_BLR,
   /*
+   * Op: writeback downscale properties
+   * Arg: drmModeAtomicReq - Atomic request
+   */
+  CONNECTOR_WB_DNSC,
+  /*
    * Op: WB usage type (wfd/cwb/iwe)
    * Arg: drmModeAtomicReq - Atomic request
    */
@@ -1281,7 +1286,9 @@ struct DRMConnectorInfo {
   // Connection status of this connector
   bool is_connected;
   bool is_wb_ubwc_supported;
-  bool is_wb_downscale_supported = false;
+  bool is_wb_dnsc_supported = false;
+  uint32_t wb_dnsc_min_ratio = 0;
+  uint32_t wb_dnsc_max_ratio = 0;
   uint32_t topology_control;
   bool dyn_bitclk_support;
   std::vector<uint8_t> edid;
