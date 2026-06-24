@@ -15,6 +15,7 @@
 namespace sdm {
 
 Locker SDMDisplayBuilder::hdr_locker_[kNumDisplays];
+bool SDMDisplayBuilder::null_display_active_ = false;
 
 std::map<Display, DisplayMapInfo *> &SDMDisplayBuilder::GetActiveDisplays() {
   return map_active_displays_;

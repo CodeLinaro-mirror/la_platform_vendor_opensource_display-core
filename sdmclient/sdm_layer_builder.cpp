@@ -4,10 +4,19 @@
  */
 #include "sdm_layer_builder.h"
 #include <utils/debug.h>
+#include "sdm_display_builder.h"
 
 #define __CLASS__ "SDMLayerBuilder"
+#define MAKE_NO_OP_IF_NULL_DISPLAY() \
+  if (IsNullDisplayActive()) { \
+    return kErrorNone; \
+  }
 
 namespace sdm {
+
+bool SDMLayerBuilder::IsNullDisplayActive() {
+  return SDMDisplayBuilder::IsNullDisplayActive();
+}
 
 Locker SDMLayerBuilder::locker_[kNumDisplays];
 
@@ -102,6 +111,8 @@ DisplayError SDMLayerBuilder::SetCursorPosition(uint64_t disp_id,
 
 DisplayError SDMLayerBuilder::SetLayerAsMask(uint64_t disp_id,
                                              int64_t layer_id) {
+  MAKE_NO_OP_IF_NULL_DISPLAY();
+
   if (disable_mask_layer_hint_) {
     DLOGW("Mask layer hint is disabled!");
     return kErrorResources;
@@ -193,6 +204,8 @@ DisplayError
 SDMLayerBuilder::SetLayerBuffer(uint64_t display_id, int64_t layer_id,
                                 const SnapHandle *buffer,
                                 const shared_ptr<Fence> &acquire_fence) {
+  MAKE_NO_OP_IF_NULL_DISPLAY();
+
   SCOPE_LOCK(locker_[display_id]);
   auto layer = GetSDMLayer(display_id, layer_id);
   if (!layer) {
@@ -233,6 +246,8 @@ DisplayError SDMLayerBuilder::SetLayerTransform(uint64_t display, int64_t layer,
 
 DisplayError SDMLayerBuilder::SetLayerZOrder(uint64_t display_id,
                                              int64_t layer_id, uint32_t z) {
+  MAKE_NO_OP_IF_NULL_DISPLAY();
+
   SCOPE_LOCK(locker_[display_id]);
   auto stack = display_layer_stack_.find(display_id);
   if (stack == display_layer_stack_.end()) {
@@ -289,6 +304,8 @@ DisplayError SDMLayerBuilder::SetLayerFlag(uint64_t display, int64_t layer,
 DisplayError SDMLayerBuilder::SetLayerSurfaceDamage(uint64_t display,
                                                     int64_t layer_id,
                                                     SDMRegion damage) {
+  MAKE_NO_OP_IF_NULL_DISPLAY();
+
   SCOPE_LOCK(locker_[display]);
   if (display >= kNumDisplays) {
     return kErrorParameters;
@@ -333,6 +350,8 @@ DisplayError SDMLayerBuilder::SetLayerPerFrameMetadata(uint64_t display,
                                                        uint32_t num_elements,
                                                        const int32_t *int_keys,
                                                        const float *metadata) {
+  MAKE_NO_OP_IF_NULL_DISPLAY();
+
   SCOPE_LOCK(locker_[display]);
   if (display >= kNumDisplays) {
     return kErrorParameters;
@@ -371,3 +390,5 @@ DisplayError SDMLayerBuilder::SetLayerBrightness(uint64_t display,
 }
 
 } // namespace sdm
+
+#undef MAKE_NO_OP_IF_NULL_DISPLAY
