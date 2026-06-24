@@ -108,10 +108,15 @@ class SDMLayerBuilder : public SDMDisplayLayerBuilderIntf {
  private:
   SDMLayer *GetSDMLayer(uint64_t display_id, int64_t layer_id);
   DisplayError DestroyLayerLocked(uint64_t display_id, int64_t layer_id);
+  static bool IsNullDisplayActive();
 
   template <typename... Args>
   DisplayError CallLayerFunction(uint64_t display, int64_t layer_id,
                                  DisplayError (SDMLayer::*member)(Args...), Args... args) {
+    if (IsNullDisplayActive()) {
+      return kErrorNone;
+    }
+
     if (display >= kNumDisplays) {
       return kErrorParameters;
     }
