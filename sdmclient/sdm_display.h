@@ -780,6 +780,7 @@ public:
   FrameCaptureIntf *fcm_ = nullptr;
   bool composer_driven_hdcp_ = false;
   bool disable_luts_overlay_support_ = false;
+  bool allow_seccam_concurrency_ = false;
 };
 
 inline DisplayError SDMDisplay::Perform(uint32_t operation, ...) {

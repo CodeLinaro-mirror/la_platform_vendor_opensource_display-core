@@ -600,9 +600,13 @@ DisplayError SDMDisplay::Init() {
     DLOGI("HDR Handling disabled");
   }
 
-  int composer_driven_hdcp;
-  SDMDebugHandler::Get()->GetProperty(COMPOSER_DRIVEN_HDCP, &composer_driven_hdcp);
-  composer_driven_hdcp_ = (composer_driven_hdcp == 1);
+  int value;
+  SDMDebugHandler::Get()->GetProperty(COMPOSER_DRIVEN_HDCP, &value);
+  composer_driven_hdcp_ = (value == 1);
+
+  value = 0;
+  SDMDebugHandler::Get()->GetProperty(ALLOW_SECCAM_CONCURRENCY, &value);
+  allow_seccam_concurrency_ = (value == 1);
 
   int property_swap_interval = 1;
   SDMDebugHandler::Get()->GetProperty(ZERO_SWAP_INTERVAL,
@@ -657,7 +661,7 @@ DisplayError SDMDisplay::Init() {
   SDMDebugHandler::Get()->GetProperty(RGBA_SPLIT_SUPPORT, &rgba_split_support_);
   game_supported_ = display_intf_->GameEnhanceSupported();
 
-  int value = 0;
+  value = 0;
   SDMDebugHandler::Get()->GetProperty(DISABLE_LUTS_OVERLAY_SUPPORT, &value);
   disable_luts_overlay_support_ = (value == 1);
 
@@ -2826,6 +2830,16 @@ SDMDisplay::HandleSecureSession(const std::bitset<kSecureMax> &secure_sessions,
                                 bool is_active_secure_display) {
   if (!power_on_pending) {
     return kErrorNotSupported;
+  }
+
+  if (allow_seccam_concurrency_) {
+    bool only_secure_camera_active = secure_sessions[kSecureCamera] &&
+                                     !secure_sessions[kSecureDisplay] &&
+                                     !secure_sessions[kSecureTUI];
+    if (only_secure_camera_active) {
+      *power_on_pending = false;
+      return kErrorNone;
+    }
   }
 
   if (active_secure_sessions_[kSecureDisplay] !=
