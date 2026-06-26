@@ -66,6 +66,7 @@ public:
                                              uint32_t data_size) = 0;
   virtual DisplayError SetStcFeatureConfig(Display display, void *data) = 0;
   virtual DisplayError SetRgbHistObserverConfig(Display display, bool state, void *data) = 0;
+  virtual DisplayError SetPaHistCollection(Display display, bool enable) = 0;
   virtual DisplayError SetQrtcFeatureConfig(Display display, int32_t type, void *data) = 0;
 };
 

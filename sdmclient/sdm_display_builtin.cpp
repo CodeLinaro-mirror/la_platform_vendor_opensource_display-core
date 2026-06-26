@@ -36,9 +36,11 @@
 #include <utils/constants.h>
 #include <utils/debug.h>
 #include <utils/utils.h>
+#include <sys/prctl.h>
 
 #include "sdm_display_builtin_gpu_reproj.h"
 
+#include <iomanip>
 #include <map>
 #include <string>
 #include <vector>
@@ -422,6 +424,10 @@ DisplayError SDMDisplayBuiltIn::SetPowerMode(SDMPowerMode mode, bool teardown) {
     DisplayConfigFixedInfo fixed_info = {};
     display_intf_->GetConfig(&fixed_info);
     is_cmd_mode_ = fixed_info.is_cmdmode;
+  }
+
+  if (pa_hist_en_ && mode != SDMPowerMode::POWER_MODE_ON) {
+    SetPaHistCollection(false);
   }
 
   return kErrorNone;
@@ -1365,6 +1371,14 @@ bool SDMDisplayBuiltIn::HasSmartPanelConfig(void) {
 }
 
 DisplayError SDMDisplayBuiltIn::Deinit(bool deinit_layer_builder) {
+  {
+    std::unique_lock<std::mutex> lk(pahist_cv_mutex_);
+    pahist_thread_exited_ = true;
+    pahist_cv_.notify_all();
+  }
+  if (pahist_thread_.joinable()) {
+    pahist_thread_.join();
+  }
   // Destory color convert instance. This destroys thread and underlying GL
   // resources.
   callbacks_->DestroyLayerStitch(id_);
@@ -2002,6 +2016,145 @@ DisplayError SDMDisplayBuiltIn::GetPanelFeatureConfig(int32_t type, void *data,
 
 DisplayError SDMDisplayBuiltIn::SetRgbHistObserverConfig(bool state, void *data) {
   return display_intf_->SetRgbHistObserverConfig(state, data);
+}
+
+DisplayError SDMDisplayBuiltIn::SetPaHistCollection(bool enable) {
+  DisplayError err = kErrorNone;
+
+  if (enable && current_power_mode_ != SDMPowerMode::POWER_MODE_ON) {
+    DLOGE("Cannot enable pa hist %d in power mode %d", enable, current_power_mode_);
+    return kErrorParameters;
+  }
+
+  if (enable == pa_hist_en_) {
+    DLOGV("Already set pa hist %d, current status %d", enable, pa_hist_en_);
+    return kErrorNone;
+  }
+
+  DLOGI("Set pa hist %d, current status %d", enable, pa_hist_en_);
+  if (enable) {
+    pahist_thread_exited_ = false;
+    pahist_thread_ = std::thread(SDMDisplayBuiltIn::pahist_thread_handler, this);
+    err = display_intf_->ControlPartialUpdate(false, hist_client_name_);
+    if (err) {
+      DLOGE("Failed to disable PU");
+      return err;
+    }
+    err = display_intf_->SetPaHistCollection(hist_client_name_, true, this);
+    if (err) {
+      DLOGE("Failed to register pa hist");
+      return err;
+    }
+  } else {
+    err = display_intf_->SetPaHistCollection(hist_client_name_, false, nullptr);
+    if (err) {
+      DLOGE("Failed to deregister pa hist");
+      return err;
+    }
+    err = display_intf_->ControlPartialUpdate(true, hist_client_name_);
+    if (err) {
+      DLOGE("Failed to en PU");
+      return err;
+    }
+
+    {
+      std::unique_lock<std::mutex> lk(pahist_cv_mutex_);
+      pahist_thread_exited_ = true;
+      pahist_cv_.notify_all();
+    }
+    if (pahist_thread_.joinable()) {
+      pahist_thread_.join();
+    }
+  }
+
+  pa_hist_en_ = enable;
+  return kErrorNone;
+}
+
+void SDMDisplayBuiltIn::pahist_thread_handler(SDMDisplayBuiltIn *obj) {
+  char thread_name[64] = "PA_HIST_CLIENT";
+
+  if (!obj)
+    return;
+
+  prctl(PR_SET_NAME, (unsigned long)&thread_name, 0, 0, 0);
+  obj->PaHistProcess();
+}
+
+void SDMDisplayBuiltIn::PaHistProcess() {
+  std::unique_lock<std::mutex> lk(pahist_cv_mutex_);
+  while (!pahist_thread_exited_) {
+    DLOGV("Waiting for hist ready ... ...");
+    pahist_cv_.wait(lk, [this] { return pahist_ready_ || pahist_thread_exited_; });
+    if (pahist_thread_exited_) {
+      break;
+    }
+
+    pahist_ready_ = false;
+    lk.unlock();
+    DLOGV("Process hist bins ... ...");
+    HandlePaHist();
+    lk.lock();
+  }
+
+  DLOGI("PA hist client exit");
+}
+
+int SDMDisplayBuiltIn::Notify(const sdm::PaHistCollectionPayload &payload) {
+  std::unique_lock<std::mutex> lk(pahist_cv_mutex_);
+
+  if (payload.event != sdm::kSdmPaHistEvent) {
+    DLOGE("Invalid event type %d", payload.event);
+    return -EINVAL;
+  }
+
+  pahist_ready_ = true;
+  pahist_cv_.notify_all();
+  return 0;
+}
+
+void SDMDisplayBuiltIn::PrintPaHistogram(uint32_t *h) {
+  uint32_t i = 0, j = 0;
+  double sum_tot = 0;
+
+  if (!h) {
+    DLOGE("HIST ptr NULL");
+    return;
+  }
+
+  for (i = 0; i < HIST_BIN_SIZE; i++) {
+    sum_tot += h[i];
+  }
+
+  if (sum_tot == 0) {
+    DLOGW("Histogram is empty (all bins zero), skipping print");
+    return;
+  }
+
+  for (i = 0; i < HIST_BIN_SIZE; i += 16) {
+    std::stringstream ss;
+    double sum_loc = 0;
+    for (j = 0; j < 16 && (i + j) < HIST_BIN_SIZE; j++) {
+      ss << " " << std::setw(7) << h[i + j];
+      sum_loc += h[i + j];
+    }
+    DLOGI("(%4u - %4u) (%5.2f%%)%s", i, i + 15, sum_loc * 100 / sum_tot, ss.str().c_str());
+  }
+}
+
+int SDMDisplayBuiltIn::HandlePaHist() {
+  int ret = 0;
+  std::array<uint32_t, HIST_BIN_SIZE> hist;
+
+  ret = display_intf_->GetPaHistBins(&hist);
+  if (ret) {
+    DLOGE("Failed to get pa histogram data, error = %d", ret);
+    return ret;
+  }
+
+  PrintPaHistogram(hist.data());
+
+  return 0;
 }
 
 DisplayError SDMDisplayBuiltIn::EnableCopr(bool en) {

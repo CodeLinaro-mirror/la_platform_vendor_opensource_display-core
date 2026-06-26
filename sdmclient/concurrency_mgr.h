@@ -581,6 +581,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError ClearBuffersMappedToLayer(uint64_t display, LayerId layer_id,
                                          const SnapHandle *layerBuffer);
   DisplayError SetRgbHistObserverConfig(Display display, bool state, void *data);
+  DisplayError SetPaHistCollection(Display display, bool enable);
   DisplayError SetQrtcFeatureConfig(Display display, int32_t type, void *data);
 
   void SetPrimaryConnected(bool state) { primary_connected_ = state; }

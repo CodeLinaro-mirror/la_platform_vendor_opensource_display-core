@@ -552,6 +552,7 @@ public:
   virtual DisplayError SetRgbHistObserverConfig(bool state, void *data) {
     return kErrorNotSupported;
   }
+  virtual DisplayError SetPaHistCollection(bool enable) { return kErrorNotSupported; }
   virtual DisplayError ProcessColorFeatureOps(DisplayColorOps ops, void *payload) {
     return kErrorNotSupported;
   }
