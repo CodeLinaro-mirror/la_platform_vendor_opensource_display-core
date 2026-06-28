@@ -110,6 +110,7 @@ class SDMDisplayBuilder {
   DisplayError GetDisplayHwId(uint64_t disp_id, int32_t *disp_hw_id);
   int32_t GetVirtualDisplayId(HWDisplayInfo &info);
   bool IsPluggablePrimary() const { return pluggable_is_primary_; }
+  static bool IsNullDisplayActive() { return null_display_active_; }
 
  private:
   std::vector<DisplayMapInfo> map_info_primary_;    // Primary display (either builtin or pluggable)
@@ -149,7 +150,7 @@ class SDMDisplayBuilder {
   HotPlugEvent pending_hotplug_event_ = kHotPlugNone;
   Locker *locker_ = nullptr;
 
-  bool null_display_active_ = false;
+  static bool null_display_active_;
   SDMDisplay *null_display_ = nullptr;
   bool pluggable_is_primary_ = false;
 };

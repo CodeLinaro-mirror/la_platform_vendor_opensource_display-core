@@ -990,6 +990,10 @@ DisplayError ConcurrencyMgr::SetClientTarget(uint64_t display, const SnapHandle 
                                              float hdr_sdr_ratio) {
   DTRACE_SCOPED();
 
+  if (SDMDisplayBuilder::IsNullDisplayActive()) {
+    return kErrorNone;
+  }
+
   if (display >= kNumDisplays) {
     return kErrorParameters;
   }
@@ -1073,6 +1077,9 @@ DisplayError ConcurrencyMgr::SetCursorPosition(Display display, LayerId layer,
 
 DisplayError ConcurrencyMgr::SetDisplayElapseTime(Display display,
                                                   uint64_t time) {
+  if (SDMDisplayBuilder::IsNullDisplayActive()) {
+    return kErrorNone;
+  }
   return CallDisplayFunction(display, &SDMDisplay::SetDisplayElapseTime, time);
 }
 
