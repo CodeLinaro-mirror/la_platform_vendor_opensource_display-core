@@ -220,6 +220,7 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "transfer_time") { return DRMProperty::TRANSFER_TIME; }
   if (name == "early_fence_line") { return DRMProperty::EARLY_FENCE_LINE; }
   if (name == "dnsc_blur") { return DRMProperty::DNSC_BLR; }
+  if (name == "wb_dnsc") { return DRMProperty::WB_DNSC; }
   if (name == "wb_usage_type") { return DRMProperty::WB_USAGE_TYPE; }
   if (name == "num_buffers") { return DRMProperty::WB_NUM_BUFFERS; }
   if (name == "wb_csc_config") { return DRMProperty::WB_CSC_CONFIG; }
@@ -291,6 +292,7 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "SDE_QRTC_BUFFER_V1") { return DRMProperty::SDE_QRTC_BUFFER_V1; }
   if (name == "disparity_phase") { return DRMProperty::DISPARITY_PHASE; }
   if (name == "vsync_offset") { return DRMProperty::VSYNC_OFFSET; }
+  if (name == "spr_mode") { return DRMProperty::SPR_MODE; }
 
   return DRMProperty::INVALID;
 }

@@ -46,7 +46,8 @@ Error SnapAllocCore::AllocateBuffer(AllocData *ad, AllocData *m_data,
                                     unsigned custom_content_md_size,
                                     unsigned batch_mode_dyn_md_size, BufferDescriptor *desc,
                                     BufferDescriptor *out_desc, bool test_alloc) {
-  auto err = mem_alloc_intf_->AllocateMem(ad, out_desc->usage, out_desc->format);
+  auto err =
+      mem_alloc_intf_->AllocateMem(ad, out_desc->usage, out_desc->format, desc->additionalOptions);
   if (err != Error::NONE) {
     DLOGE("Failed to allocate memory for format %d usage %d", out_desc->format, out_desc->usage);
     return err;
@@ -82,6 +83,9 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
     BufferDescriptor out_desc;
     SnapHandleInternal *hnd;
     int out_priv_flags = 0;
+    uint64_t lossy_usage = constraint_mgr_->GetUBWCLossyUsage(desc);
+    desc.usage =
+        desc.usage | static_cast<vendor_qti_hardware_display_common_BufferUsage>(lossy_usage);
     auto err = constraint_mgr_->GetAllocationData(desc, &ad, &layout, &out_desc, &out_priv_flags);
     if (err != Error::NONE) {
       DLOGE("Constraint manager failed to get allocation data - err %d", err);
@@ -526,7 +530,8 @@ Error SnapAllocCore::ImportHandleLocked(SnapHandle *hnd) {
 
   if (SnapHandleInternal::validate(hnd) != 0) {
     DLOGE("ImportHandleLocked: Invalid handle: %p", hnd);
-    FreeBuffer(static_cast<SnapHandleInternal *>(hnd));
+    static_cast<SnapHandleInternal *>(hnd)->closeFds();
+    free(hnd);
     return Error::BAD_BUFFER;
   }
 
@@ -543,14 +548,16 @@ Error SnapAllocCore::ImportHandleLocked(SnapHandle *hnd) {
   if (mem_alloc_intf_->ImportBuffer(snap_hnd->fd()) < 0) {
     DLOGE("Failed to import buffer: hnd: %p, fd:%d, id:%lu", snap_hnd, snap_hnd->fd(),
           snap_hnd->id());
-    FreeBuffer(snap_hnd);
+    snap_hnd->closeFds();
+    free(snap_hnd);
     return Error::BAD_BUFFER;
   }
 
   if (mem_alloc_intf_->ImportBuffer(snap_hnd->fd_metadata()) < 0) {
     DLOGE("Failed to import metadata buffer: hnd: %p, fd:%d, id:%lu", snap_hnd,
           snap_hnd->fd_metadata(), snap_hnd->id());
-    FreeBuffer(snap_hnd);
+    snap_hnd->closeFds();
+    free(snap_hnd);
     return Error::BAD_BUFFER;
   }
   // Initialize members that aren't transported

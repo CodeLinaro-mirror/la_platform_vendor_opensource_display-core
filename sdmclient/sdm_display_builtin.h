@@ -135,6 +135,7 @@ public:
  virtual DisplayError RetrieveDemuraTnFiles();
  virtual DisplayError UpdateTransferTime(uint32_t transfer_time);
  virtual DisplayError SetDemuraState(int state, int demura_idx);
+ virtual DisplayError SetSPRState(int state);
  virtual DisplayError SetDemuraConfig(int demura_idx);
  virtual DisplayError PerformCacConfig(CacConfig config, bool enable);
  virtual DisplayError PerformDynamicCac(DynamicCacV2Config config, bool enable);

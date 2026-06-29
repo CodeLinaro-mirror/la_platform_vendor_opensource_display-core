@@ -701,7 +701,9 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
   const string qsync_support = "qsync support=";
   const string features = "features=";
   const string wb_ubwc = "wb_ubwc";
-  const string downscale = "downscale";
+  const string wb_dnsc_supported = "wb_dnsc_supported=";
+  const string wb_dnsc_min_ratio = "wb_dnsc_min_ratio=";
+  const string wb_dnsc_max_ratio = "wb_dnsc_max_ratio=";
   const string dyn_bitclk_support = "dyn bitclk support=";
   const string qsync_fps = "qsync_fps=";
   const string has_cwb_dither = "has_cwb_dither=";
@@ -751,13 +753,14 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
       if (line.find(wb_ubwc) != string::npos) {
         info->is_wb_ubwc_supported = true;
       }
-      if (line.find(downscale) != string::npos) {
-        info->is_wb_downscale_supported = true;
-      }
     } else if (line.find(wb_ubwc) != string::npos) {
       info->is_wb_ubwc_supported = true;
-    } else if (line.find(downscale) != string::npos) {
-      info->is_wb_downscale_supported = true;
+    } else if (line.find(wb_dnsc_supported) != string::npos) {
+      info->is_wb_dnsc_supported = std::stoi(string(line, wb_dnsc_supported.length()));
+    } else if (line.find(wb_dnsc_min_ratio) != string::npos) {
+      info->wb_dnsc_min_ratio = std::stoi(string(line, wb_dnsc_min_ratio.length()));
+    } else if (line.find(wb_dnsc_max_ratio) != string::npos) {
+      info->wb_dnsc_max_ratio = std::stoi(string(line, wb_dnsc_max_ratio.length()));
     } else if (line.find(dyn_bitclk_support) != string::npos) {
       info->dyn_bitclk_support = (string(line, dyn_bitclk_support.length()) == "true");
     } else if (line.find(has_cwb_dither) != string::npos) {
@@ -874,6 +877,7 @@ void DRMConnector::ParseModeProperties(uint64_t blob_id, DRMConnectorInfo *info)
   // TODO(user): Add support for dyn_pclk_list
   const string submode_string = "submode_idx=";
   const string compression_mode = "dsc_mode=";
+  const string spr_mode = "spr_mode=";
   const string preferred_submode_string = "preferred_submode_idx=";
   const string qsync_min_fps = "qsync_min_fps=";
   const string bpp_mode = "bpp_mode=";
@@ -986,6 +990,14 @@ void DRMConnector::ParseModeProperties(uint64_t blob_id, DRMConnectorInfo *info)
         submode_index = 0;
       }
       submode_item->panel_compression_mode = std::stoi(string(line, compression_mode.length()));
+    } else if (line.find(spr_mode) != string::npos) {
+      if (!submode_item) {
+        DRMSubModeInfo submode = {};
+        mode_item->sub_modes.push_back(submode);
+        submode_item = &mode_item->sub_modes.at(submode_index++);
+        submode_index = 0;
+      }
+      submode_item->spr_mode = std::stoi(string(line, spr_mode.length()));
     } else if (line.find(qsync_min_fps) != string::npos) {
       mode_item->qsync_min_fps = std::stoi(string(line, qsync_min_fps.length()));
     } else if (line.find(bpp_mode) != string::npos) {
@@ -1459,6 +1471,22 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       }
     } break;
 
+    case DRMOps::CONNECTOR_SET_SPR_MODE: {
+      uint32_t spr_mode = va_arg(args, uint32_t);
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::SPR_MODE)) {
+        DRM_LOGE("property not available\n");
+        return;
+      }
+      uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::SPR_MODE);
+      int ret = drmModeAtomicAddProperty(req, obj_id, prop_id, spr_mode);
+      if (ret < 0) {
+        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, spr_mode %u ret %d",
+                 obj_id, prop_id, spr_mode, ret);
+      } else {
+        DRM_LOGD("Connector %d: Setting SPR mode %u", obj_id, spr_mode);
+      }
+    } break;
+
     case DRMOps::CONNECTOR_SET_DSC_MODE: {
       if (!prop_mgr_.IsPropertyAvailable(DRMProperty::DSC_MODE)) {
         return;
@@ -1568,6 +1596,32 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
                  obj_id, prop_id, ret);
       } else {
         DRM_LOGD("Connector %d: blur_cfg set successfuly", obj_id);
+      }
+#endif
+    } break;
+
+    case DRMOps::CONNECTOR_WB_DNSC: {
+#ifdef FEATURE_WB_DNSC
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::WB_DNSC)) {
+        return;
+      }
+      if (wb_dnsc_blob_id_) {
+        drmModeDestroyPropertyBlob(fd_, wb_dnsc_blob_id_);
+        wb_dnsc_blob_id_ = 0;
+      }
+      sde_drm_wb_dnsc_cfg *dnsc_cfg = va_arg(args, sde_drm_wb_dnsc_cfg *);
+      int ret = drmModeCreatePropertyBlob(fd_, reinterpret_cast<void *>(dnsc_cfg),
+                                          sizeof(*dnsc_cfg), &wb_dnsc_blob_id_);
+      if (ret) {
+        DRM_LOGE("Failed to create wb_dnsc blob for drmops ret %d", ret);
+        break;
+      }
+      uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::WB_DNSC);
+      ret = drmModeAtomicAddProperty(req, obj_id, prop_id, wb_dnsc_blob_id_);
+      if (ret < 0) {
+        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d, ret %d", obj_id, prop_id, ret);
+      } else {
+        DRM_LOGD("Connector %d: wb_dnsc_cfg set successfully", obj_id);
       }
 #endif
     } break;

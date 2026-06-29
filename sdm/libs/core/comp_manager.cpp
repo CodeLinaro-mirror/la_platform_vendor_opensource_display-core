@@ -982,6 +982,15 @@ DisplayError CompManager::GetDemuraFetchResources(Handle display_ctx,
   return resource_intf_->GetDemuraFetchResources(display_comp_ctx->display_resource_ctx, frl);
 }
 
+DisplayError CompManager::CanSupportQrtcWithSubsampling(Handle display_ctx,
+                                                        QrtcSubsamplingSupport *qrtc_support) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+  DisplayCompositionContext *display_comp_ctx =
+      reinterpret_cast<DisplayCompositionContext *>(display_ctx);
+  return resource_intf_->CanSupportQrtcWithSubsampling(display_comp_ctx->display_resource_ctx,
+                                                       qrtc_support);
+}
+
 DisplayError CompManager::SetMaxSDEClk(Handle display_ctx, uint32_t clk) {
   DTRACE_SCOPED();
   std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
@@ -1121,23 +1130,23 @@ DisplayError CompManager::CaptureCwb(Handle display_ctx, const LayerBuffer &outp
   return error;
 }
 
-DisplayError CompManager::ReserveWBForDisplay(Handle display_ctx, int32_t *wb_id) {
+DisplayError CompManager::ReserveWBForDisplay(Handle display_ctx, WbMapInfo *wb_info) {
   std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
 
   DisplayCompositionContext *display_comp_ctx =
       reinterpret_cast<DisplayCompositionContext *>(display_ctx);
   DisplayError error = kErrorNone;
-  error = cwb_mgr_intf_->ReserveWBForDisplay(display_comp_ctx->display_id.GetDisplayId(), wb_id);
+  error = cwb_mgr_intf_->ReserveWBForDisplay(display_comp_ctx->display_id.GetDisplayId(), wb_info);
   return error;
 }
 
-void CompManager::ReleaseWBFromDisplay(Handle display_ctx, int32_t wb_id) {
+void CompManager::ReleaseWBFromDisplay(Handle display_ctx) {
   std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
 
   DisplayCompositionContext *display_comp_ctx =
       reinterpret_cast<DisplayCompositionContext *>(display_ctx);
 
-  cwb_mgr_intf_->ReleaseWBFromDisplay(display_comp_ctx->display_id.GetDisplayId(), wb_id);
+  cwb_mgr_intf_->ReleaseWBFromDisplay(display_comp_ctx->display_id.GetDisplayId());
 }
 
 void CompManager::NotifyCwbDone(int32_t display_id, int32_t status, const LayerBuffer &buffer) {

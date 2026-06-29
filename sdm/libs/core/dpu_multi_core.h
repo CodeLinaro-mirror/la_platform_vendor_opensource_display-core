@@ -68,6 +68,7 @@ class DPUMultiCore : public DPUCoreMux {
   DisplayError SetDisplayDppsAdROI(void *payload);
   DisplayError SetDynamicDSIClock(uint64_t bit_clk_rate);
   DisplayError GetDynamicDSIClock(uint64_t *bit_clk_rate);
+  DisplayError SetDynamicSPRMode(bool spr_mode);
   DisplayError GetDisplayIdentificationData(uint8_t *out_port, uint32_t *out_data_size,
                                             uint8_t *out_data);
   DisplayError SetFrameTrigger(FrameTriggerMode mode, uint32_t core_id);

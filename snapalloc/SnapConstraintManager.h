@@ -43,6 +43,15 @@ class SnapConstraintManager {
    */
   void Init();
 
+  /* GetUBWCLossyUsage() determines whether UBWC lossy compression should be applied
+  * to a buffer and returns the corresponding lossy usage flag if eligible.
+  * Lossy usage (QTI_ALLOC_UBWC_L_2_TO_1) is returned when the buffer meets all.
+  *
+  * @param: BufferDescriptor containing the resolved format, usage, width, and height
+  * @return: QTI_ALLOC_UBWC_L_2_TO_1 if lossy UBWC is applicable, 0 otherwise
+  */
+  uint64_t GetUBWCLossyUsage(BufferDescriptor out_desc);
+
   // TODO: move this to FormatUtils class
   Error ConvertAlignedWidthFromBytesToPixels(vendor_qti_hardware_display_common_PixelFormat format,
                                              int width_in_bytes, uint64_t pixel_format_modifier,
@@ -131,6 +140,7 @@ class SnapConstraintManager {
           vendor_qti_hardware_display_common_PixelFormat::YCrCb_422_SP,
           vendor_qti_hardware_display_common_PixelFormat::YCBCR_422_I,
           vendor_qti_hardware_display_common_PixelFormat::YCrCb_422_I};
+  int enable_ubwc_lossy_fbt_ = 0;
 };
 
 }  // namespace snapalloc

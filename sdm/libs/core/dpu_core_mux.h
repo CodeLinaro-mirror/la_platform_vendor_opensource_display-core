@@ -89,6 +89,7 @@ class DPUCoreMux {
   virtual DisplayError SetDisplayDppsAdROI(void *payload) = 0;
   virtual DisplayError SetDynamicDSIClock(uint64_t bit_clk_rate) = 0;
   virtual DisplayError GetDynamicDSIClock(uint64_t *bit_clk_rate) = 0;
+  virtual DisplayError SetDynamicSPRMode(bool spr_mode) = 0;
   virtual DisplayError GetDisplayIdentificationData(uint8_t *out_port, uint32_t *out_data_size,
                                                     uint8_t *out_data) = 0;
   virtual DisplayError SetFrameTrigger(FrameTriggerMode mode, uint32_t core_id) = 0;

@@ -207,6 +207,7 @@ enum struct DRMProperty {
   JITTER_CONFIG,
   EARLY_FENCE_LINE,
   DNSC_BLR,
+  WB_DNSC,
   WB_USAGE_TYPE,
   WB_NUM_BUFFERS,
   WB_CSC_CONFIG,
@@ -287,7 +288,7 @@ enum struct DRMProperty {
   SDE_QRTC_BUFFER_V1,
   DISPARITY_PHASE,
   VSYNC_OFFSET,
-
+  SPR_MODE,
   // Insert above
   MAX
 };

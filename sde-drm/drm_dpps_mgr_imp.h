@@ -27,6 +27,12 @@
 * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #ifndef __DRM_DPPS_MGR_IMP_H__
 #define __DRM_DPPS_MGR_IMP_H__
 
@@ -35,7 +41,9 @@
 #include "drm_dpps_mgr_intf.h"
 #include <mutex>
 
-#define MAX_DISPLAY_COUNT 2
+// This is specifically used to reserve capacity for LTM buffer tracking maps to prevent
+// dynamic reallocation overhead during runtime for Primary, Built-in_2, and Virtual displays.
+#define MAX_DISPLAY_COUNT 3
 
 namespace sde_drm {
 

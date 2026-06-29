@@ -305,6 +305,10 @@ DisplayError DPUSingleCore::GetDynamicDSIClock(uint64_t *bit_clk_rate) {
   return hw_intf_->GetDynamicDSIClock(bit_clk_rate);
 }
 
+DisplayError DPUSingleCore::SetDynamicSPRMode(bool spr_mode) {
+  return hw_intf_->SetDynamicSPRMode(spr_mode);
+}
+
 DisplayError DPUSingleCore::GetDisplayIdentificationData(uint8_t *out_port, uint32_t *out_data_size,
                                                          uint8_t *out_data) {
   return hw_intf_->GetDisplayIdentificationData(out_port, out_data_size, out_data);

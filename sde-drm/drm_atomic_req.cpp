@@ -175,6 +175,7 @@ int DRMAtomicReq::Perform(DRMOps opcode, uint32_t obj_id, ...) {
     case DRMOps::CONNECTOR_CACHE_STATE:
     case DRMOps::CONNECTOR_EARLY_FENCE_LINE:
     case DRMOps::CONNECTOR_DNSC_BLR:
+    case DRMOps::CONNECTOR_WB_DNSC:
     case DRMOps::CONNECTOR_WB_USAGE_TYPE:
     case DRMOps::CONNECTOR_WB_NUM_BUFFERS:
     case DRMOps::CONNECTOR_WB_CSC_CONFIG:
@@ -204,7 +205,8 @@ int DRMAtomicReq::Perform(DRMOps opcode, uint32_t obj_id, ...) {
     case DRMOps::CONNECTOR_SET_REPROJ_MODE:
     case DRMOps::CONNECTOR_SET_POSE_FB_ID:
     case DRMOps::CONNECTOR_SET_VSYNC_OFFSET:
-    case DRMOps::CONNECTOR_SET_PRIVACY_REGIONS_V2: {
+    case DRMOps::CONNECTOR_SET_PRIVACY_REGIONS_V2:
+    case DRMOps::CONNECTOR_SET_SPR_MODE: {
       drm_mgr_->GetConnectorMgr()->Perform(opcode, obj_id, drm_atomic_req_, args);
     } break;
     case DRMOps::DPPS_CACHE_FEATURE: {

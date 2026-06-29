@@ -96,6 +96,10 @@ class ResourceDefault : public ResourceInterface {
     return kErrorNone;
   }
   virtual DisplayError FreeQrtcFetchResources(const int32_t &display_id) { return kErrorNone; }
+  virtual DisplayError CanSupportQrtcWithSubsampling(Handle display_ctx,
+                                                     QrtcSubsamplingSupport *qrtc_support) {
+    return kErrorNone;
+  }
   virtual DisplayError ReserveABCFetchResources(const uint32_t &display_id, bool is_primary,
                                                 const int8_t &req_cnt) {
     return kErrorNone;

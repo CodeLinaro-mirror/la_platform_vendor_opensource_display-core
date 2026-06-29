@@ -1105,6 +1105,7 @@ DisplayError DisplayBuiltIn::SetupCorrectionLayer() {
 DisplayError DisplayBuiltIn::SetupDemuraLayer() {
   int ret = 0;
   GenericPayload pl;
+  bool valid = false;
 
   DemuraCorrectionSurfaces *corrdata = nullptr;
   if ((ret = pl.CreatePayload<DemuraCorrectionSurfaces>(corrdata))) {
@@ -1175,6 +1176,11 @@ DisplayError DisplayBuiltIn::SetupDemuraLayer() {
     LogI(kTagNone, "Demura dst: ", demura_layer.dst_rect);
     demura_layer.buffer_map = std::make_shared<LayerBufferMap>();
     layer_wrapper->demura_layer.push_back(demura_layer);
+    valid = true;
+  }
+
+  if (valid) {
+    MarkOldDemuraLayerWrapperForClear();
   }
   return kErrorNone;
 }
@@ -1229,6 +1235,7 @@ DisplayError DisplayBuiltIn::DumpDemuraSurface(const char *dir_path, uint32_t fr
 DisplayError DisplayBuiltIn::SetupABCLayer() {
   int ret = 0;
   GenericPayload pl;
+  bool valid = false;
 
   DemuraCorrectionSurfaces *corrdata = nullptr;
   if ((ret = pl.CreatePayload<DemuraCorrectionSurfaces>(corrdata))) {
@@ -1285,6 +1292,11 @@ DisplayError DisplayBuiltIn::SetupABCLayer() {
     LogI(kTagNone, "Demura dst: ", demura_layer.dst_rect);
     demura_layer.buffer_map = std::make_shared<LayerBufferMap>();
     layer_wrapper->demura_layer.push_back(demura_layer);
+    valid = true;
+  }
+
+  if (valid) {
+    MarkOldDemuraLayerWrapperForClear();
   }
   return kErrorNone;
 }
@@ -1342,6 +1354,7 @@ DisplayError DisplayBuiltIn::SetupQrtcLayer() {
   qrtc_layer.dst_rect.bottom = qrtc_suf->buffer_info.buffer_config.height;
   LogI(kTagNone, "Qrtc dst: ", qrtc_layer.dst_rect);
   qrtc_layer.buffer_map = std::make_shared<LayerBufferMap>();
+  qrtc_layer.frame_rate = current_refresh_rate_;
   qrtc_layer_.push_back(qrtc_layer);
 
   return kErrorNone;
@@ -4649,6 +4662,11 @@ DisplayError DisplayBuiltIn::SetDemuraState(int state, int demura_idx) {
   GenericPayload idx_pl;
   uConfigIdx *idx = nullptr;
 
+  if (state && !isSPREnabled()) {
+    DLOGE("SPR is not Enabled!!!!!!");
+    return kErrorUndefined;
+  }
+
   if (!comp_manager_->GetDemuraStatus()) {
     DLOGI("Demura status is not ready, failed to set state %d", state);
     return kErrorUndefined;
@@ -4785,9 +4803,6 @@ DisplayError DisplayBuiltIn::SetDemuraConfig(int demura_idx) {
     DLOGE("Cannot switch demura config when override feature is DAC");
     return kErrorUndefined;
   }
-
-  // Idx is updated, clear the last demura layers
-  ClearDemuraLayerWrappers();
 
   // Update demura config
   if ((ret = pl.CreatePayload<uConfigIdx>(idx))) {
@@ -6417,6 +6432,18 @@ void DisplayBuiltIn::ClearDemuraLayerWrappers() {
   }
 }
 
+void DisplayBuiltIn::MarkOldDemuraLayerWrapperForClear() {
+  for (int i = 0; i < demura_layer_wrappers_.size(); i++) {
+    auto &wrapper = demura_layer_wrappers_[i];
+    if (!wrapper.demura_layer.empty()) {
+      if (wrapper.applied) {
+        DLOGV_IF(kTagDisplay, "Mark wrapper[%d] to pending clear", i);
+        wrapper.pending_cleared = true;
+      }
+    }
+  }
+}
+
 void DisplayBuiltIn::SetPrivacyRegions() {
   if (!privacy_region_mgr_) {
     return;
@@ -6617,14 +6644,44 @@ DisplayError DisplayBuiltIn::SetQrtcFeatureConfig(int32_t type, void *data) {
 
 DisplayError DisplayBuiltIn::SetQrtcSubsample(int subsample) {
   DisplayError error = kErrorNone;
+  qrtc::QrtcSubSample qrtc_subsample = qrtc::QRTC_SubSample_MAX;
+  QrtcSubsamplingSupport qrtc_support = {};
 
-  if (subsample < qrtc::QRTC_SubSample_1X1 || subsample > qrtc::QRTC_SubSample_3X3) {
-    DLOGE("unsupported QRTC subsample %d", subsample);
-    return kErrorUndefined;
+  switch (subsample) {
+    case 0:
+      qrtc_subsample = qrtc::QRTC_SubSample_1X1;
+      qrtc_support.subsample_h = 1;
+      qrtc_support.subsample_v = 1;
+      break;
+    case 1:
+      qrtc_subsample = qrtc::QRTC_SubSample_2X1;
+      qrtc_support.subsample_h = 2;
+      qrtc_support.subsample_v = 1;
+      break;
+    case 2:
+      qrtc_subsample = qrtc::QRTC_SubSample_2X2;
+      qrtc_support.subsample_h = 2;
+      qrtc_support.subsample_v = 2;
+      break;
+    case 3:
+      qrtc_subsample = qrtc::QRTC_SubSample_3X3;
+      qrtc_support.subsample_h = 3;
+      qrtc_support.subsample_v = 3;
+      break;
+    default:
+      DLOGE("unsupported QRTC subsample %d", subsample);
+      return kErrorUndefined;
   }
 
-  qrtc_config_.subsample = static_cast<qrtc::QrtcSubSample>(subsample);
-  qrtc_config_.max_subsample = static_cast<qrtc::QrtcSubSample>(subsample);
+  error = comp_manager_->CanSupportQrtcWithSubsampling(display_comp_ctx_, &qrtc_support);
+  if (error != kErrorNone || !qrtc_support.supported) {
+    DLOGE("Unable to support QRTC on display %d with subsampling %dx%d", display_id_,
+          qrtc_support.subsample_h, qrtc_support.subsample_v);
+    return error;
+  }
+
+  qrtc_config_.subsample = qrtc_subsample;
+  qrtc_config_.max_subsample = qrtc_subsample;
 
   error = SetupQrtcConfig(qrtc_config_);
   if (error != kErrorNone) {
@@ -6725,6 +6782,7 @@ DisplayError DisplayBuiltIn::SetQrtcTuningCfg() {
 DisplayError DisplayBuiltIn::SetupQrtc() {
   DisplayError error = kErrorNone;
   int ret = 0;
+  QrtcSubsamplingSupport qrtc_support = {};
 
   if (!qrtc_factory_) {
     DLOGE("Failed to get qrtc feature Factory");
@@ -6828,6 +6886,15 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
     qrtc_config_.is_pentile_format = true;
   }
 
+  qrtc_support.subsample_h = 2; /* based on max_subsample = QRTC_SubSample_2X2 */
+  qrtc_support.subsample_v = 2; /* based on max_subsample = QRTC_SubSample_2X2 */
+  error = comp_manager_->CanSupportQrtcWithSubsampling(display_comp_ctx_, &qrtc_support);
+  if (error != kErrorNone || !qrtc_support.supported) {
+    DLOGE("Unable to support QRTC on display %d with subsampling %dx%d", display_id_,
+          qrtc_support.subsample_h, qrtc_support.subsample_v);
+    return error;
+  }
+
   if (SetupQrtcConfig(qrtc_config_) != kErrorNone) {
     DLOGE("Unable to setup Qrtc config on Display %d-%d", display_id_, display_type_);
     qrtc_.reset();
@@ -6878,6 +6945,10 @@ DisplayError DisplayBuiltIn::SetQrtcState(int state) {
     return kErrorUndefined;
   }
 
+  if (state && !isSPREnabled()) {
+    DLOGE("SPR is not Enabled!!!!!!");
+    return kErrorUndefined;
+  }
   DLOGI("Setting the Qrtc State to %d", state);
   GenericPayload enable_payload;
   bool *enable_ptr = nullptr;
@@ -7053,6 +7124,82 @@ DisplayError DisplayBuiltIn::UpdateRgbHistogramRoi(const void *data) {
            rgb_hist_roi_.right, rgb_hist_roi_.bottom);
 
   return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetSPRState(int state) {
+  ClientLock lock(disp_mutex_);
+
+  if (spr_ == nullptr) {
+    DLOGE("invalid SPR interface");
+    return kErrorUndefined;
+  }
+
+  if (spr_enable_ == (bool)state) {
+    DLOGI("same state transition");
+    return kErrorNone;
+  }
+
+  GenericPayload in;
+  bool *enable = nullptr;
+  int ret = in.CreatePayload(enable);
+  if (ret) {
+    DLOGE("Failed to create the payload. Error:%d", ret);
+    return kErrorUndefined;
+  }
+
+  *enable = (bool)state;
+  ret = spr_->SetParameter(kSPRFeatureEnable, in);
+  if (ret) {
+    DLOGE("Failed to set the spr status. Error:%d", ret);
+    return kErrorUndefined;
+  }
+
+  spr_enable_ = (bool)state;
+  DLOGI("SPR status %d\n", spr_enable_);
+
+  DisablePartialUpdateOneFrameInternal();
+
+  needs_validate_ = true;
+
+  // Send the SPR mode change to the hardware via DRM connector property
+  DisplayError hw_error = dpu_core_mux_->SetDynamicSPRMode((bool)state);
+  if (hw_error != kErrorNone && hw_error != kErrorNotSupported) {
+    DLOGW("SetDynamicSPRMode failed with error %d, state=%d", hw_error, state);
+  }
+
+  avoid_qsync_mode_change_ = true;
+  event_handler_->Refresh();
+
+  return kErrorNone;
+}
+
+bool DisplayBuiltIn::isSPREnabled() {
+  if (spr_ == nullptr) {
+    DLOGE("invalid SPR interface");
+    return kErrorUndefined;
+  }
+
+  int value = 0;
+  Debug::Get()->GetProperty(ENABLE_SPR, &value);
+  if (value == 0) {
+    return false;
+  }
+
+  GenericPayload out;
+  uint32_t *enable = nullptr;
+  int ret = out.CreatePayload<uint32_t>(enable);
+  if (ret) {
+    DLOGE("Failed to create the payload. Error:%d", ret);
+    return false;
+  }
+
+  ret = spr_->GetParameter(kSPRFeatureEnable, &out);
+  if (ret) {
+    DLOGE("Failed to get the spr status. Error:%d", ret);
+    return false;
+  }
+
+  return enable ? true : false;
 }
 
 }  // namespace sdm

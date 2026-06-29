@@ -474,6 +474,16 @@ enum QrtcVendorServiceType {
   KQrtcVendorServiceTypeMax,
 };
 
+/*! @brief This struct stores QrtcSubsamplingSupport capability
+
+  @sa DisplayInterface::QrtcSubsamplingSupport
+*/
+struct QrtcSubsamplingSupport {
+  uint32_t subsample_h;
+  uint32_t subsample_v;
+  bool supported;
+};
+
 enum ClientCapability {
   kPunchholeSupported,
   kHDRSupported,
@@ -1455,20 +1465,18 @@ class DisplayInterface {
 
   /*! @brief Method to allocate Writeback connector for QRTC.
 
-    @param[out] writeback connector id
+    @param[out] writeback connector map info
 
     @return \link DisplayError \endlink
   */
 
-  virtual DisplayError ReserveWBForDisplay(int32_t *wb_id) = 0;
+  virtual DisplayError ReserveWBForDisplay(WbMapInfo *wb_info) = 0;
 
-  /*! @brief Method to deallocate Writeback connector QRTC in use by QRTC.
-
-    @param[in] writeback connector id
+  /*! @brief Method to deallocate Writeback connector which is in use by QRTC.
 
     @return \link void \endlink
   */
-  virtual void ReleaseWBFromDisplay(int32_t wb_id) = 0;
+  virtual void ReleaseWBFromDisplay() = 0;
 
   /*! @brief Method to handle CWB teardown on the display
 
@@ -1512,6 +1520,14 @@ class DisplayInterface {
    @return \link DisplayError \endlink
   */
   virtual DisplayError SetDemuraConfig(int demura_idx) = 0;
+
+  /*! @brief Method to set config for spr feature.
+
+   @param[in] spr_idx : spr config index
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetSPRState(int state) = 0;
 
   /*! @brief Method to handle CAC configuration.
 
