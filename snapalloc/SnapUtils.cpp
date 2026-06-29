@@ -1,5 +1,7 @@
-// Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include "SnapUtils.h"
 
@@ -290,4 +292,18 @@ int GetBatchSize(vendor_qti_hardware_display_common_PixelFormatModifier modifier
       break;
   }
   return batchsize;
+}
+
+SnapHeapType GetHeapNameOptValue(
+    std::vector<vendor_qti_hardware_display_common_KeyValuePair> additional_options) {
+  for (auto opt : additional_options) {
+    if (std::strcmp(opt.key, "heap_type") == 0) {
+      SnapHeapType heap_type = static_cast<SnapHeapType>(opt.value);
+      if (heap_type > SnapHeapType::HEAP_NONE && heap_type < SnapHeapType::HEAP_MAX) {
+        return heap_type;
+      }
+    }
+  }
+
+  return SnapHeapType::HEAP_NONE;
 }
