@@ -73,6 +73,18 @@ bool SnapConstraintManager::CanAllocateZSLForSecureCamera() {
   return can_allocate;
 }
 
+bool SnapConstraintManager::IsCameraPreviewUsingUsbHal() {
+  static bool inited = false;
+  static bool is_usb_hal = false;
+  if (inited) {
+    return is_usb_hal;
+  }
+  is_usb_hal = debug_->IsCameraPreviewUsingUsbHal();
+  inited = true;
+  DLOGI("IsCameraPreviewUsingUsbHal: %d", is_usb_hal);
+  return is_usb_hal;
+}
+
 void SnapConstraintManager::GetImplDefinedFormat(
     vendor_qti_hardware_display_common_PixelFormat format,
     vendor_qti_hardware_display_common_BufferUsage usage,
@@ -130,7 +142,10 @@ void SnapConstraintManager::GetImplDefinedFormat(
       }
     } else if (usage & vendor_qti_hardware_display_common_BufferUsage::CAMERA_OUTPUT) {
       if (format == vendor_qti_hardware_display_common_PixelFormat::YCBCR_420_888) {
-        if ((usage & vendor_qti_hardware_display_common_BufferUsage::PROTECTED) &&
+        if (IsCameraPreviewUsingUsbHal()) {
+          *out_format = vendor_qti_hardware_display_common_PixelFormat::YCbCr_420_SP;
+          *out_modifier = PIXEL_FORMAT_MODIFIER_VENUS;
+        } else if ((usage & vendor_qti_hardware_display_common_BufferUsage::PROTECTED) &&
             (!CanAllocateZSLForSecureCamera())) {
           *out_format = vendor_qti_hardware_display_common_PixelFormat::YCrCb_420_SP;
           *out_modifier = PIXEL_FORMAT_MODIFIER_VENUS;

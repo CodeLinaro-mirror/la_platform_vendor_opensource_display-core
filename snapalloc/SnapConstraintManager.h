@@ -120,6 +120,7 @@ class SnapConstraintManager {
   bool UseUncached(vendor_qti_hardware_display_common_PixelFormat format,
                    vendor_qti_hardware_display_common_BufferUsage usage, bool ubwc_enabled);
   bool CanAllocateZSLForSecureCamera();
+  bool IsCameraPreviewUsingUsbHal();
   bool ValidateDescriptor(const BufferDescriptor &snap_desc);
   UBWCCapabilities ubwc_caps_;
 

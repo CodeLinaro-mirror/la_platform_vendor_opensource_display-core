@@ -270,6 +270,7 @@
 #define USE_UNCACHED_HEAP                    GRALLOC_PROP("use_uncached_heap")
 // Enable UBWC lossy format for fbt
 #define ENABLE_UBWC_LOSSY_FORMAT_FBT         GRALLOC_PROP("enable_ubwc_lossy_format_fbt")
+#define CAMERA_PREVIEW_USES_USB_HAL_PROP     GRALLOC_PROP("camera_preview_uses_usb_hal")
 
 // Add all vendor.gralloc.properties above
 
