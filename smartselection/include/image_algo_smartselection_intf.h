@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <cstddef>
+#include <cstdint>
 
 // GenericIntf<ParamEnum, OpsEnum, PayloadType> — same base template used by ClstcInterface.
 #include <private/generic_intf.h>
@@ -133,12 +135,46 @@ enum SmartSelectionOp {
 
   // kSSQuerySelectorStatus
   //   input:  SmartSelectionQuerySelectorInput*
-  //             .app_name — null-terminated UTF-8 app name to query
+  //             .app_name — null-terminated UTF-8 string identifying the app pipeline.
   //   output: SmartSelectionQuerySelectorOutput*
   //             .selected_count — number of selected screenshots (>=0), or -1 on error
   //   return: 0 on success, -EINVAL if pipeline not initialized or app_name is empty
   //   note:   does not modify any internal state; safe to call at any time after kSSInit
   kSSQuerySelectorStatus,
+
+  // kSSSetQueueThresholdCallback
+  //   input:  SmartSelectionSetQueueThresholdCallbackInput*
+  //             .callback  — invoked when selected queue crosses threshold/back below
+  //             .cookie    — opaque pointer returned to callback
+  //   output: nullptr
+  //   return: 0 on success
+  //   note:   maps directly to QaiorSS_setQueueThresholdCallback().
+  //           Queue threshold configuration is performed separately via
+  //           kSSConfigureQueueThreshold(), matching the SDK E2E flow.
+  kSSSetQueueThresholdCallback,
+
+  // kSSSetBufferReleaseCallback
+  //   input:  SmartSelectionSetBufferReleaseCallbackInput*
+  //             .callback — invoked when SmartSelection has consumed a buffer
+  //             .cookie   — opaque pointer returned to callback as userData
+  //   output: nullptr
+  //   return: 0 on success
+  //   note:   maps to QaiorSS_setBufferReleaseCallback(). This is the earliest-safe
+  //           notification that the client may reuse/release the submitted buffer.
+  kSSSetBufferReleaseCallback,
+
+  // kSSConfigureQueueThreshold
+  //   input:  SmartSelectionConfigureQueueThresholdInput*
+  //             .app_name  — configured app pipeline to monitor
+  //             .threshold — selected screenshot queue threshold
+  //             .enabled   — true to enable notifications, false to disable
+  //   output: nullptr
+  //   return: 0 on success
+  //   note:   maps directly to QaiorSS_configureQueueThreshold().
+  //           Exposed separately because the SDK documents this as a runtime
+  //           reconfiguration call and E2E tests invoke it independently from
+  //           QaiorSS_setQueueThresholdCallback().
+  kSSConfigureQueueThreshold,
 
   kSSOpMax = 0xFF,  ///< Reserved; used for bounds checking
 };
@@ -356,6 +392,63 @@ struct SmartSelectionQuerySelectorInput {
 /// Output for ProcessOps(kSSQuerySelectorStatus)
 struct SmartSelectionQuerySelectorOutput {
   int selected_count = -1;  ///< number of selected screenshots (>=0), or -1 on error
+};
+
+/// Event delivered by ProcessOps(kSSSetQueueThresholdCallback).
+/// Mirrors QaiorSS_QueueThresholdEvent_t but deep-copies strings.
+struct SmartSelectionQueueThresholdEvent {
+  std::string app_name;
+  std::string user_id;
+  size_t current_queue_size = 0;
+  size_t threshold = 0;
+  int64_t timestamp_ms = 0;
+  bool threshold_crossed = false;  ///< true: crossed above, false: back below
+};
+
+typedef void (*SmartSelectionQueueThresholdCallbackFn)(
+    const SmartSelectionQueueThresholdEvent *event, void *cookie);
+
+/// Input for ProcessOps(kSSSetQueueThresholdCallback).
+///
+/// This directly maps to QaiorSS_setQueueThresholdCallback().
+/// Queue threshold enable/disable and threshold value are configured separately
+/// via ProcessOps(kSSConfigureQueueThreshold), matching the SDK E2E flow.
+/// Pass callback=nullptr to disable queue threshold notifications.
+struct SmartSelectionSetQueueThresholdCallbackInput {
+  SmartSelectionQueueThresholdCallbackFn callback = nullptr;
+  void *cookie = nullptr;
+};
+
+/// Event delivered by ProcessOps(kSSSetBufferReleaseCallback).
+///
+/// The callback is fired when SmartSelection has finished reading the buffer,
+/// which can happen before the final emit callback. For kSSFrameNativeHandle,
+/// buffer is the original native_handle_t* passed at enqueue time. For direct
+/// AHardwareBuffer/GraphicBuffer inputs, buffer is the original pointer passed
+/// to the adapter. The adapter releases only its internal reference/clone.
+struct SmartSelectionBufferReleaseEvent {
+  SmartSelectionFrameInputType type = kSSFrameNativeHandle;
+  void *buffer = nullptr;
+  void *cookie = nullptr;  ///< per-frame cookie supplied in SmartSelectionEnqueueInput
+};
+
+typedef void (*SmartSelectionBufferReleaseCallbackFn)(const SmartSelectionBufferReleaseEvent *event,
+                                                      void *cookie);
+
+/// Input for ProcessOps(kSSSetBufferReleaseCallback).
+/// Pass callback=nullptr to disable buffer release notifications.
+struct SmartSelectionSetBufferReleaseCallbackInput {
+  SmartSelectionBufferReleaseCallbackFn callback = nullptr;
+  void *cookie = nullptr;
+};
+
+/// Input for ProcessOps(kSSConfigureQueueThreshold).
+/// This directly maps to QaiorSS_configureQueueThreshold() so callers can
+/// update threshold/enabled at runtime without re-registering the callback.
+struct SmartSelectionConfigureQueueThresholdInput {
+  std::string app_name;  ///< configured app pipeline to monitor (required)
+  size_t threshold = 0;  ///< selected queue size threshold
+  bool enabled = true;   ///< true to enable notifications, false to disable
 };
 
 }  // namespace imagealgo

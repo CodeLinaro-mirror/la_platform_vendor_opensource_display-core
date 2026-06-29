@@ -106,6 +106,9 @@ class SmartSelectionAdapter : public SmartSelectionIntf {
   int DoDeinit(const sdm::GenericPayload &in, sdm::GenericPayload *out);
   int DoWaitUntilIdle(const sdm::GenericPayload &in, sdm::GenericPayload *out);
   int DoQuerySelectorStatus(const sdm::GenericPayload &in, sdm::GenericPayload *out);
+  int DoSetQueueThresholdCallback(const sdm::GenericPayload &in, sdm::GenericPayload *out);
+  int DoSetBufferReleaseCallback(const sdm::GenericPayload &in, sdm::GenericPayload *out);
+  int DoConfigureQueueThreshold(const sdm::GenericPayload &in, sdm::GenericPayload *out);
 
   // -----------------------------------------------------------------------
   // Per-input-type frame preparation helpers (called by DoEnqueue).
@@ -165,6 +168,13 @@ class SmartSelectionAdapter : public SmartSelectionIntf {
   static void EmitCallbackTrampoline(const QaiorSS_EmitResult_t *result, void *cookie);
   void OnEmitResult(const QaiorSS_EmitResult_t *result);
 
+  static void QueueThresholdCallbackTrampoline(const QaiorSS_QueueThresholdEvent_t *event,
+                                               void *cookie);
+  void OnQueueThresholdEvent(const QaiorSS_QueueThresholdEvent_t *event);
+
+  static void BufferReleaseCallbackTrampoline(void *buffer, void *cookie, void *userData);
+  void OnBufferReleased(void *buffer, void *cookie);
+
   int LoadConfigurationJson(const std::string &config_path);
 
   // -----------------------------------------------------------------------
@@ -196,6 +206,10 @@ class SmartSelectionAdapter : public SmartSelectionIntf {
   // Passed in via ProcessOps(kSSInit) input payload
   SmartSelectionEmitCallbackFn client_callback_fn_ = nullptr;
   void *client_callback_cookie_ = nullptr;
+  SmartSelectionQueueThresholdCallbackFn client_queue_threshold_callback_fn_ = nullptr;
+  void *client_queue_threshold_callback_cookie_ = nullptr;
+  SmartSelectionBufferReleaseCallbackFn client_buffer_release_callback_fn_ = nullptr;
+  void *client_buffer_release_callback_cookie_ = nullptr;
 
   // ISnapMapper for extracting buffer metadata from snap handles
   std::shared_ptr<vendor::qti::hardware::display::snapalloc::ISnapMapper> snapmapper_;
@@ -214,6 +228,12 @@ class SmartSelectionAdapter : public SmartSelectionIntf {
   // CleanupFrameOnFailure, DoDeinit, and Deinit.
   // Protected by pending_ahb_mutex_ (same lock as pending_ahbs_).
   std::unordered_map<AHardwareBuffer *, native_handle_t *> ahb_to_native_handle_map_;
+
+  // When the v2.2.2 BufferReleaseCallback feature is enabled, libQaiorSmartSelection
+  // may clear FrameHandle::buffer before the later emit callback. Keep a cookie
+  // back-pointer for native_handle input so emit results can still identify the
+  // original CWB buffer.
+  std::unordered_map<void *, native_handle_t *> released_cookie_to_native_handle_map_;
 
   // -----------------------------------------------------------------------
   // C API function pointers (resolved via dlsym)
@@ -240,6 +260,13 @@ class SmartSelectionAdapter : public SmartSelectionIntf {
   QaiorSS_Status_t (*fn_waitUntilIdle_)(QaiorSS_Pipeline_t *, QaiorSS_Context_t *,
                                         int32_t) = nullptr;
   int (*fn_querySelectorStatus_)(QaiorSS_Context_t *, const char *) = nullptr;
+  QaiorSS_Status_t (*fn_setQueueThresholdCallback_)(QaiorSS_Pipeline_t *, QaiorSS_Context_t *,
+                                                    QaiorSS_QueueThresholdCallback,
+                                                    void *) = nullptr;
+  QaiorSS_Status_t (*fn_configureQueueThreshold_)(QaiorSS_Pipeline_t *, QaiorSS_Context_t *,
+                                                  const char *, size_t, int) = nullptr;
+  QaiorSS_Status_t (*fn_setBufferReleaseCallback_)(QaiorSS_Pipeline_t *, QaiorSS_Context_t *,
+                                                   QaiorSS_BufferReleaseCallback, void *) = nullptr;
 };
 
 }  // namespace imagealgo
