@@ -3928,6 +3928,13 @@ DisplayError HWDeviceDRM::NullCommit(bool synchronous, bool retain_planes) {
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_FLUSH_SYNC_EN, token_.crtc_id, 0);
   }
   drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_LSR_MODE, token_.crtc_id, 0);
+  // Reset LSR batch properties to 0 so the kernel does not see stale batch_size/index/type
+  // values from a previous LSR init commit replayed into this null commit.
+  if (hw_resource_.max_lsr_batch_size) {
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_BATCH_SIZE, token_.crtc_id, 0);
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_BATCH_INDEX, token_.crtc_id, 0);
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_BATCH_TYPE, token_.crtc_id, 0);
+  }
 
   int ret = drm_atomic_intf_->Commit(synchronous , retain_planes);
   if (ret) {
