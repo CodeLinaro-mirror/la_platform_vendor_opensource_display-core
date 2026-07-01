@@ -12,11 +12,11 @@
 #include <unordered_map>
 
 using std::pair;
-using std::unordered_map;
+using std::unordered_multimap;
 
 namespace sdm {
 
-#define MAX_AREA_MODE_LAYERS 2
+#define MAX_AREA_MODE_LAYERS 3
 
 class PrivacyRegionManager {
  public:
@@ -49,9 +49,10 @@ class PrivacyRegionManager {
   size_t num_privacy_regions_ = 0;
   uint32_t max_privacy_regions_ = 0;
   int spatial_dimming_width_ = 0;
+  int non_dimming_width_ = 0;
   PrivacyRegionMode mode_ = PrivacyRegionMode::PR_NONE;
   bool prev_region_state_[MAX_AREA_MODE_LAYERS] = {false};
-  unordered_map<Resolution, PrivacyRegion, ResolutionHash> privacy_regions_offsets_;
+  unordered_multimap<Resolution, PrivacyRegion, ResolutionHash> privacy_regions_offsets_;
 };
 
 }  //namespace sdm

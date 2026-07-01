@@ -1239,7 +1239,7 @@ DisplayError SDMLayer::SetLayerPrivacyRegions(const std::vector<PrivacyRegion> &
     layer_->privacy_regions.clear();
     LayerRect layer_rect = {};
     for (auto region : privacy_regions) {
-      bool is_valid_index = (region.index == 1 || region.index == 2);
+      bool is_valid_index = (region.index >= 1 && region.index <= 3);
       SetRect(region.rect, &layer_rect);
       if (Contains(dst_rect_, layer_rect) && (!is_area_mode || is_valid_index)) {
         layer_->privacy_regions.push_back(region);
