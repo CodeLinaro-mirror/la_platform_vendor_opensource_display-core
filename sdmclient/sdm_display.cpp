@@ -3706,6 +3706,13 @@ DisplayError SDMDisplay::HandleSecureEvent(SecureEvent secure_event,
     }
   } else if (secure_event == kTUITransitionPrepare ||
              secure_event == kTUITransitionStart) {
+    // Save power mode only if secondary is actively ON — not if already OFF
+    if (!pending_power_mode_valid_ && current_power_mode_ != SDMPowerMode::POWER_MODE_OFF) {
+      pending_power_mode_ = current_power_mode_;
+      pending_power_mode_valid_ = true;
+      DLOGI("Saved pending power mode %d for display %d-%d", (int)pending_power_mode_, sdm_id_,
+            type_);
+    }
     if (*needs_refresh) {
       display_pause_pending_ = true;
     } else {
