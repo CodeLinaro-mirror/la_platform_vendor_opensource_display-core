@@ -95,7 +95,12 @@ int DisplayConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCon
         case PLANE_LAYOUT_COMPONENT_TYPE_B:
         case PLANE_LAYOUT_COMPONENT_TYPE_A:
           plane_layout.stride.horizontal_stride = mapper.GetRgbStride(mmm_color_format, desc.width);
-          plane_layout.scanline.scanline = mapper.GetRgbScanlines(mmm_color_format, desc.height);
+          if (desc.usage &
+              vendor_qti_hardware_display_common_BufferUsage::QTI_PRIVATE_SECURE_DISPLAY) {
+            plane_layout.scanline.scanline = desc.height;
+          } else {
+            plane_layout.scanline.scanline = mapper.GetRgbScanlines(mmm_color_format, desc.height);
+          }
           plane_layout.size_align = 1;
           break;
         case PLANE_LAYOUT_COMPONENT_TYPE_CB:
