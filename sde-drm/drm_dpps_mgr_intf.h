@@ -26,6 +26,11 @@
 * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __DRM_DPPS_MGR_INTF_H__
 #define __DRM_DPPS_MGR_INTF_H__
@@ -40,6 +45,7 @@ class DRMDppsManagerIntf {
   virtual void CommitDppsFeatures(drmModeAtomicReq *req, const DRMDisplayToken &tok,
     uint32_t validate_only) = 0;
   virtual void GetDppsFeatureInfo(DRMDppsFeatureInfo *info) = 0;
+  virtual void Deinit() {}
 };
 
 extern "C" DRMDppsManagerIntf* GetDppsManagerIntf();
