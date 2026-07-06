@@ -26,11 +26,13 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 /*
  * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #include <algorithm>
 #include <bitset>
 #include <core/buffer_allocator.h>
@@ -570,6 +572,39 @@ DisplayError ConcurrencyMgr::GetDisplayRequests(Display display,
                              out_layer_requests);
 }
 
+DisplayError ConcurrencyMgr::GetDisplayLuts(
+    Display display, std::unique_ptr<std::vector<std::pair<LayerId, Lut3d *>>> &out_luts) {
+  if (display >= kNumDisplays) {
+    return kErrorParameters;
+  }
+
+  SCOPE_LOCK(locker_[display]);
+  auto status = kErrorParameters;
+  if (sdm_display_[display]) {
+    auto sdm_display = sdm_display_[display];
+    status = sdm_display->GetDisplayLuts(out_luts);
+  }
+
+  return status;
+}
+
+DisplayError ConcurrencyMgr::GetBufferLuts(Display display,
+                                           const std::vector<SnapHandle *> &buffers,
+                                           std::unique_ptr<std::vector<Lut3d *>> &out_luts) {
+  if (display >= kNumDisplays) {
+    return kErrorParameters;
+  }
+
+  SCOPE_LOCK(locker_[display]);
+  auto status = kErrorParameters;
+  if (sdm_display_[display]) {
+    auto sdm_display = sdm_display_[display];
+    status = sdm_display->GetBufferLuts(buffers, out_luts);
+  }
+
+  return status;
+}
+
 DisplayError ConcurrencyMgr::GetDisplayType(uint64_t display,
                                             int32_t *out_type) {
   return CallDisplayFunction(display, &SDMDisplay::GetDisplayType, out_type);
@@ -872,9 +907,17 @@ DisplayError ConcurrencyMgr::SetActiveConfig(Display display, int32_t config) {
                              static_cast<Config>(config));
 }
 
-DisplayError ConcurrencyMgr::SetClientTarget(
-    uint64_t display, const SnapHandle *target, shared_ptr<Fence> acquire_fence,
-    int32_t dataspace, const SDMRegion &damage, uint32_t version) {
+DisplayError ConcurrencyMgr::SetClientTarget(uint64_t display, const SnapHandle *target,
+                                             shared_ptr<Fence> acquire_fence, int32_t dataspace,
+                                             const SDMRegion &damage, uint32_t version) {
+  return SetClientTarget(display, target, acquire_fence, dataspace, damage, version,
+                         1.0f /* hdr_sdr_ratio */);
+}
+
+DisplayError ConcurrencyMgr::SetClientTarget(uint64_t display, const SnapHandle *target,
+                                             shared_ptr<Fence> acquire_fence, int32_t dataspace,
+                                             const SDMRegion &damage, uint32_t version,
+                                             float hdr_sdr_ratio) {
   DTRACE_SCOPED();
 
   if (display >= kNumDisplays) {
@@ -885,8 +928,8 @@ DisplayError ConcurrencyMgr::SetClientTarget(
   auto status = kErrorParameters;
   if (sdm_display_[display]) {
     auto sdm_display = sdm_display_[display];
-    status = sdm_display->SetClientTarget(target, acquire_fence, dataspace,
-                                          damage, version);
+    status = sdm_display->SetClientTarget(target, acquire_fence, dataspace, damage, version,
+                                          hdr_sdr_ratio);
   }
 
   return status;
@@ -2659,4 +2702,8 @@ DisplayError ConcurrencyMgr::SetPanelFeatureConfig(Display display, int32_t type
   return CallDisplayFunction(display, &SDMDisplay::SetPanelFeatureConfig, type, data);
 }
 
+DisplayError ConcurrencyMgr::ClearBuffersMappedToLayer(uint64_t display, LayerId layer_id,
+                                                       const SnapHandle *layerBuffer) {
+  return kErrorNone;
+}
 }  // namespace sdm

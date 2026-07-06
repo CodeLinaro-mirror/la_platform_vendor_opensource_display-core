@@ -46,10 +46,11 @@
 #define __CLASS__ "DRMDppsManagerImp"
 namespace sde_drm {
 
-static DRMDppsManagerImp dpps_mgr;
+static std::map<int, DRMDppsManagerImp*> dpps_mgr_map;
+static std::mutex dpps_mgr_map_lock;
 static DRMDppsManagerDummyImp dpps_dummy_mgr;
 
-DRMDppsManagerIntf* GetDppsManagerIntf()
+DRMDppsManagerIntf* GetDppsManagerIntf(int fd)
 {
 #if (defined(__ANDROID__))
     int disable_power_features = 0;
@@ -60,9 +61,31 @@ DRMDppsManagerIntf* GetDppsManagerIntf()
       return &dpps_dummy_mgr;
     }
 
-    return &dpps_mgr;
+    std::lock_guard<std::mutex> lock(dpps_mgr_map_lock);
+    auto it = dpps_mgr_map.find(fd);
+    if (it != dpps_mgr_map.end()) {
+      return it->second;
+    }
+    DRMDppsManagerImp *mgr = new DRMDppsManagerImp();
+    dpps_mgr_map[fd] = mgr;
+    return mgr;
 #else
+    (void)fd;
     return &dpps_dummy_mgr;
+#endif
+}
+
+void DestroyDppsManagerIntf(int fd)
+{
+#if (defined(__ANDROID__))
+    std::lock_guard<std::mutex> lock(dpps_mgr_map_lock);
+    auto it = dpps_mgr_map.find(fd);
+    if (it != dpps_mgr_map.end()) {
+      delete it->second;
+      dpps_mgr_map.erase(it);
+    }
+#else
+    (void)fd;
 #endif
 }
 

@@ -101,7 +101,8 @@ public:
  virtual DisplayError SetFrameTriggerMode(uint32_t mode);
  virtual DisplayError SetBLScale(uint32_t level);
  virtual DisplayError SetClientTarget(const SnapHandle *target, shared_ptr<Fence> acquire_fence,
-                                      int32_t dataspace, const SDMRegion &damage, uint32_t version);
+                                      int32_t dataspace, const SDMRegion &damage, uint32_t version,
+                                      float hdr_sdr_ratio);
  virtual bool IsSmartPanelConfig(uint32_t config_id);
  virtual bool HasSmartPanelConfig(void);
  virtual DisplayError Deinit();

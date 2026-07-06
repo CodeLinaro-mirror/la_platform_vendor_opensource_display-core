@@ -26,6 +26,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 /*
  * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
@@ -62,7 +63,7 @@
 #include "sdm_display_builtin.h"
 #include "sdm_display_intf_aiqe.h"
 #include "sdm_display_intf_caps.h"
-#include "sdm_display_intf_drawcycle.h"
+#include "sdm_display_intf_drawcycle_v2.h"
 #include "sdm_display_intf_lifecycle.h"
 #include "sdm_display_intf_parcel.h"
 #include "sdm_display_intf_settings.h"
@@ -87,7 +88,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                        public SDMDisplayCapsIntf,
                        public SDMDisplaySettingsIntf,
                        public SDMDisplayLifeCycleIntf,
-                       public SDMDisplayDrawCycleIntf,
+                       public SDMDisplayDrawCycleIntfV2,
                        public SDMTrustedUICbIntf,
                        public SDMServicesCbIntf,
                        public SDMHotPlugCbIntf,
@@ -448,13 +449,19 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                                   uint32_t *out_num_elements,
                                   LayerId *out_layers,
                                   int32_t *out_layer_requests);
+  DisplayError GetDisplayLuts(Display display,
+                              std::unique_ptr<std::vector<std::pair<LayerId, Lut3d *>>> &out_luts);
+  DisplayError GetBufferLuts(Display display, const std::vector<SnapHandle *> &buffers,
+                             std::unique_ptr<std::vector<Lut3d *>> &out_luts);
   DisplayError GetReleaseFences(Display display, uint32_t *out_num_elements,
                                 LayerId *out_layers,
                                 std::vector<shared_ptr<Fence>> *out_fences);
   DisplayError SetClientTarget(uint64_t display, const SnapHandle *target,
-                               shared_ptr<Fence> acquire_fence,
-                               int32_t dataspace, const SDMRegion &region,
-                               uint32_t version);
+                               shared_ptr<Fence> acquire_fence, int32_t dataspace,
+                               const SDMRegion &region, uint32_t version);
+  DisplayError SetClientTarget(uint64_t display, const SnapHandle *target,
+                               shared_ptr<Fence> acquire_fence, int32_t dataspace,
+                               const SDMRegion &region, uint32_t version, float hdr_sdr_ratio);
   DisplayError SetCursorPosition(Display display, LayerId layer, int32_t x,
                                  int32_t y);
   DisplayError GetDataspaceSaturationMatrix(int32_t /*Dataspace*/ int_dataspace,
@@ -538,6 +545,8 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError SetABCMode(uint64_t display_id, string mode_name);
   DisplayError SetAIScalerMode(uint64_t display_id, uint32_t mode_id) { return kErrorNone; }
   DisplayError SetPanelFeatureConfig(Display display, int32_t type, void *data);
+  DisplayError ClearBuffersMappedToLayer(uint64_t display, LayerId layer_id,
+                                         const SnapHandle *layerBuffer);
 
   static const int locker_count_ = pluggable_lock_index_ + 1;
   static Locker locker_[locker_count_];
