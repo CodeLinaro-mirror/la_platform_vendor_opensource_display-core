@@ -46,7 +46,7 @@ std::shared_ptr<SDMDisplayCapsIntf> SDMInterfaceFactoryImpl::CreateCapsIntf() {
 }
 
 std::shared_ptr<SDMDisplayDrawCycleIntf> SDMInterfaceFactoryImpl::CreateDrawCycleIntf() {
-  std::shared_ptr<SDMDisplayDrawCycleIntf> draw_cycle = GetConcurrencyMgrInstance();
+  std::shared_ptr<SDMDisplayDrawCycleIntfV2> draw_cycle = GetConcurrencyMgrInstance();
   if (!draw_cycle) {
     DLOGE("Unable to open sdm draw cycle interface");
     return nullptr;

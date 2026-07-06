@@ -1295,11 +1295,9 @@ DisplayError SDMDisplay::GetActiveConfig(bool get_real_config, Config *out_confi
   return kErrorNone;
 }
 
-DisplayError SDMDisplay::SetClientTarget(const SnapHandle *target,
-                                         shared_ptr<Fence> acquire_fence,
-                                         int32_t dataspace,
-                                         const SDMRegion &damage,
-                                         uint32_t version) {
+DisplayError SDMDisplay::SetClientTarget(const SnapHandle *target, shared_ptr<Fence> acquire_fence,
+                                         int32_t dataspace, const SDMRegion &damage,
+                                         uint32_t version, float hdr_sdr_ratio) {
   DTRACE_SCOPED();
   // moved this check here from sdm_display
   // TODO(user): SurfaceFlinger gives us a null pointer here when doing full SDE composition
@@ -1600,10 +1598,14 @@ DisplayError SDMDisplay::HistogramEvent(int /* fd */, uint32_t /* blob_fd */) {
   return kErrorNone;
 }
 
-DisplayError SDMDisplay::PrepareLayerStack(uint32_t *out_num_types,
-                                           uint32_t *out_num_requests) {
+void SDMDisplay::ClearRequestMaps() {
   layer_changes_.clear();
   layer_requests_.clear();
+  display_luts_.clear();
+}
+
+DisplayError SDMDisplay::PrepareLayerStack(uint32_t *out_num_types, uint32_t *out_num_requests) {
+  ClearRequestMaps();
   has_client_composition_ = false;
   display_idle_ = false;
 
@@ -1613,7 +1615,7 @@ DisplayError SDMDisplay::PrepareLayerStack(uint32_t *out_num_types,
   }
 
   if (CanSkipSdmPrepare(out_num_types, out_num_requests)) {
-    return ((*out_num_types > 0) ? kErrorNeedsCommit : kErrorNone);
+    return (layer_changes_.size()) ? kErrorNeedsCommit : kErrorNone;
   }
 
   UpdateRefreshRate();
@@ -1656,8 +1658,7 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
   // clear geometry_changes_on_doze_suspend_ on successful prepare.
   geometry_changes_on_doze_suspend_ = GeometryChanges::kNone;
 
-  layer_changes_.clear();
-  layer_requests_.clear();
+  ClearRequestMaps();
   has_client_composition_ = false;
   for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
     Layer *layer = sdm_layer->GetSDMLayer();
@@ -1673,9 +1674,23 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
     sdm_layer->SetComposition(composition);
     SDMCompositionType device_composition =
         sdm_layer->GetDeviceSelectedCompositionType();
+
     if (device_composition == SDMCompositionType::COMP_CLIENT) {
       has_client_composition_ = true;
+
+      if (layer->lut_3d.validLutEntries) {
+        display_luts_[sdm_layer->GetId()] = &layer->lut_3d;
+      }
     }
+
+    // map handle ids to luts so client can retrieve it through getLuts call
+    // used in screenshot layer during rotation, suspend resume, etc.
+    if (layer->lut_3d.lutEntries != nullptr) {
+      buffer_luts_[layer->input_buffer.handle_id] = &layer->lut_3d;
+    } else if (buffer_luts_.find(layer->input_buffer.handle_id) != buffer_luts_.end()) {
+      buffer_luts_.erase(layer->input_buffer.handle_id);
+    }
+
     // Update the changes list only if the requested composition is different
     // from SDM comp type
     if (requested_composition != device_composition) {
@@ -1687,13 +1702,12 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
   client_target_->ResetValidation();
   *out_num_types = UINT32(layer_changes_.size());
   *out_num_requests = UINT32(layer_requests_.size());
+
   layer_stack_invalid_ = false;
-
   layer_stack_.client_incompatible = false;
-
   validate_done_ = true;
 
-  return ((*out_num_types > 0) ? kErrorNeedsCommit : kErrorNone);
+  return (layer_changes_.size() || display_luts_.size()) ? kErrorNeedsCommit : kErrorNone;
 }
 
 DisplayError SDMDisplay::AcceptDisplayChanges() {
@@ -1724,6 +1738,10 @@ DisplayError SDMDisplay::GetChangedCompositionTypes(uint32_t *out_num_elements,
     return kErrorNone;
   }
 
+  if (out_num_elements == nullptr) {
+    return kErrorNotSupported;
+  }
+
   if (!validate_done_) {
     DLOGW("Display is not validated");
     return kErrorNeedsValidate;
@@ -1731,26 +1749,29 @@ DisplayError SDMDisplay::GetChangedCompositionTypes(uint32_t *out_num_elements,
 
   *out_num_elements = UINT32(layer_changes_.size());
   if (out_layers != nullptr && out_types != nullptr) {
-    int i = 0;
-    for (auto change : layer_changes_) {
-      out_layers[i] = change.first;
-      out_types[i] = INT32(change.second);
-      i++;
+    auto it = layer_changes_.begin();
+    for (uint32_t i = 0; i < *out_num_elements; i++, it++) {
+      out_layers[i] = it->first;
+      out_types[i] = INT32(it->second);
     }
   }
+
   return kErrorNone;
 }
 
 DisplayError
 SDMDisplay::GetReleaseFences(uint32_t *out_num_elements, LayerId *out_layers,
                              std::vector<shared_ptr<Fence>> *out_fences) {
+  if (sdm_layer_stack_->layer_set_.empty()) {
+    return kErrorNone;
+  }
+
   if (out_num_elements == nullptr) {
     return kErrorNotSupported;
   }
 
+  *out_num_elements = UINT32(sdm_layer_stack_->layer_set_.size());
   if (out_layers != nullptr && out_fences != nullptr) {
-    *out_num_elements = std::min(*out_num_elements,
-                                 UINT32(sdm_layer_stack_->layer_set_.size()));
     auto it = sdm_layer_stack_->layer_set_.begin();
     for (uint32_t i = 0; i < *out_num_elements; i++, it++) {
       auto sdm_layer = *it;
@@ -1759,8 +1780,6 @@ SDMDisplay::GetReleaseFences(uint32_t *out_num_elements, LayerId *out_layers,
       shared_ptr<Fence> &fence = (*out_fences)[i];
       fence = sdm_layer->GetReleaseFence();
     }
-  } else {
-    *out_num_elements = UINT32(sdm_layer_stack_->layer_set_.size());
   }
 
   return kErrorNone;
@@ -1787,22 +1806,62 @@ DisplayError SDMDisplay::GetDisplayRequests(int32_t *out_display_requests,
     return kErrorNeedsValidate;
   }
 
+  *out_num_elements = UINT32(layer_requests_.size());
   *out_display_requests = 0;
   if (out_layers != nullptr && out_layer_requests != nullptr) {
-    *out_num_elements =
-        std::min(*out_num_elements, UINT32(layer_requests_.size()));
     auto it = layer_requests_.begin();
     for (uint32_t i = 0; i < *out_num_elements; i++, it++) {
       out_layers[i] = it->first;
       out_layer_requests[i] = INT32(it->second);
     }
-  } else {
-    *out_num_elements = UINT32(layer_requests_.size());
   }
 
   auto client_target_layer = client_target_->GetSDMLayer();
   if (client_target_layer->request.flags.flip_buffer) {
     *out_display_requests = INT32(SDMDisplayRequest::FlipClientTarget);
+  }
+
+  return kErrorNone;
+}
+
+DisplayError SDMDisplay::GetDisplayLuts(
+    std::unique_ptr<std::vector<std::pair<LayerId, Lut3d *>>> &out_luts) {
+  if (sdm_layer_stack_->layer_set_.empty()) {
+    return kErrorNone;
+  }
+
+  if (out_luts == nullptr) {
+    return kErrorNotSupported;
+  }
+
+  if (!validate_done_) {
+    DLOGW("Display is not validated");
+    return kErrorNeedsValidate;
+  }
+
+  for (auto it = display_luts_.begin(); it != display_luts_.end(); it++) {
+    out_luts->push_back(std::make_pair(it->first, it->second));
+  }
+
+  return kErrorNone;
+}
+
+DisplayError SDMDisplay::GetBufferLuts(const std::vector<SnapHandle *> &buffers,
+                                       std::unique_ptr<std::vector<Lut3d *>> &out_luts) {
+  if (out_luts == nullptr) {
+    return kErrorNotSupported;
+  }
+
+  uint32_t num_elements = buffers.size();
+  for (uint32_t i = 0; i < num_elements; i++) {
+    uint64_t handle_id = 0;
+    GetMetadata(buffers.at(i), MetadataType::BUFFER_ID, &handle_id, snapmapper_);
+    auto it = buffer_luts_.find(handle_id);
+    if (it != buffer_luts_.end()) {
+      out_luts->push_back(it->second);
+    } else {
+      out_luts->push_back(nullptr);
+    }
   }
 
   return kErrorNone;
@@ -2873,13 +2932,16 @@ bool SDMDisplay::CanSkipSdmPrepare(uint32_t *num_types,
 
   bool skip_prepare = true;
   for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
+    // TODO(user): Add check for lut update / tonemapping_query_mandatory so we don't skip prepare
+    // This function is called for virtual DPU & external displays
     if (!sdm_layer->GetSDMLayer()->flags.skip ||
         (sdm_layer->GetDeviceSelectedCompositionType() !=
          SDMCompositionType::COMP_CLIENT)) {
       skip_prepare = false;
-      layer_changes_.clear();
+      ClearRequestMaps();
       break;
     }
+
     if (sdm_layer->GetClientRequestedCompositionType() !=
         SDMCompositionType::COMP_CLIENT) {
       layer_changes_[sdm_layer->GetId()] = SDMCompositionType::COMP_CLIENT;
