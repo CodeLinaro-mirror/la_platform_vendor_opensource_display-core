@@ -6896,6 +6896,11 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
   qrtc_config_.panel_height = client_ctx_.display_attributes.y_pixels;
   qrtc_config_.is_buffer_secure = true;
 
+  int qrtc_force_nonsecure_buffer = 0;
+  Debug::Get()->GetProperty(QRTC_FORCE_NONSECURE_BUFFER, &qrtc_force_nonsecure_buffer);
+  if (qrtc_force_nonsecure_buffer)
+    qrtc_config_.is_buffer_secure = false;
+
   int spr_prop_value = 0;
   int spr_bypass_prop_value = 0;
   int spr_disable_value = 0;
