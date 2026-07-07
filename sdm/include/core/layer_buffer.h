@@ -213,6 +213,8 @@ enum LayerBufferFormat {
   kFormatCbYCrY422H2V1Packed,
   kFormatRAW10,
   kFormatNV12Y,
+  kFormatNV12Y10,
+  kFormatNV12A10,
   kFormatInvalid = 0xFFFFFFFF,
 };
 
