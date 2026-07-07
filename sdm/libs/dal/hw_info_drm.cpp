@@ -1052,9 +1052,11 @@ void HWInfoDRM::GetSDMFormat(uint32_t drm_format, uint64_t drm_format_modifier,
         fmts.push_back(kFormatYCbCr420P010Venus);
       } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_DMA) {
         fmts.push_back(kFormatNV12Y);
-      } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_LUMA_ONLY) {
+      } else if ((drm_format_modifier & DRM_FORMAT_MOD_QCOM_LUMA_ONLY) ==
+                 DRM_FORMAT_MOD_QCOM_LUMA_ONLY) {
         fmts.push_back(kFormatNV12Y10);
-      } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_ALPHA_ONLY) {
+      } else if ((drm_format_modifier & DRM_FORMAT_MOD_QCOM_ALPHA_ONLY) ==
+                 DRM_FORMAT_MOD_QCOM_ALPHA_ONLY) {
         fmts.push_back(kFormatNV12A10);
       } else {
         if (drm_format_modifier == 0) {
