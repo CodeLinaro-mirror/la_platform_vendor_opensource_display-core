@@ -146,6 +146,21 @@ bool CpuCanAccess(SnapUsage usage) {
      {false, true, false, false, false, true, false, false, true}},
     {{SnapPixelFormat::GBR16_UBWC}, {false, true, false, false, false, true, false, false, true}},
     {{SnapPixelFormat::GBRTP10_UBWC}, {false, true, false, false, false, true, false, false, true}},
+    {{SnapPixelFormat::NV12_LINEAR_FLEX}, {false, true, false, false, false, false, false, false}},
+    {{SnapPixelFormat::NV12_UBWC_FLEX}, {false, true, false, false, false, true, false, false}},
+    {{SnapPixelFormat::NV12_UBWC_FLEX_2_BATCH},
+     {false, true, false, false, false, true, false, false}},
+    {{SnapPixelFormat::NV12_UBWC_FLEX_4_BATCH},
+     {false, true, false, false, false, true, false, false}},
+    {{SnapPixelFormat::NV12_UBWC_FLEX_8_BATCH},
+     {false, true, false, false, false, true, false, false}},
+    {{SnapPixelFormat::TP10_UBWC_FLEX}, {false, true, false, false, false, true, false, false}},
+    {{SnapPixelFormat::TP10_UBWC_FLEX_2_BATCH},
+     {false, true, false, false, false, true, false, false}},
+    {{SnapPixelFormat::TP10_UBWC_FLEX_4_BATCH},
+     {false, true, false, false, false, true, false, false}},
+    {{SnapPixelFormat::TP10_UBWC_FLEX_8_BATCH},
+     {false, true, false, false, false, true, false, false}},
 };
 
 bool IsUbwcSupported(SnapPixelFormat format) {

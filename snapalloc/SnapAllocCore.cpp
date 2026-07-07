@@ -108,8 +108,8 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
     constraint_mgr_->ConvertAlignedWidthFromBytesToPixels(
         out_desc.format, layout.aligned_width_in_bytes, pixel_format_modifier,
         &aligned_width_in_pixels);
-    unsigned custom_content_md_size =
-        metadata_mgr_->GetCustomContentMetadataSize(out_desc.format, out_desc.usage);
+    unsigned custom_content_md_size = metadata_mgr_->GetCustomContentMetadataSize(
+        out_desc.format, out_desc.usage, pixel_format_modifier);
     unsigned batch_mode_dyn_md_size =
         metadata_mgr_->GetBatchModeDynamicMetadataSize(pixel_format_modifier);
 
