@@ -1472,13 +1472,15 @@ DPUColorManager *DPUColorManager::CreateDpuColorManager(SDMDisplayType type,
   // Create color manager proxy per physical display
   for (int i = 0; i < dpu_color_manager->display_id_list_.size(); i++) {
     ColorManagerProxy *colorManager = NULL;
+    uint32_t display_id = dpu_color_manager->display_id_list_[i];
+    uint32_t core_id = ColorManagerProxy::getCoreId(display_id);
     DLOGV("Creating colorManagerProxy for core=%d, display_id=%d",
-                                              i, dpu_color_manager->display_id_list_[i]);
+                                              core_id, dpu_color_manager->display_id_list_[i]);
     colorManager = ColorManagerProxy::CreateColorManagerProxy(type, dpu_core_mux,
-                                                          display_device_ctx[i].display_attributes,
-                                                          display_device_ctx[i].hw_panel_info,
-                                                          dpps_intf, disp_intf, hw_res_info[i],
-                                                          dpu_color_manager->display_id_list_[i]);
+                                                    display_device_ctx[core_id].display_attributes,
+                                                    display_device_ctx[core_id].hw_panel_info,
+                                                    dpps_intf, disp_intf, hw_res_info[i],
+                                                    dpu_color_manager->display_id_list_[i]);
     if (!colorManager) {
       DLOGE("Failed to create ColorManagerProxy for core=%d, display id=%d",
                                               i, dpu_color_manager->display_id_list_[i]);
