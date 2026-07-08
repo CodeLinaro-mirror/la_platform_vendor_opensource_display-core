@@ -7129,8 +7129,13 @@ DisplayError DisplayBuiltIn::UpdateRgbHistogramRoi(const void *data) {
     return kErrorParameters;
   }
 
+  HWDisplayAttributes display_attributes = client_ctx_.display_attributes;
   HWMixerAttributes mixer_attributes = client_ctx_.mixer_attributes;
   LayerRect full_frame = {0, 0, FLOAT(mixer_attributes.width), FLOAT(mixer_attributes.height)};
+  LayerRect panel_res = {0.0f, 0.0f, FLOAT(display_attributes.x_pixels),
+                         FLOAT(display_attributes.y_pixels)};
+  bool remap_roi = (config->tap_point == rgb_histogram::kPostDspp);
+
   pending_rgb_histogram_roi_ = true;
 
   // When disabled, config is zero-initialized so roi will be {0,0,0,0}
@@ -7139,6 +7144,17 @@ DisplayError DisplayBuiltIn::UpdateRgbHistogramRoi(const void *data) {
   roi.top = FLOAT(config->y);
   roi.right = FLOAT(config->x + config->width);
   roi.bottom = FLOAT(config->y + config->height);
+
+  if (remap_roi) {
+    LayerRect post_dspp_roi = roi;
+    // RGB Hist ROI is mapped to panel resolution, re-map it to mixer resolution
+    MapRect(panel_res, full_frame, post_dspp_roi, &roi);
+    DLOGV_IF(
+        kTagDisplay,
+        "RGB histogram roi [%.2f %.2f %.2f %.2f] mapped to mixer resolution [%.2f %.2f %.2f %.2f]",
+        post_dspp_roi.left, post_dspp_roi.top, post_dspp_roi.right, post_dspp_roi.bottom, roi.left,
+        roi.top, roi.right, roi.bottom);
+  }
 
   if (IsZeroRoi(roi)) {
     DLOGV_IF(kTagDisplay, "RGB histogram roi [%.2f %.2f %.2f %.2f] is reset", roi.left, roi.top,
