@@ -55,6 +55,7 @@ bool CpuCanAccess(SnapUsage usage) {
     {{SnapPixelFormat::RAW10}, {false, false, false, false, false, false, false, false, false}},
     {{SnapPixelFormat::RAW12}, {false, false, false, false, false, false, false, false, false}},
     {{SnapPixelFormat::RAW14}, {false, false, false, false, false, false, false, false, false}},
+    {{SnapPixelFormat::RAW14_1}, {false, false, false, false, false, false, false, false, false}},
     {{SnapPixelFormat::RAW16}, {false, false, false, false, false, false, false, false, false}},
     {{SnapPixelFormat::DEPTH_16}, {false, false, true, true, false, true, false, false, false}},
     {{SnapPixelFormat::DEPTH_24}, {false, false, true, true, false, true, false, false, false}},
