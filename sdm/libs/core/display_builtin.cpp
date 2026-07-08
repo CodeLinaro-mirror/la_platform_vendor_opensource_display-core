@@ -7082,10 +7082,20 @@ DisplayError DisplayBuiltIn::SetRgbHistObserverConfig(bool state, void *data) {
     return kErrorUndefined;
   }
 
-  // Set display dimensions on ObserverConfig
+  // Set dimensions on ObserverConfig
   auto *obs_config = reinterpret_cast<rgb_histogram::ObserverConfig *>(data);
-  obs_config->disp_width = client_ctx_.display_attributes.x_pixels;
-  obs_config->disp_height = client_ctx_.display_attributes.y_pixels;
+  if (obs_config->tap_point == rgb_histogram::kPreDspp) {
+    // Mixer dimensions
+    obs_config->disp_width = client_ctx_.mixer_attributes.width;
+    obs_config->disp_height = client_ctx_.mixer_attributes.height;
+  } else if (obs_config->tap_point == rgb_histogram::kPostDspp) {
+    // Display dimensions
+    obs_config->disp_width = client_ctx_.display_attributes.x_pixels;
+    obs_config->disp_height = client_ctx_.display_attributes.y_pixels;
+  } else {
+    DLOGE("Invalid tap_point %d", obs_config->tap_point);
+    return kErrorUndefined;
+  }
 
   // Fill in observer configuration
   wrapper->enable = state;
