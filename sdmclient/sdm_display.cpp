@@ -1095,7 +1095,12 @@ DisplayError SDMDisplay::SetVsyncEnabled(bool enabled) {
   SDMDebugHandler::ATRACE_INT("SetVsyncState ", enabled);
   DisplayError error = kErrorNone;
 
-  if (shutdown_pending_ || !event_handler_->VsyncCallbackRegistered()) {
+  if (shutdown_pending_ || !event_handler_ || !event_handler_->VsyncCallbackRegistered()) {
+    return kErrorNone;
+  }
+
+  if (!display_intf_) {
+    DLOGW("display_intf_ is null, cannot set VSync state.");
     return kErrorNone;
   }
 
@@ -4170,8 +4175,9 @@ void SDMDisplay::NotifyCwbDone(int32_t status, const LayerBuffer &buffer) {
 
 void SDMDisplay::Abort() { display_intf_->Abort(); }
 
-void SDMDisplay::MarkClientActive(bool is_client_up) {
+DisplayError SDMDisplay::MarkClientActive(bool is_client_up) {
   is_client_up_ = is_client_up;
+  return kErrorNone;
 }
 
 bool SDMDisplay::NotifyIdleNow() {
