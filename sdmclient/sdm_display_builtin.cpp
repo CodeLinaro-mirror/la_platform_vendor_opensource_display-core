@@ -1537,11 +1537,9 @@ bool SDMDisplayBuiltIn::NeedsLargeCompPerfHint() {
     return true;
   }
 
-  // Send hints when the device is in multi-display or when a skip layer is
-  // present.
-  if (layer_stack_.flags.skip_present || is_multi_display_) {
-    trace = "skip layer " + to_string(layer_stack_.flags.skip_present) + " multidisplay " +
-            to_string(is_multi_display_);
+  // Send hints when the device is in multi-display
+  if (is_multi_display_) {
+    trace = " multidisplay " + to_string(is_multi_display_);
     DTRACE_BEGIN(trace.c_str());
     DTRACE_END();
     return true;
