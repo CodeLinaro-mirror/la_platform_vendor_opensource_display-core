@@ -1102,6 +1102,21 @@ Error SnapMetadataManager::HeapNameHelper(SnapMetadata *metadata, SnapHandleInte
   return Error::BAD_VALUE;
 }
 
+Error SnapMetadataManager::ROIRectMetadataHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                                                 void *in_set, void *out_get,
+                                                 BufferDescriptor *buf_des) {
+  if (out_get != nullptr) {
+    *static_cast<vendor_qti_hardware_display_common_ROIRectMetadata *>(out_get) =
+        metadata->roiRectMetadata;
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    metadata->roiRectMetadata =
+        *static_cast<vendor_qti_hardware_display_common_ROIRectMetadata *>(in_set);
+    return Error::NONE;
+  }
+  return Error::BAD_VALUE;
+}
+
 uint64_t SnapMetadataManager::GetMetaDataSize(uint64_t reserved_region_size,
                                               uint64_t custom_content_md_region_size) {
   return static_cast<uint64_t>(ROUND_UP_PAGESIZE(sizeof(SnapMetadata) + reserved_region_size +
@@ -1396,6 +1411,9 @@ Error SnapMetadataManager::Set(SnapHandleInternal *hnd,
         break;
       case vendor_qti_hardware_display_common_MetadataType::VIDEO_TRANSCODE_STATS:
         metadata->video_transcode_stats.stat_len = 0;
+        break;
+      case vendor_qti_hardware_display_common_MetadataType::ROI_RECT_METADATA:
+        metadata->roiRectMetadata.size = 0;
         break;
       default:
         DLOGE("Input is null when setting metadata type %d", type);

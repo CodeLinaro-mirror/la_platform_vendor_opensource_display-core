@@ -1489,7 +1489,9 @@ DisplayError DisplayBuiltIn::PostCommit() {
     dpps_pu_nofiy_pending_ = false;
     dpps_pu_lock_.Broadcast();
   }
-  dpps_info_.Init(this, client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
+
+  if (prop_intf_)
+    dpps_info_.Init(this, client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
 
   if (demuratn_ && !demuratn_user_disabled_)
     EnableDemuraTn(true);
