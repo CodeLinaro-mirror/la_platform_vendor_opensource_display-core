@@ -73,9 +73,8 @@ DisplayError SDMDisplayVirtualGPU::Deinit(bool deinit_layer_builder) {
 
   delete client_target_;
 
-  for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
-    delete sdm_layer;
-  }
+  layer_builder_->DeInit(id_);
+  layer_builder_ = nullptr;
 
   return kErrorNone;
 }
@@ -196,7 +195,7 @@ SDMDisplayVirtualGPU::Present(shared_ptr<Fence> *out_retire_fence) {
   Layer *sdm_layer = client_target_->GetSDMLayer();
   LayerBuffer &input_buffer = sdm_layer->input_buffer;
   ctx.src_hnd = (void *)input_buffer.buffer_id;
-  ctx.dst_hnd = (void *)&output_handle_;
+  ctx.dst_hnd = (void *)output_handle_;
   ctx.dst_rect = {0, 0};
   ctx.dst_rect.right = FLOAT(output_buffer_->unaligned_width);
   ctx.dst_rect.bottom = FLOAT(output_buffer_->unaligned_height);

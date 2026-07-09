@@ -32,6 +32,7 @@ SnapDMAAllocator *SnapDMAAllocator::GetInstance() {
   if (instance_ == nullptr) {
     instance_ = new SnapDMAAllocator();
     instance_->GetCameraPreviewPerms();
+    instance_->GetUncachedHeapUsage();
   }
   return instance_;
 }
@@ -160,12 +161,16 @@ Error SnapDMAAllocator::SecureMemPerms(AllocData *ad) {
 }
 
 void SnapDMAAllocator::GetHeapInfo(vendor_qti_hardware_display_common_BufferUsage usage,
-                                   bool sensor_flag, std::string *dma_heap_name,
+                                   bool sensor_flag, bool use_uncached, std::string *dma_heap_name,
                                    std::vector<std::string> *dma_vm_names, unsigned int *alloc_type,
                                    unsigned int *flags, unsigned int *alloc_size) {
   // Query Camera Security Framework in order to allocate from legacy/non-legacy heap
   GetCSFVersion();
   std::string heap_name = "qcom,system";
+
+  if (uncached_heap_prop_ && use_uncached) {
+    heap_name = "qcom,system-uncached";
+  }
   unsigned int type = 0;
   if (static_cast<uint64_t>(usage & vendor_qti_hardware_display_common_BufferUsage::PROTECTED)) {
     if (usage & vendor_qti_hardware_display_common_BufferUsage::QTI_PRIVATE_SECURE_DISPLAY) {
@@ -379,6 +384,12 @@ void SnapDMAAllocator::GetCameraPreviewPerms() {
   int value = 0;
   Debug::GetInstance()->GetProperty(ALLOW_CAMERA_PREVIEW_WRITE, &value);
   allow_camera_preview_write_ = (value == 1);
+}
+
+void SnapDMAAllocator::GetUncachedHeapUsage() {
+  int value = 0;
+  debug_->GetProperty(USE_UNCACHED_HEAP, &value);
+  uncached_heap_prop_ = (value == 1);
 }
 
 }  // namespace snapalloc

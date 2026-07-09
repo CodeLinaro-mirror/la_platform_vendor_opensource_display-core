@@ -101,6 +101,9 @@ class ResourceInterface {
   virtual DisplayError GetDemuraFetchResourceCount(MultiDpuDemuraMap *fetch_resource_cnt) = 0;
   virtual DisplayError ReserveDemuraFetchResources(const int32_t &display_id,
                                                    const int8_t &preferred_rect) = 0;
+  virtual DisplayError ReserveQrtcFetchResources(const int32_t &display_id,
+                                                 const int8_t &preferred_rect) = 0;
+  virtual DisplayError FreeQrtcFetchResources(const int32_t &display_id) = 0;
   virtual DisplayError GetDemuraFetchResources(Handle display_ctx,
                                                std::vector<FetchResourceList> *frl) = 0;
   virtual DisplayError ReserveABCFetchResources(const uint32_t &display_id, bool is_primary,

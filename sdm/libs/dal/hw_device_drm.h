@@ -383,6 +383,7 @@ class HWDeviceDRM : public HWInterface {
   sde_drm::DRMConnectorInfo connector_info_ = {};
   bool first_cycle_ = true;
   bool first_null_cycle_ = true;
+  bool offload_transition_pending_ = false;
   HWMixerAttributes mixer_attributes_ = {};
   std::vector<sde_drm::DRMSolidfillStage> solid_fills_ {};
   sde_drm::DRMNoiseLayerConfig noise_cfg_ = {};

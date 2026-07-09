@@ -580,6 +580,13 @@ DisplayError SDMDisplay::Init() {
     return kErrorNotSupported;
   }
 
+  if (display_intf_->IsLSRSupported()) {
+    FrameCaptureIntf::Create(display_intf_, buffer_allocator_, &fcm_);
+    if (fcm_ == nullptr) {
+      DLOGW("Failed to create framecapture");
+    }
+  }
+
   SDMDebugHandler::Get()->GetProperty(DISABLE_HDR, &disable_hdr_handling_);
   if (disable_hdr_handling_) {
     DLOGI("HDR Handling disabled");
@@ -804,6 +811,11 @@ DisplayError SDMDisplay::Deinit(bool deinit_layer_builder) {
     layer_builder_ = nullptr;
   }
 
+  if (fcm_) {
+    FrameCaptureIntf::Destroy(fcm_);
+    fcm_ = nullptr;
+  }
+
   return kErrorNone;
 }
 
@@ -855,6 +867,17 @@ void SDMDisplay::BuildLayerStack() {
       DLOGV_IF(kTagClient,
                "Layer [%" PRIu64
                "] marked as skip due to unsupported dataspace "
+               "for display [%" PRIu64 "]-[%" PRIu32 "]",
+               sdm_layer->GetId(), id_, type_);
+    }
+
+    if (sdm_layer->IsLutsSet()) {
+      layer->flags.has_luts = true;
+      // TODO(user): Remove skip once using luts sent by client is supported
+      layer->flags.skip = true;
+      DLOGV_IF(kTagClient,
+               "Layer [%" PRIu64
+               "] marked as skip due to luts set by client "
                "for display [%" PRIu64 "]-[%" PRIu32 "]",
                sdm_layer->GetId(), id_, type_);
     }
@@ -2340,7 +2363,7 @@ void SDMDisplay::DumpInputBuffers() {
 
     if (layer->composition != kCompositionSDE && layer->composition != kCompositionGPU &&
         layer->composition != kCompositionGPUTarget && layer->composition != kCompositionIWECSC &&
-        layer->composition != kCompositionIWERepro) {
+        layer->composition != kCompositionIWERepro && layer->composition != kCompositionQrtc) {
       DLOGI("Skip dumping the layer, composition type : %d", layer->composition);
       continue;  // Skip to dump i.e. stitch layers, noise layer, cursor layer, ...
     }
@@ -3651,6 +3674,19 @@ DisplayError SDMDisplay::TeardownConcurrentWriteback() {
   return kErrorNone;
 }
 
+DisplayError SDMDisplay::ConfigureFCM(CWBPacketData &data) {
+  if (!fcm_) {
+    DLOGW("Frame capture manager is not initialized");
+    return kErrorNotSupported;
+  }
+  int ret = fcm_->ConfigureFCM(data);
+  if (ret == 0) {
+    return kErrorNone;
+  }
+  DLOGW("ConfigureFCM returned error %d", ret);
+  return kErrorNotSupported;
+}
+
 void SDMDisplay::MMRMEvent(bool restricted) {
   mmrm_restricted_ = restricted;
   callbacks_->OnRefresh(id_);
@@ -4173,7 +4209,10 @@ void SDMDisplay::NotifyCwbDone(int32_t status, const LayerBuffer &buffer) {
     std::unique_lock<std::mutex> lock(cwb_mutex_);
 
     const auto map_cwb_buffer = cwb_buffer_map_.find(handle_id);
-    if (map_cwb_buffer == cwb_buffer_map_.end()) {
+    if (map_cwb_buffer == cwb_buffer_map_.end() && fcm_) {
+      fcm_->NotifyCwbDone(status, buffer);
+      return;
+    } else if (map_cwb_buffer == cwb_buffer_map_.end()) {
       DLOGV_IF(kTagClient, "CWB Buffer(id = %" PRIu64 ") not found in buffer-client map",
                handle_id);
       return;

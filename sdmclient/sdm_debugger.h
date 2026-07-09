@@ -27,12 +27,11 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #ifndef __SDM_DEBUGGER_H__
 #define __SDM_DEBUGGER_H__
 
@@ -73,6 +72,7 @@ public:
   static void DebugIWE(bool enable, int verbose_level);
   static void DebugWbUsage(bool enable, int verbose_level);
   static void DebugDemura(bool enable, int verbose_level);
+  static void DebugColorProc(bool enable, int verbose_level);
 
   virtual void Error(const char *fmt, ...)
       __attribute__((format(printf, 2, 3)));

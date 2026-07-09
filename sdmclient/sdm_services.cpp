@@ -40,6 +40,7 @@
 #include "sdm_debugger.h"
 #include "sdm_display_intf_parcel.h"
 #include "sdm_services.h"
+#include "rgb_hist_feature_intf.h"
 
 #define __CLASS__ "SDMServices"
 
@@ -162,6 +163,10 @@ DisplayError SDMServices::DynamicDebug(int type, bool enable,
 
   case SDM_SERVICE_DEBUG_DEMURA:
     SDMDebugHandler::DebugDemura(enable, verbose_level);
+    break;
+
+  case SDM_SERVICE_DEBUG_COLOR_PROCESSING:
+    SDMDebugHandler::DebugColorProc(enable, verbose_level);
     break;
 
   default:
@@ -1040,6 +1045,25 @@ DisplayError SDMServices::SetDemuraConfig(SDMParcel *input_parcel,
   return kErrorNone;
 }
 
+DisplayError SDMServices::SetQrtcFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel) {
+  int disp_id = input_parcel->readInt32();
+  int type = input_parcel->readInt32();
+  int data = input_parcel->readInt32();
+
+  if (type >= KQrtcVendorServiceTypeMax) {
+    DLOGE("Invalid type %d", type);
+    return kErrorNotSupported;
+  }
+
+  auto ret = cb_->SetQrtcFeatureConfig(disp_id, type, &data);
+  if (ret != kErrorNone) {
+    output_parcel->write("FAILED", strlen("FAILED"));
+  } else {
+    output_parcel->writeInt32(ret);
+  }
+  return ret;
+}
+
 DisplayError SDMServices::GetDisplayPortId(SDMParcel *input_parcel, SDMParcel *output_parcel) {
   int disp_id = input_parcel->readInt32();
   int port_id = 0;
@@ -1354,6 +1378,74 @@ DisplayError SDMServices::SetFrameDumpConfig(SDMParcel *input_parcel) {
   return SetFrameDumpConfig(frame_dump_count, bit_mask_display_type,
                             bit_mask_layer_type, processable_cwb_requests,
                             output_format, cwb_config);
+}
+
+DisplayError SDMServices::ConfigureFrameDumpStreaming(int disp_id, CWBPacketData &data) {
+  int disp_idx = disp_->GetDisplayIndex(disp_id);
+  if (disp_idx == -1) {
+    DLOGE("Invalid display = %d", disp_id);
+    return kErrorNotSupported;
+  }
+
+  SEQUENCE_WAIT_SCOPE_LOCK(locker_[disp_idx]);
+  auto sdm_display = cb_->GetDisplayFromClientId(disp_idx);
+  if (!sdm_display) {
+    DLOGW("Display = %d is not connected.", disp_idx);
+    return kErrorHardware;
+  }
+
+  return sdm_display->ConfigureFCM(data);
+}
+
+DisplayError SDMServices::SetFrameDumpStreamingConfig(SDMParcel *input_parcel) {
+  int disp_id = input_parcel->readInt32();
+  CWBPacketData data = {};
+
+  // Optional streaming control parameters
+  if (input_parcel->dataPosition() == input_parcel->dataSize()) {
+    data.stop_cwb = 1;
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    data.eye_index = static_cast<CWBEyeIndex>(input_parcel->readInt32());
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    data.field_index = static_cast<CWBField>(input_parcel->readInt32());
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    data.frame_dump_count = input_parcel->readInt32();
+  }
+
+  // Optional CWB configuration similar to SetFrameDumpConfig
+  CwbConfig &cwb_config = data.cwb_config;
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    cwb_config.num_parallel_buffers = input_parcel->readInt32();
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    cwb_config.tap_point = static_cast<CwbTapPoint>(input_parcel->readInt32());
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    auto cflag = UINT32(input_parcel->readInt32());
+    cwb_config.pu_as_cwb_roi = BIT_TO_BOOL(cflag, kCwbFlagPuAsCwbROI);
+    cwb_config.avoid_refresh = BIT_TO_BOOL(cflag, kCwbFlagAvoidRefresh);
+    cwb_config.cwb_control_params.value = cflag;
+    cwb_config.cwb_control_params.internal_control_flags = 0;
+  }
+
+  LayerRect &cwb_roi = cwb_config.cwb_roi;
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    cwb_roi.left = static_cast<float>(input_parcel->readInt32());
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    cwb_roi.top = static_cast<float>(input_parcel->readInt32());
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    cwb_roi.right = static_cast<float>(input_parcel->readInt32());
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    cwb_roi.bottom = static_cast<float>(input_parcel->readInt32());
+  }
+
+  return ConfigureFrameDumpStreaming(disp_id, data);
 }
 
 DisplayError SDMServices::SetMixerResolution(SDMParcel *input_parcel) {
@@ -2128,6 +2220,84 @@ DisplayError SDMServices::SetPrivacyRegions(SDMParcel *input_parcel) {
 
   cb_->Refresh(display_id);
   return kErrorNone;
+}
+
+DisplayError SDMServices::SetRgbHistObserverConfig(SDMParcel *input_parcel,
+                                                   SDMParcel *output_parcel) {
+  rgb_histogram::ObserverConfig config = {};
+  std::string msg;
+  bool state = 0;
+
+  msg.reserve(256);
+
+  int disp_id = input_parcel->readInt32();
+  msg += "Disp ID: " + std::to_string(disp_id);
+
+  // State: enable/disable
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    state = input_parcel->readInt32() ? true : false;
+    msg += " RGBHist state: " + std::to_string(state);
+  }
+
+  // tap_point
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    int tap_point = input_parcel->readInt32();
+    if (tap_point > rgb_histogram::kHistogramTapPointsMax) {
+      DLOGE("Invalid tap_point %d", tap_point);
+      return kErrorNotSupported;
+    }
+    config.tap_point = static_cast<rgb_histogram::HistogramTapPoints>(tap_point);
+    msg += " tap_point: " + std::to_string(config.tap_point);
+  }
+
+  // Hist type
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    int type = input_parcel->readInt32();
+    if (type > rgb_histogram::kHistogramTypeMax) {
+      DLOGE("Invalid type %d", type);
+      return kErrorNotSupported;
+    }
+    config.type = static_cast<rgb_histogram::HistogramType>(type);
+    msg += " type: " + std::to_string(config.type);
+  }
+
+  // ROI config
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    config.is_roi_valid = input_parcel->readInt32();
+    msg += " roi_valid: " + std::to_string(config.is_roi_valid);
+
+    // Default within mode
+    config.capture_within_roi = true;
+    msg += " capture_within_roi: " + std::to_string(config.capture_within_roi);
+  }
+
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    config.x = input_parcel->readInt32();
+    msg += " ROI [" + std::to_string(config.x) + " ";
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    config.y = input_parcel->readInt32();
+    msg += std::to_string(config.y) + " ";
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    config.width = input_parcel->readInt32();
+    msg += std::to_string(config.width) + " ";
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    config.height = input_parcel->readInt32();
+    msg += std::to_string(config.height) + "]";
+  }
+
+  DLOGI("%s", msg.c_str());
+
+  auto ret = cb_->SetRgbHistObserverConfig(disp_id, state, &config);
+  if (ret != kErrorNone) {
+    output_parcel->write("FAILED", strlen("FAILED"));
+  } else {
+    output_parcel->writeInt32(ret);
+  }
+
+  return ret;
 }
 
 } // namespace sdm

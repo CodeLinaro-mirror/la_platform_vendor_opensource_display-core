@@ -105,7 +105,10 @@ struct SnapMetadata {
   std::vector<uint8_t> custom_content_metadata;
   vendor_qti_hardware_display_common_ThreeDimensionalRefInfo three_dimensional_ref_info;
   uint32_t viewId;
+  /* Set by camera to indicate areas where encoding quality should be improved */
+  vendor_qti_hardware_display_common_ROIRectMetadata roiRectMetadata;
   vendor_qti_hardware_display_common_cwb_metadata cwb_metadata;
+  uint32_t disparity_phase;
 };
 
 struct FrameMetadata {

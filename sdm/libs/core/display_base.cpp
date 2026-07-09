@@ -53,6 +53,7 @@
 namespace sdm {
 
 #define ABC_LIBRARY_NAME "libabc.so"
+#define QRTC_LIBRARY_NAME "libqrtc.so"
 
 std::atomic<uint32_t> DisplayBase::hw_rc_blocks_in_use_(0);
 bool DisplayBase::display_power_reset_pending_ = false;
@@ -620,6 +621,27 @@ DisplayError DisplayBase::SetupPanelFeatureFactory() {
     }
   }
 
+  int enable_qrtc = 1;
+  GetQrtcFactory get_qrtc_factory_ptr = nullptr;
+  if (enable_qrtc) {
+    if (qrtc_feature_impl_lib_.Open(QRTC_LIBRARY_NAME)) {
+      if (!qrtc_feature_impl_lib_.Sym(GET_QRTC_FACTORY,
+                                      reinterpret_cast<void **>(&get_qrtc_factory_ptr))) {
+        DLOGW("Unable to load Qrtc symbols, error = %s", qrtc_feature_impl_lib_.Error());
+        return kErrorNone;
+      }
+    } else {
+      DLOGW("Unable to load = %s, error = %s", QRTC_LIBRARY_NAME, qrtc_feature_impl_lib_.Error());
+      return kErrorNone;
+    }
+
+    qrtc_factory_ = get_qrtc_factory_ptr();
+    if (!qrtc_factory_) {
+      DLOGE("Failed to create Qrtc feature Factory");
+      return kErrorNone;
+    }
+  }
+
 #ifndef TRUSTED_VM
   GetFeatureLicenseFactory get_feature_license_factory_ptr = nullptr;
   if (!extension_lib_.Sym(
@@ -1103,6 +1125,8 @@ void DisplayBase::EnableLlccDuringAodMode(LayerStack *layer_stack) {
       } else if (layer->composition == kCompositionDemura) {
         size_ff++;
       } else if (layer->composition == kCompositionCWBTarget) {
+        size_ff++;
+      } else if (layer->composition == kCompositionQrtc) {
         size_ff++;
       }
     }
@@ -1661,6 +1685,10 @@ DisplayError DisplayBase::CommitOrPrepare(LayerStack *layer_stack) {
   return async_commit ? kErrorNone : kErrorNeedsCommit;
 }
 
+bool DisplayBase::IsLSRSupported() {
+  return client_ctx_.hw_panel_info.is_lsr_display;
+}
+
 bool DisplayBase::IsPrimaryCommitNeeded() {
   if (!client_ctx_.hw_panel_info.is_lsr_display) {
     lsr_first_commit_ = true;
@@ -1804,7 +1832,8 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
   }
 
   for (auto& info : disp_layer_stack_->info) {
-    info.second.retire_fence_offset = retire_fence_offset_;
+    info.second.retire_fence_offset =
+        (disp_layer_stack_->stack_info.iwe_repro_left_index == -1) ? retire_fence_offset_ : 0;
   }
   // Regiser for power events on first cycle in unified draw.
   if (first_cycle_ && display_type_ == kBuiltIn) {
@@ -2818,6 +2847,8 @@ const char * DisplayBase::GetName(const LayerComposition &composition) {
     case kCompositionStitchTarget:  return "STITCH_TARGET";
     case kCompositionDemura:        return "DEMURA";
     case kCompositionCWBTarget:     return "CWB_TARGET";
+    case kCompositionQrtc:
+      return "QRTC";
     default:                        return "UNKNOWN";
   }
 }
@@ -3567,7 +3598,7 @@ bool DisplayBase::NeedsMixerReconfiguration(LayerStack *layer_stack, uint32_t *n
 
   for (uint32_t i = 0; i < layer_count; i++) {
     Layer *layer = layers.at(i);
-    if (layer->flags.is_demura || layer->flags.is_abc) {
+    if (layer->flags.is_demura || layer->flags.is_abc || layer->flags.is_qrtc) {
       continue;
     }
 
@@ -4909,9 +4940,18 @@ DisplayError DisplayBase::SetPPConfig(void *payload, size_t size) {
   }
 
   DLOGI_IF(kTagDisplay, "PP Event is set successfully");
-  struct sde_drm::DRMPPFeatureInfo *info = reinterpret_cast<sde_drm::DRMPPFeatureInfo *>(payload);
-  if (info->id != sde_drm::kFeaturePaHistIrq) {
-    HandleSelfRefresh();
+
+  auto info = reinterpret_cast<sde_drm::DRMPPFeatureInfo *>(payload);
+  switch (info->id) {
+    case sde_drm::kFeaturePaHistIrq:
+    case sde_drm::kFeatureRgbHistQueueBuffer:
+    case sde_drm::kFeatureRgbHistQueueBuffer2:
+    case sde_drm::kFeatureRgbHistQueueBuffer3:
+      // No action needed for these cases
+      break;
+    default:
+      HandleSelfRefresh();
+      break;
   }
   return kErrorNone;
 }

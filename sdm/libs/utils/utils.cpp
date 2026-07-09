@@ -192,6 +192,7 @@ const char *GetCompositionName(const LayerComposition &composition) {
   case kCompositionIWE:           return "IWE";
   case kCompositionIWECSC:        return "IWE_CSC";
   case kCompositionIWERepro:      return "IWE_REPRO";
+  case kCompositionQrtc:          return "QRTC";
   default:                        return "UNKNOWN";
   }
 }
