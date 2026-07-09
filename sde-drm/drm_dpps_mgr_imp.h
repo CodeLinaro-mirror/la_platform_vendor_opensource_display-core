@@ -66,6 +66,7 @@ class DRMDppsManagerImp : public DRMDppsManagerIntf {
   void CommitDppsFeatures(drmModeAtomicReq *req, const DRMDisplayToken &tok,
     uint32_t validate_only);
   void GetDppsFeatureInfo(DRMDppsFeatureInfo *info);
+  void Deinit();
 
  private:
   int GetDrmResources(drmModeRes* res);
@@ -86,6 +87,7 @@ class DRMDppsManagerImp : public DRMDppsManagerIntf {
   std::vector<std::pair<uint32_t, drm_msm_ltm_buffers_ctrl>> ltm_buffers_ctrl_map_;
   std::vector<std::pair<uint32_t, DRMDppsLtmBuffers>> ltm_buffers_map_;
   std::mutex api_lock_;
+  bool deinit_done_ = false;
 };
 
 class DRMDppsManagerDummyImp : public DRMDppsManagerIntf {
