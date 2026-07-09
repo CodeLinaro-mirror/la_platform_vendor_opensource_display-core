@@ -44,6 +44,7 @@
 
 #define __CLASS__ "SDMHotPlug"
 #define SDM_UEVENT_DRM_EXT_HOTPLUG "mdss_mdp/drm/card"
+#define SDM_UEVENT_DRM_MSM_HYP_EXT_HOTPLUG "sde_kms_hyp@ae00000/drm/card0"
 
 namespace sdm {
 
@@ -102,7 +103,8 @@ void SDMHotPlug::ParseEvent(char *data, int length) {
     return;
   }
 
-  if (!strcasestr(data, SDM_UEVENT_DRM_EXT_HOTPLUG)) {
+  if (!strcasestr(data, SDM_UEVENT_DRM_EXT_HOTPLUG) &&
+      !strcasestr(data, SDM_UEVENT_DRM_MSM_HYP_EXT_HOTPLUG)) {
     return;
   }
 
