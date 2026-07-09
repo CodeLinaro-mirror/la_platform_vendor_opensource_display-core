@@ -80,6 +80,7 @@ typedef enum : unsigned int {
   CAMERA_PIXEL_FORMAT_P210_UBWC_FLEX_8_BATCH =
       0x165,  // YUV format with flexible alignment defined by individual APIs
   CAMERA_PIXEL_FORMAT_YCbCr_422_I = 0x14,
+  CAMERA_PIXEL_FORMAT_YCbCr_420_UBWC4R = 0x7FA30C07,  // 8 bit YUV 420 semi-planar UBWC 4R format
 } CamxPixelFormat;
 
 // Camera Result Codes
@@ -289,6 +290,9 @@ class CameraConstraintProvider : public SnapConstraintProvider {
           {{.format = vendor_qti_hardware_display_common_PixelFormat::YCbCr_420_SP,
             .modifier = PIXEL_FORMAT_MODIFIER_VENUS},
            CAMERA_PIXEL_FORMAT_NV12_VENUS},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCbCr_420_SP,
+            .modifier = PIXEL_FORMAT_MODIFIER_4R},
+           CAMERA_PIXEL_FORMAT_YCbCr_420_UBWC4R},
           {{.format = vendor_qti_hardware_display_common_PixelFormat::TP10,
             .modifier = PIXEL_FORMAT_MODIFIER_UBWC_MIPMAP},
            CAMERA_PIXEL_FORMAT_YCbCr_420_TP10_UBWC_MIPMAP},
