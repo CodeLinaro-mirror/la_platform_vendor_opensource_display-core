@@ -47,6 +47,12 @@
 
 #define __CLASS__ "SDMColorModeStc"
 
+#ifdef TARGET_DEFINES_AXR_CONFIGURATION
+#define DLOG_STC(tag, fmt, ...) DLOGV_IF(tag, fmt, ##__VA_ARGS__)
+#else
+#define DLOG_STC(tag, fmt, ...) DLOGI(fmt, ##__VA_ARGS__)
+#endif
+
 namespace sdm {
 
 static SDMColorMode GetColorModeFromBlendSpace(const ColorPrimaries &gamut,
@@ -323,7 +329,7 @@ SDMColorModeStc::ApplyCurrentColorModeWithRenderIntent(bool hdr_present) {
     return kErrorNone;
   }
 
-  DLOGV_IF(kTagQDCM,
+  DLOG_STC(kTagQDCM,
            "Applying Stc mode (gamut %d gamma %d intent %d), curr mode %d, render "
            "intent %d, hdr "
            "present %d",

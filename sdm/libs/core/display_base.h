@@ -598,6 +598,11 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool is_ssr_active_ = false;
   bool is_lsr_ssr_active_ = false;
   bool lsr_first_commit_ = true;
+  // GPU reproj (seraph/GPU LSR path): cached active flag and init-commit counter.
+  // SDM commits to DPU exactly kReprojSlotCount (2) times to register both
+  // ping-pong output buffers.  After that, DCP drives buffer switching via IPCC.
+  bool gpu_reproj_active_ = false;
+  int gpu_reproj_init_commit_count_ = 0;
   RefreshRateManager *refresh_rate_mgr_ = nullptr;
   bool pending_rgb_histogram_roi_ = false;
 

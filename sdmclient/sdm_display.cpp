@@ -2987,6 +2987,12 @@ DisplayClass SDMDisplay::GetDisplayClass() { return display_class_; }
 void SDMDisplay::Dump(std::ostringstream *os) {
   *os << "\n------------SDM----------------\n";
   *os << "SDM3 display_id: " << id_ << std::endl;
+
+  if (!sdm_layer_stack_) {
+    *os << "sdm_layer_stack_ is null\n";
+    return;
+  }
+
   for (auto layer : sdm_layer_stack_->layer_set_) {
     auto sdm_layer = layer->GetSDMLayer();
     auto transform = sdm_layer->transform;

@@ -66,6 +66,15 @@ DRMDppsManagerIntf* GetDppsManagerIntf()
 }
 
 DRMDppsManagerImp::~DRMDppsManagerImp() {
+}
+
+void DRMDppsManagerImp::Deinit() {
+  std::lock_guard<std::mutex> guard(api_lock_);
+  if (deinit_done_) {
+    return;
+  }
+  deinit_done_ = true;
+
   /* clean up the ION buffers for LTM */
   DeInitLtmBuffers();
 
@@ -223,6 +232,8 @@ int DRMDppsManagerImp::InitConnProps()
 void DRMDppsManagerImp::Init(int fd, drmModeRes* res) {
   std::lock_guard<std::mutex> guard(api_lock_);
   int ret = 0;
+
+  deinit_done_ = false;
 
   if (fd < 0 || !res) {
     DRM_LOGE("Invalid drm fd %d or res %pK", fd, res);

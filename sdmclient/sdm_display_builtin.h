@@ -158,7 +158,7 @@ public:
  virtual DisplayError SetPoseConfig(void *buffer) override;
  virtual DisplayError SetRgbHistObserverConfig(bool state, void *data);
 
-private:
+protected:
  SDMDisplayBuiltIn(CoreInterface *core_intf, BufferAllocator *buffer_allocator,
                    SDMCompositorCallbacks *callbacks, SDMDisplayEventHandler *event_handler,
                    Display id, int32_t sdm_id);

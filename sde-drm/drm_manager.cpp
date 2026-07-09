@@ -365,6 +365,9 @@ DRMManager::~DRMManager() {
     delete plane_mgr_;
     plane_mgr_ = NULL;
   }
+  if (dpps_mgr_intf_) {
+    dpps_mgr_intf_->Deinit();
+  }
   if (panel_feature_mgr_intf_) {
     panel_feature_mgr_intf_->Deinit();
   }

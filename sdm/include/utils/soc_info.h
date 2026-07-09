@@ -44,6 +44,8 @@
 #define kShikraSocName "shikra"
 #define kHamoaSocId 555
 #define kHamoaSocName "hamoa"
+#define kSeraphSocId1 736
+#define kSeraphSocId2 737
+#define kSeraphSocName "seraph"
 
 #endif  // __SOC_INFO_H__
-

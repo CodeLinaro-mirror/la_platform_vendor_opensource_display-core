@@ -448,7 +448,7 @@ public:
       SDMVsyncPeriodChangeTimeline *out_timeline);
 
   DisplayError SetDisplayElapseTime(uint64_t time);
-  DisplayError SetDisplayDeviceConfig(SDMDisplayDeviceConfig sdm_display_device_config);
+  virtual DisplayError SetDisplayDeviceConfig(SDMDisplayDeviceConfig sdm_display_device_config);
   virtual bool IsDisplayIdle() { return false; };
   virtual bool HasReadBackBufferSupport() { return false; }
   virtual DisplayError NotifyDisplayCalibrationMode(bool in_calibration) {
@@ -551,6 +551,7 @@ public:
   virtual DisplayError SetRgbHistObserverConfig(bool state, void *data) {
     return kErrorNotSupported;
   }
+  virtual DisplayError TurnOffColorFeature() { return kErrorNotSupported; }
 
  protected:
   static uint32_t throttling_refresh_rate_;

@@ -59,6 +59,8 @@
 
 namespace sdm {
 
+#define MAX_WB_ALLOWED 4
+
 DisplayBuiltIn::DisplayBuiltIn(DisplayEventHandler *event_handler,
                                sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> hw_info_intf,
                                BufferAllocator *buffer_allocator, CompManager *comp_manager,
@@ -700,6 +702,7 @@ DisplayError DisplayBuiltIn::Deinit() {
   if (qrtc_) {
     qrtc_.reset();
     qrtc_ = nullptr;
+    ReleaseWBFromDisplay();
   }
   return DisplayBase::Deinit();
 }
@@ -1339,6 +1342,7 @@ DisplayError DisplayBuiltIn::SetupQrtcLayer() {
         qrtc_suf->buffer_info.alloc_buffer_info.aligned_height);
   qrtc_layer.input_buffer.planes[0].offset = 0;
   qrtc_layer.input_buffer.flags.qrtc = 1;
+  qrtc_layer.input_buffer.flags.secure = qrtc_suf->buffer_info.buffer_config.secure;
   qrtc_layer.composition = kCompositionQrtc;
   qrtc_layer.blending = kBlendingSkip;
   qrtc_layer.flags.is_qrtc = 1;
@@ -6825,6 +6829,28 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
     return kErrorUndefined;
   }
 
+  WbMapInfo wb_info;
+  error = ReserveWBForDisplay(&wb_info);
+  if (error != kErrorNone) {
+    DLOGE("Failed to reserve wb for qrtc");
+    return error;
+  }
+
+  int max_wb_index = 0;
+  for (int i = MAX_WB_ALLOWED - 1; i >= 0; i--) {
+    if ((wb_info.info_flag & 0xF) & (1 << i)) {
+      max_wb_index = i;
+      break;
+    }
+  }
+
+  if (wb_info.wb_index < 0 || wb_info.wb_index > max_wb_index) {
+    DLOGE("Invalid wb index on Display %d-%d", display_id_, display_type_);
+    ReleaseWBFromDisplay();
+    return kErrorNotSupported;
+  }
+  DLOGI("Wb index: %d reserved for qrtc", wb_info.wb_index);
+
   int32_t qrtc_pipe_idx = -1;
   int32_t is_virtual = 0;
   qrtc::QrtcFetchPipes fetch_pipe = qrtc::QRTC_FETCH_MAX;
@@ -6851,6 +6877,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
     fetch_pipe = qrtc::QRTC_FETCH_DMA1;
   } else {
     DLOGE("Invalid qrtc pipe index on Display %d-%d", display_id_, display_type_);
+    ReleaseWBFromDisplay();
     return kErrorNotSupported;
   }
 
@@ -6860,14 +6887,19 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
   qrtc_config_.fetch_pipe = fetch_pipe;
   qrtc_config_.rect_fetch_pipe = rect_fetch_pipe;
   qrtc_config_.cwb_blk = qrtc::QRTC_CWB_BLK0;
-  /* TODO: query the wb_id from SDM API and replace hard code value */
-  qrtc_config_.wb_blk = static_cast<qrtc::QrtcWbBlk>(5);
+  qrtc_config_.wb_blk = static_cast<qrtc::QrtcWbBlk>(wb_info.wb_index);
   qrtc_config_.rect_wb_blk = qrtc::QRTC_MULTI_RECT_1;
   qrtc_config_.subsample = qrtc::QRTC_SubSample_2X2;
   qrtc_config_.max_subsample = qrtc::QRTC_SubSample_2X2;
   qrtc_config_.panel_name = "sample";
   qrtc_config_.panel_width = client_ctx_.display_attributes.x_pixels;
   qrtc_config_.panel_height = client_ctx_.display_attributes.y_pixels;
+  qrtc_config_.is_buffer_secure = true;
+
+  int qrtc_force_nonsecure_buffer = 0;
+  Debug::Get()->GetProperty(QRTC_FORCE_NONSECURE_BUFFER, &qrtc_force_nonsecure_buffer);
+  if (qrtc_force_nonsecure_buffer)
+    qrtc_config_.is_buffer_secure = false;
 
   int spr_prop_value = 0;
   int spr_bypass_prop_value = 0;
@@ -6892,6 +6924,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
   if (error != kErrorNone || !qrtc_support.supported) {
     DLOGE("Unable to support QRTC on display %d with subsampling %dx%d", display_id_,
           qrtc_support.subsample_h, qrtc_support.subsample_v);
+    ReleaseWBFromDisplay();
     return error;
   }
 
@@ -6899,6 +6932,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
     DLOGE("Unable to setup Qrtc config on Display %d-%d", display_id_, display_type_);
     qrtc_.reset();
     qrtc_ = nullptr;
+    ReleaseWBFromDisplay();
     return kErrorUndefined;
   }
 
@@ -6906,6 +6940,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
     DLOGE("Unable to setup Qrtc layer on Display %d-%d", display_id_, display_type_);
     qrtc_.reset();
     qrtc_ = nullptr;
+    ReleaseWBFromDisplay();
     return kErrorUndefined;
   }
 
@@ -7047,10 +7082,20 @@ DisplayError DisplayBuiltIn::SetRgbHistObserverConfig(bool state, void *data) {
     return kErrorUndefined;
   }
 
-  // Set display dimensions on ObserverConfig
+  // Set dimensions on ObserverConfig
   auto *obs_config = reinterpret_cast<rgb_histogram::ObserverConfig *>(data);
-  obs_config->disp_width = client_ctx_.display_attributes.x_pixels;
-  obs_config->disp_height = client_ctx_.display_attributes.y_pixels;
+  if (obs_config->tap_point == rgb_histogram::kPreDspp) {
+    // Mixer dimensions
+    obs_config->disp_width = client_ctx_.mixer_attributes.width;
+    obs_config->disp_height = client_ctx_.mixer_attributes.height;
+  } else if (obs_config->tap_point == rgb_histogram::kPostDspp) {
+    // Display dimensions
+    obs_config->disp_width = client_ctx_.display_attributes.x_pixels;
+    obs_config->disp_height = client_ctx_.display_attributes.y_pixels;
+  } else {
+    DLOGE("Invalid tap_point %d", obs_config->tap_point);
+    return kErrorUndefined;
+  }
 
   // Fill in observer configuration
   wrapper->enable = state;
@@ -7084,8 +7129,13 @@ DisplayError DisplayBuiltIn::UpdateRgbHistogramRoi(const void *data) {
     return kErrorParameters;
   }
 
+  HWDisplayAttributes display_attributes = client_ctx_.display_attributes;
   HWMixerAttributes mixer_attributes = client_ctx_.mixer_attributes;
   LayerRect full_frame = {0, 0, FLOAT(mixer_attributes.width), FLOAT(mixer_attributes.height)};
+  LayerRect panel_res = {0.0f, 0.0f, FLOAT(display_attributes.x_pixels),
+                         FLOAT(display_attributes.y_pixels)};
+  bool remap_roi = (config->tap_point == rgb_histogram::kPostDspp);
+
   pending_rgb_histogram_roi_ = true;
 
   // When disabled, config is zero-initialized so roi will be {0,0,0,0}
@@ -7094,6 +7144,17 @@ DisplayError DisplayBuiltIn::UpdateRgbHistogramRoi(const void *data) {
   roi.top = FLOAT(config->y);
   roi.right = FLOAT(config->x + config->width);
   roi.bottom = FLOAT(config->y + config->height);
+
+  if (remap_roi) {
+    LayerRect post_dspp_roi = roi;
+    // RGB Hist ROI is mapped to panel resolution, re-map it to mixer resolution
+    MapRect(panel_res, full_frame, post_dspp_roi, &roi);
+    DLOGV_IF(
+        kTagDisplay,
+        "RGB histogram roi [%.2f %.2f %.2f %.2f] mapped to mixer resolution [%.2f %.2f %.2f %.2f]",
+        post_dspp_roi.left, post_dspp_roi.top, post_dspp_roi.right, post_dspp_roi.bottom, roi.left,
+        roi.top, roi.right, roi.bottom);
+  }
 
   if (IsZeroRoi(roi)) {
     DLOGV_IF(kTagDisplay, "RGB histogram roi [%.2f %.2f %.2f %.2f] is reset", roi.left, roi.top,

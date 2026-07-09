@@ -1995,6 +1995,16 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       DRM_LOGD("Connector %d: Setting  reprojection pose fb id %d", obj_id, fb_id);
     } break;
 
+    case DRMOps::CONNECTOR_SET_GMU_DCP_INTF_MEM: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::GMU_DCP_INTF_MEM)) {
+        return;
+      }
+      uint32_t shared_fb_id = va_arg(args, uint32_t);
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::GMU_DCP_INTF_MEM),
+                               shared_fb_id);
+      DRM_LOGD("Connector %d: Setting gmu_dcp_intf_mem %d", obj_id, shared_fb_id);
+    } break;
+
     case DRMOps::CONNECTOR_SET_REPROJ_MODE: {
       if (!prop_mgr_.IsPropertyAvailable(DRMProperty::REPROJ_MODE)) {
         return;
