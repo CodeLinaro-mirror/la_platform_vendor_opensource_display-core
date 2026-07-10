@@ -62,6 +62,7 @@ public:
                                        uint32_t *out_num_types,
                                        uint32_t *out_num_requests,
                                        bool *needs_commit);
+  virtual DisplayError TurnOffColorFeature() override;
   SDMDisplayVirtual(CoreInterface *core_intf, BufferAllocator *buffer_allocator,
                     SDMCompositorCallbacks *callbacks, Display id, int32_t sdm_id, uint32_t width,
                     uint32_t height);

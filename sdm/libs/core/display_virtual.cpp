@@ -492,6 +492,14 @@ DisplayError DisplayVirtualPQ::Init() {
   if (color_mgr_) {
     color_mgr_->ColorMgrGetStcModes(&stc_color_modes_);
   }
+
+  // This is a dummy interface used to ensure LTM init succeeds.
+  // Failure of this intf should not impact the overall feature.
+  prop_intf_ = hw_intf_->GetPanelFeaturePropertyIntf();
+  if (!prop_intf_) {
+    DLOGE("Failed to create PanelFeaturePropertyIntf");
+  }
+
   return kErrorNone;
 }
 
@@ -584,6 +592,93 @@ DisplayError DisplayVirtualPQ::SetStcColorMode(const snapdragoncolor::ColorMode 
         display_type_, color_mode.gamut, color_mode.gamma, color_mode.intent);
 
   return ret;
+}
+
+DisplayError DisplayVirtualPQ::PostCommit() {
+  DisplayError error = DisplayVirtual::PostCommit();
+  if (error != kErrorNone) {
+    return error;
+  }
+
+  dpps_info_.Init(this, panel_name_, this, prop_intf_);
+  return kErrorNone;
+}
+
+DisplayError DisplayVirtualPQ::TurnOffColorFeature() {
+  int display_type = display_type_;
+
+  DLOGV_IF(kTagDisplay, "Turn off ltm feature on display %d-%d", display_id_, display_type_);
+
+  dpps_info_.DppsNotifyOps(kDppsLtmForceOffEvent, &display_type, sizeof(display_type));
+  return kErrorNone;
+}
+
+DisplayError DisplayVirtualPQ::DppsProcessOps(enum DppsOps op, void *payload, size_t size) {
+  DisplayError error = kErrorNone;
+  DppsDisplayInfo *info = nullptr;
+
+  switch (op) {
+    case kDppsSetFeature:
+      if (!payload) {
+        DLOGE("Invalid payload parameter for op %d", op);
+        error = kErrorParameters;
+        break;
+      }
+      {
+        ClientLock lock(disp_mutex_);
+        error = dpu_core_mux_->SetDppsFeature(payload, size);
+      }
+      break;
+    case kDppsGetFeatureInfo:
+      if (!payload) {
+        DLOGE("Invalid payload parameter for op %d", op);
+        error = kErrorParameters;
+        break;
+      }
+      error = dpu_core_mux_->GetDppsFeatureInfo(payload, size);
+      break;
+    case kDppsScreenRefresh:
+      if (event_handler_) {
+        event_handler_->Refresh();
+      }
+      break;
+    case kDppsPartialUpdate:
+      // Partial update is not supported on virtual display.
+      break;
+    case kDppsGetDisplayInfo:
+      if (!payload) {
+        DLOGE("Invalid payload parameter for op %d", op);
+        error = kErrorParameters;
+        break;
+      }
+      info = reinterpret_cast<DppsDisplayInfo *>(payload);
+      info->width = client_ctx_.display_attributes.x_pixels;
+      info->height = client_ctx_.display_attributes.y_pixels;
+      info->is_primary = false;
+      info->display_id = display_id_;
+      info->display_type = display_type_;
+      info->fps = client_ctx_.display_attributes.fps;
+      info->flags |= kDppsFlagVirtualDispNeedsLtm;
+
+      error = dpu_core_mux_->GetPanelBrightnessBasePath(&(info->brightness_base_path));
+      if (error != kErrorNone) {
+        DLOGE("Failed to get brightness base path %d", error);
+      }
+      break;
+    case kDppsSetPccConfig:
+      if (color_mgr_) {
+        error = color_mgr_->ColorMgrSetLtmPccConfig(payload, size);
+        if (error != kErrorNone) {
+          DLOGE("Failed to set PCC config to ColorManagerProxy, error %d", error);
+        }
+      }
+      break;
+    default:
+      DLOGE("Invalid input op %d", op);
+      error = kErrorParameters;
+      break;
+  }
+  return error;
 }
 
 std::string DisplayVirtualPQ::Dump() {

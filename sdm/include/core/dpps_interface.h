@@ -28,10 +28,9 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
 #ifndef __DPPS_INTERFACE_H__
@@ -65,6 +64,7 @@ enum DppsNotifyOps {
   kDppsColorSpaceEvent,
   kDppsUpdateFpsEvent,
   kDppsHdrPresentEvent,
+  kDppsLtmForceOffEvent,
   kDppsNotifyMax,
 };
 
@@ -80,6 +80,11 @@ struct DppsBlendSpaceInfo {
   bool is_primary;
 };
 
+enum DppsFlags : uint32_t {
+  kDppsFlagNone = 0,
+  kDppsFlagVirtualDispNeedsLtm = 1 << 0,
+};
+
 struct DppsDisplayInfo {
   uint32_t width;
   uint32_t height;
@@ -92,6 +97,7 @@ struct DppsDisplayInfo {
   uint32_t display_type;
 #endif
   uint32_t fps;
+  uint32_t flags = kDppsFlagNone;
 };
 
 class DppsPropIntf {

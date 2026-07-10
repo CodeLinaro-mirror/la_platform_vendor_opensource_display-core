@@ -46,7 +46,8 @@ class SnapMetadataManager {
       BufferDescriptor out_desc, const AllocData ad,
       vendor_qti_hardware_display_common_BufferLayout *layout);  // TODO: make this API extensible
   uint32_t GetCustomContentMetadataSize(vendor_qti_hardware_display_common_PixelFormat format,
-                                        vendor_qti_hardware_display_common_BufferUsage usage);
+                                        vendor_qti_hardware_display_common_BufferUsage usage,
+                                        uint64_t pixel_format_modifier);
   uint64_t GetBatchModeDynamicMetadataSize(uint64_t pixel_format_modifier);
   Error GetMetadataState(SnapHandleInternal *hnd, vendor_qti_hardware_display_common_MetadataType type, bool *out);
   bool IsFormatSupportedByGPU(BufferDescriptor desc);

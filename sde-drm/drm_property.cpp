@@ -220,6 +220,7 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "transfer_time") { return DRMProperty::TRANSFER_TIME; }
   if (name == "early_fence_line") { return DRMProperty::EARLY_FENCE_LINE; }
   if (name == "dnsc_blur") { return DRMProperty::DNSC_BLR; }
+  if (name == "wb_dnsc") { return DRMProperty::WB_DNSC; }
   if (name == "wb_usage_type") { return DRMProperty::WB_USAGE_TYPE; }
   if (name == "num_buffers") { return DRMProperty::WB_NUM_BUFFERS; }
   if (name == "wb_csc_config") { return DRMProperty::WB_CSC_CONFIG; }
@@ -281,6 +282,10 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "reproj_to_lrgb_right") { return DRMProperty::REPROJ_TOL_RGB_RIGHT; }
   if (name == "reproj_pose_fb") { return DRMProperty::REPROJ_POSE_FB; }
   if (name == "lsr_mode") { return DRMProperty::LSR_MODE; }
+  if (name == "batch_size") { return DRMProperty::BATCH_SIZE; }
+  if (name == "batch_index") { return DRMProperty::BATCH_INDEX; }
+  if (name == "batch_type") { return DRMProperty::BATCH_TYPE; }
+  if (name == "gmu_dcp_intf_mem") { return DRMProperty::GMU_DCP_INTF_MEM; }
   if (name == "privacy_layers_v2") { return DRMProperty::PRIVACY_REGIONS_V2; }
   if (name == "SDE_DSPP_RGB_HIST_SET_BUF_V2") { return DRMProperty::SDE_RGB_HIST_SET_BUFFER_V2; }
   if (name == "SDE_DSPP_RGB_HIST_Q_BUF_V2") { return DRMProperty::SDE_RGB_HIST_QUEUE_BUFFER_V2; }
@@ -291,6 +296,7 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "SDE_QRTC_BUFFER_V1") { return DRMProperty::SDE_QRTC_BUFFER_V1; }
   if (name == "disparity_phase") { return DRMProperty::DISPARITY_PHASE; }
   if (name == "vsync_offset") { return DRMProperty::VSYNC_OFFSET; }
+  if (name == "spr_mode") { return DRMProperty::SPR_MODE; }
 
   return DRMProperty::INVALID;
 }

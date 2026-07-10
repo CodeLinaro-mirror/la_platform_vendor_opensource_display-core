@@ -127,9 +127,11 @@ int GraphicsConstraintProvider::GetInitialMetadata(
   }
 
   if (!ubwc_enabled_gfx) {
-    usage = static_cast<uint64_t>(
-        (static_cast<uint64_t>(usage) &
-         ~static_cast<uint64_t>(vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC)));
+    uint64_t ubwc_mask =
+        static_cast<uint64_t>(vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC) |
+        static_cast<uint64_t>(
+            vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC_L_2_TO_1);
+    usage &= ~ubwc_mask;
   } else {
     usage |= static_cast<uint64_t>(vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC);
   }

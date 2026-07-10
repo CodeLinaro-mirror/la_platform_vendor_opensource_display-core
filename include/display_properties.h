@@ -207,6 +207,7 @@
 #define ENABLE_QRTC                          DISPLAY_PROP("enable_qrtc")
 #define DISABLE_QRTC_PRIMARY                 DISPLAY_PROP("disable_qrtc_primary")
 #define DISABLE_QRTC_SECONDARY               DISPLAY_PROP("disable_qrtc_secondary")
+#define QRTC_FORCE_NONSECURE_BUFFER          DISPLAY_PROP("qrtc_force_nonsecure_buffer")
 
 // PERF hint properties
 #define ENABLE_PERF_HINT_LARGE_COMP_CYCLE    DISPLAY_PROP("enable_perf_hint_large_comp_cycle")
@@ -268,6 +269,8 @@
 #define ENABLE_ALLOCATION_DATA_DUMPING       GRALLOC_PROP("enable_allocation_data_dumping")
 #define ALLOW_CAMERA_PREVIEW_WRITE           GRALLOC_PROP("allow_camera_preview_write")
 #define USE_UNCACHED_HEAP                    GRALLOC_PROP("use_uncached_heap")
+// Enable UBWC lossy format for fbt
+#define ENABLE_UBWC_LOSSY_FORMAT_FBT         GRALLOC_PROP("enable_ubwc_lossy_format_fbt")
 
 // Add all vendor.gralloc.properties above
 

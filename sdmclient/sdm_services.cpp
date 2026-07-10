@@ -77,6 +77,22 @@ void SDMServices::Init(SDMDisplayBuilder *disp,
   int value = 0;
   SDMDebugHandler::Get()->GetProperty(COMPOSER_DRIVEN_HDCP, &value);
   composer_driven_hdcp_ = (value == 1);
+
+  value = 0;
+  SDMDebugHandler::Get()->GetProperty(ENABLE_SPR, &value);
+  spr_enabled_ = (value == 1);
+
+  value = 0;
+  SDMDebugHandler::Get()->GetProperty(ENABLE_DEMURA, &value);
+  demura_enabled_ = (value == 1);
+
+  value = 0;
+  SDMDebugHandler::Get()->GetProperty(ENABLE_ANTI_AGING, &value);
+  demuratn_enabled_ = (value == 1);
+
+  value = 0;
+  SDMDebugHandler::Get()->GetProperty(ENABLE_QRTC, &value);
+  qrtc_enabled_ = (value == 1);
 }
 
 void SDMServices::Deinit() {
@@ -1039,6 +1055,89 @@ DisplayError SDMServices::SetDemuraState(SDMParcel *input_parcel,
   if (ret != kErrorNone) {
     output_parcel->writeInt32(ret);
     return ret;
+  }
+
+  output_parcel->writeInt32(kErrorNone);
+
+  return kErrorNone;
+}
+
+DisplayError SDMServices::SetSPRState(SDMParcel *input_parcel, SDMParcel *output_parcel) {
+  DisplayError ret = kErrorNone;
+  int disp_id = input_parcel->readInt32();
+  int state = input_parcel->readInt32();
+  int demura_config_index = 0;  //TBD: customer to update config_idx
+  int qrtc_subsample_mode = 0;  //TBD: customer to update sub sample index
+
+  if (!spr_enabled_) {
+    return kErrorUndefined;
+  }
+
+  if (!state) {
+    if (qrtc_enabled_) {
+      ret = cb_->SetQrtcFeatureConfig(disp_id, kTypeQrtcState, &state);
+      if (ret != kErrorNone) {
+        output_parcel->writeInt32(ret);
+        return ret;
+      }
+    }
+
+    if (demuratn_enabled_) {
+      ret = cb_->SetPanelFeatureConfig(disp_id, kTypeDemuraTnEventsCtrl, &state);
+      if (ret != kErrorNone) {
+        output_parcel->writeInt32(ret);
+        return ret;
+      }
+    }
+
+    if (demura_enabled_) {
+      ret = cb_->SetDemuraState(disp_id, state, demura_config_index);
+      if (ret != kErrorNone) {
+        output_parcel->writeInt32(ret);
+        return ret;
+      }
+    }
+
+    ret = cb_->SetSPRState(disp_id, state);
+    if (ret != kErrorNone) {
+      output_parcel->writeInt32(ret);
+      return ret;
+    }
+  } else {
+    ret = cb_->SetSPRState(disp_id, state);
+    if (ret != kErrorNone) {
+      output_parcel->writeInt32(ret);
+      return ret;
+    }
+
+    if (demura_enabled_) {
+      ret = cb_->SetDemuraState(disp_id, state, demura_config_index);
+      if (ret != kErrorNone) {
+        output_parcel->writeInt32(ret);
+        return ret;
+      }
+    }
+
+    if (demuratn_enabled_) {
+      ret = cb_->SetPanelFeatureConfig(disp_id, kTypeDemuraTnEventsCtrl, &state);
+      if (ret != kErrorNone) {
+        output_parcel->writeInt32(ret);
+        return ret;
+      }
+    }
+
+    if (qrtc_enabled_) {
+      ret = cb_->SetQrtcFeatureConfig(disp_id, kTypeQrtcSubsample, &qrtc_subsample_mode);
+      if (ret != kErrorNone) {
+        output_parcel->writeInt32(ret);
+        return ret;
+      }
+      ret = cb_->SetQrtcFeatureConfig(disp_id, kTypeQrtcState, &state);
+      if (ret != kErrorNone) {
+        output_parcel->writeInt32(ret);
+        return ret;
+      }
+    }
   }
 
   output_parcel->writeInt32(kErrorNone);

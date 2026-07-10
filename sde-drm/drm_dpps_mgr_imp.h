@@ -27,6 +27,12 @@
 * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #ifndef __DRM_DPPS_MGR_IMP_H__
 #define __DRM_DPPS_MGR_IMP_H__
 
@@ -35,7 +41,9 @@
 #include "drm_dpps_mgr_intf.h"
 #include <mutex>
 
-#define MAX_DISPLAY_COUNT 2
+// This is specifically used to reserve capacity for LTM buffer tracking maps to prevent
+// dynamic reallocation overhead during runtime for Primary, Built-in_2, and Virtual displays.
+#define MAX_DISPLAY_COUNT 3
 
 namespace sde_drm {
 
@@ -58,6 +66,7 @@ class DRMDppsManagerImp : public DRMDppsManagerIntf {
   void CommitDppsFeatures(drmModeAtomicReq *req, const DRMDisplayToken &tok,
     uint32_t validate_only);
   void GetDppsFeatureInfo(DRMDppsFeatureInfo *info);
+  void Deinit();
 
  private:
   int GetDrmResources(drmModeRes* res);
@@ -78,6 +87,7 @@ class DRMDppsManagerImp : public DRMDppsManagerIntf {
   std::vector<std::pair<uint32_t, drm_msm_ltm_buffers_ctrl>> ltm_buffers_ctrl_map_;
   std::vector<std::pair<uint32_t, DRMDppsLtmBuffers>> ltm_buffers_map_;
   std::mutex api_lock_;
+  bool deinit_done_ = false;
 };
 
 class DRMDppsManagerDummyImp : public DRMDppsManagerIntf {

@@ -376,6 +376,14 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
       *drm_format = DRM_FORMAT_NV12;
       *drm_format_modifier = DRM_FORMAT_MOD_QCOM_DMA;
       break;
+    case kFormatNV12Y10:
+      *drm_format = DRM_FORMAT_NV12;
+      *drm_format_modifier = DRM_FORMAT_MOD_QCOM_DX | DRM_FORMAT_MOD_QCOM_LUMA_ONLY;
+      break;
+    case kFormatNV12A10:
+      *drm_format = DRM_FORMAT_NV12;
+      *drm_format_modifier = DRM_FORMAT_MOD_QCOM_DX | DRM_FORMAT_MOD_QCOM_ALPHA_ONLY;
+      break;
     default:
       DLOGW("Unsupported format %s", GetFormatString(format));
   }
@@ -764,7 +772,7 @@ DisplayError HWDeviceDRM::Init() {
   }
 
   hw_info_intf_->GetHWResourceInfo(&hw_resource_);
-
+  has_qrtc_ = !!hw_resource_.qrtc_count;
   InitializeConfigs();
   GetCWBCapabilities();
   PopulateHWPanelInfo();
@@ -860,14 +868,21 @@ void HWDeviceDRM::GetCWBCapabilities() {
     return;
   }
 
+  max_cwb_ = 0;
   uint32_t max_dnsc_blocks = (!hw_info_intf_) ? 0 : hw_info_intf_->GetMaxDNSCBlurBlockCount();
   for (auto &iter : conns_info) {
     if (iter.second.type == DRM_MODE_CONNECTOR_VIRTUAL) {
+      has_builtin_wb_dnsc_ |= iter.second.is_wb_dnsc_supported;
+
       if (dnsc_associated_wb_ids_.size() < max_dnsc_blocks) {
         dnsc_associated_wb_ids_.push_back(iter.first);
       }
 
-      if (max_dnsc_blocks && dnsc_associated_wb_ids_.size() < max_dnsc_blocks) {
+      if (max_cwb_ && dnsc_associated_wb_ids_.size() >= max_dnsc_blocks && has_builtin_wb_dnsc_) {
+        break;
+      }
+
+      if (max_cwb_) {
         continue;
       }
 
@@ -875,14 +890,11 @@ void HWDeviceDRM::GetCWBCapabilities() {
       has_dedicated_cwb_ =
           static_cast<bool>(iter.second.modes[current_mode_index_].has_dedicated_cwb);
       has_cwb_dither_ = static_cast<bool>(iter.second.has_cwb_dither);
-      if (!max_cwb_) {
-        auto &conn_mode = iter.second.modes[current_mode_index_];
-        if (has_dedicated_cwb_) {
-          max_cwb_ = (conn_mode.max_cwb >= INT32_MAX || !conn_mode.max_cwb) ? 1 : conn_mode.max_cwb;
-        }
+      auto &conn_mode = iter.second.modes[current_mode_index_];
+      if (has_dedicated_cwb_) {
+        max_cwb_ = (conn_mode.max_cwb >= INT32_MAX || !conn_mode.max_cwb) ? 1 : conn_mode.max_cwb;
       }
       DLOGI("Max supported CWB session = %d", max_cwb_);
-      break;
     }
   }
 }
@@ -986,6 +998,10 @@ void HWDeviceDRM::InitializeConfigs() {
 
   for (uint32_t i = 0; i < connector_info_.modes.size(); i++) {
     PopulateDisplayAttributes(i);
+  }
+
+  if (first_cycle_) {
+    connector_info_.modes[current_mode_index_].current_spr_mode = 1;
   }
   SetDisplaySwitchMode(current_mode_index_);
 }
@@ -1358,6 +1374,9 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
   hw_panel_info_.is_primary_panel = connector_info_.is_primary;
   hw_panel_info_.is_lsr_display =
       connector_info_.is_primary && hw_resource_.num_csc_pipe && hw_resource_.num_repro_pipe;
+  auto submode_idx = connector_info_.modes[index].curr_submode_index;
+  auto topology = connector_info_.modes[index].sub_modes[submode_idx].topology;
+  hw_panel_info_.is_monocular_display = (GetNumInterfaces(topology) == 1);
   hw_panel_info_.is_pluggable = 0;
   hw_panel_info_.hdr_enabled = connector_info_.panel_hdr_prop.hdr_enabled;
   // Convert the luminance values to cd/m^2 units.
@@ -1420,6 +1439,32 @@ void HWDeviceDRM::PopulateHWPanelInfo() {
   DLOGI_IF(kTagDriverConfig, "Panel Maximum Transfer time = %d us",
            hw_panel_info_.transfer_time_us_max);
   DLOGI_IF(kTagDriverConfig, "Dynamic Bit Clk Support = %d", hw_panel_info_.dyn_bitclk_support);
+}
+
+uint32_t HWDeviceDRM::GetNumInterfaces(sde_drm::DRMTopology topology) {
+  switch (topology) {
+    case DRMTopology::SINGLE_LM:            // 1 LM, 1 PP, 1 INTF/WB (101)
+    case DRMTopology::SINGLE_LM_DSC:        // 1 LM, 1 DSC, 1 PP, 1 INTF/WB (111)
+    case DRMTopology::DUAL_LM_MERGE:        // 2 LM, 2 PP, 3DMux, 1 INTF/WB (201)
+    case DRMTopology::DUAL_LM_MERGE_DSC:    // 2 LM, 2 PP, 3DMux, 1 DSC, 1 INTF/WB (211)
+    case DRMTopology::DUAL_LM_DSCMERGE:     // 2 LM, 2 PP, 2 DSC Merge, 1 INTF/WB (221)
+    case DRMTopology::QUAD_LM_DSC4HSMERGE:  // 4 LM, 4 PP, 4 DSC Merge, 1 INTF (441)
+      return 1;
+      break;
+    case DRMTopology::DUAL_LM:           // 2 LM, 2 PP, 2 INTF/WB (202)
+    case DRMTopology::DUAL_LM_DSC:       // 2 LM, 2 DSC, 2 PP, 2 INTF/WB (222)
+    case DRMTopology::QUAD_LM_MERGE:     // 4 LM, 4 PP, 3DMux, 2 INTF (402)
+    case DRMTopology::QUAD_LM_DSCMERGE:  // 4 LM, 4 PP, 4 DSC Merge, 2 INTF (442)
+    case DRMTopology::
+        QUAD_LM_MERGE_DSC:  // 4 LM, 4 PP, 3DMux, 3 DSC, 2 INTF (432)
+    case DRMTopology::PPSPLIT:  // 1 LM, 2 PPs, 2 INTF/WB (102) (PP split creates 2 INTF)
+      return 2;
+      break;
+    default:
+      DLOGW("Topology not listed!!");
+      break;
+  }
+  return 0;
 }
 
 DisplayError HWDeviceDRM::GetDisplayIdentificationData(uint8_t *out_port, uint32_t *out_data_size,
@@ -1522,6 +1567,7 @@ void HWDeviceDRM::SetDisplaySwitchMode(uint32_t index) {
   sde_drm::DRMModeInfo current_mode = connector_info_.modes[current_mode_index_];
   uint64_t target_bit_clk = connector_info_.modes[current_mode_index_].curr_bit_clk_rate;
   uint32_t target_compression = connector_info_.modes[current_mode_index_].curr_compression_mode;
+  bool target_spr_mode = connector_info_.modes[current_mode_index_].current_spr_mode;
   uint32_t switch_index  = 0;
 
   if (to_set.cur_panel_mode & DRM_MODE_FLAG_CMD_MODE_PANEL) {
@@ -1550,15 +1596,35 @@ void HWDeviceDRM::SetDisplaySwitchMode(uint32_t index) {
         (to_set.mode.vrefresh == connector_info_.modes[mode_index].mode.vrefresh) &&
         (mode_flag & connector_info_.modes[mode_index].cur_panel_mode) &&
         (!connector_info_.emsync_switch_enabled)) {
+      // First pass: prefer sub_mode matching both compression and SPR mode
+      int32_t fallback_submode_idx = -1;
       for (uint32_t submode_idx = 0; submode_idx <
            connector_info_.modes[mode_index].sub_modes.size(); submode_idx++) {
         sde_drm::DRMSubModeInfo sub_mode = connector_info_.modes[mode_index].sub_modes[submode_idx];
         if (sub_mode.panel_compression_mode == target_compression) {
-          connector_info_.modes[mode_index].curr_submode_index = submode_idx;
-          index = mode_index;
-          to_set.curr_bit_clk_rate = GetSupportedBitClkRate(index, target_bit_clk);
-          break;
+          if (sub_mode.spr_mode == target_spr_mode) {
+            // Exact match: compression and SPR mode both match
+            connector_info_.modes[mode_index].curr_submode_index = submode_idx;
+            index = mode_index;
+            to_set.curr_bit_clk_rate = GetSupportedBitClkRate(index, target_bit_clk);
+            fallback_submode_idx = -1;  // No fallback needed
+            break;
+          } else if (fallback_submode_idx < 0) {
+            // Compression matches but SPR mode doesn't - save as fallback
+            fallback_submode_idx = static_cast<int32_t>(submode_idx);
+          }
         }
+      }
+      // Second pass: use fallback if no exact SPR mode match was found
+      if (fallback_submode_idx >= 0) {
+        DLOGV_IF(kTagDriverConfig,
+                 "No sub_mode with matching SPR mode %d found, using compression-only match",
+                 target_spr_mode);
+        connector_info_.modes[mode_index].curr_submode_index =
+            static_cast<uint32_t>(fallback_submode_idx);
+        index = mode_index;
+        to_set.curr_bit_clk_rate = GetSupportedBitClkRate(index, target_bit_clk);
+        connector_info_.modes[current_mode_index_].current_spr_mode = !target_spr_mode;
       }
       break;
     }
@@ -1572,15 +1638,34 @@ void HWDeviceDRM::SetDisplaySwitchMode(uint32_t index) {
         (to_set.mode.hdisplay == connector_info_.modes[mode_index].mode.hdisplay) &&
         (to_set.mode.vrefresh == connector_info_.modes[mode_index].mode.vrefresh) &&
         (switch_mode_flag & connector_info_.modes[mode_index].cur_panel_mode)) {
+      // First pass: prefer sub_mode matching both compression and SPR mode
+      int32_t fallback_submode_idx = -1;
       for (uint32_t submode_idx = 0; submode_idx <
            connector_info_.modes[mode_index].sub_modes.size(); submode_idx++) {
         sde_drm::DRMSubModeInfo sub_mode = connector_info_.modes[mode_index].sub_modes[submode_idx];
         if (sub_mode.panel_compression_mode == target_compression) {
-          connector_info_.modes[mode_index].curr_submode_index = submode_idx;
-          switch_index = mode_index;
-          switch_mode_valid_ = true;
-          break;
+          if (sub_mode.spr_mode == target_spr_mode) {
+            // Exact match: compression and SPR mode both match
+            connector_info_.modes[mode_index].curr_submode_index = submode_idx;
+            switch_index = mode_index;
+            switch_mode_valid_ = true;
+            fallback_submode_idx = -1;  // No fallback needed
+            break;
+          } else if (fallback_submode_idx < 0) {
+            // Compression matches but SPR mode doesn't - save as fallback
+            fallback_submode_idx = static_cast<int32_t>(submode_idx);
+          }
         }
+      }
+      // Second pass: use fallback if no exact SPR mode match was found
+      if (fallback_submode_idx >= 0) {
+        DLOGV_IF(kTagDriverConfig,
+                 "Switch mode: no sub_mode with matching SPR mode %d found, "
+                 "using compression-only match", target_spr_mode);
+        connector_info_.modes[mode_index].curr_submode_index =
+            static_cast<uint32_t>(fallback_submode_idx);
+        switch_index = mode_index;
+        switch_mode_valid_ = true;
       }
       break;
     }
@@ -1692,6 +1777,8 @@ DisplayError HWDeviceDRM::PowerOn(const HWQosData &qos_data, SyncPoints *sync_po
   }
 
   int ret = NullCommit(is_synchronous, true /* retain_planes */);
+  sync_points->retire_fence = Fence::Create(INT(retire_fence_fd), "retire_power_on");
+  sync_points->release_fence = Fence::Create(INT(release_fence_fd), "release_power_on");
   if (ret) {
     DLOGE("Failed with error: %d", ret);
     return kErrorHardware;
@@ -1704,8 +1791,6 @@ DisplayError HWDeviceDRM::PowerOn(const HWQosData &qos_data, SyncPoints *sync_po
     reset_output_fence_offset_ = true;
   }
 
-  sync_points->retire_fence = Fence::Create(INT(retire_fence_fd), "retire_power_on");
-  sync_points->release_fence = Fence::Create(INT(release_fence_fd), "release_power_on");
   DLOGD_IF(kTagDriverConfig, "RELEASE fence: fd: %d", INT(release_fence_fd));
   pending_power_state_ = kPowerStateNone;
 
@@ -1755,7 +1840,7 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   }
 
   if (cwb_config_[core_id_].enabled) {
-    DeconfigureDNSCfromCwb();
+    DeconfigureDownscaleFromCWB();
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, cwb_config_[core_id_].token.conn_id, 0);
     DLOGI("Tearing down the CWB topology");
   }
@@ -1765,6 +1850,7 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
     is_synchronous = true;
   }
   int ret = NullCommit(is_synchronous, false /* retain_planes */);
+  sync_points->retire_fence = Fence::Create(INT(retire_fence_fd), "retire_power_off");
   if (ret) {
     if (is_ssr_active_ || is_lsr_ssr_active_) {
       DLOGW(
@@ -1805,7 +1891,6 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
     retire_fence_fd = -1;
   }
 
-  sync_points->retire_fence = Fence::Create(INT(retire_fence_fd), "retire_power_off");
   pending_power_state_ = kPowerStateNone;
 
   last_power_mode_ = DRMPowerMode::OFF;
@@ -1846,13 +1931,13 @@ DisplayError HWDeviceDRM::Doze(const HWQosData &qos_data, SyncPoints *sync_point
     is_synchronous = true;
   }
   int ret = NullCommit(is_synchronous, true /* retain_planes */);
+  sync_points->retire_fence = Fence::Create(INT(retire_fence_fd), "retire_doze");
+  sync_points->release_fence = Fence::Create(release_fence_fd, "release_doze");
   if (ret) {
     DLOGE("Failed with error: %d", ret);
     return kErrorHardware;
   }
 
-  sync_points->retire_fence = Fence::Create(INT(retire_fence_fd), "retire_doze");
-  sync_points->release_fence = Fence::Create(release_fence_fd, "release_doze");
   DLOGD_IF(kTagDriverConfig, "RELEASE fence: fd: %d", INT(release_fence_fd));
 
   pending_power_state_ = kPowerStateNone;
@@ -1891,7 +1976,7 @@ DisplayError HWDeviceDRM::DozeSuspend(const HWQosData &qos_data, SyncPoints *syn
   drm_atomic_intf_->Perform(DRMOps::CRTC_GET_RELEASE_FENCE, token_.crtc_id, &release_fence_fd);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_GET_RETIRE_FENCE, token_.conn_id, &retire_fence_fd);
   if (cwb_config_[core_id_].enabled) {
-    DeconfigureDNSCfromCwb();
+    DeconfigureDownscaleFromCWB();
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, cwb_config_[core_id_].token.conn_id, 0);
     DLOGI("Tearing down the CWB topology");
   }
@@ -1901,6 +1986,8 @@ DisplayError HWDeviceDRM::DozeSuspend(const HWQosData &qos_data, SyncPoints *syn
     is_synchronous = true;
   }
   int ret = NullCommit(is_synchronous, true /* retain_planes */);
+  sync_points->retire_fence = Fence::Create(INT(retire_fence_fd), "retire_doze_suspend");
+  sync_points->release_fence = Fence::Create(release_fence_fd, "release_doze_suspend");
   if (ret) {
     DLOGE("Failed with error: %d", ret);
     return kErrorHardware;
@@ -1910,8 +1997,6 @@ DisplayError HWDeviceDRM::DozeSuspend(const HWQosData &qos_data, SyncPoints *syn
     FlushConcurrentWriteback();
   }
 
-  sync_points->retire_fence = Fence::Create(INT(retire_fence_fd), "retire_doze_suspend");
-  sync_points->release_fence = Fence::Create(release_fence_fd, "release_doze_suspend");
   DLOGD_IF(kTagDriverConfig, "RELEASE fence: fd: %d", INT(release_fence_fd));
 
   pending_power_state_ = kPowerStateNone;
@@ -2497,6 +2582,12 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_DYN_BIT_CLK, token_.conn_id, bit_clk_rate_);
   }
 
+  if (spr_mode_changed_) {
+    // Set the new SPR mode
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_SPR_MODE, token_.conn_id,
+                              static_cast<uint32_t>(spr_mode_));
+  }
+
   if (transfer_time_updated_) {
     // Skip updating the driver if driver is the one providing new transfer time
     if (connector_info_.modes[current_mode_index_].transfer_time_us != transfer_time_updated_) {
@@ -2822,6 +2913,34 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
     bit_clk_rate_ = 0;
   }
 
+  if (spr_mode_changed_) {
+    // Update current SPR mode state after successful commit.
+    connector_info_.modes[current_mode_index_].current_spr_mode = spr_mode_;
+
+    sde_drm::DRMModeInfo current_mode = connector_info_.modes[current_mode_index_];
+    uint32_t curr_compression = current_mode.curr_compression_mode;
+    bool target_spr_mode = connector_info_.modes[current_mode_index_].current_spr_mode;
+    int32_t fallback_submode_idx = -1;
+    for (uint32_t submode_idx = 0; submode_idx < current_mode.sub_modes.size(); submode_idx++) {
+      if (curr_compression == current_mode.sub_modes[submode_idx].panel_compression_mode) {
+        if (current_mode.sub_modes[submode_idx].spr_mode == target_spr_mode) {
+          // Exact match: same compression and same SPR mode
+          connector_info_.modes[current_mode_index_].curr_submode_index = submode_idx;
+          fallback_submode_idx = -1 ;
+          break;
+        } else if (fallback_submode_idx < 0) {
+          fallback_submode_idx = static_cast<int32_t>(submode_idx);
+        }
+      }
+    }
+    if (fallback_submode_idx >= 0) {
+      uint32_t submode_idx = static_cast<uint32_t>(fallback_submode_idx);
+      connector_info_.modes[current_mode_index_].curr_submode_index = submode_idx;
+      connector_info_.modes[current_mode_index_].current_spr_mode = !target_spr_mode;
+    }
+    spr_mode_changed_ = false;
+  }
+
   if (transfer_time_updated_) {
     transfer_time_updated_ = 0;
     synchronous_commit_ = false;
@@ -2871,7 +2990,7 @@ DisplayError HWDeviceDRM::Flush(HWLayersInfo *hw_layers_info) {
   drm_atomic_intf_->Perform(DRMOps::DPPS_COMMIT_FEATURE, -1);
 
   if (cwb_config_[core_id_].enabled) {
-    DeconfigureDNSCfromCwb();
+    DeconfigureDownscaleFromCWB();
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, cwb_config_[core_id_].token.conn_id, 0);
     DLOGI("Tearing down the CWB topology");
   }
@@ -3241,20 +3360,40 @@ DisplayError HWDeviceDRM::SetRefreshRate(uint32_t refresh_rate) {
 
   // Check if requested refresh rate is valid
   sde_drm::DRMModeInfo current_mode = connector_info_.modes[current_mode_index_];
+  bool target_spr_mode = connector_info_.modes[current_mode_index_].current_spr_mode;
   for (uint32_t mode_index = 0; mode_index < connector_info_.modes.size(); mode_index++) {
     if ((current_mode.mode.vdisplay == connector_info_.modes[mode_index].mode.vdisplay) &&
         (current_mode.mode.hdisplay == connector_info_.modes[mode_index].mode.hdisplay) &&
         (current_mode.cur_panel_mode == connector_info_.modes[mode_index].cur_panel_mode) &&
         (refresh_rate == connector_info_.modes[mode_index].mode.vrefresh)) {
+      // First pass: prefer sub_mode matching both compression and SPR mode
+      int32_t fallback_submode_idx = -1;
       for (uint32_t submode_idx = 0; submode_idx <
            connector_info_.modes[mode_index].sub_modes.size(); submode_idx++) {
         sde_drm::DRMSubModeInfo sub_mode = connector_info_.modes[mode_index].sub_modes[submode_idx];
         if (sub_mode.panel_compression_mode == current_mode.curr_compression_mode) {
-          connector_info_.modes[mode_index].curr_submode_index = submode_idx;
-          vrefresh_ = refresh_rate;
-          DLOGV_IF(kTagDriverConfig, "Set refresh rate to %d", refresh_rate);
-          return kErrorNone;
+          if (sub_mode.spr_mode == target_spr_mode) {
+            // Exact match: compression and SPR mode both match
+            connector_info_.modes[mode_index].curr_submode_index = submode_idx;
+            vrefresh_ = refresh_rate;
+            DLOGV_IF(kTagDriverConfig, "Set refresh rate to %d with SPR mode %d",
+                     refresh_rate, target_spr_mode);
+            return kErrorNone;
+          } else if (fallback_submode_idx < 0) {
+            // Compression matches but SPR mode doesn't - save as fallback
+            fallback_submode_idx = static_cast<int32_t>(submode_idx);
+          }
         }
+      }
+      // Second pass: use fallback if no exact SPR mode match was found
+      if (fallback_submode_idx >= 0) {
+        DLOGV_IF(kTagDriverConfig,
+                 "SetRefreshRate: no sub_mode with matching SPR mode %d found, "
+                 "using compression-only match for rate %d", target_spr_mode, refresh_rate);
+        connector_info_.modes[mode_index].curr_submode_index =
+            static_cast<uint32_t>(fallback_submode_idx);
+        vrefresh_ = refresh_rate;
+        return kErrorNone;
       }
     }
   }
@@ -3797,6 +3936,13 @@ DisplayError HWDeviceDRM::NullCommit(bool synchronous, bool retain_planes) {
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_FLUSH_SYNC_EN, token_.crtc_id, 0);
   }
   drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_LSR_MODE, token_.crtc_id, 0);
+  // Reset LSR batch properties to 0 so the kernel does not see stale batch_size/index/type
+  // values from a previous LSR init commit replayed into this null commit.
+  if (hw_resource_.max_lsr_batch_size) {
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_BATCH_SIZE, token_.crtc_id, 0);
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_BATCH_INDEX, token_.crtc_id, 0);
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_BATCH_TYPE, token_.crtc_id, 0);
+  }
 
   int ret = drm_atomic_intf_->Commit(synchronous , retain_planes);
   if (ret) {
@@ -3862,6 +4008,10 @@ DisplayError HWDeviceDRM::SetDynamicDSIClock(uint64_t bit_clk_rate) {
 }
 
 DisplayError HWDeviceDRM::GetDynamicDSIClock(uint64_t *bit_clk_rate) {
+  return kErrorNotSupported;
+}
+
+DisplayError HWDeviceDRM::SetDynamicSPRMode(bool spr_mode) {
   return kErrorNotSupported;
 }
 
@@ -4164,6 +4314,55 @@ void HWDeviceDRM::DeconfigureDNSCfromCwb(void) {
   }
 }
 
+bool HWDeviceDRM::ValidateAndConfigureDownscaleForCwb(HWLayersInfo *hw_layers_info) {
+  auto &cparams = hw_layers_info->hw_cwb_config->cwb_control_params;
+  if (!cparams.needs_downscale && !cwb_config_[core_id_].enabled_dnsc) {
+    return false;
+  }
+
+  if (has_qrtc_ || has_builtin_wb_dnsc_) {
+#ifdef FEATURE_WB_DNSC
+    auto &ds_rect = hw_layers_info->hw_cwb_config->cwb_downscaled_rect;
+    uint32_t conn_id = cwb_config_[core_id_].token.conn_id;
+    auto &dnsc_cfg = cwb_config_[core_id_].wb_dnsc_cfg;
+    dnsc_cfg = {};
+    if (cparams.needs_downscale) {
+      dnsc_cfg.dst_width = UINT32(ds_rect.right - ds_rect.left);
+      dnsc_cfg.dst_height = UINT32(ds_rect.bottom - ds_rect.top);
+    } else {
+      dnsc_cfg.flags |= WB_DNSC_DISABLE;
+    }
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_WB_DNSC, conn_id, &dnsc_cfg);
+#endif
+
+#if defined(SDM_VIRTUAL_DRIVER) || defined(FEATURE_WB_DNSC)
+    cwb_config_[core_id_].enabled_dnsc = !!cparams.needs_downscale;
+    return cwb_config_[core_id_].enabled_dnsc;
+#else
+    return false;
+#endif
+  }
+
+  return ConfigureDNSCforCwb(hw_layers_info);
+}
+
+void HWDeviceDRM::DeconfigureDownscaleFromCWB() {
+  if ((has_qrtc_ || has_builtin_wb_dnsc_) && cwb_config_[core_id_].enabled_dnsc) {
+    uint32_t conn_id = cwb_config_[core_id_].token.conn_id;
+#ifdef FEATURE_WB_DNSC
+    auto &dnsc_cfg = cwb_config_[core_id_].wb_dnsc_cfg;
+    dnsc_cfg = {};
+    dnsc_cfg.flags |= WB_DNSC_DISABLE;
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_WB_DNSC, conn_id, &dnsc_cfg);
+#endif
+    cwb_config_[core_id_].enabled_dnsc = false;
+    DLOGV_IF(kTagDriverConfig, "Deconfigured inbuilt DNSC from WB(%d) for display %d-%d", conn_id,
+             display_id_, disp_type_);
+  } else {
+    DeconfigureDNSCfromCwb();
+  }
+}
+
 bool HWDeviceDRM::SetupConcurrentWriteback(const HWLayersInfo &hw_layer_info, bool validate,
                                            int64_t *release_fence_fd) {
   bool enable = hw_resource_.has_concurrent_writeback && hw_layer_info.output_buffer &&
@@ -4193,7 +4392,7 @@ bool HWDeviceDRM::SetupConcurrentWriteback(const HWLayersInfo &hw_layer_info, bo
       }
     } else {
       // Tear down the Concurrent Writeback topology.
-      DeconfigureDNSCfromCwb();
+      DeconfigureDownscaleFromCWB();
       drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, cwb_config_[core_id_].token.conn_id, 0);
       DLOGI("Tear down the Concurrent Writeback topology on display %d-%d.", display_id_,
             disp_type_);
@@ -4287,31 +4486,37 @@ void HWDeviceDRM::ConfigureConcurrentWriteback(const HWLayersInfo &hw_layer_info
   LayerRect cwb_roi = cwb_config->cwb_roi;
   bool is_full_frame_update = IsFullFrameUpdate(hw_layer_info);
 
-  if (ConfigureDNSCforCwb(const_cast<HWLayersInfo *>(&hw_layer_info))) {
-#ifdef FEATURE_DNSC_BLUR
-    auto &dnsc_cfg = cwb_config_[core_id_].dnsc_cfg;
+  if (ValidateAndConfigureDownscaleForCwb(const_cast<HWLayersInfo *>(&hw_layer_info))) {
     auto &ds_rect = cwb_config->cwb_downscaled_rect;
     auto &cparams = cwb_config->cwb_control_params;
+    auto dst_width = ds_rect.right - ds_rect.left;
+    auto dst_height = ds_rect.bottom - ds_rect.top;
+    if (!has_qrtc_ && !has_builtin_wb_dnsc_) {
+#ifdef FEATURE_DNSC_BLUR
+      dst_width = cwb_config_[core_id_].dnsc_cfg.dst_width;
+      dst_height = cwb_config_[core_id_].dnsc_cfg.dst_height;
+#endif
+    }
+
     if (cparams.img_h_center_align) {
-      cwb_dst.left = UINT32((output_buffer->width - dnsc_cfg.dst_width) / 2);
-    } else if (UINT32(ds_rect.left) + dnsc_cfg.dst_width <= output_buffer->width) {
+      cwb_dst.left = UINT32((output_buffer->width - dst_width) / 2);
+    } else if (UINT32(ds_rect.left) + dst_width <= output_buffer->width) {
       cwb_dst.left = UINT32(ds_rect.left);
     } else {
       cwb_dst.left = 0;
     }
 
     if (cparams.img_v_center_align) {
-      cwb_dst.top = UINT32((output_buffer->height - dnsc_cfg.dst_height) / 2);
-    } else if (UINT32(ds_rect.top) + dnsc_cfg.dst_height < output_buffer->height) {
+      cwb_dst.top = UINT32((output_buffer->height - dst_height) / 2);
+    } else if (UINT32(ds_rect.top) + dst_height < output_buffer->height) {
       cwb_dst.top = UINT32(ds_rect.top);
     } else {
       cwb_dst.top = 0;
     }
     cwb_dst.left = OFFSET_ALIGN(cwb_dst.left, 16);
     cwb_dst.top = OFFSET_ALIGN(cwb_dst.top, 16);
-    cwb_dst.right = cwb_dst.left + dnsc_cfg.dst_width;
-    cwb_dst.bottom = cwb_dst.top + dnsc_cfg.dst_height;
-#endif
+    cwb_dst.right = cwb_dst.left + dst_width;
+    cwb_dst.bottom = cwb_dst.top + dst_height;
     if (has_cwb_crop_ && is_full_frame_update) {
       // CWB downscale doesn't support partial update
       drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_ROI, vitual_conn_id, 0, nullptr);
@@ -4545,7 +4750,7 @@ void HWDeviceDRM::HandleCwbTeardown(bool sync_teardown) {
     // TODO(user): This may cause WB frame drop in next cycle for the display, which wants to
     // use it for a particular usage. If there is no any chance of synchronous call for tear down,
     // then it can be removed.
-    DeconfigureDNSCfromCwb();
+    DeconfigureDownscaleFromCWB();
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, cwb_config_[core_id_].token.conn_id, 0);
     TeardownConcurrentWriteback();
   }
