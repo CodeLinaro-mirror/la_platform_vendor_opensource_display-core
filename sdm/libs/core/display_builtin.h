@@ -540,6 +540,7 @@ class DisplayBuiltIn : public DisplayBase,
   std::unique_ptr<qrtc::QrtcFeatureIntf> qrtc_ = nullptr;
   std::vector<Layer> qrtc_layer_ = {};
   qrtc::QrtcFeatureConfig qrtc_config_;
+  bool qrtc_setup_completed_ = false;
 
   friend class PuSubjectIntfImpl;
   std::unique_ptr<PuSubjectIntf> pu_subject_ = nullptr;

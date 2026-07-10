@@ -486,24 +486,6 @@ DisplayError DisplayBuiltIn::Init() {
         SetupDemuraT0AndTn();
       }
     }
-
-    int qrtc_prop = 0, qrtc_enable = 0;
-    Debug::Get()->GetProperty(ENABLE_QRTC, &qrtc_prop);
-    int disable_qrtc_prop = 0;
-    if (IsPrimaryDisplay()) {
-      Debug::Get()->GetProperty(DISABLE_QRTC_PRIMARY, &disable_qrtc_prop);
-    } else {
-      Debug::Get()->GetProperty(DISABLE_QRTC_SECONDARY, &disable_qrtc_prop);
-    }
-    qrtc_enable = qrtc_prop && (!disable_qrtc_prop);
-    if (qrtc_enable) {
-      error = SetupQrtc();
-      if (error != kErrorNone) {
-        DLOGE("Failed to setup Qrtc on display %d-%d, Error %d", display_id_, display_type_, error);
-        comp_manager_->FreeQrtcFetchResources(display_id_);
-        error = kErrorNone;
-      }
-    }
   } else {
     DLOGW("Skipping Panel Feature Setups!");
   }
@@ -700,8 +682,10 @@ DisplayError DisplayBuiltIn::Deinit() {
   }
 
   if (qrtc_) {
+    qrtc_->Deinit();
     qrtc_.reset();
     qrtc_ = nullptr;
+    qrtc_setup_completed_ = false;
     ReleaseWBFromDisplay();
   }
   return DisplayBase::Deinit();
@@ -6613,6 +6597,26 @@ DisplayError DisplayBuiltIn::SetQrtcFeatureConfig(int32_t type, void *data) {
   DisplayError ret = kErrorNone;
   int val = 0;
 
+  if (!qrtc_setup_completed_) {
+    int qrtc_prop = 0, qrtc_enable = 0;
+    Debug::Get()->GetProperty(ENABLE_QRTC, &qrtc_prop);
+    int disable_qrtc_prop = 0;
+    if (IsPrimaryDisplay()) {
+      Debug::Get()->GetProperty(DISABLE_QRTC_PRIMARY, &disable_qrtc_prop);
+    } else {
+      Debug::Get()->GetProperty(DISABLE_QRTC_SECONDARY, &disable_qrtc_prop);
+    }
+    qrtc_enable = qrtc_prop && (!disable_qrtc_prop);
+    if (qrtc_enable) {
+      DisplayError error = SetupQrtc();
+      if (error != kErrorNone) {
+        DLOGE("Failed to setup Qrtc on display %d-%d, Error %d", display_id_, display_type_, error);
+        comp_manager_->FreeQrtcFetchResources(display_id_);
+      }
+    }
+    qrtc_setup_completed_ = true;
+  }
+
   if (!data || !qrtc_) {
     DLOGE("data %pK qrtc_ %pK", data, qrtc_.get());
     return kErrorUndefined;
@@ -6799,8 +6803,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
       *it = '_';
     }
   }
-  std::string observer = "qrtc";
-  ControlPartialUpdateLocked(false, observer);
+
   error = CreateDisplayEventProxyIntf(client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
   if (error != kErrorNone) {
     DLOGW("Failed to initialize event proxy info");
@@ -6930,6 +6933,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
 
   if (SetupQrtcConfig(qrtc_config_) != kErrorNone) {
     DLOGE("Unable to setup Qrtc config on Display %d-%d", display_id_, display_type_);
+    qrtc_->Deinit();
     qrtc_.reset();
     qrtc_ = nullptr;
     ReleaseWBFromDisplay();
@@ -6938,6 +6942,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
 
   if (SetupQrtcLayer() != kErrorNone) {
     DLOGE("Unable to setup Qrtc layer on Display %d-%d", display_id_, display_type_);
+    qrtc_->Deinit();
     qrtc_.reset();
     qrtc_ = nullptr;
     ReleaseWBFromDisplay();
