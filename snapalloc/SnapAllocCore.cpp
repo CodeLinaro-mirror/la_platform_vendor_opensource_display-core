@@ -415,7 +415,8 @@ Error SnapAllocCore::ImportHandleLocked(SnapHandle *hnd) {
 
   if (SnapHandleInternal::validate(hnd) != 0) {
     DLOGE("ImportHandleLocked: Invalid handle: %p", hnd);
-    FreeBuffer(static_cast<SnapHandleInternal *>(hnd));
+    static_cast<SnapHandleInternal *>(hnd)->closeFds();
+    free(hnd);
     return Error::BAD_BUFFER;
   }
 
@@ -431,14 +432,16 @@ Error SnapAllocCore::ImportHandleLocked(SnapHandle *hnd) {
   DLOGD_IF(enable_logs, "Importing handle with id %lu", snap_hnd->id);
   if (mem_alloc_intf_->ImportBuffer(snap_hnd->fd) < 0) {
     DLOGE("Failed to import buffer: hnd: %p, fd:%d, id:%lu", snap_hnd, snap_hnd->fd, snap_hnd->id);
-    FreeBuffer(snap_hnd);
+    snap_hnd->closeFds();
+    free(snap_hnd);
     return Error::BAD_BUFFER;
   }
 
   if (mem_alloc_intf_->ImportBuffer(snap_hnd->fd_metadata) < 0) {
     DLOGE("Failed to import metadata buffer: hnd: %p, fd:%d, id:%lu", snap_hnd,
           snap_hnd->fd_metadata, snap_hnd->id);
-    FreeBuffer(snap_hnd);
+    snap_hnd->closeFds();
+    free(snap_hnd);
     return Error::BAD_BUFFER;
   }
   // Initialize members that aren't transported
