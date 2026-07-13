@@ -59,6 +59,7 @@ class FrameCaptureImpl : public FrameCaptureIntf, public CompressorCallback {
   int DeInit();
   void NotifyCwbDone(int32_t status, const LayerBuffer &buffer);
   int ConfigureFCM(CWBPacketData &data);
+  bool IsCwbActive() const override { return trigger_cwb_; }
   void FillMetadata(struct CompStats &stats);
 
  private:

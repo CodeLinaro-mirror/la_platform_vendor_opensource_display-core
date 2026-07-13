@@ -38,6 +38,7 @@ class FrameCaptureIntf {
   static int Destroy(FrameCaptureIntf *intf);
   virtual void NotifyCwbDone(int32_t status, const LayerBuffer &buffer) = 0;
   virtual int ConfigureFCM(CWBPacketData &data) = 0;
+  virtual bool IsCwbActive() const = 0;  // true while FCM capture is in progress
 
  private:
   virtual int Init() = 0;
