@@ -43,6 +43,7 @@ SPDX-License-Identifier: BSD-3-Clause-Clear
             <disableCWBDownScale>0</disableCWBDownScale>
         </Panel>
         <serviceStartDuration>2</serviceStartDuration>
+        <vmRestartInterval>10</vmRestartInterval>
         <disableAODHandle>0</disableAODHandle>
     </DemuraTnConfiguration>
 </Config>
