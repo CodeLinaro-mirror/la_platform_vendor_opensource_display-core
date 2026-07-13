@@ -2394,14 +2394,14 @@ void SDMDisplay::DumpInputBuffers() {
 
     Fence::Wait(layer->input_buffer.acquire_fence);
     //To-Do: Handle Fence wait for CSC and Repro Layers properly
-    if (layer->composition != kCompositionIWERepro) {
-      SnapHandle *handle = (SnapHandle *)layer->input_buffer.buffer_id;
-      DumpToFile(handle, std::string(dir_path), i);
-    } else {
+    if (layer->composition == kCompositionIWERepro || layer_stack_.gpu_reproj_batch_size > 0) {
       for (int plane = 0; plane < 3; plane++) {
         SnapHandle *handle = (SnapHandle *)layer->input_buffer.planes[plane].buffer_id;
         DumpToFile(handle, std::string(dir_path), i, plane);
       }
+    } else {
+      SnapHandle *handle = (SnapHandle *)layer->input_buffer.buffer_id;
+      DumpToFile(handle, std::string(dir_path), i);
     }
   }
   dump_input_frame_count_--;

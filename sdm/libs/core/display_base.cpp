@@ -3913,7 +3913,8 @@ void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
         display_type_, info.second.index.at(i), i);
       }
 
-      bool reprojection_buffer = (hw_layer.composition == kCompositionIWERepro);
+      bool reprojection_buffer = (hw_layer.composition == kCompositionIWERepro) ||
+                                  (layer_stack->gpu_reproj_batch_size > 0);
       auto plane_index =
           reprojection_buffer ? i % client_ctx_.display_attributes.num_fsc_fields : 0;
       hw_layer.input_buffer.planes[0].fd =
