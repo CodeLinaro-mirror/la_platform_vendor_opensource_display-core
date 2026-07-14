@@ -371,7 +371,13 @@ DisplayError ConcurrencyMgr::PostBufferWithOwner(const CwbConfig &cwb_config, vo
   // Register buffer ownership for callback routing if PostBuffer succeeded
   auto err = callbacks_.RegisterCWBBufferOwner(buffer, owner);
   if (err == kErrorNone) {
-    return cwb_->PostBuffer(cwb_config, buffer, disp_->GetDisplayIndex(display_type));
+    auto post_err = cwb_->PostBuffer(cwb_config, buffer, disp_->GetDisplayIndex(display_type));
+    if (post_err != kErrorNone) {
+      // PostBuffer failed; roll back the ownership registration to avoid
+      // stale entries in cwb_buffer_owners_ that would block future requests.
+      callbacks_.UnregisterCWBBufferOwner(buffer);
+    }
+    return post_err;
   }
   return err;
 }
