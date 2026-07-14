@@ -733,6 +733,12 @@ void SDMDisplay::UpdateConfigs() {
   // SF doesnt care about dynamic bit clk support.
   // Exposing all configs will result in getting/setting of redundant configs.
 
+  // TODO: Remove once external display mode switch is cleanly supported.
+  bool external_display = (type_ == kPluggable);
+  if (external_display) {
+    num_configs_ = 1;
+  }
+
   // For each config store the corresponding index which client understands.
   sdm_config_map_.resize(num_configs_);
 
@@ -755,7 +761,7 @@ void SDMDisplay::UpdateConfigs() {
     }
   }
 
-  if (NeedsSDMExtendedResolution()) {
+  if (!external_display && NeedsSDMExtendedResolution()) {
     PopulateSDMExtendedDisplayResolution();
   }
 
