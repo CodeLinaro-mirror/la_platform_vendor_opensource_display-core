@@ -1529,8 +1529,15 @@ void HWDeviceDRM::GetHWDisplayPortAndMode() {
 
   switch (connector_info_.type) {
     case DRM_MODE_CONNECTOR_DSI:
-      hw_panel_info_.port = kPortDSI;
-      interface_str_ = "DSI";
+      if (connector_info_.is_dsi_to_hdmi_bridge) {
+        // DSI-to-HDMI bridge is a pluggable display driven over HDMI; treat it like kPortDTV
+        // so it goes through the same colorspace/HDR metadata path as DP and HDMI.
+        hw_panel_info_.port = kPortDTV;
+        interface_str_ = "HDMI";
+      } else {
+        hw_panel_info_.port = kPortDSI;
+        interface_str_ = "DSI";
+      }
       break;
     case DRM_MODE_CONNECTOR_LVDS:
       hw_panel_info_.port = kPortLVDS;
