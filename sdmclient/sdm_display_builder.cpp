@@ -382,28 +382,55 @@ DisplayError SDMDisplayBuilder::CreateVirtualDisplayObj(
 
   // Get virtual display from cache if already created
   for (auto &vds_map : virtual_id_map_) {
-    if (vds_map.second.width == width && vds_map.second.height == height &&
-        vds_map.second.format == *format && vds_map.second.type == requested_virtual_disp_type &&
-        !vds_map.second.in_use) {
-      auto sdm_display = cb_->GetDisplayFromClientId(vds_map.first);
-      if (!sdm_display) {
-        DLOGE("Cached virtual display id:%" PRIu64 " missing SDM display", vds_map.first);
-        return kErrorResources;
-      }
-
-      auto status = sdm_display->RestoreRetainedDisplay();
-      if (status != kErrorNone) {
-        DLOGE("Failed to restore cached virtual display id:%" PRIu64 " status=%d",
-              vds_map.first, status);
-        return status;
-      }
-
-      vds_map.second.in_use = true;
-      *out_display_id = vds_map.first;
-      DLOGI("Reusing cached virtual display id:%" PRIu64 " %dx%d format: %d type: %d",
-            *out_display_id, width, height, *format, requested_virtual_disp_type);
-      return kErrorNone;
+    // Skip entries that don't match format, type, or are already in use.
+    if (vds_map.second.format != *format || vds_map.second.type != requested_virtual_disp_type ||
+        vds_map.second.in_use) {
+      continue;
     }
+
+    bool resolution_changed = (vds_map.second.width != width || vds_map.second.height != height);
+
+    // Resolution reconfiguration is only supported for PQ virtual displays.
+    // Non-PQ displays (e.g. WFD/kVirtualTypeDefault) are never retained,
+    // so this guard is a safety net against future type additions.
+    if (resolution_changed && requested_virtual_disp_type != kVirtualTypePQ) {
+      continue;
+    }
+
+    auto sdm_display = cb_->GetDisplayFromClientId(vds_map.first);
+    if (!sdm_display) {
+      DLOGE("Cached virtual display id:%" PRIu64 " missing SDM display", vds_map.first);
+      return kErrorResources;
+    }
+
+    // kVirtualTypePQ only: reconfigure retained intf with new resolution.
+    if (resolution_changed) {
+      DLOGI("PQ virtual display id:%" PRIu64
+            " resolution changed from %dx%d to %dx%d,"
+            " reconfiguring retained intf",
+            vds_map.first, vds_map.second.width, vds_map.second.height, width, height);
+      auto reconfig_status = sdm_display->SetFrameBufferResolution(width, height);
+      if (reconfig_status != kErrorNone) {
+        DLOGE("Failed to reconfigure PQ virtual display id:%" PRIu64 " status=%d", vds_map.first,
+              reconfig_status);
+        return reconfig_status;
+      }
+      vds_map.second.width = width;
+      vds_map.second.height = height;
+    }
+
+    auto status = sdm_display->RestoreRetainedDisplay();
+    if (status != kErrorNone) {
+      DLOGE("Failed to restore cached virtual display id:%" PRIu64 " status=%d", vds_map.first,
+            status);
+      return status;
+    }
+
+    vds_map.second.in_use = true;
+    *out_display_id = vds_map.first;
+    DLOGI("Reusing cached virtual display id:%" PRIu64 " %dx%d format: %d type: %d",
+          *out_display_id, width, height, *format, requested_virtual_disp_type);
+    return kErrorNone;
   }
 
   Display active_builtin_disp_id = GetActiveBuiltinDisplay();
