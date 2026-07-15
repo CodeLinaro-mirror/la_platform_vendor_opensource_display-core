@@ -783,6 +783,11 @@ uint64_t SnapConstraintManager::GetUBWCLossyUsage(BufferDescriptor out_desc) {
     return 0;
   }
 
+  // WriteBack cannot write-out as UBWC Lossy_2_1 format
+  if (out_desc.usage & vendor_qti_hardware_display_common_BufferUsage::QTI_PRIVATE_WFD) {
+    return 0;
+  }
+
   if ((out_desc.usage & vendor_qti_hardware_display_common_BufferUsage::COMPOSER_CLIENT_TARGET) &&
       (out_desc.usage & vendor_qti_hardware_display_common_BufferUsage::COMPOSER_OVERLAY) &&
       (out_desc.format == vendor_qti_hardware_display_common_PixelFormat::RGBA_8888)) {
