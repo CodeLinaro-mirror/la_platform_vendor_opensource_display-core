@@ -2158,6 +2158,14 @@ DisplayError DisplayBase::PostCommit() {
     // TODO: Need to clean up and add generic logic
     if (!client_ctx_.display_attributes.fsc_panel) {
       for (auto &hw_layer : info.second.hw_layers) {
+        // Skip closing FD for CWB output buffer
+        // CWB output buffer is managed by CWB manager and needs to persist
+        // across frames for caching in hw_device_drm.cpp
+        if (info.second.output_buffer != nullptr &&
+            hw_layer.input_buffer.handle_id == info.second.output_buffer->handle_id) {
+          continue;  // Don't close CWB output buffer FD
+        }
+
         CloseFd(&hw_layer.input_buffer.planes[0].fd);
       }
     }
