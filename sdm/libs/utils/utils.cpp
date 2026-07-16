@@ -295,6 +295,8 @@ const char* GetSocName() {
     case kArtSocId:
     case kPebbleSocId1:
     case kPebbleSocId2:
+    case kPebbleSocId3:
+    case kPebbleSocId4:
       return kArtSocName;
     case kShikraSocId1:
     case kShikraSocId2:
