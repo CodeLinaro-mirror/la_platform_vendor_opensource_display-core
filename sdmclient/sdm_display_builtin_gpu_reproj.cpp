@@ -867,11 +867,6 @@ DisplayError SDMDisplayBuiltInGpuReproj::CommitOrPrepare(bool validate_only,
 // -----------------------------------------------------------------------
 
 DisplayError SDMDisplayBuiltInGpuReproj::SetPoseConfig(void *buffer_hnd) {
-  DisplayError error = SDMDisplayBuiltIn::SetPoseConfig(buffer_hnd);
-  if (error != kErrorNone) {
-    return error;
-  }
-
   if (IsGpuReprojEnabled()) {
     LayerBuffer pose_buffer = {};
     if (PopulateLayerBuffer(buffer_hnd, &pose_buffer) == kErrorNone) {
