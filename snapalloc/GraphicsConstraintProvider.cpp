@@ -90,7 +90,7 @@ static bool AdrenoAlignmentRequired(vendor_qti_hardware_display_common_BufferUsa
       }
     }
 
-    if (format == YCBCR_422_I) {
+    if (format == YCBCR_422_I || format == C_8) {
       return true;
     }
   }
