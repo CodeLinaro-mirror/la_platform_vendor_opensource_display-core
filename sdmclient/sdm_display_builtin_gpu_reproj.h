@@ -123,6 +123,9 @@ class SDMDisplayBuiltInGpuReproj : public SDMDisplayBuiltIn {
   // Returns true once both DPU init commits are done (>= kReprojSlotCount).
   bool IsReprojInitDone() const { return reproj_dpu_init_count_ >= kReprojSlotCount; }
 
+  // True when a CWB frame dump is pending (normal path) or FCM capture is active.
+  bool IsCwbCommit() const { return (dump_frame_count_ > 0) || IsFcmCwbActive(); }
+
   // -----------------------------------------------------------------------
   // GPU reproj library (loaded via dlopen)
   // -----------------------------------------------------------------------
@@ -162,6 +165,7 @@ class SDMDisplayBuiltInGpuReproj : public SDMDisplayBuiltIn {
   int reproj_out_fence_fd_ = -1;
   uint64_t reproj_frame_count_ = 0;
   int reproj_dpu_init_count_ = 0;  // 0→1→2; reset on FreeReprojBuffers()
+  int reproj_cwb_batch_index_ = kReprojSlotCount;  // CWB batch index; init uses 1,2; CWB from 3+
 
   // Persistent reproj output layers — layer_stack_.layers holds raw pointers,
   // so these must outlive each frame's layer stack.

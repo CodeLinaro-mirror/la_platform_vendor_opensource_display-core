@@ -175,7 +175,7 @@ bool SDMDisplayBuiltInGpuReproj::AllocateReprojBuffers() {
       // check is bypassed and snapalloc allocates C_8 UBWC via
       // MmmColorFormatMapper.
       cfg.format = kFormatC8Ubwc;
-      cfg.gfx_client = false;
+      cfg.gfx_client = true;
       cfg.secure = false;
       cfg.cache = true;
 
@@ -740,6 +740,7 @@ void SDMDisplayBuiltInGpuReproj::FreeReprojBuffers() {
     reproj_bufs_allocated_ = false;
   }
   reproj_dpu_init_count_ = 0;
+  reproj_cwb_batch_index_ = kReprojSlotCount;  // reset so next session starts CWB at index 3
 }
 
 // -----------------------------------------------------------------------
@@ -766,6 +767,12 @@ DisplayError SDMDisplayBuiltInGpuReproj::PreValidateDisplay(bool *exit_validate)
   if (IsGpuReprojEnabled() && IsReprojNeeded(sdm_layer_stack_)) {
     AppendReprojOutputLayer(&layer_stack_);
     layer_stack_.gpu_reproj_active = true;
+    // Re-apply CWB batch params after BuildLayerStack resets layer_stack_.
+    if (IsReprojInitDone() && IsCwbCommit()) {
+      layer_stack_.gpu_reproj_batch_size = static_cast<uint32_t>(kReprojSlotCount);
+      layer_stack_.gpu_reproj_batch_index = static_cast<uint32_t>(reproj_cwb_batch_index_);
+      layer_stack_.gpu_reproj_batch_type = 1;  // MSM_MDP_BATCH_TYPE_LSR
+    }
   }
 
   return status;
@@ -812,17 +819,29 @@ DisplayError SDMDisplayBuiltInGpuReproj::CommitOrPrepare(bool validate_only,
     Apply(sdm_layer_stack_);
     layer_stack_.gpu_reproj_active = true;
 
-    // LSR steady-state: DCP/IPCC drives ping-pong — skip DPU commit.
+    // LSR steady-state: skip DPU commit; CWB commits pass through for writeback capture.
     if (IsReprojInitDone()) {
-      DLOGI("CommitOrPrepare: LSR steady-state — skipping DPU commit (DCP/IPCC drives ping-pong)");
-      if (out_num_types)
-        *out_num_types = 0;
-      if (out_num_requests)
-        *out_num_requests = 0;
-      if (needs_commit)
-        *needs_commit = false;
-      prepare_phase_ = false;
-      return kErrorNone;
+      if (IsCwbCommit()) {
+        DLOGI(
+            "CommitOrPrepare: LSR steady-state — CWB active, allowing DPU commit (batch_index=%d)",
+            reproj_cwb_batch_index_ + 1);
+        // Set LSR batch params for CWB commit (continues batch index from init commits).
+        reproj_cwb_batch_index_++;
+        layer_stack_.gpu_reproj_batch_size = static_cast<uint32_t>(kReprojSlotCount);
+        layer_stack_.gpu_reproj_batch_index = static_cast<uint32_t>(reproj_cwb_batch_index_);
+        layer_stack_.gpu_reproj_batch_type = 1;  // MSM_MDP_BATCH_TYPE_LSR
+      } else {
+        DLOGI(
+            "CommitOrPrepare: LSR steady-state — skipping DPU commit (DCP/IPCC drives ping-pong)");
+        if (out_num_types)
+          *out_num_types = 0;
+        if (out_num_requests)
+          *out_num_requests = 0;
+        if (needs_commit)
+          *needs_commit = false;
+        prepare_phase_ = false;
+        return kErrorNone;
+      }
     }
   }
 

@@ -590,7 +590,7 @@ DisplayError SDMDisplay::Init() {
     return kErrorNotSupported;
   }
 
-  if (display_intf_->IsLSRSupported()) {
+  if (display_intf_->IsLSRSupported() || IsGpuLsrVariant()) {
     FrameCaptureIntf::Create(display_intf_, buffer_allocator_, &fcm_);
     if (fcm_ == nullptr) {
       DLOGW("Failed to create framecapture");
