@@ -372,6 +372,7 @@ DisplayError SDMDisplayBuilder::DestroyVirtualDisplay(Display display) {
 DisplayError SDMDisplayBuilder::CreateVirtualDisplayObj(
     uint32_t width, uint32_t height, int32_t *format, Display *out_display_id) {
   SDMVirtualDispType requested_virtual_disp_type = kVirtualTypeDefault;
+  Display lm_change_id = kNumDisplays;
 
   // Query requested virtual display type
   auto err = core_intf_->GetVirtualDispType(&requested_virtual_disp_type);
@@ -405,6 +406,19 @@ DisplayError SDMDisplayBuilder::CreateVirtualDisplayObj(
 
     // kVirtualTypePQ only: reconfigure retained intf with new resolution.
     if (resolution_changed) {
+      // Query whether the LM topology (1LM <-> 2LM) changes for the new width.
+      // Recreate the display intf when LM count changes to avoid hardware
+      // configuration mismatches.
+      LMQueryPayload lm_payload;
+      lm_payload.width = width;
+      auto lm_status = sdm_display->ProcessColorFeatureOps(kColorFeatureQueryLMUpdate, &lm_payload);
+      if (lm_status == kErrorNone && lm_payload.lm_count_changed) {
+        DLOGI("PQ virtual display id:%" PRIu64
+              " LM topology changed for new width %u (current_w=%u), recreating intf",
+              vds_map.first, width, vds_map.second.width);
+        lm_change_id = vds_map.first;
+        break;  // Break out of loop, will destroy and recreate below
+      }
       DLOGI("PQ virtual display id:%" PRIu64
             " resolution changed from %dx%d to %dx%d,"
             " reconfiguring retained intf",
@@ -431,6 +445,17 @@ DisplayError SDMDisplayBuilder::CreateVirtualDisplayObj(
     DLOGI("Reusing cached virtual display id:%" PRIu64 " %dx%d format: %d type: %d",
           *out_display_id, width, height, *format, requested_virtual_disp_type);
     return kErrorNone;
+  }
+
+  // LM count changed: destroy cached intf and recreate below.
+  if (lm_change_id != kNumDisplays) {
+    for (auto &map_info : map_info_virtual_) {
+      if (map_info.client_id == lm_change_id) {
+        DestroyDisplay(&map_info);
+        break;
+      }
+    }
+    virtual_id_map_.erase(lm_change_id);
   }
 
   Display active_builtin_disp_id = GetActiveBuiltinDisplay();

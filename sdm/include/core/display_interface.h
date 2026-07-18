@@ -497,8 +497,18 @@ enum ClientCapability {
   @sa DisplayInterface::ProcessColorFeatureOps
 */
 enum DisplayColorOps {
-  kColorFeatureForceOff,  // Force disable the color feature
+  kColorFeatureForceOff,       // Force disable the color feature
+  kColorFeatureQueryLMUpdate,  // Query whether LM count changes for a new width
   kColorFeatureOpsMax
+};
+
+/*! @brief Payload for kColorFeatureQueryLMUpdate operation.
+  Pass the new target width, return lm_count_changed indicates
+  whether the number of layer mixers differs from the current config.
+*/
+struct LMQueryPayload {
+  uint32_t width;                 // [in]  new target width to evaluate
+  bool lm_count_changed = false;  // [out] true if LM count differs from current config
 };
 
 /*! @brief Display device event handler implemented by the client.
