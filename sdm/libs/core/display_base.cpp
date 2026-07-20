@@ -3337,6 +3337,13 @@ DisplayError DisplayBase::GetRefreshRateRange(uint32_t *min_refresh_rate,
 
 DisplayError DisplayBase::HandlePendingVSyncEnable(const shared_ptr<Fence> &retire_fence) {
   if (vsync_enable_pending_) {
+    if (is_ssr_active_ || is_lsr_ssr_active_ || ssr_end_in_progress_) {
+      // Defer vsync enable while SSR is active or during SSR end power restore.
+      // is_ssr_active_ covers SSR start; ssr_end_in_progress_ covers the window
+      // between is_ssr_active_ being cleared and PerformSubsystemRestart completing.
+      DLOGI("Deferring vsync enable during SSR for display %d-%d", display_id_, display_type_);
+      return kErrorNone;
+    }
     // Retire fence signalling confirms that CRTC enabled, hence wait for retire fence before
     // we enable vsync
     Fence::Wait(retire_fence_);
@@ -3357,7 +3364,11 @@ DisplayError DisplayBase::SetVSyncState(bool enable) {
 }
 
 DisplayError DisplayBase::SetVSyncStateLocked(bool enable) {
-  if ((state_ == kStateOff || avoid_vsync_enable_ || secure_event_ != kSecureEventMax) && enable) {
+  // Defer vsync enable if: display is off, vsync is explicitly blocked,
+  // a secure/TUI event is active, or SSR (primary/LSR) is in progress or ending.
+  if ((state_ == kStateOff || avoid_vsync_enable_ || secure_event_ != kSecureEventMax ||
+       is_ssr_active_ || is_lsr_ssr_active_ || ssr_end_in_progress_) &&
+      enable) {
     DLOGW("Can't enable vsync when display %d-%d is powered off or SecureDisplay/TUI in progress",
           display_id_, display_type_);
     vsync_enable_pending_ = true;
