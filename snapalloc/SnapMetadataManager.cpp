@@ -269,11 +269,11 @@ Error SnapMetadataManager::CompressionHelper(SnapMetadata *metadata, SnapHandleI
     return Error::NONE;
   } else if (out_get != nullptr) {
     BufferDescriptor out_desc;
-    BufferDescriptor desc = {.format = handle->format,
-                             .usage = handle->usage,
-                             .width = handle->aligned_width_in_pixels,
+    BufferDescriptor desc = {.width = handle->aligned_width_in_pixels,
                              .height = handle->aligned_height,
                              .layerCount = static_cast<int32_t>(handle->layer_count),
+                             .format = handle->format,
+                             .usage = handle->usage,
                              .reservedSize = static_cast<long>(handle->reserved_size)};
     UBWCPolicy *ubwc_policy = UBWCPolicy::GetInstance();
     bool ubwc_enable = ubwc_policy->IsUBWCAlloc(desc);
@@ -344,12 +344,12 @@ Error SnapMetadataManager::PlaneLayoutsHelper(SnapMetadata *metadata, SnapHandle
       // Recalculate plane layouts for interlaced
       AllocData ad;
       vendor_qti_hardware_display_common_BufferLayout layout;
-      BufferDescriptor desc = {.format = handle->format,
-                               .usage = handle->usage,
-                               .width = handle->unaligned_width,
+      BufferDescriptor desc = {.width = handle->unaligned_width,
                                .height = handle->unaligned_height,
                                .layerCount =
                                    static_cast<int32_t>(handle->layer_count),
+                               .format = handle->format,
+                               .usage = handle->usage,
                                .reservedSize = static_cast<long>(handle->reserved_size)};
       static vendor_qti_hardware_display_common_KeyValuePair modifier = {
           .key = "interlaced", .value = static_cast<uint64_t>(1)};
@@ -1225,11 +1225,11 @@ Error SnapMetadataManager::GetCustomDimensions(SnapHandleInternal *hnd, SnapMeta
       BufferDescriptor out_desc;
       int out_priv_flags = 0;
       // TODO (user) : Add desc modifier support
-      BufferDescriptor desc = {.format = hnd->format,
-                               .usage = hnd->usage,
-                               .width = hnd->aligned_width_in_pixels,
+      BufferDescriptor desc = {.width = hnd->aligned_width_in_pixels,
                                .height = hnd->aligned_height,
                                .layerCount = static_cast<int32_t>(hnd->layer_count),
+                               .format = hnd->format,
+                               .usage = hnd->usage,
                                .reservedSize = static_cast<long>(hnd->reserved_size)};
       static vendor_qti_hardware_display_common_KeyValuePair modifier = {
           .key = "interlaced", .value = static_cast<uint64_t>(1)};
