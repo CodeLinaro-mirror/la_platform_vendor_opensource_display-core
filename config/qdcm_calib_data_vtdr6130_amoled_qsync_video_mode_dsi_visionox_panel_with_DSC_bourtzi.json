@@ -4,7 +4,7 @@
   Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
   SPDX-License-Identifier: BSD-3-Clause-Clear -->",
     "Version": 3,
-    "vtdr6130_amoled_video_mode_120hz_dsi_visionox_panel_with_DSC_bourtzi": {
+    "vtdr6130_amoled_qsync_video_mode_dsi_visionox_panel_with_DSC_bourtzi": {
         "Native": {
             "Applicability": {
                 "ColorPrimaries": "ColorPrimaries_MAX",
