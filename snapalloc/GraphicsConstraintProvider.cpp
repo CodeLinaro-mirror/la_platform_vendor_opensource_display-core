@@ -52,6 +52,8 @@ void GraphicsConstraintProvider::Init(
         ::dlsym(lib_, "adreno_get_aligned_gpu_buffer_size");
     *reinterpret_cast<void **>(&LINK_adreno_isFormatSupportedByGPU) =
         ::dlsym(lib_, "isFormatSupportedByGPU");
+    *reinterpret_cast<void **>(&LINK_adreno_get_aligned_width) =
+        ::dlsym(lib_, "adreno_get_aligned_width");
   } else {
     DLOGW_IF(enable_logs, "Graphics lib is not available - read json file");
     // change to shared pointer
@@ -517,6 +519,13 @@ uint32_t GraphicsConstraintProvider::AdrenoGetAlignedGpuBufferSize(void *metadat
     return static_cast<uint32_t>(size);
   }
   return -1;
+}
+
+uint32_t GraphicsConstraintProvider::AdrenoGetAlignedGpuPitch(void *metadata_blob) {
+  if (LINK_adreno_get_aligned_width) {
+    return LINK_adreno_get_aligned_width(metadata_blob);
+  }
+  return 0;
 }
 
 bool GraphicsConstraintProvider::IsPISupportedByGPU(int format, uint64_t usage) {
