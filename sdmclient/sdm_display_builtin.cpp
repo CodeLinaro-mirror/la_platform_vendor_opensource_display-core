@@ -1820,7 +1820,7 @@ DisplayError SDMDisplayBuiltIn::PerformDynamicCac(DynamicCacV2Config config, boo
 }
 
 DisplayError SDMDisplayBuiltIn::SetSPRState(int state) {
-  DLOGV("Display ID: %" PRId64 " spr state: %d", state);
+  DLOGI("Display ID: %" PRId64 " spr state: %d", id_, state);
   DisplayError error = display_intf_->SetSPRState(state);
 
   if (error != kErrorNone) {
