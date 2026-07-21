@@ -350,6 +350,8 @@
 //Max virtual display count supported
 #define MAX_VIRTUAL_DISPLAY_COUNT         DISPLAY_PROP("max_virtual_display_count")
 
+#define ENABLE_ROTATOR_CONCURRENCY           DISPLAY_PROP("enable_rotator_concurrency")
+
 // Add all other.properties above
 // End of property
 // clang-format on

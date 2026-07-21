@@ -1342,6 +1342,7 @@ DisplayError DisplayBuiltIn::SetupQrtcLayer() {
   qrtc_layer.dst_rect.bottom = qrtc_suf->buffer_info.buffer_config.height;
   LogI(kTagNone, "Qrtc dst: ", qrtc_layer.dst_rect);
   qrtc_layer.buffer_map = std::make_shared<LayerBufferMap>();
+  qrtc_layer.frame_rate = current_refresh_rate_;
   qrtc_layer_.push_back(qrtc_layer);
 
   return kErrorNone;
@@ -6617,14 +6618,44 @@ DisplayError DisplayBuiltIn::SetQrtcFeatureConfig(int32_t type, void *data) {
 
 DisplayError DisplayBuiltIn::SetQrtcSubsample(int subsample) {
   DisplayError error = kErrorNone;
+  qrtc::QrtcSubSample qrtc_subsample = qrtc::QRTC_SubSample_MAX;
+  QrtcSubsamplingSupport qrtc_support = {};
 
-  if (subsample < qrtc::QRTC_SubSample_1X1 || subsample > qrtc::QRTC_SubSample_3X3) {
-    DLOGE("unsupported QRTC subsample %d", subsample);
-    return kErrorUndefined;
+  switch (subsample) {
+    case 0:
+      qrtc_subsample = qrtc::QRTC_SubSample_1X1;
+      qrtc_support.subsample_h = 1;
+      qrtc_support.subsample_v = 1;
+      break;
+    case 1:
+      qrtc_subsample = qrtc::QRTC_SubSample_2X1;
+      qrtc_support.subsample_h = 2;
+      qrtc_support.subsample_v = 1;
+      break;
+    case 2:
+      qrtc_subsample = qrtc::QRTC_SubSample_2X2;
+      qrtc_support.subsample_h = 2;
+      qrtc_support.subsample_v = 2;
+      break;
+    case 3:
+      qrtc_subsample = qrtc::QRTC_SubSample_3X3;
+      qrtc_support.subsample_h = 3;
+      qrtc_support.subsample_v = 3;
+      break;
+    default:
+      DLOGE("unsupported QRTC subsample %d", subsample);
+      return kErrorUndefined;
   }
 
-  qrtc_config_.subsample = static_cast<qrtc::QrtcSubSample>(subsample);
-  qrtc_config_.max_subsample = static_cast<qrtc::QrtcSubSample>(subsample);
+  error = comp_manager_->CanSupportQrtcWithSubsampling(display_comp_ctx_, &qrtc_support);
+  if (error != kErrorNone || !qrtc_support.supported) {
+    DLOGE("Unable to support QRTC on display %d with subsampling %dx%d", display_id_,
+          qrtc_support.subsample_h, qrtc_support.subsample_v);
+    return error;
+  }
+
+  qrtc_config_.subsample = qrtc_subsample;
+  qrtc_config_.max_subsample = qrtc_subsample;
 
   error = SetupQrtcConfig(qrtc_config_);
   if (error != kErrorNone) {
@@ -6725,6 +6756,7 @@ DisplayError DisplayBuiltIn::SetQrtcTuningCfg() {
 DisplayError DisplayBuiltIn::SetupQrtc() {
   DisplayError error = kErrorNone;
   int ret = 0;
+  QrtcSubsamplingSupport qrtc_support = {};
 
   if (!qrtc_factory_) {
     DLOGE("Failed to get qrtc feature Factory");
@@ -6826,6 +6858,15 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
 
   if (spr_prop_value && !spr_disable_value && !spr_bypass_prop_value) {
     qrtc_config_.is_pentile_format = true;
+  }
+
+  qrtc_support.subsample_h = 2; /* based on max_subsample = QRTC_SubSample_2X2 */
+  qrtc_support.subsample_v = 2; /* based on max_subsample = QRTC_SubSample_2X2 */
+  error = comp_manager_->CanSupportQrtcWithSubsampling(display_comp_ctx_, &qrtc_support);
+  if (error != kErrorNone || !qrtc_support.supported) {
+    DLOGE("Unable to support QRTC on display %d with subsampling %dx%d", display_id_,
+          qrtc_support.subsample_h, qrtc_support.subsample_v);
+    return error;
   }
 
   if (SetupQrtcConfig(qrtc_config_) != kErrorNone) {

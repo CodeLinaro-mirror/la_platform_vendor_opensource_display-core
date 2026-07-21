@@ -982,6 +982,15 @@ DisplayError CompManager::GetDemuraFetchResources(Handle display_ctx,
   return resource_intf_->GetDemuraFetchResources(display_comp_ctx->display_resource_ctx, frl);
 }
 
+DisplayError CompManager::CanSupportQrtcWithSubsampling(Handle display_ctx,
+                                                        QrtcSubsamplingSupport *qrtc_support) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+  DisplayCompositionContext *display_comp_ctx =
+      reinterpret_cast<DisplayCompositionContext *>(display_ctx);
+  return resource_intf_->CanSupportQrtcWithSubsampling(display_comp_ctx->display_resource_ctx,
+                                                       qrtc_support);
+}
+
 DisplayError CompManager::SetMaxSDEClk(Handle display_ctx, uint32_t clk) {
   DTRACE_SCOPED();
   std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
