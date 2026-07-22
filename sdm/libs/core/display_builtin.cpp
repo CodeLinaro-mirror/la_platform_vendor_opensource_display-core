@@ -322,6 +322,16 @@ DisplayError DisplayBuiltIn::Init() {
   disable_fbt_for_cwb_fallback_ = (value == 1);
   DLOGI("disable_fbt_for_cwb_fallback_: %d", disable_fbt_for_cwb_fallback_);
 
+  // FBT for CWB fallback and UBWC lossy format FBT are mutually exclusive since
+  // WriteBack cannot write-out lossy format. If lossy format FBT is enabled,
+  // force disable FBT for CWB fallback.
+  value = 0;
+  Debug::Get()->GetProperty(ENABLE_UBWC_LOSSY_FORMAT_FBT, &value);
+  if (value == 1) {
+    disable_fbt_for_cwb_fallback_ = true;
+    DLOGI("Lossy format FBT enabled; disabling FBT for CWB fallback (unsupported with lossy)");
+  }
+
   value = 0;
   Debug::Get()->GetProperty(ENABLE_HFI_PATH, &value);
   hfi_path_supported_ = (value > 0);
