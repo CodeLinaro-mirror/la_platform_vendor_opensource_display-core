@@ -49,11 +49,13 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using std::vector;
 
-using sde_drm::DRMDisplayType;
+using sde_drm::DppsFeaturePayload;
 using sde_drm::DRMConnectorInfo;
-using sde_drm::DRMRect;
+using sde_drm::DRMDisplayType;
+using sde_drm::DRMDppsFeatureInfo;
 using sde_drm::DRMOps;
 using sde_drm::DRMPowerMode;
+using sde_drm::DRMRect;
 using sde_drm::DRMSecureMode;
 
 namespace sdm {
@@ -102,16 +104,22 @@ DisplayError HWVirtualDRM::Init() {
 void HWVirtualDRM::ConfigureWbConnectorFbId(uint32_t fb_id, vector<uint32_t> lsr_fb_ids) {
   if (lsr_fb_ids.size()) {
     lsr_fb_id_config_ = {};
-    // TODO: need to Handle monocular display
     bool is_repro = (lsr_fb_ids.size() > kMaxCSCOutputBuffer);
     if (is_repro) {
       for (int i = 0; i < lsr_fb_ids.size(); i++) {
+        // For Binocular Display (total 12 buffers)
         // 0:2 FSC for left eye | 3:5 FSC for right eye
         // 6:8 FSC left eye back buffer | 9:11 FSC right eye back buffer
-        bool is_front_buffer = (i < (hw_panel_info_.num_fsc_fields * 2));
-        bool is_left_eye =
-            (i < hw_panel_info_.num_fsc_fields ||
-             (i >= hw_panel_info_.num_fsc_fields * 2 && i < (hw_panel_info_.num_fsc_fields * 3)));
+        // For Monocular Display (total 6 buffer)
+        // 0:2 FSC for left eye
+        // 3:5 FSC left eye back buffer
+        bool is_monocular = (lsr_fb_ids.size() == (hw_panel_info_.num_fsc_fields * 2));
+        bool is_front_buffer = (i < (is_monocular ? hw_panel_info_.num_fsc_fields
+                                                  : (hw_panel_info_.num_fsc_fields * 2)));
+        bool is_left_eye = (is_monocular ? (i < hw_panel_info_.num_fsc_fields * 2)
+                                         : (i < hw_panel_info_.num_fsc_fields ||
+                                            (i >= hw_panel_info_.num_fsc_fields * 2 &&
+                                             i < (hw_panel_info_.num_fsc_fields * 3))));
         uint32_t view_idx = is_left_eye ? 0 : 1;
         struct sde_drm_view_descriptor &descriptor = is_front_buffer
                                                          ? lsr_fb_id_config_.views[view_idx]
@@ -886,6 +894,84 @@ DisplayError HWVirtualDRM::SetPPFeature(PPFeatureInfo *feature) {
     DLOGE("Failed to defer PP feature, id %d", feature->feature_id_);
     return kErrorUndefined;
   }
+
+  return kErrorNone;
+}
+
+DisplayError HWVirtualDRM::GetDppsFeatureInfo(void *payload, size_t size) {
+  DRMDppsFeatureInfo *feature_info = nullptr;
+
+  if (size != sizeof(DRMDppsFeatureInfo)) {
+    DLOGE("invalid payload size %zu, expected %zu", size, sizeof(DRMDppsFeatureInfo));
+    return kErrorParameters;
+  }
+
+  if (!HasColorFeatureSupport()) {
+    DLOGV_IF(kTagDriverConfig, "Color features not supported for virtual display");
+    return kErrorNone;
+  }
+
+  feature_info = reinterpret_cast<DRMDppsFeatureInfo *>(payload);
+  feature_info->obj_id = token_.crtc_id;
+  drm_mgr_intf_->GetDppsFeatureInfo(feature_info);
+  return kErrorNone;
+}
+
+DisplayError HWVirtualDRM::SetDppsFeature(void *payload, size_t size) {
+  uint64_t value = 0;
+  uint32_t obj_id = 0, object_type = 0, feature_id = 0;
+  DppsFeaturePayload *feature_payload = nullptr;
+
+  if (size != sizeof(DppsFeaturePayload)) {
+    DLOGE("Invalid payload size %zu, expected %zu", size, sizeof(DppsFeaturePayload));
+    return kErrorParameters;
+  }
+
+  // Only applicable to PQ-type virtual displays.
+  if (!HasColorFeatureSupport()) {
+    DLOGV_IF(kTagDriverConfig, "Color features not supported for virtual display");
+    return kErrorNone;
+  }
+
+  feature_payload = reinterpret_cast<DppsFeaturePayload *>(payload);
+  object_type = feature_payload->object_type;
+  feature_id = feature_payload->feature_id;
+  value = feature_payload->value;
+
+  if (object_type == DRM_MODE_OBJECT_CRTC) {
+    obj_id = token_.crtc_id;
+  } else if (object_type == DRM_MODE_OBJECT_CONNECTOR) {
+    obj_id = token_.conn_id;
+  } else {
+    DLOGE("Invalid object type 0x%x", object_type);
+    return kErrorUndefined;
+  }
+
+  DLOGV_IF(kTagDriverConfig, "Set Dpps feature: obj_id %u, object_type %u, feature_id %u", obj_id,
+           object_type, feature_id);
+
+  drm_atomic_intf_->Perform(DRMOps::DPPS_CACHE_FEATURE, obj_id, feature_id, value);
+  return kErrorNone;
+}
+
+DisplayError HWVirtualDRM::GetPanelBrightnessBasePath(std::string *base_path) const {
+  if (!base_path) {
+    return kErrorParameters;
+  }
+
+  if (!has_dspp_) {
+    return kErrorNone;
+  }
+
+  // Virtual displays lack physical panels. To support LTM feature, mirror the
+  // backlight state of the primary display.
+  sde_drm::DRMConnectorInfo primary_conn_info = {};
+  drm_mgr_intf_->GetConnectorInfo(primary_disp_conn_id_, &primary_conn_info);
+
+  char s[kMaxStringLength] = {};
+  snprintf(s, sizeof(s), "/sys/class/backlight/panel%d-backlight/",
+           static_cast<int>(primary_conn_info.type_id - 1));
+  *base_path = s;
 
   return kErrorNone;
 }

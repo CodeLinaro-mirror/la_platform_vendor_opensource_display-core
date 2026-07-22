@@ -100,6 +100,14 @@ bool IsBT2020(const QtiColorPrimaries &color_primary) {
   }
 }
 
+void CopyLut3D(const Lut3d &in, Lut3d *out) {
+  uint32_t size = in.dim * in.dim * in.dim;
+  out->dim = in.dim;
+  out->validLutEntries = in.validLutEntries;
+  out->lutEntries = new Color10Bit[size];
+  std::memcpy(out->lutEntries, in.lutEntries, size * sizeof(Color10Bit));
+}
+
 static bool IsSdrDimmingDisabled() {
   static bool read_prop = false;
   static bool disable_sdr_dimming = false;
@@ -1066,19 +1074,25 @@ void SDMLayer::ValidateAndSetCSC(const SnapHandle *handle) {
         layer_buffer->cRI = new_metadata.cRI;
         layer_->update_mask.set(kMetadataUpdate);
       }
-      if (new_metadata.dynamicMetadata.dynamicMetaDataValid &&
-          ((new_metadata.dynamicMetadata.dynamicMetaDataLen !=
-            layer_buffer->dynamicMetadata.dynamicMetaDataLen) ||
-           !SameConfig(layer_buffer->dynamicMetadata.dynamicMetaDataPayload,
-                       new_metadata.dynamicMetadata.dynamicMetaDataPayload,
-                       new_metadata.dynamicMetadata.dynamicMetaDataLen))) {
-        layer_buffer->dynamicMetadata.dynamicMetaDataValid = true;
-        layer_buffer->dynamicMetadata.dynamicMetaDataLen =
-            new_metadata.dynamicMetadata.dynamicMetaDataLen;
-        std::memcpy(layer_buffer->dynamicMetadata.dynamicMetaDataPayload,
-                    new_metadata.dynamicMetadata.dynamicMetaDataPayload,
-                    new_metadata.dynamicMetadata.dynamicMetaDataLen);
-        layer_->update_mask.set(kContentMetadata);
+      if (new_metadata.dynamicMetadata.dynamicMetaDataValid) {
+        if (new_metadata.dynamicMetadata.dynamicMetaDataLen > QTI_HDR_DYNAMIC_META_DATA_SZ) {
+          DLOGE("Dynamic metadata length %u exceeds maximum allowed size %u, "
+                "dropping metadata to prevent buffer overflow",
+                new_metadata.dynamicMetadata.dynamicMetaDataLen,
+                QTI_HDR_DYNAMIC_META_DATA_SZ);
+        } else if ((new_metadata.dynamicMetadata.dynamicMetaDataLen !=
+                    layer_buffer->dynamicMetadata.dynamicMetaDataLen) ||
+                   !SameConfig(layer_buffer->dynamicMetadata.dynamicMetaDataPayload,
+                               new_metadata.dynamicMetadata.dynamicMetaDataPayload,
+                               new_metadata.dynamicMetadata.dynamicMetaDataLen)) {
+          layer_buffer->dynamicMetadata.dynamicMetaDataValid = true;
+          layer_buffer->dynamicMetadata.dynamicMetaDataLen =
+              new_metadata.dynamicMetadata.dynamicMetaDataLen;
+          std::memcpy(layer_buffer->dynamicMetadata.dynamicMetaDataPayload,
+                      new_metadata.dynamicMetadata.dynamicMetaDataPayload,
+                      new_metadata.dynamicMetadata.dynamicMetaDataLen);
+          layer_->update_mask.set(kContentMetadata);
+        }
       }
     } else {
       dataspace_supported_ = false;
