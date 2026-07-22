@@ -961,7 +961,8 @@ int SDMDisplayBuilder::HandleConnectedDisplays(HWDisplaysInfo *displays_info,
 
   // Active builtin display needs revalidation
   Display active_builtin_disp_id = GetActiveBuiltinDisplay();
-  if (active_builtin_disp_id < kNumDisplays) {
+  if (active_builtin_disp_id < kNumDisplays &&
+      (cb_->GetDisplayFromClientId(active_builtin_disp_id) != null_display_)) {
     auto ret =
         cb_->WaitForResources(delay_hotplug, active_builtin_disp_id, client_id);
     if (ret != kErrorNone) {
