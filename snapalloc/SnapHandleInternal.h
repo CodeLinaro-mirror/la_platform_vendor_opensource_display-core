@@ -81,6 +81,10 @@ class SnapHandleInternal : public SnapHandle {
   void IncRef() { ++ref_count; }
   bool DecRef() { return --ref_count == 0; }
   void ResetRefCount() { ref_count = 0; }
+  void closeFds() {
+    close(fd);
+    close(fd_metadata);
+  }
   static inline int NumInts() {
     return (((sizeof(SnapHandleInternal) - sizeof(SnapHandle)) / sizeof(int)) - kNumFds);
   }
