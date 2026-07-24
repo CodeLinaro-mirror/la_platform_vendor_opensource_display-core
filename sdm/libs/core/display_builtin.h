@@ -428,6 +428,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetupRgbHistogram();
   DisplayError UpdateRgbHistogramRoi(const void *data) override;
   bool isSPREnabled();
+  DisplayError GetDisplayViewMode(SDMDisplayViewMode *view_mode) override;
 
   const uint32_t kPuTimeOutMs = 1000;
   std::map<uint32_t, std::vector<HWEvent>> event_list_;

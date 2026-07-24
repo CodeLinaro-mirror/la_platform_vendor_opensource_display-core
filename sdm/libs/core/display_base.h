@@ -357,6 +357,9 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   }
   virtual bool IsLSRSupported();
   virtual DisplayError UpdateRgbHistogramRoi(const void *data) { return kErrorNotSupported; }
+  virtual DisplayError GetDisplayViewMode(SDMDisplayViewMode *view_mode) {
+    return kErrorNotSupported;
+  }
 
  protected:
   struct DisplayMutex {

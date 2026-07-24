@@ -4683,4 +4683,8 @@ bool SDMDisplay::IsEPTSupported() {
   return display_intf_->IsEPTSupported();
 }
 
+DisplayError SDMDisplay::GetDisplayViewMode(SDMDisplayViewMode *view_mode) {
+  return display_intf_->GetDisplayViewMode(view_mode);
+}
+
 }  // namespace sdm
