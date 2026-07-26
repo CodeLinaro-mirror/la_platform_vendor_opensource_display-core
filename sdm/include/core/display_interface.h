@@ -491,6 +491,16 @@ enum ClientCapability {
   kClientCapabilityMax,
 };
 
+/*! @brief This enum represents operations that can be requested on a display's color feature
+  lifecycle.
+
+  @sa DisplayInterface::ProcessColorFeatureOps
+*/
+enum DisplayColorOps {
+  kColorFeatureForceOff,  // Force disable the color feature
+  kColorFeatureOpsMax
+};
+
 /*! @brief Display device event handler implemented by the client.
 
   @details This class declares prototype for display device event handler methods which must be
@@ -1806,12 +1816,17 @@ class DisplayInterface {
   */
   virtual DisplayError UpdateRgbHistogramRoi(const void *data) = 0;
 
-  /*! @brief Method to force disable color features (e.g., LTM).
-    This is typically used when a virtual display is retained for future reuse.
+  /*! @brief Method to process color feature operations on the display,
+    supporting both set and get semantics.
+
+    @param[in] ops \link DisplayColorOps \endlink
+    @param[in/out] payload : Configuration or operation payload (direction depends on ops)
 
     @return \link kErrorNotSupported \endlink by default.
   */
-  virtual DisplayError TurnOffColorFeature() { return kErrorNotSupported; }
+  virtual DisplayError ProcessColorFeatureOps(DisplayColorOps ops, void *payload) {
+    return kErrorNotSupported;
+  }
 
   /*! @brief Method to get display view mode for XR systems
    @param[out] SDMDisplayViewMode : display view mode type

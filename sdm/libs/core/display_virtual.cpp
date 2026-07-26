@@ -604,12 +604,20 @@ DisplayError DisplayVirtualPQ::PostCommit() {
   return kErrorNone;
 }
 
-DisplayError DisplayVirtualPQ::TurnOffColorFeature() {
-  int display_type = display_type_;
+DisplayError DisplayVirtualPQ::ProcessColorFeatureOps(DisplayColorOps ops, void *payload) {
+  (void)payload;
 
-  DLOGV_IF(kTagDisplay, "Turn off ltm feature on display %d-%d", display_id_, display_type_);
-
-  dpps_info_.DppsNotifyOps(kDppsLtmForceOffEvent, &display_type, sizeof(display_type));
+  switch (ops) {
+    case kColorFeatureForceOff: {
+      int display_type = display_type_;
+      DLOGV_IF(kTagDisplay, "Turn off ltm feature on display %d-%d", display_id_, display_type_);
+      dpps_info_.DppsNotifyOps(kDppsLtmForceOffEvent, &display_type, sizeof(display_type));
+      break;
+    }
+    default:
+      DLOGE("Invalid input ops %d", ops);
+      return kErrorParameters;
+  }
   return kErrorNone;
 }
 

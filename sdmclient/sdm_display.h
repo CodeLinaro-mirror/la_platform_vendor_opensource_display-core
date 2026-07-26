@@ -551,7 +551,9 @@ public:
   virtual DisplayError SetRgbHistObserverConfig(bool state, void *data) {
     return kErrorNotSupported;
   }
-  virtual DisplayError TurnOffColorFeature() { return kErrorNotSupported; }
+  virtual DisplayError ProcessColorFeatureOps(DisplayColorOps ops, void *payload) {
+    return kErrorNotSupported;
+  }
   DisplayError GetDisplayViewMode(SDMDisplayViewMode *view_mode);
 
  protected:
