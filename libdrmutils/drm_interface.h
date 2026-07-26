@@ -1486,6 +1486,7 @@ struct DRMDppsFeatureInfo {
   uint32_t version;
   uint32_t payload_size;
   void *payload;
+  bool virtual_disp_with_dspp = false;
 };
 
 enum DRMPanelFeatureID {

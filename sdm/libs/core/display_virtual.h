@@ -172,6 +172,7 @@ class DisplayVirtualPQ : public DisplayVirtual, public DppsPropIntf {
   // Panel name forwarded to STC manager to locate calibration files.
   std::string panel_name_ = "virtual_display_panel_with_pq";
   DppsInfo dpps_info_ = {};
+  bool request_dpps_reconfig_ = false;
 };
 
 }  // namespace sdm
