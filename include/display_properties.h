@@ -40,10 +40,12 @@
 #define DISP_PROP_PREFIX                     "vendor.display."
 #define GRALLOC_PROP_PREFIX                  "vendor.gralloc."
 #define PERSIST_DISP_PROP_PREFIX             "persist.vendor.display."
+#define GPU_PROP_PREFIX                      "vendor.gpu."
 
 #define DISPLAY_PROP(prop_name)              DISP_PROP_PREFIX prop_name
 #define GRALLOC_PROP(prop_name)              GRALLOC_PROP_PREFIX prop_name
 #define PERSIST_DISPLAY_PROP(prop_name)      PERSIST_DISP_PROP_PREFIX prop_name
+#define GPU_PROP(prop_name)                  GPU_PROP_PREFIX prop_name
 
 // Start of property
 #define COMPOSITION_MASK_PROP                DISPLAY_PROP("comp_mask")
@@ -357,6 +359,11 @@
 #define MAX_VIRTUAL_DISPLAY_COUNT         DISPLAY_PROP("max_virtual_display_count")
 #define ENABLE_ROTATOR_CONCURRENCY        DISPLAY_PROP("enable_rotator_concurrency")
 #define ALLOW_SECCAM_CONCURRENCY          DISPLAY_PROP("allow_seccam_concurrency")
+
+// Reusing GPU properties
+// KGSL retry knobs for GPU device probing
+#define KGSL_MAX_RETRY_COUNT_PROP            GPU_PROP("kgsl_max_retry_count")
+#define KGSL_RETRY_INTERVAL_MS_PROP          GPU_PROP("kgsl_retry_interval_ms")
 
 // Add all other.properties above
 // End of property
