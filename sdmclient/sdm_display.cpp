@@ -561,10 +561,8 @@ SDMDisplay::SDMDisplay(CoreInterface *core_intf, BufferAllocator *buffer_allocat
 
 SDMDisplay::~SDMDisplay() {
   for (auto &it : buffer_luts_) {
-    if (it.second.lutEntries != nullptr) {
-      delete[] it.second.lutEntries;
-      it.second.lutEntries = nullptr;
-    }
+    SafeDeleteArray(it.second.lutEntries);
+    SafeDeleteArray(it.second.gridEntries);
   }
   buffer_luts_.clear();
 }
@@ -658,6 +656,10 @@ DisplayError SDMDisplay::Init() {
 
   SDMDebugHandler::Get()->GetProperty(RGBA_SPLIT_SUPPORT, &rgba_split_support_);
   game_supported_ = display_intf_->GameEnhanceSupported();
+
+  int value = 0;
+  SDMDebugHandler::Get()->GetProperty(DISABLE_LUTS_OVERLAY_SUPPORT, &value);
+  disable_luts_overlay_support_ = (value == 1);
 
   if (!sdm_layer_stack_) {
     DLOGE("sdm layer stack not present");
@@ -885,9 +887,7 @@ void SDMDisplay::BuildLayerStack() {
                sdm_layer->GetId(), id_, type_);
     }
 
-    if (sdm_layer->IsLutsSet()) {
-      layer->flags.has_luts = true;
-      // TODO(user): Remove skip once using luts sent by client is supported
+    if (sdm_layer->IsLutsSet() && disable_luts_overlay_support_) {
       layer->flags.skip = true;
       DLOGV_IF(kTagClient,
                "Layer [%" PRIu64
@@ -953,6 +953,8 @@ void SDMDisplay::BuildLayerStack() {
       layer->flags.single_buffer = true;
       layer_stack_.flags.single_buffered_layer_present = true;
     }
+
+    layer->input_buffer.flags.client_luts = sdm_layer->IsLutsSet();
 
     // hdr flag is reset since same layer can switch b/w hdr & non-hdr content
     // eg: switching b/w hdr & sdr videos in pip
@@ -1812,7 +1814,8 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
     if (device_composition == SDMCompositionType::COMP_CLIENT) {
       has_client_composition_ = true;
 
-      if (layer->lut_3d.validLutEntries) {
+      // Do not send display luts if layer already has luts set by client
+      if (layer->lut_3d.validLutEntries && !layer->input_buffer.flags.client_luts) {
         display_luts_[sdm_layer->GetId()] = &layer->lut_3d;
       }
     }
@@ -1825,10 +1828,8 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
         CopyLut3D(layer->lut_3d, &buffer_luts_[layer->input_buffer.handle_id]);
       }
     } else if (buffer_luts_.find(layer->input_buffer.handle_id) != buffer_luts_.end()) {
-      if (buffer_luts_[layer->input_buffer.handle_id].lutEntries != nullptr) {
-        delete[] buffer_luts_[layer->input_buffer.handle_id].lutEntries;
-        buffer_luts_[layer->input_buffer.handle_id].lutEntries = nullptr;
-      }
+      SafeDeleteArray(buffer_luts_[layer->input_buffer.handle_id].lutEntries);
+      SafeDeleteArray(buffer_luts_[layer->input_buffer.handle_id].gridEntries);
       buffer_luts_.erase(layer->input_buffer.handle_id);
     }
 
