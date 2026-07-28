@@ -123,8 +123,10 @@ DisplayError HWEventsDRM::InitializePollFd() {
             return kErrorNotSupported;
           }
           master->GetHandle(&poll_fds_[i].fd);
+          vsync_owns_fd_ = false;
         } else {
           HandleDRMOpen(poll_fds_[i].fd);
+          vsync_owns_fd_ = true;
         }
         vsync_index_ = i;
       } break;
@@ -486,9 +488,10 @@ void HWEventsDRM::CloseFds() {
   for (uint32_t i = 0; i < event_data_list_.size(); i++) {
     switch (event_data_list_[i].event_type) {
       case HWEvent::VSYNC:
-        if (!is_primary_) {
+        if (vsync_owns_fd_ && poll_fds_[i].fd >= 0) {
           drmClose(poll_fds_[i].fd);
         }
+        vsync_owns_fd_ = false;
         poll_fds_[i].fd = -1;
         break;
       case HWEvent::EXIT:

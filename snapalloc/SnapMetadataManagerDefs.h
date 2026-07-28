@@ -101,6 +101,8 @@ struct SnapMetadata {
   char heapName[QTI_MAX_NAME_LEN];
   vendor_qti_hardware_display_common_PixelFormat pixel_format_requested;
   int64_t bufferDequeueDuration;
+  /* Set by camera to indicate areas where encoding quality should be improved */
+  vendor_qti_hardware_display_common_ROIRectMetadata roiRectMetadata;
 };
 }  // namespace snapalloc
 

@@ -307,7 +307,7 @@ DisplayError ConcurrencyMgr::InitSubModules(DebugCallbackIntf *debug) {
   std::bitset<8> core_ids(core_id_mask);
 
   DisplayError error = CoreInterface::CreateCore(
-      buffer_allocator_, nullptr, socket_handler_, ipc_intf_, &core_intf_);
+      buffer_allocator_, nullptr, socket_handler_, ipc_intf_, &core_intf_, core_ids);
 
   if (error != kErrorNone) {
     DLOGE("Failed to create CoreInterface");
@@ -907,9 +907,17 @@ DisplayError ConcurrencyMgr::SetActiveConfig(Display display, int32_t config) {
                              static_cast<Config>(config));
 }
 
-DisplayError ConcurrencyMgr::SetClientTarget(
-    uint64_t display, const SnapHandle *target, shared_ptr<Fence> acquire_fence,
-    int32_t dataspace, const SDMRegion &damage, uint32_t version) {
+DisplayError ConcurrencyMgr::SetClientTarget(uint64_t display, const SnapHandle *target,
+                                             shared_ptr<Fence> acquire_fence, int32_t dataspace,
+                                             const SDMRegion &damage, uint32_t version) {
+  return SetClientTarget(display, target, acquire_fence, dataspace, damage, version,
+                         1.0f /* hdr_sdr_ratio */);
+}
+
+DisplayError ConcurrencyMgr::SetClientTarget(uint64_t display, const SnapHandle *target,
+                                             shared_ptr<Fence> acquire_fence, int32_t dataspace,
+                                             const SDMRegion &damage, uint32_t version,
+                                             float hdr_sdr_ratio) {
   DTRACE_SCOPED();
 
   if (display >= kNumDisplays) {
@@ -920,8 +928,8 @@ DisplayError ConcurrencyMgr::SetClientTarget(
   auto status = kErrorParameters;
   if (sdm_display_[display]) {
     auto sdm_display = sdm_display_[display];
-    status = sdm_display->SetClientTarget(target, acquire_fence, dataspace,
-                                          damage, version);
+    status = sdm_display->SetClientTarget(target, acquire_fence, dataspace, damage, version,
+                                          hdr_sdr_ratio);
   }
 
   return status;
@@ -1220,6 +1228,7 @@ void ConcurrencyMgr::HpdEventHandler() {
   // connects, at RegisterCallback(). Since HandlePluggableDisplays() reads the
   // latest connection states of all displays, no uevent is lost.
   if (!client_connected_) {
+    DLOGW("Dropping hotplug event. Client is not connected.");
     return;
   }
 
@@ -2694,4 +2703,8 @@ DisplayError ConcurrencyMgr::SetPanelFeatureConfig(Display display, int32_t type
   return CallDisplayFunction(display, &SDMDisplay::SetPanelFeatureConfig, type, data);
 }
 
+DisplayError ConcurrencyMgr::ClearBuffersMappedToLayer(uint64_t display, LayerId layer_id,
+                                                       const SnapHandle *layerBuffer) {
+  return kErrorNone;
+}
 }  // namespace sdm
