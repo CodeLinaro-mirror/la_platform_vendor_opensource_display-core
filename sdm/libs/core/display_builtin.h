@@ -464,6 +464,7 @@ class DisplayBuiltIn : public DisplayBase,
   snapdragoncolor::ColorModeList stc_color_modes_ = {};
 
   std::shared_ptr<SPRIntf> spr_ = nullptr;
+  int spr_prop_value_ = 0;
   bool needs_validate_on_pu_enable_ = false;
   bool enable_qsync_idle_ = false;
   uint32_t pending_cycles_for_poms_setup_ = 0;
