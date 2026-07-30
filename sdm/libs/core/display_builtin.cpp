@@ -3988,7 +3988,19 @@ void DisplayBuiltIn::HandleLSR_SSREvent(LSR_SSREventType lsr_ssr_event) {
     return;
   }
 
+  // During LSR-SSR end, set ssr_end_in_progress_ before PerformSubsystemRestart so that
+  // HandlePendingVSyncEnable defers vsync re-enable. The CRTC is not yet active enough
+  // for drmWaitVBlank immediately after NullCommit. ConcurrencyMgr will explicitly
+  // re-enable vsync after PerformSubsystemRestart completes.
+  if (event == kLsr_SsrEnd) {
+    ssr_end_in_progress_ = true;
+  }
+
   event_handler_->HandleEvent(event);
+
+  if (event == kLsr_SsrEnd) {
+    ssr_end_in_progress_ = false;
+  }
 
   {
     ClientLock lock(disp_mutex_);
@@ -4017,7 +4029,19 @@ void DisplayBuiltIn::HandleSSREvent(SSREventType ssr_event) {
     return;
   }
 
+  // During SSR end, set ssr_end_in_progress_ before PerformSubsystemRestart so that
+  // HandlePendingVSyncEnable defers vsync re-enable. The CRTC is not yet active enough
+  // for drmWaitVBlank immediately after NullCommit. ConcurrencyMgr will explicitly
+  // re-enable vsync after PerformSubsystemRestart completes.
+  if (event == kSsrEnd) {
+    ssr_end_in_progress_ = true;
+  }
+
   event_handler_->HandleEvent(event);
+
+  if (event == kSsrEnd) {
+    ssr_end_in_progress_ = false;
+  }
 
   {
     ClientLock lock(disp_mutex_);

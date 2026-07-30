@@ -600,6 +600,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   qrtc::QrtcFeatureFactIntf *qrtc_factory_ = nullptr;
   bool is_ssr_active_ = false;
   bool is_lsr_ssr_active_ = false;
+  bool ssr_end_in_progress_ = false;  // Set during SSR end power restore to defer vsync
   bool lsr_first_commit_ = true;
   // GPU reproj (seraph/GPU LSR path): cached active flag and init-commit counter.
   // SDM commits to DPU exactly kReprojSlotCount (2) times to register both
