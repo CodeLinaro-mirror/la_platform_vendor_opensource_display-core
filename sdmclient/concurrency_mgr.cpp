@@ -947,9 +947,14 @@ ConcurrencyMgr::SetOutputBuffer(uint64_t display, const SnapHandle *buffer,
     return kErrorParameters;
   }
 
+  if (display >= kNumDisplays) {
+    return kErrorParameters;
+  }
+
   bool found = false;
   for (auto disp : {qdutilsDisplayType::DISPLAY_VIRTUAL, qdutilsDisplayType::DISPLAY_VIRTUAL_2}) {
-    if (INT32(display) == disp_->GetDisplayIndex(disp)) {
+    int disp_index = disp_->GetDisplayIndex(disp);
+    if ((disp_index >= 0) && UINT64(disp_index) == display) {
       found = true;
       break;
     }
