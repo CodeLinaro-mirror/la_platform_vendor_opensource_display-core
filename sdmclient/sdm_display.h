@@ -423,6 +423,8 @@ public:
   virtual void ClearPendingPowerMode() {
     pending_power_mode_ = current_power_mode_;
   }
+  virtual bool GetPendingPowerModeValid() { return pending_power_mode_valid_; }
+  virtual void SetPendingPowerModeValid(bool valid) { pending_power_mode_valid_ = valid; }
   virtual void NotifyClientStatus(bool connected) {
     client_connected_ = connected;
   }
@@ -745,6 +747,7 @@ public:
   int32_t rgba_split_support_ = 0;
   bool valid_commit_ = false;
   bool IsFcmCwbActive() const { return fcm_ && fcm_->IsCwbActive(); }
+  bool pending_power_mode_valid_ = false;
 
  private:
   bool CanSkipSdmPrepare(uint32_t *num_types, uint32_t *num_requests);
