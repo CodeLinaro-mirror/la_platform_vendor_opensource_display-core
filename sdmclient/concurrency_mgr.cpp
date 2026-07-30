@@ -1957,12 +1957,13 @@ DisplayError ConcurrencyMgr::GetDisplayBrightnessSupport(Display display,
     return kErrorParameters;
   }
 
-  if (!sdm_display_[display]) {
+  SCOPE_LOCK(locker_[display]);
+  auto sdm_display = sdm_display_[display];
+  if (!sdm_display) {
     DLOGE("Expected valid sdm_display");
     return kErrorParameters;
   }
-  *outSupport =
-      (sdm_display_[display]->GetDisplayClass() == DISPLAY_CLASS_BUILTIN);
+  *outSupport = (sdm_display->GetDisplayClass() == DISPLAY_CLASS_BUILTIN);
   return kErrorNone;
 }
 
@@ -1972,11 +1973,13 @@ DisplayError ConcurrencyMgr::SetDisplayBrightness(Display display, float brightn
     return kErrorParameters;
   }
 
-  if (!sdm_display_[display]) {
+  SCOPE_LOCK(locker_[display]);
+  auto sdm_display = sdm_display_[display];
+  if (!sdm_display) {
     return kErrorParameters;
   }
 
-  return (INT32(sdm_display_[display]->SetPanelBrightness(brightness, !performing_commit)))
+  return (INT32(sdm_display->SetPanelBrightness(brightness, !performing_commit)))
              ? kErrorNotSupported
              : kErrorNone;
 }
