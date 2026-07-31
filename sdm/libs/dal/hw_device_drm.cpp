@@ -567,6 +567,8 @@ int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buff
       layer->buffer_map->buffer_map[handle_id] = dpu_buffer_map;
     }
     *fb_modified = true;
+  } else {
+    return -1;
   }
   return 0;
 }
