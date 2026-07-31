@@ -157,34 +157,6 @@ DisplayError HWPeripheralDRM::Deinit() {
   return HWDeviceDRM::Deinit();
 }
 
-void HWPeripheralDRM::InitDestScaler() {
-  if (hw_resource_.hw_dest_scalar_info.count) {
-    // Do all destination scaler block resource allocations here.
-    dest_scaler_blocks_used_ = 1;
-    if (kQuadSplit == mixer_attributes_.split_type) {
-      dest_scaler_blocks_used_ = 4;
-    } else if (kDualSplit == mixer_attributes_.split_type) {
-      dest_scaler_blocks_used_ = 2;
-    }
-    if (hw_resource_.hw_dest_scalar_info.count >=
-        (hw_dest_scaler_blocks_used_[core_id_] + dest_scaler_blocks_used_)) {
-      // Enough destination scaler blocks available so update the static counter.
-      hw_dest_scaler_blocks_used_[core_id_] += dest_scaler_blocks_used_;
-    } else {
-      dest_scaler_blocks_used_ = 0;
-    }
-    scalar_data_.resize(dest_scaler_blocks_used_);
-    dest_scalar_cache_.resize(dest_scaler_blocks_used_);
-    // Update crtc (layer-mixer) configuration info.
-    mixer_attributes_.dest_scaler_blocks_used = dest_scaler_blocks_used_;
-  }
-
-  topology_control_ = UINT32(sde_drm::DRMTopologyControl::DSPP);
-  if (dest_scaler_blocks_used_) {
-    topology_control_ |= UINT32(sde_drm::DRMTopologyControl::DEST_SCALER);
-  }
-}
-
 #ifndef TARGET_INCLUDES_NEO
 void HWPeripheralDRM::InitAIScaler() {
   if (hw_resource_.hw_ai_scaler_count) {
@@ -214,21 +186,15 @@ void HWPeripheralDRM::PopulateBitClkRates() {
     return;
   }
 
-  // Group all bit_clk_rates corresponding to DRM_PREFERRED mode.
-  uint32_t width = connector_info_.modes[current_mode_index_].mode.hdisplay;
-  uint32_t height = connector_info_.modes[current_mode_index_].mode.vdisplay;
+  bitclk_rates_.clear();
 
-  for (auto &mode_info : connector_info_.modes) {
-    auto &mode = mode_info.mode;
-    if (mode.hdisplay == width && mode.vdisplay == height) {
-      for (auto &sub_mode_info : mode_info.sub_modes) {
-        for (uint32_t index = 0; index < sub_mode_info.dyn_bitclk_list.size(); index++) {
-          if (std::find(bitclk_rates_.begin(), bitclk_rates_.end(),
-                sub_mode_info.dyn_bitclk_list[index]) == bitclk_rates_.end()) {
-            bitclk_rates_.push_back(sub_mode_info.dyn_bitclk_list[index]);
-            DLOGI("Possible bit_clk_rates %" PRIu64, sub_mode_info.dyn_bitclk_list[index]);
-          }
-        }
+  // Collect bit_clk_rates only from the current active mode's sub-modes.
+  for (auto &sub_mode_info : connector_info_.modes[current_mode_index_].sub_modes) {
+    for (uint32_t index = 0; index < sub_mode_info.dyn_bitclk_list.size(); index++) {
+      if (std::find(bitclk_rates_.begin(), bitclk_rates_.end(),
+                    sub_mode_info.dyn_bitclk_list[index]) == bitclk_rates_.end()) {
+        bitclk_rates_.push_back(sub_mode_info.dyn_bitclk_list[index]);
+        DLOGI("Possible bit_clk_rates %" PRIu64, sub_mode_info.dyn_bitclk_list[index]);
       }
     }
   }
@@ -250,8 +216,8 @@ DisplayError HWPeripheralDRM::SetDynamicDSIClock(uint64_t bit_clk_rate) {
     return kErrorNotSupported;
   }
 
-  if (vrefresh_ || update_mode_) {
-    // vrefresh and/or mode change pending.
+  if (vrefresh_ || update_mode_ || spr_mode_changed_) {
+    // vrefresh and/or mode change and/or spr mode pending.
     // Defer bit rate clock change.
     return kErrorNotSupported;
   }
@@ -280,6 +246,44 @@ DisplayError HWPeripheralDRM::SetDynamicDSIClock(uint64_t bit_clk_rate) {
 DisplayError HWPeripheralDRM::GetDynamicDSIClock(uint64_t *bit_clk_rate) {
   // Update bit_rate corresponding to current refresh rate.
   *bit_clk_rate = (uint32_t)connector_info_.modes[current_mode_index_].curr_bit_clk_rate;
+  return kErrorNone;
+}
+
+DisplayError HWPeripheralDRM::SetDynamicSPRMode(bool spr_mode) {
+  if (last_power_mode_ == DRMPowerMode::DOZE_SUSPEND || last_power_mode_ == DRMPowerMode::OFF) {
+    return kErrorNotSupported;
+  }
+
+  if (doze_poms_switch_done_ || pending_poms_switch_) {
+    return kErrorNotSupported;
+  }
+
+  if (vrefresh_ || update_mode_ || bit_clk_rate_) {
+    // vrefresh and/or mode change and/or bit clock rate pending.
+    // Defer spr mode change.
+    return kErrorNotSupported;
+  }
+
+  if (hw_panel_info_.vhm_support) {
+    if (idle_pc_enabled_) {
+      // reject spr mode change if idle pc is enabled
+      return kErrorNotSupported;
+    }
+    if (idle_pc_state_ == sde_drm::DRMIdlePCState::DISABLE) {
+      // defer spr mode change until idle pc is disabled
+      DLOGV_IF(kTagDriverConfig, "Defer setting Dynamic SPR Mode until Idle PC is disabled");
+      return kErrorDeferred;
+    }
+  }
+
+  // Check if SPR mode is already set to the requested value
+  if (connector_info_.modes[current_mode_index_].current_spr_mode == spr_mode) {
+    return kErrorNone;
+  }
+
+  DLOGV_IF(kTagDriverConfig, "Setting Dynamic SPR Mode: %d", spr_mode);
+  spr_mode_ = spr_mode;
+  spr_mode_changed_ = true;
   return kErrorNone;
 }
 
@@ -542,6 +546,8 @@ DisplayError HWPeripheralDRM::Commit(HWLayersInfo *hw_layers_info) {
   drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_LSR_MODE, token_.crtc_id,
                             hw_layers_info->lsr_commit);
 
+  SetGpuReprojBatchCommitParams(hw_layers_info);
+
   error = HWDeviceDRM::Commit(hw_layers_info);
   shared_ptr<Fence> cwb_fence = Fence::Create(INT(cwb_fence_fd), "cwb_fence");
   if (error != kErrorNone) {
@@ -579,14 +585,6 @@ DisplayError HWPeripheralDRM::Commit(HWLayersInfo *hw_layers_info) {
   return error;
 }
 
-void HWPeripheralDRM::ResetDestScalarCache() {
-  if (dest_scaler_blocks_used_ > 0) {
-    for (uint32_t j = 0; j < scalar_data_.size(); j++) {
-      dest_scalar_cache_[j] = {};
-    }
-  }
-}
-
 void HWPeripheralDRM::ResetAIScalarCache() {
 #ifndef TARGET_INCLUDES_NEO
   if (ai_scaler_blocks_used_ > 0) {
@@ -598,78 +596,12 @@ void HWPeripheralDRM::ResetAIScalarCache() {
 }
 
 void HWPeripheralDRM::SetDestScalarData(const HWLayersInfo &hw_layer_info) {
-  if (dest_scaler_blocks_used_ > 0) {
-    SetDestScalarData(hw_layer_info.dest_scale_info_map);
-  }
+  HWDeviceDRM::SetDestScalarData(hw_layer_info);
 #ifndef TARGET_INCLUDES_NEO
   if (ai_scaler_blocks_used_ > 0) {
     SetAIScalerData(hw_layer_info.ai_scale_info_map);
   }
 #endif
-}
-
-void HWPeripheralDRM::SetDestScalarData(const DestScaleInfoMap dest_scale_info_map) {
-  if (!hw_scale_ || !dest_scaler_blocks_used_) {
-    return;
-  }
-
-  for (uint32_t i = 0; i < dest_scaler_blocks_used_; i++) {
-    auto it = dest_scale_info_map.find(i);
-
-    if (it == dest_scale_info_map.end()) {
-      continue;
-    }
-
-    HWDestScaleInfo *dest_scale_info = it->second;
-    SDEScaler *scale = &scalar_data_[i];
-    hw_scale_->SetScaler(dest_scale_info->scale_data, scale);
-
-    sde_drm_dest_scaler_cfg *dest_scalar_data = &sde_dest_scalar_data_.ds_cfg[i];
-    dest_scalar_data->flags = 0;
-    if (scale->scaler_v2.enable) {
-      dest_scalar_data->flags |= SDE_DRM_DESTSCALER_ENABLE;
-    }
-    if (scale->scaler_v2.de.enable) {
-      dest_scalar_data->flags |= SDE_DRM_DESTSCALER_ENHANCER_UPDATE;
-    }
-    if (dest_scale_info->scale_update) {
-      dest_scalar_data->flags |= SDE_DRM_DESTSCALER_SCALE_UPDATE;
-    }
-    if (hw_panel_info_.partial_update) {
-      dest_scalar_data->flags |= SDE_DRM_DESTSCALER_PU_ENABLE;
-    }
-    dest_scalar_data->index = i;
-    dest_scalar_data->lm_width = dest_scale_info->mixer_width;
-    dest_scalar_data->lm_height = dest_scale_info->mixer_height;
-    dest_scalar_data->scaler_cfg = reinterpret_cast<uint64_t>(&scale->scaler_v2);
-#ifndef TARGET_INCLUDES_NEO
-    switch (dest_scale_info->mixer_merge_mode) {
-      case kDestScalerSinglePipe:
-        dest_scalar_data->merge_mode = DEST_SCALER_SINGLE_PIPE;
-        break;
-      case kDestScalerDualPipe:
-        dest_scalar_data->merge_mode = DEST_SCALER_DUAL_PIPE;
-        break;
-      case kDestScalerQuadPipe:
-        dest_scalar_data->merge_mode = DEST_SCALER_QUAD_PIPE;
-        break;
-      default:
-        DLOGI("Invalid destination scaler merge mode");
-        break;
-    }
-#endif
-
-    if (std::memcmp(&dest_scalar_cache_[i].scalar_data, scale, sizeof(SDEScaler)) ||
-        dest_scalar_cache_[i].flags != dest_scalar_data->flags) {
-      needs_ds_update_ = true;
-    }
-  }
-
-  if (needs_ds_update_) {
-    sde_dest_scalar_data_.num_dest_scaler = UINT32(dest_scale_info_map.size());
-    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_DEST_SCALER_CONFIG, token_.crtc_id,
-                              reinterpret_cast<uint64_t>(&sde_dest_scalar_data_));
-  }
 }
 
 #ifndef TARGET_INCLUDES_NEO
@@ -733,14 +665,7 @@ void HWPeripheralDRM::SetAIScalerData(const AIScalerInfoMap ai_scale_info_map) {
 #endif
 
 void HWPeripheralDRM::CacheDestScalarData() {
-  if ((dest_scaler_blocks_used_ > 0) && needs_ds_update_) {
-    // Cache the destination scalar data during commit
-    for (uint32_t i = 0; i < sde_dest_scalar_data_.num_dest_scaler; i++) {
-      dest_scalar_cache_[i].flags = sde_dest_scalar_data_.ds_cfg[i].flags;
-      dest_scalar_cache_[i].scalar_data = scalar_data_[i];
-    }
-    needs_ds_update_ = false;
-  }
+  HWDeviceDRM::CacheDestScalarData();
 #ifndef TARGET_INCLUDES_NEO
   if ((ai_scaler_blocks_used_ > 0) && needs_ai_scaler_update_) {
     // Cache the AI Scaler data during commit
@@ -1024,7 +949,7 @@ DisplayError HWPeripheralDRM::PowerOn(const HWQosData &qos_data, SyncPoints *syn
 
 DisplayError HWPeripheralDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   DTRACE_SCOPED();
-  if ((tui_state_ != kTUIStateNone && tui_state_ != kTUIStateEnd) || pending_cwb_teardown_) {
+  if ((tui_state_ != kTUIStateNone) || pending_cwb_teardown_) {
     DLOGI("Request deferred TUI state %d pending cwb teardown %d", tui_state_,
           pending_cwb_teardown_);
     pending_power_state_ = kPowerStateOff;
@@ -1061,18 +986,6 @@ DisplayError HWPeripheralDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   SetTUIState();
 
   return kErrorNone;
-}
-
-void HWPeripheralDRM::ResetDestScalarData() {
-  if (sde_dest_scalar_data_.num_dest_scaler) {
-    for (uint32_t i = 0; i < dest_scaler_blocks_used_; i++) {
-      sde_drm_dest_scaler_cfg *dest_scalar_data = &sde_dest_scalar_data_.ds_cfg[i];
-      *dest_scalar_data = {};
-    }
-    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_DEST_SCALER_CONFIG, token_.crtc_id,
-                              reinterpret_cast<uint64_t>(&sde_dest_scalar_data_));
-    ResetDestScalarCache();
-  }
 }
 
 DisplayError HWPeripheralDRM::Doze(const HWQosData &qos_data, SyncPoints *sync_points) {
@@ -1123,9 +1036,10 @@ DisplayError HWPeripheralDRM::DozeSuspend(const HWQosData &qos_data, SyncPoints 
 }
 
 DisplayError HWPeripheralDRM::SetDisplayAttributes(uint32_t index) {
-  if (doze_poms_switch_done_ || pending_poms_switch_ || bit_clk_rate_) {
+  if (doze_poms_switch_done_ || pending_poms_switch_ || bit_clk_rate_ || spr_mode_changed_) {
     DLOGW("Bailing. Pending operations: doze_poms_switch_done_=%d, pending_poms_switch_=%d,"
-     "bit_clk_rate_=%" PRIu64, doze_poms_switch_done_, pending_poms_switch_, bit_clk_rate_);
+     "bit_clk_rate_=%" PRIu64 ", spr_mode_changed_:%d", doze_poms_switch_done_,
+     pending_poms_switch_, bit_clk_rate_);
     return kErrorDeferred;
   }
 
@@ -1134,8 +1048,8 @@ DisplayError HWPeripheralDRM::SetDisplayAttributes(uint32_t index) {
   }
 
   HWDeviceDRM::SetDisplayAttributes(index);
-  // update bit clk rates.
-  hw_panel_info_.bitclk_rates = bitclk_rates_;
+
+  PopulateBitClkRates();
 
   return kErrorNone;
 }
@@ -1234,10 +1148,12 @@ DisplayError HWPeripheralDRM::SetPanelBrightness(int level, bool apply_immediate
     if (connector_info_.backlight_type != "dcs") {
       DLOGW("Failed to open node = %s, error = %s ", brightness_node.c_str(),
           strerror(errno));
+      PrintBrightnessPolicy();
       return kErrorFileDescriptor;
     } else {
     DLOGE("Failed to open node = %s, error = %s ", brightness_node.c_str(),
           strerror(errno));
+    PrintBrightnessPolicy();
     return kErrorFileDescriptor;
     }
   }
@@ -1247,6 +1163,7 @@ DisplayError HWPeripheralDRM::SetPanelBrightness(int level, bool apply_immediate
   if (ret <= 0) {
     DLOGE("Failed to write to node = %s, error = %s ", brightness_node.c_str(),
           strerror(errno));
+    PrintBrightnessPolicy();
     Sys::close_(fd);
     return kErrorHardware;
   }
@@ -1565,39 +1482,81 @@ DisplayError HWPeripheralDRM::SetAlternateDisplayConfig(uint32_t *alt_config) {
     curr_mode_flag = DRM_MODE_FLAG_VID_MODE_PANEL;
   }
 
+  // Get current SPR mode to preserve it during compression switch
+  bool target_spr_mode = connector_info_.modes[current_mode_index_].current_spr_mode;
+
   // First try to perform compression mode switch within same mode
+  // Prefer sub_mode with matching SPR mode; fall back to any compression-different sub_mode
+  int32_t fallback_submode_idx = -1;
   for (uint32_t submode_idx = 0; submode_idx < current_mode.sub_modes.size(); submode_idx++) {
     if ((curr_compression != current_mode.sub_modes[submode_idx].panel_compression_mode)) {
-      connector_info_.modes[current_mode_index_].curr_submode_index = submode_idx;
-      connector_info_.modes[current_mode_index_].curr_compression_mode =
-              current_mode.sub_modes[submode_idx].panel_compression_mode;
-      SetTopology(connector_info_.modes[current_mode_index_].sub_modes[submode_idx].topology,
-                  &display_attributes_[current_mode_index_].topology);
-      SetDisplaySwitchMode(current_mode_index_);
-      panel_compression_changed_ = current_mode.sub_modes[submode_idx].panel_compression_mode;
-      *alt_config = current_mode_index_;
-      return kErrorNone;
+      if (current_mode.sub_modes[submode_idx].spr_mode == target_spr_mode) {
+        // Exact match: different compression and same SPR mode
+        connector_info_.modes[current_mode_index_].curr_submode_index = submode_idx;
+        connector_info_.modes[current_mode_index_].curr_compression_mode =
+                current_mode.sub_modes[submode_idx].panel_compression_mode;
+        SetTopology(connector_info_.modes[current_mode_index_].sub_modes[submode_idx].topology,
+                    &display_attributes_[current_mode_index_].topology);
+        SetDisplaySwitchMode(current_mode_index_);
+        panel_compression_changed_ = current_mode.sub_modes[submode_idx].panel_compression_mode;
+        *alt_config = current_mode_index_;
+        return kErrorNone;
+      } else if (fallback_submode_idx < 0) {
+        fallback_submode_idx = static_cast<int32_t>(submode_idx);
+      }
     }
+  }
+  if (fallback_submode_idx >= 0) {
+    uint32_t submode_idx = static_cast<uint32_t>(fallback_submode_idx);
+    connector_info_.modes[current_mode_index_].curr_submode_index = submode_idx;
+    connector_info_.modes[current_mode_index_].curr_compression_mode =
+            current_mode.sub_modes[submode_idx].panel_compression_mode;
+    SetTopology(connector_info_.modes[current_mode_index_].sub_modes[submode_idx].topology,
+                &display_attributes_[current_mode_index_].topology);
+    SetDisplaySwitchMode(current_mode_index_);
+    panel_compression_changed_ = current_mode.sub_modes[submode_idx].panel_compression_mode;
+    *alt_config = current_mode_index_;
+    return kErrorNone;
   }
 
   // If there is no compression switch possible within current mode, try with other modes
   for (uint32_t mode_index = 0; mode_index < connector_info_.modes.size(); mode_index++) {
     if ((current_mode.mode.vrefresh == connector_info_.modes[mode_index].mode.vrefresh) &&
         (curr_mode_flag & connector_info_.modes[mode_index].cur_panel_mode)) {
+      // Prefer sub_mode with matching SPR mode; fall back to any compression-different sub_mode
+      int32_t fallback_submode_idx = -1;
       for (uint32_t submode_idx = 0; submode_idx <
            connector_info_.modes[mode_index].sub_modes.size(); submode_idx++) {
         if ((curr_compression !=
              connector_info_.modes[mode_index].sub_modes[submode_idx].panel_compression_mode)) {
-          connector_info_.modes[mode_index].curr_submode_index = submode_idx;
-          SetTopology(connector_info_.modes[mode_index].sub_modes[submode_idx].topology,
-                      &display_attributes_[mode_index].topology);
-          connector_info_.modes[mode_index].curr_compression_mode =
-                connector_info_.modes[mode_index].sub_modes[submode_idx].panel_compression_mode;
-          SetDisplayAttributes(mode_index);
-          panel_compression_changed_ = connector_info_.modes[mode_index].curr_compression_mode;
-          *alt_config = mode_index;
-          return kErrorNone;
+          if (connector_info_.modes[mode_index].sub_modes[submode_idx].spr_mode ==
+              target_spr_mode) {
+            // Exact match: different compression and same SPR mode
+            connector_info_.modes[mode_index].curr_submode_index = submode_idx;
+            SetTopology(connector_info_.modes[mode_index].sub_modes[submode_idx].topology,
+                        &display_attributes_[mode_index].topology);
+            connector_info_.modes[mode_index].curr_compression_mode =
+                  connector_info_.modes[mode_index].sub_modes[submode_idx].panel_compression_mode;
+            SetDisplayAttributes(mode_index);
+            panel_compression_changed_ = connector_info_.modes[mode_index].curr_compression_mode;
+            *alt_config = mode_index;
+            return kErrorNone;
+          } else if (fallback_submode_idx < 0) {
+            fallback_submode_idx = static_cast<int32_t>(submode_idx);
+          }
         }
+      }
+      if (fallback_submode_idx >= 0) {
+        uint32_t submode_idx = static_cast<uint32_t>(fallback_submode_idx);
+        connector_info_.modes[mode_index].curr_submode_index = submode_idx;
+        SetTopology(connector_info_.modes[mode_index].sub_modes[submode_idx].topology,
+                    &display_attributes_[mode_index].topology);
+        connector_info_.modes[mode_index].curr_compression_mode =
+              connector_info_.modes[mode_index].sub_modes[submode_idx].panel_compression_mode;
+        SetDisplayAttributes(mode_index);
+        panel_compression_changed_ = connector_info_.modes[mode_index].curr_compression_mode;
+        *alt_config = mode_index;
+        return kErrorNone;
       }
     }
   }
@@ -1861,6 +1820,112 @@ DisplayError HWPeripheralDRM::IsLedDriverUp(bool *is_led_driver_up) {
   *is_led_driver_up = true;
 
   return error;
+}
+
+void HWPeripheralDRM::PrintBrightnessPolicy() {
+  if (brightness_base_path_.empty()) {
+    return;
+  }
+
+  std::string ls_cmd = "ls -lZ " + brightness_base_path_;
+  FILE *pipe = popen(ls_cmd.c_str(), "r");
+  if (pipe) {
+    char buffer[256];
+    std::string result = "";
+    while (!feof(pipe)) {
+      if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        result += buffer;
+      }
+    }
+    pclose(pipe);
+    DLOGI("Brightness node permissions: %s", result.c_str());
+  } else {
+    DLOGW("Failed to execute command: %s", ls_cmd.c_str());
+  }
+}
+
+DisplayError HWPeripheralDRM::ConfigureGpuReprojSharedBuffer(
+    std::shared_ptr<LayerBuffer> shared_buffer) {
+  if (!shared_buffer || shared_buffer->planes[0].fd < 0) {
+    DLOGE("Invalid GPU reproj shared buffer");
+    return kErrorParameters;
+  }
+
+  uint64_t handle_id = shared_buffer->handle_id;
+  bool secure_present = (shared_buffer->flags.secure || shared_buffer->flags.secure_display ||
+                         shared_buffer->flags.secure_camera);
+
+  // Re-create FB only if the buffer handle changed.
+  bool need_fb_id_creation = true;
+  if (handle_id && (handle_id == previous_gpu_reproj_shared_handle_)) {
+    if (gpu_reproj_shared_fb_obj_ &&
+        gpu_reproj_shared_fb_obj_->IsEqual(shared_buffer->format, shared_buffer->width,
+                                           shared_buffer->height, secure_present)) {
+      need_fb_id_creation = false;
+    }
+  }
+
+  if (need_fb_id_creation) {
+    std::vector<uint32_t> fb_id(1);
+    int ret = registry_.CreateFbId(*shared_buffer, &fb_id);
+    if (ret >= 0) {
+      gpu_reproj_shared_fb_obj_ = std::make_shared<FrameBufferObject>(
+          fb_id[kColorNone], core_id_, shared_buffer->format, shared_buffer->width,
+          shared_buffer->height, false /* shallow */, secure_present);
+      previous_gpu_reproj_shared_handle_ = handle_id;
+    } else {
+      DLOGE("CreateFbId failed for GPU reproj shared buffer, ret=%d", ret);
+      return kErrorHardware;
+    }
+  }
+
+  uint32_t shared_fb_id = gpu_reproj_shared_fb_obj_->GetFbId();
+  if (!shared_fb_id) {
+    DLOGE("Invalid GPU reproj shared buffer FB ID");
+    return kErrorHardware;
+  }
+
+  drm_atomic_intf_->Perform(sde_drm::DRMOps::CONNECTOR_SET_GMU_DCP_INTF_MEM, token_.conn_id,
+                            shared_fb_id);
+  DLOGD_IF(kTagDriverConfig, "GPU reproj gmu_dcp_intf_mem fb_id=%d set on connector %d",
+           shared_fb_id, token_.conn_id);
+  return kErrorNone;
+}
+
+void HWPeripheralDRM::SetGpuReprojBatchCommitParams(HWLayersInfo *hw_layers_info) {
+  if (!hw_resource_.max_lsr_batch_size) {
+    return;  // batch commit not supported on this target (kernel missing SDE_FEATURE_BATCH_COMMIT)
+  }
+  DLOGV_IF(kTagDriverConfig,
+           "lsr_commit=%d gpu_reproj_batch_size=%u "
+           "batch_index=%u batch_type=%u crtc_id=%u",
+           hw_layers_info->lsr_commit, hw_layers_info->gpu_reproj_batch_size,
+           hw_layers_info->gpu_reproj_batch_index, hw_layers_info->gpu_reproj_batch_type,
+           token_.crtc_id);
+
+  if (hw_layers_info->gpu_reproj_batch_size > 0) {
+    // Init commits (batch_size=2): register ping-pong output buffers with DCP.
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_BATCH_SIZE, token_.crtc_id,
+                              hw_layers_info->gpu_reproj_batch_size);
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_BATCH_INDEX, token_.crtc_id,
+                              hw_layers_info->gpu_reproj_batch_index);
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_BATCH_TYPE, token_.crtc_id,
+                              hw_layers_info->gpu_reproj_batch_type);
+    // Shared coord buffer (gmu_dcp_intf_mem) only needs to be registered on the
+    // first init commit (batch_index=1). The second init commit carries slot-1
+    // output buffers but does not need to re-register the shared buffer.
+    if (hw_layers_info->gpu_reproj_batch_index == 1 && hw_layers_info->gpu_reproj_shared_buffer) {
+      ConfigureGpuReprojSharedBuffer(hw_layers_info->gpu_reproj_shared_buffer);
+    }
+  } else {
+    // Steady-state: reset batch properties to 0. AddProperty's cache ensures these
+    // are only sent to the kernel once (on transition away from init-commit values).
+    DLOGV_IF(kTagDriverConfig, "Resetting batch props to 0 (lsr_commit=%d) crtc_id=%u",
+             hw_layers_info->lsr_commit, token_.crtc_id);
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_BATCH_SIZE, token_.crtc_id, 0);
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_BATCH_INDEX, token_.crtc_id, 0);
+    drm_atomic_intf_->Perform(sde_drm::DRMOps::CRTC_SET_BATCH_TYPE, token_.crtc_id, 0);
+  }
 }
 
 }  // namespace sdm

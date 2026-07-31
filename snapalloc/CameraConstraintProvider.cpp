@@ -693,7 +693,8 @@ int CameraConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCons
     // For RAW formats, plane size is width * height
     if (format == static_cast<int>(vendor_qti_hardware_display_common_PixelFormat::RAW10) ||
         format == static_cast<int>(vendor_qti_hardware_display_common_PixelFormat::RAW12) ||
-        format == static_cast<int>(vendor_qti_hardware_display_common_PixelFormat::RAW14)) {
+        format == static_cast<int>(vendor_qti_hardware_display_common_PixelFormat::RAW14) ||
+        format == static_cast<int>(vendor_qti_hardware_display_common_PixelFormat::RAW14_1)) {
       data->size_align_bytes = alignment;
     } else {
       plane_layout.size_align = static_cast<uint64_t>(alignment);

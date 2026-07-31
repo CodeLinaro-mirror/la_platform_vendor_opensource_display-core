@@ -16,6 +16,11 @@ SnapAlloc::SnapAlloc() {
 Error SnapAlloc::Allocate(const BufferDescriptor &in_descriptor, int in_count,
                           AllocationResult *allocation_result) {
   std::vector<::snapalloc::SnapHandleInternal *> handles;
+
+  if (in_count < 0) {
+    return Error::BAD_VALUE;
+  }
+
   handles.reserve(in_count);
 
   auto err = snap_alloc_core_->Allocate(in_descriptor, in_count, &handles, false);

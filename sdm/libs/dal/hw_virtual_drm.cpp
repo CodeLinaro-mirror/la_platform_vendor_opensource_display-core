@@ -49,11 +49,13 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using std::vector;
 
-using sde_drm::DRMDisplayType;
+using sde_drm::DppsFeaturePayload;
 using sde_drm::DRMConnectorInfo;
-using sde_drm::DRMRect;
+using sde_drm::DRMDisplayType;
+using sde_drm::DRMDppsFeatureInfo;
 using sde_drm::DRMOps;
 using sde_drm::DRMPowerMode;
+using sde_drm::DRMRect;
 using sde_drm::DRMSecureMode;
 
 namespace sdm {
@@ -102,16 +104,22 @@ DisplayError HWVirtualDRM::Init() {
 void HWVirtualDRM::ConfigureWbConnectorFbId(uint32_t fb_id, vector<uint32_t> lsr_fb_ids) {
   if (lsr_fb_ids.size()) {
     lsr_fb_id_config_ = {};
-    // TODO: need to Handle monocular display
     bool is_repro = (lsr_fb_ids.size() > kMaxCSCOutputBuffer);
     if (is_repro) {
       for (int i = 0; i < lsr_fb_ids.size(); i++) {
+        // For Binocular Display (total 12 buffers)
         // 0:2 FSC for left eye | 3:5 FSC for right eye
         // 6:8 FSC left eye back buffer | 9:11 FSC right eye back buffer
-        bool is_front_buffer = (i < (hw_panel_info_.num_fsc_fields * 2));
-        bool is_left_eye =
-            (i < hw_panel_info_.num_fsc_fields ||
-             (i >= hw_panel_info_.num_fsc_fields * 2 && i < (hw_panel_info_.num_fsc_fields * 3)));
+        // For Monocular Display (total 6 buffer)
+        // 0:2 FSC for left eye
+        // 3:5 FSC left eye back buffer
+        bool is_monocular = (lsr_fb_ids.size() == (hw_panel_info_.num_fsc_fields * 2));
+        bool is_front_buffer = (i < (is_monocular ? hw_panel_info_.num_fsc_fields
+                                                  : (hw_panel_info_.num_fsc_fields * 2)));
+        bool is_left_eye = (is_monocular ? (i < hw_panel_info_.num_fsc_fields * 2)
+                                         : (i < hw_panel_info_.num_fsc_fields ||
+                                            (i >= hw_panel_info_.num_fsc_fields * 2 &&
+                                             i < (hw_panel_info_.num_fsc_fields * 3))));
         uint32_t view_idx = is_left_eye ? 0 : 1;
         struct sde_drm_view_descriptor &descriptor = is_front_buffer
                                                          ? lsr_fb_id_config_.views[view_idx]
@@ -195,6 +203,13 @@ DisplayError HWVirtualDRM::SetWbConfigs(const HWDisplayAttributes &display_attri
   snprintf(mode.name, DRM_DISPLAY_MODE_LEN, "%dx%d", mode.hdisplay, mode.vdisplay);
   modes.push_back(mode);
   for (auto &item : connector_info_.modes) {
+    // Skip modes identical to the one just added to avoid duplicates when
+    // SetWbConfigs is called for an already-registered resolution (e.g. on
+    // composer restart when the kernel's mode list persists).
+    if (item.mode.hdisplay == mode.hdisplay && item.mode.vdisplay == mode.vdisplay &&
+        item.mode.vrefresh == mode.vrefresh) {
+      continue;
+    }
     modes.push_back(item.mode);
   }
 
@@ -202,6 +217,13 @@ DisplayError HWVirtualDRM::SetWbConfigs(const HWDisplayAttributes &display_attri
   struct sde_drm_wb_cfg wb_cfg = {};
   wb_cfg.connector_id = token_.conn_id;
   wb_cfg.flags = SDE_DRM_WB_CFG_FLAGS_CONNECTED;
+
+  // If the caller requests DSPP for this WB display, set the DSPP hint flag.
+  if (display_attributes.needs_dspp) {
+    has_dspp_ = true;
+    wb_cfg.flags |= SDE_DRM_WB_CFG_FLAGS_DSPP;
+    DLOGI("WB DSPP hint set: requesting DSPP-capable LM allocation");
+  }
   wb_cfg.count_modes = UINT32(modes.size());
   wb_cfg.modes = (uint64_t)modes.data();
 
@@ -240,24 +262,46 @@ void HWVirtualDRM::ConfigureDNSC(HWLayersInfo *hw_layers_info) {
 }
 
 DisplayError HWVirtualDRM::Commit(HWLayersInfo *hw_layers_info) {
-  uint32_t output_buf_fb_id;
+  uint32_t output_buf_fb_id = 0;
   vector<uint32_t> lsr_out_fb_ids;
-  auto err = GetOutputBufferFBIds(hw_layers_info, &output_buf_fb_id, &lsr_out_fb_ids);
+
+  // Build atomic state for commit
+  auto err = PrepareCommitResources(hw_layers_info, &output_buf_fb_id, &lsr_out_fb_ids);
   if (err != kErrorNone) {
-    DLOGE("Failed to create fbid for output buffer!");
     return err;
   }
 
-  ConfigureWbConnectorFbId(output_buf_fb_id, lsr_out_fb_ids);
-  ConfigurePoseBuffer(hw_layers_info->pose_buffer);
-  ConfigureDNSC(hw_layers_info);
-  ConfigureWbConnectorDestRect(hw_layers_info->iwe_enabled);
-  SetWbCSC();
-  ProgramDisplayDeviceConfig();
-  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_SYNC_TO, token_.conn_id, primary_disp_conn_id_);
-  // Reset the ROI which may have been previously set by CWB. Need revisit when ROI enabled on
-  // virtual.
-  ResetROI();
+  // First frame with deferred PP features needs a bootstrap commit before replay.
+  // Only PQ-type virtual displays use DSPP/PP features, so skip for other types.
+  if (first_cycle_ && !deferred_pp_features_.empty() && HasColorFeatureSupport()) {
+    // 1: Force the bootstrap commit to complete synchronously before replaying PP features.
+    bool sync_prev = synchronous_commit_;
+    synchronous_commit_ = true;
+    err = HWDeviceDRM::AtomicCommit(hw_layers_info);
+    synchronous_commit_ = sync_prev;
+    if (err != kErrorNone) {
+      DLOGE("Bootstrap atomic commit failed for crtc_id %d conn_id %d encoder_id %d",
+            token_.crtc_id, token_.conn_id, token_.encoder_id);
+      return err;
+    }
+
+    // 2: Replaying deferred PP features
+    err = ReplayDeferredPPFeatures();
+    if (err != kErrorNone) {
+      DLOGE("Failed to replay deferred PP features for crtc_id %d conn_id %d encoder_id %d",
+            token_.crtc_id, token_.conn_id, token_.encoder_id);
+      return err;
+    }
+
+    // 3: Rebuild atomic state for the second commit after replaying deferred PP features.
+    output_buf_fb_id = 0;
+    lsr_out_fb_ids.clear();
+    err = PrepareCommitResources(hw_layers_info, &output_buf_fb_id, &lsr_out_fb_ids);
+    if (err != kErrorNone) {
+      return err;
+    }
+  }
+
   err = HWDeviceDRM::AtomicCommit(hw_layers_info);
   if (err != kErrorNone) {
     DLOGE("Atomic commit failed for crtc_id %d conn_id %d encoder_id %d", token_.crtc_id,
@@ -276,10 +320,17 @@ DisplayError HWVirtualDRM::Commit(HWLayersInfo *hw_layers_info) {
     hw_layers_info->lsr_output_fb_ids = lsr_out_fb_ids;
   }
 
-  return(err);
+  if (HasColorFeatureSupport()) {
+    CacheDestScalarData();
+  }
+  return err;
 }
 
 DisplayError HWVirtualDRM::Flush(HWLayersInfo *hw_layers_info) {
+  if (HasColorFeatureSupport()) {
+    ResetDestScalarData();
+  }
+
   DisplayError err = kErrorNone;
   err = Commit(hw_layers_info);
 
@@ -287,6 +338,9 @@ DisplayError HWVirtualDRM::Flush(HWLayersInfo *hw_layers_info) {
     return err;
   }
 
+  if (HasColorFeatureSupport()) {
+    ResetDestScalarCache();
+  }
   return kErrorNone;
 }
 
@@ -402,7 +456,11 @@ DisplayError HWVirtualDRM::SetDisplayAttributes(const HWDisplayAttributes &displ
   int ret = 0;
   GetModeIndex(display_attributes, &mode_index);
 
-  if (mode_index < 0) {
+  // Also re-send WB config when DSPP is needed but not yet set: the kernel's
+  // wb_dev->modes persists across composer restarts, so mode_index >= 0 on
+  // re-init and "mode_index < 0" alone would skip SetWbConfigs, leaving
+  // has_dspp_ = false and all PQ features disabled.
+  if (mode_index < 0 || (display_attributes.needs_dspp && !has_dspp_)) {
     DisplayError error = SetWbConfigs(display_attributes);
     if (error != kErrorNone) {
       return error;
@@ -432,10 +490,25 @@ DisplayError HWVirtualDRM::SetDisplayAttributes(const HWDisplayAttributes &displ
   DLOGI("New WB Resolution: %dx%d cur_mode_index %d", display_attributes.x_pixels,
         display_attributes.y_pixels, current_mode_index_);
 
+  if (HasColorFeatureSupport()) {
+    // Re-initialize dest scaler if display attributes is updated
+    if (dest_scaler_blocks_used_) {
+      hw_dest_scaler_blocks_used_[core_id_] -= dest_scaler_blocks_used_;
+      dest_scaler_blocks_used_ = 0;
+      scalar_data_.clear();
+      dest_scalar_cache_.clear();
+      mixer_attributes_.dest_scaler_blocks_used = 0;
+    }
+    InitDestScaler();
+  }
+
   return kErrorNone;
 }
 
 DisplayError HWVirtualDRM::GetPPFeaturesVersion(PPFeatureVersion *vers) {
+  if (HasColorFeatureSupport()) {
+    HWDeviceDRM::GetPPFeaturesVersion(vers);
+  }
   return kErrorNone;
 }
 
@@ -702,6 +775,203 @@ DisplayError HWVirtualDRM::ConfigurePoseBuffer(std::shared_ptr<LayerBuffer> pose
     return kErrorUndefined;
   }
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_POSE_FB_ID, token_.conn_id, pose_fb_id);
+
+  return kErrorNone;
+}
+
+bool HWVirtualDRM::HasColorFeatureSupport() {
+  return has_dspp_;
+}
+
+DisplayError HWVirtualDRM::ReplayDeferredPPFeatures() {
+  for (auto &deferred_feature : deferred_pp_features_) {
+    if (deferred_feature.crtc_feature) {
+      drm_atomic_intf_->Perform(DRMOps::CRTC_SET_POST_PROC, token_.crtc_id,
+                                &deferred_feature.kernel_params);
+    } else {
+      drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_POST_PROC, token_.conn_id,
+                                &deferred_feature.kernel_params);
+    }
+
+    if (hw_color_mgr_) {
+      hw_color_mgr_->FreeDrmFeatureData(&deferred_feature.kernel_params);
+    }
+  }
+  deferred_pp_features_.clear();
+  return kErrorNone;
+}
+
+DisplayError HWVirtualDRM::PrepareCommitResources(HWLayersInfo *hw_layers_info,
+                                                  uint32_t *output_fb_id,
+                                                  vector<uint32_t> *lsr_out_fb_ids) {
+  SetDestScalarData(*hw_layers_info);
+  auto err = GetOutputBufferFBIds(hw_layers_info, output_fb_id, lsr_out_fb_ids);
+  if (err != kErrorNone) {
+    DLOGE("Failed to create fbid for output buffer!");
+    return err;
+  }
+
+  ConfigureWbConnectorFbId(*output_fb_id, *lsr_out_fb_ids);
+  ConfigurePoseBuffer(hw_layers_info->pose_buffer);
+  ConfigureDNSC(hw_layers_info);
+  ConfigureWbConnectorDestRect(hw_layers_info->iwe_enabled);
+  SetWbCSC();
+  ProgramDisplayDeviceConfig();
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_SYNC_TO, token_.conn_id, primary_disp_conn_id_);
+  // Reset the ROI which may have been previously set by CWB. Need revisit when ROI enabled on
+  // virtual.
+  ResetROI();
+
+  return kErrorNone;
+}
+
+DisplayError HWVirtualDRM::SetPPFeature(PPFeatureInfo *feature) {
+  if (!feature) {
+    DLOGE("Invalid PPFeatureInfo");
+    return kErrorParameters;
+  }
+
+  // PP features are only applicable to PQ-type virtual displays.
+  if (!HasColorFeatureSupport()) {
+    return kErrorNone;
+  }
+
+  // After the first frame, use the normal DRM PP programming path.
+  if (!first_cycle_) {
+    auto err = HWDeviceDRM::SetPPFeature(feature);
+    if (err != kErrorNone) {
+      DLOGE("SetPPFeature failed on base path, feature_id %d, err %d", feature->feature_id_, err);
+    }
+    return err;
+  }
+
+  // First-frame PP is deferred until Commit() bootstraps the virtual path.
+  if (!hw_color_mgr_) {
+    DLOGE("hw_color_mgr_ unavailable for deferred PP programming");
+    return kErrorNotSupported;
+  }
+
+  // Translate the SDM PP feature into one or more DRM feature ids.
+  std::vector<DRMPPFeatureID> drm_ids;
+  hw_color_mgr_->ToDrmFeatureId(kDSPP, feature->feature_id_, &drm_ids);
+  if (drm_ids.empty()) {
+    DLOGW("drm_ids is empty");
+    return kErrorNone;
+  }
+
+  // Remap dither to SPR dither when the target CRTC exposes that capability.
+  if (drm_ids[0] == DRMPPFeatureID::kFeatureDither) {
+    sde_drm::DRMCrtcInfo crtc_info = {};
+    drm_mgr_intf_->GetCrtcInfo(token_.crtc_id, &crtc_info);
+    if (crtc_info.has_spr_dither) {
+      drm_ids[0] = DRMPPFeatureID::kFeatureSprDither;
+    }
+  }
+
+  // Probe the first id to determine whether this PP feature is programmed on CRTC or connector.
+  DRMPPFeatureInfo probe = {};
+  probe.id = drm_ids[0];
+  drm_mgr_intf_->GetCrtcPPInfo(token_.crtc_id, &probe);
+  bool crtc_feature = (probe.version != std::numeric_limits<uint32_t>::max());
+
+  for (DRMPPFeatureID id : drm_ids) {
+    if (id >= kPPFeaturesMax) {
+      DLOGE("Invalid feature id %d", id);
+      continue;
+    }
+
+    DRMPPFeatureInfo kernel_params = {};
+    kernel_params.id = id;
+    if (hw_color_mgr_->GetDrmFeature(feature, &kernel_params) != kErrorNone) {
+      continue;
+    }
+
+    // Cache the translated kernel params and replay them after the first bootstrap commit.
+    deferred_pp_features_.push_back({kernel_params, crtc_feature});
+  }
+
+  if (!deferred_pp_features_.size()) {
+    DLOGE("Failed to defer PP feature, id %d", feature->feature_id_);
+    return kErrorUndefined;
+  }
+
+  return kErrorNone;
+}
+
+DisplayError HWVirtualDRM::GetDppsFeatureInfo(void *payload, size_t size) {
+  DRMDppsFeatureInfo *feature_info = nullptr;
+
+  if (size != sizeof(DRMDppsFeatureInfo)) {
+    DLOGE("invalid payload size %zu, expected %zu", size, sizeof(DRMDppsFeatureInfo));
+    return kErrorParameters;
+  }
+
+  if (!HasColorFeatureSupport()) {
+    DLOGV_IF(kTagDriverConfig, "Color features not supported for virtual display");
+    return kErrorNone;
+  }
+
+  feature_info = reinterpret_cast<DRMDppsFeatureInfo *>(payload);
+  feature_info->obj_id = token_.crtc_id;
+  drm_mgr_intf_->GetDppsFeatureInfo(feature_info);
+  return kErrorNone;
+}
+
+DisplayError HWVirtualDRM::SetDppsFeature(void *payload, size_t size) {
+  uint64_t value = 0;
+  uint32_t obj_id = 0, object_type = 0, feature_id = 0;
+  DppsFeaturePayload *feature_payload = nullptr;
+
+  if (size != sizeof(DppsFeaturePayload)) {
+    DLOGE("Invalid payload size %zu, expected %zu", size, sizeof(DppsFeaturePayload));
+    return kErrorParameters;
+  }
+
+  // Only applicable to PQ-type virtual displays.
+  if (!HasColorFeatureSupport()) {
+    DLOGV_IF(kTagDriverConfig, "Color features not supported for virtual display");
+    return kErrorNone;
+  }
+
+  feature_payload = reinterpret_cast<DppsFeaturePayload *>(payload);
+  object_type = feature_payload->object_type;
+  feature_id = feature_payload->feature_id;
+  value = feature_payload->value;
+
+  if (object_type == DRM_MODE_OBJECT_CRTC) {
+    obj_id = token_.crtc_id;
+  } else if (object_type == DRM_MODE_OBJECT_CONNECTOR) {
+    obj_id = token_.conn_id;
+  } else {
+    DLOGE("Invalid object type 0x%x", object_type);
+    return kErrorUndefined;
+  }
+
+  DLOGV_IF(kTagDriverConfig, "Set Dpps feature: obj_id %u, object_type %u, feature_id %u", obj_id,
+           object_type, feature_id);
+
+  drm_atomic_intf_->Perform(DRMOps::DPPS_CACHE_FEATURE, obj_id, feature_id, value);
+  return kErrorNone;
+}
+
+DisplayError HWVirtualDRM::GetPanelBrightnessBasePath(std::string *base_path) const {
+  if (!base_path) {
+    return kErrorParameters;
+  }
+
+  if (!has_dspp_) {
+    return kErrorNone;
+  }
+
+  // Virtual displays lack physical panels. To support LTM feature, mirror the
+  // backlight state of the primary display.
+  sde_drm::DRMConnectorInfo primary_conn_info = {};
+  drm_mgr_intf_->GetConnectorInfo(primary_disp_conn_id_, &primary_conn_info);
+
+  char s[kMaxStringLength] = {};
+  snprintf(s, sizeof(s), "/sys/class/backlight/panel%d-backlight/",
+           static_cast<int>(primary_conn_info.type_id - 1));
+  *base_path = s;
 
   return kErrorNone;
 }

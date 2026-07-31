@@ -162,9 +162,9 @@ const char *GetRenderLayerReferenceSpaceName(const SDMRenderLayerReferenceSpaceT
 const char *GetLayerVisibilityName(const SDMLayerVisibilityType &type);
 const char* GetSocName();
 bool IsXRVariant();
+bool IsGpuLsrVariant();
 uint16_t float_2_FP16(const float in);
 float FP16_2_float(const uint16_t in);
 }  // namespace sdm
 
 #endif  // __UTILS_H__
-

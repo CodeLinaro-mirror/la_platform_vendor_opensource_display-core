@@ -7,6 +7,8 @@
 #define __DPU_MULTI_CORE_H__
 
 #include "dpu_core_mux.h"
+#include <future>
+#include <thread>
 
 namespace sdm {
 
@@ -66,6 +68,7 @@ class DPUMultiCore : public DPUCoreMux {
   DisplayError SetDisplayDppsAdROI(void *payload);
   DisplayError SetDynamicDSIClock(uint64_t bit_clk_rate);
   DisplayError GetDynamicDSIClock(uint64_t *bit_clk_rate);
+  DisplayError SetDynamicSPRMode(bool spr_mode);
   DisplayError GetDisplayIdentificationData(uint8_t *out_port, uint32_t *out_data_size,
                                             uint8_t *out_data);
   DisplayError SetFrameTrigger(FrameTriggerMode mode, uint32_t core_id);
@@ -90,9 +93,25 @@ class DPUMultiCore : public DPUCoreMux {
   bool IsEPTSupported();
   DisplayError SetHdrCapabilities(const std::vector<Hdr> &hdr_types, float max_avg_luminance,
                                   float min_luminance);
+  void PerformAsyncCommitOnCores(std::map<uint32_t, HWLayersInfo> &hw_layers_info);
+  void CommitOnCore(int core_id);
   ~DPUMultiCore() {}
 
  private:
+  struct CommitRequest {
+    CommitRequest(HWLayersInfo *info) : hw_layers_info(info) {}
+    HWLayersInfo *hw_layers_info = nullptr;
+  };
+  struct CommitThreadContext {
+    std::shared_ptr<CommitRequest> commit_req;
+    std::mutex lock;
+    std::condition_variable worker_thread_cv;
+    std::condition_variable commit_response_cv;
+    std::future<void> future;
+    bool commit_thread_running = false;
+    bool commit_pending = false;
+    DisplayError commit_response = kErrorUndefined;
+  };
   std::map<uint32_t, HWInterface *> hw_intf_;
   std::vector<uint32_t> core_ids_;
   DisplayId display_id_ = {};
@@ -101,6 +120,8 @@ class DPUMultiCore : public DPUCoreMux {
   BufferAllocator *buffer_allocator_;
   bool dpu_ctl_op_sync_ = false;
   std::vector<uint32_t> op_sync_sequence_;
+  // map of core id to commit thread context for corresponding core
+  std::map<int, CommitThreadContext> display_commit_thread_map_;
   template <typename T>
   bool AreAllEntriesSame(std::vector<T> &vec);
   void SetOpSyncHint(bool dpu_ctl_op_sync);

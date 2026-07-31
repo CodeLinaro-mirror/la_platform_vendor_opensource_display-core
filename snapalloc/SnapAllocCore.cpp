@@ -46,7 +46,8 @@ Error SnapAllocCore::AllocateBuffer(AllocData *ad, AllocData *m_data,
                                     unsigned custom_content_md_size,
                                     unsigned batch_mode_dyn_md_size, BufferDescriptor *desc,
                                     BufferDescriptor *out_desc, bool test_alloc) {
-  auto err = mem_alloc_intf_->AllocateMem(ad, out_desc->usage, out_desc->format);
+  auto err =
+      mem_alloc_intf_->AllocateMem(ad, out_desc->usage, out_desc->format, desc->additionalOptions);
   if (err != Error::NONE) {
     DLOGE("Failed to allocate memory for format %d usage %d", out_desc->format, out_desc->usage);
     return err;
@@ -71,7 +72,7 @@ Error SnapAllocCore::AllocateBuffer(AllocData *ad, AllocData *m_data,
 // Test note: check int for error, then validate handles from vector
 Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
                               std::vector<SnapHandleInternal *> *handles, bool test_alloc) {
-  std::lock_guard<std::mutex> buffer_lock(buffer_lock_);
+  std::lock_guard<std::shared_mutex> buffer_lock(buffer_lock_);
   for (int i = 0; i < count; i++) {
     OVERFLOW_ERR_RETURN(desc.reservedSize, sizeof(SnapMetadata), OverflowType::ADD);
     OVERFLOW_ERR_RETURN((desc.reservedSize + sizeof(SnapMetadata)), PAGE_SIZE, OverflowType::ADD);
@@ -82,6 +83,9 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
     BufferDescriptor out_desc;
     SnapHandleInternal *hnd;
     int out_priv_flags = 0;
+    uint64_t lossy_usage = constraint_mgr_->GetUBWCLossyUsage(desc);
+    desc.usage =
+        desc.usage | static_cast<vendor_qti_hardware_display_common_BufferUsage>(lossy_usage);
     auto err = constraint_mgr_->GetAllocationData(desc, &ad, &layout, &out_desc, &out_priv_flags);
     if (err != Error::NONE) {
       DLOGE("Constraint manager failed to get allocation data - err %d", err);
@@ -104,8 +108,8 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
     constraint_mgr_->ConvertAlignedWidthFromBytesToPixels(
         out_desc.format, layout.aligned_width_in_bytes, pixel_format_modifier,
         &aligned_width_in_pixels);
-    unsigned custom_content_md_size =
-        metadata_mgr_->GetCustomContentMetadataSize(out_desc.format, out_desc.usage);
+    unsigned custom_content_md_size = metadata_mgr_->GetCustomContentMetadataSize(
+        out_desc.format, out_desc.usage, pixel_format_modifier);
     unsigned batch_mode_dyn_md_size =
         metadata_mgr_->GetBatchModeDynamicMetadataSize(pixel_format_modifier);
 
@@ -225,7 +229,7 @@ Error SnapAllocCore::FreeBuffer(SnapHandleInternal *snap_hnd) {
 
 Error SnapAllocCore::Retain(SnapHandle *hnd) {
   auto err = Error::NONE;
-  std::lock_guard<std::mutex> lock(buffer_lock_);
+  std::lock_guard<std::shared_mutex> lock(buffer_lock_);
   auto buf = GetBufferFromHandleLocked(hnd);
   if (buf != nullptr) {
     buf->IncRef();
@@ -252,7 +256,7 @@ Error SnapAllocCore::RetainViewBuffer(SnapHandle *meta_hnd, uint32_t view,
   }
 
   auto err = Error::NONE;
-  std::lock_guard<std::mutex> lock(buffer_lock_);
+  std::lock_guard<std::shared_mutex> lock(buffer_lock_);
   auto buf = GetBufferFromHandleLocked(meta_hnd);
   if (buf == nullptr) {
     DLOGE("Retain MetaHandle before retaining auxillary view buffer");
@@ -290,7 +294,7 @@ Error SnapAllocCore::GetBaseView(SnapHandle *hnd, uint32_t *view) {
   }
 
   auto err = Error::NONE;
-  std::lock_guard<std::mutex> lock(buffer_lock_);
+  std::shared_lock<std::shared_mutex> lock(buffer_lock_);
   auto buf = GetBufferFromHandleLocked(hnd);
   if (buf == nullptr) {
     DLOGE("%s Could not find handle: %p", __FUNCTION__, hnd);
@@ -307,7 +311,7 @@ Error SnapAllocCore::Release(SnapHandle *hnd) {
   if (hnd == nullptr) {
     return Error::BAD_BUFFER;
   }
-  std::lock_guard<std::mutex> lock(buffer_lock_);
+  std::lock_guard<std::shared_mutex> lock(buffer_lock_);
   SnapHandleInternal *snap_hnd_cast = static_cast<SnapHandleInternal *>(hnd);
   auto buf = GetBufferFromHandleLocked(hnd);
   if (buf == nullptr) {
@@ -346,7 +350,7 @@ Error SnapAllocCore::Release(SnapHandle *hnd) {
 Error SnapAllocCore::Lock(SnapHandle *hnd, vendor_qti_hardware_display_common_BufferUsage usage,
                           vendor_qti_hardware_display_common_Rect access_region,
                           uint64_t *base_addr) {
-  std::lock_guard<std::mutex> lock(buffer_lock_);
+  std::lock_guard<std::shared_mutex> lock(buffer_lock_);
   // If buffer is not meant for CPU return err
   if (!CpuCanAccess(usage)) {
     DLOGE("Lock failed - CPU can't access");
@@ -403,7 +407,7 @@ Error SnapAllocCore::Lock(SnapHandle *hnd, vendor_qti_hardware_display_common_Bu
 }
 
 Error SnapAllocCore::Unlock(SnapHandle *hnd) {
-  std::lock_guard<std::mutex> lock(buffer_lock_);
+  std::lock_guard<std::shared_mutex> lock(buffer_lock_);
   auto status = Error::NONE;
 
   auto buf = GetBufferFromHandleLocked(hnd);
@@ -448,7 +452,7 @@ Error SnapAllocCore::MapBuffer(SnapHandleInternal *hnd) {
 }
 
 Error SnapAllocCore::ValidateBufferSize(SnapHandle *hnd, BufferDescriptor desc) {
-  std::lock_guard<std::mutex> lock(buffer_lock_);
+  std::shared_lock<std::shared_mutex> lock(buffer_lock_);
   auto buf = GetBufferFromHandleLocked(hnd);
   if (buf == nullptr) {
     return Error::BAD_BUFFER;
@@ -485,7 +489,7 @@ Error SnapAllocCore::ValidateBufferSize(SnapHandle *hnd, BufferDescriptor desc) 
 }
 
 Error SnapAllocCore::FlushLockedBuffer(SnapHandle *hnd) {
-  std::lock_guard<std::mutex> lock(buffer_lock_);
+  std::lock_guard<std::shared_mutex> lock(buffer_lock_);
   auto status = Error::NONE;
 
   auto buf = GetBufferFromHandleLocked(hnd);
@@ -502,7 +506,7 @@ Error SnapAllocCore::FlushLockedBuffer(SnapHandle *hnd) {
 }
 
 Error SnapAllocCore::RereadLockedBuffer(SnapHandle *hnd) {
-  std::lock_guard<std::mutex> lock(buffer_lock_);
+  std::lock_guard<std::shared_mutex> lock(buffer_lock_);
   auto status = Error::NONE;
 
   auto buf = GetBufferFromHandleLocked(hnd);
@@ -526,7 +530,8 @@ Error SnapAllocCore::ImportHandleLocked(SnapHandle *hnd) {
 
   if (SnapHandleInternal::validate(hnd) != 0) {
     DLOGE("ImportHandleLocked: Invalid handle: %p", hnd);
-    FreeBuffer(static_cast<SnapHandleInternal *>(hnd));
+    static_cast<SnapHandleInternal *>(hnd)->closeFds();
+    free(hnd);
     return Error::BAD_BUFFER;
   }
 
@@ -543,14 +548,16 @@ Error SnapAllocCore::ImportHandleLocked(SnapHandle *hnd) {
   if (mem_alloc_intf_->ImportBuffer(snap_hnd->fd()) < 0) {
     DLOGE("Failed to import buffer: hnd: %p, fd:%d, id:%lu", snap_hnd, snap_hnd->fd(),
           snap_hnd->id());
-    FreeBuffer(snap_hnd);
+    snap_hnd->closeFds();
+    free(snap_hnd);
     return Error::BAD_BUFFER;
   }
 
   if (mem_alloc_intf_->ImportBuffer(snap_hnd->fd_metadata()) < 0) {
     DLOGE("Failed to import metadata buffer: hnd: %p, fd:%d, id:%lu", snap_hnd,
           snap_hnd->fd_metadata(), snap_hnd->id());
-    FreeBuffer(snap_hnd);
+    snap_hnd->closeFds();
+    free(snap_hnd);
     return Error::BAD_BUFFER;
   }
   // Initialize members that aren't transported
@@ -621,7 +628,7 @@ bool SnapAllocCore::IsFormatSupportedByGPU(BufferDescriptor desc) {
 
 Error SnapAllocCore::GetMetadata(SnapHandle *hnd,
                                  vendor_qti_hardware_display_common_MetadataType type, void *out) {
-  std::lock_guard<std::mutex> buffer_lock(buffer_lock_);
+  std::shared_lock<std::shared_mutex> buffer_lock(buffer_lock_);
   if (!hnd) {
     DLOGE("%s: Invalid handle", __FUNCTION__);
     return Error::BAD_BUFFER;
@@ -641,7 +648,7 @@ Error SnapAllocCore::GetMetadata(SnapHandle *hnd,
 
 Error SnapAllocCore::SetMetadata(SnapHandle *hnd,
                                  vendor_qti_hardware_display_common_MetadataType type, void *in) {
-  std::lock_guard<std::mutex> buffer_lock(buffer_lock_);
+  std::lock_guard<std::shared_mutex> buffer_lock(buffer_lock_);
   if (!hnd) {
     DLOGE("%s: Invalid handle", __FUNCTION__);
     return Error::BAD_BUFFER;
@@ -714,7 +721,7 @@ Error SnapAllocCore::DumpBuffers() {
 
 Error SnapAllocCore::GetMetadataState(SnapHandle *hnd,
                                  vendor_qti_hardware_display_common_MetadataType type, bool *out) {
-  std::lock_guard<std::mutex> buffer_lock(buffer_lock_);
+  std::shared_lock<std::shared_mutex> buffer_lock(buffer_lock_);
   if (!hnd) {
     DLOGE("%s: Invalid handle", __FUNCTION__);
     return Error::BAD_BUFFER;

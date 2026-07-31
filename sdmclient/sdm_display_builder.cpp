@@ -15,9 +15,28 @@
 namespace sdm {
 
 Locker SDMDisplayBuilder::hdr_locker_[kNumDisplays];
+bool SDMDisplayBuilder::null_display_active_ = false;
 
 std::map<Display, DisplayMapInfo *> &SDMDisplayBuilder::GetActiveDisplays() {
   return map_active_displays_;
+}
+
+void SDMDisplayBuilder::InsertActiveDisplay(Display client_id, DisplayMapInfo *info) {
+  std::lock_guard<std::mutex> lock(active_displays_lock_);
+  map_active_displays_.insert(std::make_pair(client_id, info));
+}
+
+void SDMDisplayBuilder::EraseActiveDisplay(Display client_id) {
+  std::lock_guard<std::mutex> lock(active_displays_lock_);
+  auto it = map_active_displays_.find(client_id);
+  if (it != map_active_displays_.end()) {
+    map_active_displays_.erase(it);
+  }
+}
+
+size_t SDMDisplayBuilder::GetActiveDisplayCount() {
+  std::lock_guard<std::mutex> lock(active_displays_lock_);
+  return map_active_displays_.size();
 }
 
 int SDMDisplayBuilder::GetDisplayIndex(int dpy) {
@@ -70,6 +89,19 @@ bool SDMDisplayBuilder::IsHDRDisplay(uint32_t client_id) {
   }
 
   return is_hdr_display_[client_id];
+}
+
+bool SDMDisplayBuilder::ShouldRetainVirtualDisplay(uint32_t client_id) {
+  auto it = virtual_id_map_.find(client_id);
+  if (it == virtual_id_map_.end()) {
+    return false;
+  }
+
+  // Retain PQ virtual displays in cache so they can be reused on the next create request.
+  if (it->second.type == kVirtualTypePQ) {
+    return true;
+  }
+  return false;
 }
 
 std::vector<DisplayMapInfo> &
@@ -296,17 +328,42 @@ DisplayError SDMDisplayBuilder::DestroyVirtualDisplay(Display display) {
     return kErrorParameters;
   }
 
+  bool retain_virtual_display = ShouldRetainVirtualDisplay(display);
   for (auto &map_info : map_info_virtual_) {
-    if (map_info.client_id == display) {
+    if (map_info.client_id != display) {
+      continue;
+    }
+
+    if (retain_virtual_display) {
+      DLOGI("Retaining virtual display id:%" PRIu64 " for reuse", display);
+      auto sdm_display = cb_->GetDisplayFromClientId(display);
+      if (sdm_display) {
+        auto status = sdm_display->TurnOffColorFeature();
+        if (status != kErrorNone) {
+          DLOGW("Failed to turn off color feature, display:%" PRIu64 " status=%d", display, status);
+        }
+
+        status = sdm_display->PrepareRetainedDisplay();
+        if (status != kErrorNone) {
+          DLOGW("Failed to prepare retained virtual display id:%" PRIu64 " status=%d",
+                display, status);
+        }
+      }
+    } else {
       DLOGI("Destroying virtual display id:%" PRIu64, display);
       DestroyDisplay(&map_info);
-      break;
     }
+    break;
   }
 
   auto it = virtual_id_map_.find(display);
   if (it != virtual_id_map_.end()) {
-    virtual_id_map_.erase(it);
+    if (retain_virtual_display) {
+      DLOGI("Marking retained virtual display id:%" PRIu64 " as available", display);
+      it->second.in_use = false;
+    } else {
+      virtual_id_map_.erase(it);
+    }
   }
 
   return kErrorNone;
@@ -314,12 +371,37 @@ DisplayError SDMDisplayBuilder::DestroyVirtualDisplay(Display display) {
 
 DisplayError SDMDisplayBuilder::CreateVirtualDisplayObj(
     uint32_t width, uint32_t height, int32_t *format, Display *out_display_id) {
+  SDMVirtualDispType requested_virtual_disp_type = kVirtualTypeDefault;
+
+  // Query requested virtual display type
+  auto err = core_intf_->GetVirtualDispType(&requested_virtual_disp_type);
+  if (err != kErrorNone) {
+    DLOGE("Failed to get requested virtual display type");
+    return kErrorUndefined;
+  }
+
   // Get virtual display from cache if already created
   for (auto &vds_map : virtual_id_map_) {
     if (vds_map.second.width == width && vds_map.second.height == height &&
-        vds_map.second.format == *format && !vds_map.second.in_use) {
+        vds_map.second.format == *format && vds_map.second.type == requested_virtual_disp_type &&
+        !vds_map.second.in_use) {
+      auto sdm_display = cb_->GetDisplayFromClientId(vds_map.first);
+      if (!sdm_display) {
+        DLOGE("Cached virtual display id:%" PRIu64 " missing SDM display", vds_map.first);
+        return kErrorResources;
+      }
+
+      auto status = sdm_display->RestoreRetainedDisplay();
+      if (status != kErrorNone) {
+        DLOGE("Failed to restore cached virtual display id:%" PRIu64 " status=%d",
+              vds_map.first, status);
+        return status;
+      }
+
       vds_map.second.in_use = true;
       *out_display_id = vds_map.first;
+      DLOGI("Reusing cached virtual display id:%" PRIu64 " %dx%d format: %d type: %d",
+            *out_display_id, width, height, *format, requested_virtual_disp_type);
       return kErrorNone;
     }
   }
@@ -397,8 +479,8 @@ DisplayError SDMDisplayBuilder::CreateVirtualDisplayObj(
       cb_->SetDisplayByClientId(client_id, sdm_display);
 
       DLOGI("Created virtual display client id:%" PRIu64
-            ", display_id: %d with res: %dx%d",
-            client_id, display_id, width, height);
+            ", display_id: %d with res: %dx%d type: %d",
+            client_id, display_id, width, height, requested_virtual_disp_type);
 
       *out_display_id = client_id;
       map_info.disp_type = kVirtual;
@@ -408,6 +490,7 @@ DisplayError SDMDisplayBuilder::CreateVirtualDisplayObj(
       vds_data.width = width;
       vds_data.height = height;
       vds_data.format = *format;
+      vds_data.type = requested_virtual_disp_type;
       virtual_id_map_.insert(std::make_pair(client_id, vds_data));
 
       return kErrorNone;
@@ -1138,7 +1221,7 @@ void SDMDisplayBuilder::DestroyPluggableDisplayLocked(
     SDMDisplayPluggableTest::Destroy(sdm_display);
   }
 
-  map_active_displays_.erase(client_id);
+  EraseActiveDisplay(client_id);
   cb_->SetDisplayByClientId(client_id, nullptr);
   map_info->Reset();
 }
@@ -1174,7 +1257,7 @@ void SDMDisplayBuilder::DestroyNonPluggableDisplayLocked(
     break;
   }
 
-  map_active_displays_.erase(client_id);
+  EraseActiveDisplay(client_id);
 
   cb_->SetDisplayByClientId(client_id, nullptr);
   map_info->Reset();

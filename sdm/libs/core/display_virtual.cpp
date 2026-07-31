@@ -117,7 +117,10 @@ DisplayError DisplayVirtual::Init() {
   }
   DisplayBase::SetMaxMixerStages(max_mixer_stages);
 
-  InitializeColorModes();
+  // STC color mode is supported in PQ type, so this func does not need to be called.
+  if (!NeedsDspp()) {
+    InitializeColorModes();
+  }
 
   return error;
 }
@@ -164,6 +167,7 @@ DisplayError DisplayVirtual::SetActiveConfig(DisplayConfigVariableInfo *variable
   client_ctx.display_attributes.x_pixels = variable_info->x_pixels;
   client_ctx.display_attributes.y_pixels = variable_info->y_pixels;
   client_ctx.display_attributes.fps = variable_info->fps;
+  client_ctx.display_attributes.needs_dspp = NeedsDspp();
 
   if (client_ctx.display_attributes == client_ctx_.display_attributes) {
     return kErrorNone;
@@ -425,6 +429,276 @@ DisplayError DisplayVirtual::SetColorMode(const std::string &color_mode) {
       "Set color mode %s for display %d-%d, blend_space.primaries = %d, blend_space.transfer = %d",
       color_mode.c_str(), display_id_, display_type_, blend_space.primaries, blend_space.transfer);
   return kErrorNone;
+}
+
+#undef __CLASS__
+#define __CLASS__ "DisplayVirtualPQ"
+
+DisplayVirtualPQ::DisplayVirtualPQ(DisplayId display_id, DisplayEventHandler *event_handler,
+                                   sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> hw_info_intf,
+                                   BufferAllocator *buffer_allocator, CompManager *comp_manager,
+                                   const std::vector<Hdr> &hdr_types, float max_lum, float min_lum)
+    : DisplayVirtual(display_id, event_handler, hw_info_intf, buffer_allocator, comp_manager,
+                     hdr_types, max_lum, min_lum) {}
+
+DisplayError DisplayVirtualPQ::Init() {
+  ClientLock lock(disp_mutex_);
+
+  // Initialize base virtual display logic
+  DisplayError error = DisplayVirtual::Init();
+  if (error != kErrorNone) {
+    DLOGE("Failed to init virtual display base, error=%d", error);
+    return error;
+  }
+
+  // Fetch necessary device/client contexts and mixer attributes
+  uint32_t active_index = 0;
+  dpu_core_mux_->GetActiveConfig(&active_index);
+  dpu_core_mux_->GetDisplayAttributes(active_index, &device_ctx_, &client_ctx_);
+  dpu_core_mux_->GetHWPanelInfo(&device_ctx_, &client_ctx_);
+
+  error = dpu_core_mux_->GetMixerAttributes(&device_ctx_, &client_ctx_);
+  if (error != kErrorNone) {
+    DLOGE("Failed to get mixer attributes, error=%d", error);
+    return error;
+  }
+
+  // Create ColorManager to support color features (STC)
+  auto dpps_intf = comp_manager_->GetDppsControlIntf();
+  auto color_mgr_factory = GetColorMgrFactoryIntf();
+  if (color_mgr_factory) {
+    DLOGI("Creating color_mgr_ for virtual display_id=%d", display_id_info_.GetDisplayId());
+
+    // The WB connector has no panel_name, so STC cannot locate calibration files.
+    // Override panel_name with the configured virtual panel name before creating ColorManager.
+    DisplayClientContext client_ctx_for_color = client_ctx_;
+    if (!panel_name_.empty()) {
+      snprintf(client_ctx_for_color.hw_panel_info.panel_name,
+               sizeof(client_ctx_for_color.hw_panel_info.panel_name), "%s", panel_name_.c_str());
+      DLOGI("Panel name: %s", panel_name_.c_str());
+    }
+    color_mgr_ = color_mgr_factory->CreateColorManagerIntf(
+        display_type_, dpu_core_mux_, device_ctx_, client_ctx_for_color, dpps_intf, this,
+        hw_resource_info_, display_id_info_);
+    if (!color_mgr_) {
+      DLOGE("Failed to create color_mgr_");
+    } else {
+      DLOGI("color_mgr_ created successfully for virtual display");
+    }
+  } else {
+    DLOGE("Failed to get color manager factory interface");
+  }
+
+  if (color_mgr_) {
+    color_mgr_->ColorMgrGetStcModes(&stc_color_modes_);
+  }
+
+  // This is a dummy interface used to ensure LTM init succeeds.
+  // Failure of this intf should not impact the overall feature.
+  prop_intf_ = hw_intf_->GetPanelFeaturePropertyIntf();
+  if (!prop_intf_) {
+    DLOGE("Failed to create PanelFeaturePropertyIntf");
+  }
+
+  return kErrorNone;
+}
+
+PrimariesTransfer DisplayVirtualPQ::GetBlendSpaceFromStcColorMode(
+    const snapdragoncolor::ColorMode &color_mode) {
+  PrimariesTransfer blend_space = {};
+  if (!color_mgr_) {
+    DLOGE("color_mgr_ is not initialized");
+    return blend_space;
+  }
+
+  // Set sRGB as default blend space.
+  bool native_mode = (color_mode.intent == snapdragoncolor::kNative) ||
+                     (color_mode.gamut == ColorPrimaries_Max && color_mode.gamma == Transfer_Max);
+  if (stc_color_modes_.list.empty() || (native_mode && allow_tonemap_native_)) {
+    return blend_space;
+  }
+
+  blend_space.primaries = qti_primaries_map[color_mode.gamut];
+  blend_space.transfer = qti_transfer_map[color_mode.gamma];
+
+  return blend_space;
+}
+
+DisplayError DisplayVirtualPQ::GetStcColorModes(snapdragoncolor::ColorModeList *mode_list) {
+  ClientLock lock(disp_mutex_);
+  if (!mode_list) {
+    DLOGE("Invalid mode_list pointer");
+    return kErrorParameters;
+  }
+
+  if (!color_mgr_) {
+    DLOGE("color_mgr_ is not initialized");
+    return kErrorNotSupported;
+  }
+
+  mode_list->list = stc_color_modes_.list;
+  return kErrorNone;
+}
+
+DisplayError DisplayVirtualPQ::SetStcColorMode(const snapdragoncolor::ColorMode &color_mode) {
+  ClientLock lock(disp_mutex_);
+  DisplayError ret = kErrorNone;
+  PrimariesTransfer blend_space = {};
+
+  if (!color_mgr_) {
+    DLOGE("color_mgr_ is not initialized");
+    return kErrorNotSupported;
+  }
+
+  // Get and set blend space on composition manager
+  blend_space = GetBlendSpaceFromStcColorMode(color_mode);
+  if (display_comp_ctx_) {
+    ret = comp_manager_->SetBlendSpace(display_comp_ctx_, blend_space);
+    if (ret != kErrorNone) {
+      DLOGE("SetBlendSpace failed, ret=%d on display %d-%d", ret, display_id_, display_type_);
+    }
+  }
+
+  // Set blend space on DPU
+  ret = dpu_core_mux_->SetBlendSpace(blend_space);
+  if (ret != kErrorNone) {
+    DLOGE("Failed to pass blend space to DPU, ret=%d on display %d-%d", ret, display_id_,
+          display_type_);
+  }
+
+  // Apply STC mode in ColorManager
+  ret = color_mgr_->ColorMgrSetStcMode(color_mode);
+  if (ret != kErrorNone) {
+    DLOGE("Failed to set STC color mode, ret=%d on display %d-%d", ret, display_id_, display_type_);
+    return ret;
+  }
+
+  current_color_mode_ = color_mode;
+
+  // Evaluate and update dynamic range and DPPS control
+  DynamicRangeType dynamic_range = kSdrType;
+  if (std::find(color_mode.hw_assets.begin(), color_mode.hw_assets.end(),
+                snapdragoncolor::kPbHdrBlob) != color_mode.hw_assets.end()) {
+    dynamic_range = kHdrType;
+  }
+  if ((color_mode.gamut == ColorPrimaries_BT2020 && color_mode.gamma == Transfer_SMPTE_ST2084) ||
+      (color_mode.gamut == ColorPrimaries_BT2020 && color_mode.gamma == Transfer_HLG)) {
+    dynamic_range = kHdrType;
+  }
+
+  comp_manager_->ControlDpps(dynamic_range != kHdrType);
+
+  DLOGI("Set STC color mode on display %d-%d: gamut %d, gamma %d, intent %d", display_id_,
+        display_type_, color_mode.gamut, color_mode.gamma, color_mode.intent);
+
+  return ret;
+}
+
+DisplayError DisplayVirtualPQ::PostCommit() {
+  DisplayError error = DisplayVirtual::PostCommit();
+  if (error != kErrorNone) {
+    return error;
+  }
+
+  dpps_info_.Init(this, panel_name_, this, prop_intf_);
+  return kErrorNone;
+}
+
+DisplayError DisplayVirtualPQ::TurnOffColorFeature() {
+  int display_type = display_type_;
+
+  DLOGV_IF(kTagDisplay, "Turn off ltm feature on display %d-%d", display_id_, display_type_);
+
+  dpps_info_.DppsNotifyOps(kDppsLtmForceOffEvent, &display_type, sizeof(display_type));
+  return kErrorNone;
+}
+
+DisplayError DisplayVirtualPQ::DppsProcessOps(enum DppsOps op, void *payload, size_t size) {
+  DisplayError error = kErrorNone;
+  DppsDisplayInfo *info = nullptr;
+
+  switch (op) {
+    case kDppsSetFeature:
+      if (!payload) {
+        DLOGE("Invalid payload parameter for op %d", op);
+        error = kErrorParameters;
+        break;
+      }
+      {
+        ClientLock lock(disp_mutex_);
+        error = dpu_core_mux_->SetDppsFeature(payload, size);
+      }
+      break;
+    case kDppsGetFeatureInfo:
+      if (!payload) {
+        DLOGE("Invalid payload parameter for op %d", op);
+        error = kErrorParameters;
+        break;
+      }
+      error = dpu_core_mux_->GetDppsFeatureInfo(payload, size);
+      break;
+    case kDppsScreenRefresh:
+      if (event_handler_) {
+        event_handler_->Refresh();
+      }
+      break;
+    case kDppsPartialUpdate:
+      // Partial update is not supported on virtual display.
+      break;
+    case kDppsGetDisplayInfo:
+      if (!payload) {
+        DLOGE("Invalid payload parameter for op %d", op);
+        error = kErrorParameters;
+        break;
+      }
+      info = reinterpret_cast<DppsDisplayInfo *>(payload);
+      info->width = client_ctx_.display_attributes.x_pixels;
+      info->height = client_ctx_.display_attributes.y_pixels;
+      info->is_primary = false;
+      info->display_id = display_id_;
+      info->display_type = display_type_;
+      info->fps = client_ctx_.display_attributes.fps;
+      info->flags |= kDppsFlagVirtualDispNeedsLtm;
+
+      error = dpu_core_mux_->GetPanelBrightnessBasePath(&(info->brightness_base_path));
+      if (error != kErrorNone) {
+        DLOGE("Failed to get brightness base path %d", error);
+      }
+      break;
+    case kDppsSetPccConfig:
+      if (color_mgr_) {
+        error = color_mgr_->ColorMgrSetLtmPccConfig(payload, size);
+        if (error != kErrorNone) {
+          DLOGE("Failed to set PCC config to ColorManagerProxy, error %d", error);
+        }
+      }
+      break;
+    default:
+      DLOGE("Invalid input op %d", op);
+      error = kErrorParameters;
+      break;
+  }
+  return error;
+}
+
+std::string DisplayVirtualPQ::Dump() {
+  std::ostringstream os;
+  os << DisplayBase::Dump();
+
+  os << "\n------ DisplayVirtualPQ ------";
+  os << "\n needs_dspp_: " << NeedsDspp();
+  os << "\n color_mgr_: " << (color_mgr_ ? "yes" : "no");
+
+  DynamicRangeType curr_dynamic_range = kSdrType;
+  if (std::find(current_color_mode_.hw_assets.begin(), current_color_mode_.hw_assets.end(),
+                snapdragoncolor::kPbHdrBlob) != current_color_mode_.hw_assets.end()) {
+    curr_dynamic_range = kHdrType;
+  }
+  os << "\nCurrent Color Mode: gamut " << current_color_mode_.gamut << " gamma "
+     << current_color_mode_.gamma << " intent " << current_color_mode_.intent << " Dynamice_range"
+     << (curr_dynamic_range == kSdrType ? " SDR" : " HDR");
+
+  return os.str();
 }
 
 }  // namespace sdm

@@ -84,7 +84,7 @@ class DisplayNull : public DisplayInterface {
   virtual bool IsWriteBackSupportedFormat(const LayerBufferFormat &format) { return false; }
   virtual bool HandleCwbTeardown() { return false; }
   virtual void Abort() {}
-  virtual void ReleaseWBFromDisplay(int32_t) {}
+  virtual void ReleaseWBFromDisplay() {}
   virtual uint32_t GetAvailableMixerCount() { return 0; }
   virtual DisplayError GetDisplayId(int32_t *display_id);
   virtual DisplayError GetDisplayType(SDMDisplayType *display_type);
@@ -98,6 +98,9 @@ class DisplayNull : public DisplayInterface {
   virtual bool IsDpuDmaModeEnabled() { return false; }
   virtual bool IsEPTSupported() { return false; }
   virtual bool IsLSRSupported() { return false; }
+  virtual DisplayError SetDynamicCacConfig(DynamicCacV2Config config, bool enable) {
+    return kErrorNotSupported;
+  }
 
   MAKE_NO_OP(CommitOrPrepare(LayerStack *))
   MAKE_NO_OP(PrePrepare(LayerStack *))
@@ -161,6 +164,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(SetDimmingMinBl(int min_bl))
   MAKE_NO_OP(RetrieveDemuraTnFiles())
   MAKE_NO_OP(SetDemuraState(int state, int demura_idx))
+  MAKE_NO_OP(SetSPRState(int state))
   MAKE_NO_OP(SetDemuraConfig(int demura_idx))
   MAKE_NO_OP(SetABCState(bool state))
   MAKE_NO_OP(SetABCReconfig())
@@ -183,7 +187,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(UpdateTransferTime(uint32_t transfer_time))
   MAKE_NO_OP(SetJitterConfig(uint32_t, float, uint32_t))
   MAKE_NO_OP(CaptureCwb(const LayerBuffer &, const CwbConfig &, const CWBClient &));
-  MAKE_NO_OP(ReserveWBForDisplay(int32_t *));
+  MAKE_NO_OP(ReserveWBForDisplay(WbMapInfo *));
   MAKE_NO_OP(GetPanelFeatureInfo(PanelFeatureInfo *info));
   MAKE_NO_OP(PanelOprInfo(const std::string &client_name, bool enable,
                           SdmDisplayCbInterface<PanelOprPayload> *cb_intf));
@@ -209,6 +213,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(SetIllumination(uint32_t eye, const IlluminationConfig &config))
   MAKE_NO_OP(SetRgbHistObserverConfig(bool, void *))
   MAKE_NO_OP(SetQrtcFeatureConfig(int32_t type, void *data))
+  MAKE_NO_OP(UpdateRgbHistogramRoi(const void *));
 
  protected:
   DisplayConfigVariableInfo default_variable_config_ = {};

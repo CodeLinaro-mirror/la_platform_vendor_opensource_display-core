@@ -76,8 +76,16 @@ struct HWCwbConfig {
   bool enabled_dnsc = false;
   sde_drm::DRMDisplayToken token = {};  // display token to be used for virtual connector while CWB
 #ifdef FEATURE_DNSC_BLUR
-  struct sde_drm_dnsc_blur_cfg dnsc_cfg = {};  //DNSC config for downscaling CWB output
+  struct sde_drm_dnsc_blur_cfg dnsc_cfg = {};  // DNSC config for downscaling CWB output
 #endif
+#ifdef FEATURE_WB_DNSC
+  struct sde_drm_wb_dnsc_cfg wb_dnsc_cfg = {};  // WB in-built DNSC config for cwb output
+#endif
+};
+
+struct DestScalarCache {
+  SDEScaler scalar_data = {};
+  uint32_t flags = {};
 };
 
 class HWDeviceDRM : public HWInterface {
@@ -120,6 +128,8 @@ class HWDeviceDRM : public HWInterface {
 #endif
   virtual bool ConfigureDNSCforCwb(HWLayersInfo *hw_layers_info);
   virtual void DeconfigureDNSCfromCwb(void);
+  virtual bool ValidateAndConfigureDownscaleForCwb(HWLayersInfo *hw_layers_info);
+  virtual void DeconfigureDownscaleFromCWB();
   DisplayError SetupConcurrentWritebackModes(int32_t writeback_id);
   bool SetupConcurrentWriteback(const HWLayersInfo &hw_layer_info, bool validate,
                                 int64_t *release_fence_fd);
@@ -303,12 +313,17 @@ class HWDeviceDRM : public HWInterface {
   void SetTopologySplit(HWTopology hw_topology, uint32_t *split_number);
   uint64_t GetSupportedBitClkRate(uint32_t new_mode_index,
                                   uint64_t bit_clk_rate_request);
+  virtual DisplayError SetDynamicSPRMode(bool spr_mode);
   DisplayError GetPanelBlMaxLvl(uint32_t *bl_max);
   DisplayError SetPPConfig(void *payload, size_t size);
   DisplayError GetQsyncFps(uint32_t *qsync_fps) { return kErrorNotSupported; }
-  void SetDestScalarData(const HWLayersInfo &hw_layer_info) {
-    return;
-  };
+
+  void InitDestScaler();
+  void SetDestScalarData(const HWLayersInfo &hw_layer_info);
+  void SetDestScalarData(const DestScaleInfoMap dest_scale_info_map);
+  void CacheDestScalarData();
+  void ResetDestScalarCache();
+  void ResetDestScalarData();
   void SetCacType(const HWPipeCacMode &cac_mode, sde_drm::DRMCacMode *target);
   void SetPrivacyRegionsData(std::vector<PrivacyRegion> *privacy_regions, PrivacyRegionMode mode);
   void SetDrmReferenceSpaceType(const uint32_t &pipe_id,
@@ -359,8 +374,9 @@ class HWDeviceDRM : public HWInterface {
   DisplayError UpdateLoopBackConnector();
   bool IsSeamlessTransition() {
     return (hw_panel_info_.dynamic_fps && (vrefresh_ || seamless_mode_switch_)) ||
-     panel_mode_changed_ || bit_clk_rate_;
+     panel_mode_changed_ || bit_clk_rate_ || spr_mode_changed_;
   }
+  uint32_t GetNumInterfaces(sde_drm::DRMTopology topology);
 
   const char *device_name_ = {};
   bool default_mode_ = false;
@@ -398,6 +414,8 @@ class HWDeviceDRM : public HWInterface {
   uint32_t bpp_mode_changed_ = 0;
   bool reset_output_fence_offset_ = false;
   uint64_t bit_clk_rate_ = 0;
+  bool spr_mode_ = false;
+  bool spr_mode_changed_ = false;
   bool update_mode_ = false;
   HWPowerState pending_power_state_ = kPowerStateNone;
   uint32_t video_mode_index_ = 0;
@@ -409,6 +427,10 @@ class HWDeviceDRM : public HWInterface {
   bool pending_cwb_teardown_ = false;
   PrimariesTransfer blend_space_ = {};
   DRMPowerMode last_power_mode_ = DRMPowerMode::OFF;
+  sde_drm_dest_scaler_data sde_dest_scalar_data_ = {};
+  std::vector<SDEScaler> scalar_data_ = {};
+  std::vector<DestScalarCache> dest_scalar_cache_ = {};
+  bool needs_ds_update_ = false;
   uint32_t dest_scaler_blocks_used_ = 0;  // Dest scaler blocks in use by this HWDeviceDRM instance.
   static bool reset_planes_luts_;
   // Destination scaler blocks in use by all HWDeviceDRM instances.
@@ -418,6 +440,8 @@ class HWDeviceDRM : public HWInterface {
   bool has_dedicated_cwb_ = false;  // virtual connector supports dedicated CWB feature.
   uint32_t max_cwb_ = 0;            // Max number of concurrent CWB operations on virtual connector.
   bool has_cwb_dither_ = false;     // virtual connector supports CWB Dither feature.
+  bool has_qrtc_ = false;           // virtual connector supports QRTC capture.
+  bool has_builtin_wb_dnsc_ = false;  // virtual connector supports built-in downscale HW.
   uint32_t transfer_time_updated_ = 0;
   std::unordered_map<uint32_t, HWCwbConfig> cwb_config_;
   std::vector<uint32_t> dnsc_associated_wb_ids_ = {};
@@ -439,6 +463,7 @@ class HWDeviceDRM : public HWInterface {
 #endif
   bool is_ssr_active_ = false;
   bool is_lsr_ssr_active_ = false;
+  std::unique_ptr<HWColorManagerDrm> hw_color_mgr_ = {};
 
  private:
   void GetCWBCapabilities();
@@ -447,7 +472,6 @@ class HWDeviceDRM : public HWInterface {
 
   std::string interface_str_ = "DSI";
   bool autorefresh_ = false;
-  std::unique_ptr<HWColorManagerDrm> hw_color_mgr_ = {};
   bool seamless_mode_switch_ = false;
   float aspect_ratio_threshold_ = 1.0;
 };

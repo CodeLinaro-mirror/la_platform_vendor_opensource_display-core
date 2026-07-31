@@ -35,6 +35,8 @@
  */
 #include "sdm_display_virtual_dpu.h"
 #include <BufferDescriptor.h>
+#include "sdm_color_mode_stc.h"
+#include "sdm_factory.h"
 
 #define __CLASS__ "SDMDisplayVirtualDPU"
 
@@ -83,7 +85,18 @@ DisplayError SDMDisplayVirtualDPU::Init() {
     return status;
   }
 
-  color_mode_ = new SDMColorModeMgr(display_intf_);
+  SDMVirtualDispType type = kVirtualTypeDefault;
+  status = core_intf_->GetVirtualDispType(&type);
+  if (status != kErrorNone) {
+    DLOGE("Failed to get virtual display type");
+    return status;
+  }
+
+  if (type == kVirtualTypePQ) {
+    color_mode_ = new SDMColorModeStc(display_intf_);
+  } else {
+    color_mode_ = new SDMColorModeMgr(display_intf_);
+  }
   color_mode_->Init();
   return SDMDisplayVirtual::Init();
 }
@@ -314,6 +327,55 @@ DisplayError SDMDisplayVirtualDPU::SetPanelLuminanceAttributes(float min_lum,
 
 DisplayError SDMDisplayVirtualDPU::SetColorTransform(const float *matrix, SDMColorTransform hint) {
   force_gpu_comp_ = (hint != SDMColorTransform::TRANSFORM_IDENTITY) ? true : false;
+  return kErrorNone;
+}
+
+DisplayError SDMDisplayVirtualDPU::PrepareRetainedDisplay() {
+  if (!layer_builder_) {
+    sdm_layer_stack_ = nullptr;
+    layer_stack_invalid_ = true;
+    DLOGW("Layer builder already null for retained display=%" PRIu64, id_);
+    return kErrorNone;
+  }
+
+  DisplayError error = layer_builder_->DeInit(id_);
+  if (error != kErrorNone && error != kErrorNotSupported) {
+    DLOGE("Failed to prepare retained display=%" PRIu64 " error=%d", id_, error);
+    return error;
+  }
+
+  layer_builder_ = nullptr;
+  sdm_layer_stack_ = nullptr;
+  layer_stack_invalid_ = true;
+  DLOGI("Prepared retained display=%" PRIu64 " error=%d", id_, error);
+  return kErrorNone;
+}
+
+DisplayError SDMDisplayVirtualDPU::RestoreRetainedDisplay() {
+  auto sdm_factory = SDMInterfaceFactoryImpl::GetSDMFactoryInternal();
+  layer_builder_ = sdm_factory->GetLayerBuilderInternal();
+  if (layer_builder_ == nullptr) {
+    DLOGE("Layer Builder is NULL");
+    return kErrorParameters;
+  }
+
+  DisplayError error = layer_builder_->Init(buffer_allocator_, id_);
+  if (error != kErrorNone) {
+    DLOGE("Failed to restore retained display=%" PRIu64 " error=%d", id_, error);
+    return error;
+  }
+
+  error = layer_builder_->GetSDMLayerStack(id_, &sdm_layer_stack_);
+  if (error != kErrorNone) {
+    DLOGE("Failed to get layer stack for retained display=%" PRIu64 " error=%d", id_, error);
+    layer_builder_->DeInit(id_);
+    layer_builder_ = nullptr;
+    sdm_layer_stack_ = nullptr;
+    return error;
+  }
+
+  layer_stack_invalid_ = true;
+  DLOGI("Restored retained display=%" PRIu64, id_);
   return kErrorNone;
 }
 

@@ -510,6 +510,7 @@ struct HWResourceInfo {
   std::vector<LayerBufferFormat> cac_supported_formats;
   bool has_cesta = false;
   uint32_t hw_ai_scaler_count = 0;
+  uint32_t max_lsr_batch_size = 0;  // >0 only when kernel has SDE_FEATURE_BATCH_COMMIT+GMU_REPROJ
   bool support_demura_with_single_rec = false;
   bool is_udc_supported = 0;
   bool panel_feature_rect_mode_enabled_ = false;
@@ -1138,8 +1139,10 @@ struct LayerStackInfo {
   RCLayersInfo rc_layers_info = {};
   CommonStackInfo common_info = {};
   bool enable_cac = false;  // This field hints to enable CAC
+  bool enable_dynamic_cac = false;     // This field hints to enable dynamic CAC
   bool enable_anamorphic_fov = false;  // This field hints to enable anamorphic foveation
   CacConfig cac_config = {};
+  DynamicCacV2Config cac_config_dynamic_v2 = {};
   Handle comp_stack = nullptr;
   SelfRefreshState self_refresh_state = kSelfRefreshNone;
   int32_t rgba_split_enable = 0;
@@ -1194,6 +1197,13 @@ struct HWLayersInfo {
   bool lower_fps = false;  // This field hints to lower the fps in case of idle fallback
   bool iwe_enabled = false;
   bool lsr_commit = false;
+  uint32_t gpu_reproj_batch_size = 0;   //!< GPU LSR init: total number of ping-pong slots (2).
+                                        //!< 0 = not an init commit.
+  uint32_t gpu_reproj_batch_index = 0;  //!< GPU LSR init: 1-based slot index (1 or 2).
+  uint32_t gpu_reproj_batch_type = 0;   //!< GPU LSR batch type: 0=NONE, 1=LSR.
+  std::shared_ptr<LayerBuffer> gpu_reproj_shared_buffer = nullptr;
+                                        //!< GPU LSR init: DCP<->GPU coordination buffer.
+                                        //!< Set only on batch_index=1 commit.
   HWDNSCInfo dnsc_cfg = {};
   SelfRefreshState self_refresh_state = kSelfRefreshNone;
   BufferInfo dummy_loopback_cac_info = {};
@@ -1223,6 +1233,7 @@ struct HWDisplayAttributes : DisplayConfigVariableInfo {
   uint32_t clock_khz = 0;      //!< Stores the pixel clock of panel in khz
   HWTopology topology = kUnknown;   //!< Stores the topology information.
   uint32_t topology_num_split = 1;  //!< Stores the topology split number information.
+  bool needs_dspp = false;  //!< Stores the dspp required information.
 
   bool operator !=(const HWDisplayAttributes &display_attributes) {
     return ((is_device_split != display_attributes.is_device_split) ||

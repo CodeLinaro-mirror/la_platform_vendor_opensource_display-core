@@ -406,8 +406,6 @@ struct PanelFeatureInfo {
 */
 struct RgbHistConfigWrapper {
   bool enable = false;
-  uint32_t disp_width = 0;
-  uint32_t disp_height = 0;
   void *payload = nullptr;
   void *observer = nullptr;
   std::string observer_id;
@@ -476,10 +474,20 @@ enum QrtcVendorServiceType {
   KQrtcVendorServiceTypeMax,
 };
 
+/*! @brief This struct stores QrtcSubsamplingSupport capability
+
+  @sa DisplayInterface::QrtcSubsamplingSupport
+*/
+struct QrtcSubsamplingSupport {
+  uint32_t subsample_h;
+  uint32_t subsample_v;
+  bool supported;
+};
+
 enum ClientCapability {
   kPunchholeSupported,
   kHDRSupported,
-  kPixmanRenderer,
+  kGPUCompositionSupported,
   kClientCapabilityMax,
 };
 
@@ -1457,20 +1465,18 @@ class DisplayInterface {
 
   /*! @brief Method to allocate Writeback connector for QRTC.
 
-    @param[out] writeback connector id
+    @param[out] writeback connector map info
 
     @return \link DisplayError \endlink
   */
 
-  virtual DisplayError ReserveWBForDisplay(int32_t *wb_id) = 0;
+  virtual DisplayError ReserveWBForDisplay(WbMapInfo *wb_info) = 0;
 
-  /*! @brief Method to deallocate Writeback connector QRTC in use by QRTC.
-
-    @param[in] writeback connector id
+  /*! @brief Method to deallocate Writeback connector which is in use by QRTC.
 
     @return \link void \endlink
   */
-  virtual void ReleaseWBFromDisplay(int32_t wb_id) = 0;
+  virtual void ReleaseWBFromDisplay() = 0;
 
   /*! @brief Method to handle CWB teardown on the display
 
@@ -1515,6 +1521,14 @@ class DisplayInterface {
   */
   virtual DisplayError SetDemuraConfig(int demura_idx) = 0;
 
+  /*! @brief Method to set config for spr feature.
+
+   @param[in] spr_idx : spr config index
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetSPRState(int state) = 0;
+
   /*! @brief Method to handle CAC configuration.
 
     @param[in] config \link CacConfig \endlink
@@ -1522,6 +1536,14 @@ class DisplayInterface {
     @return \link DisplayError \endlink
   */
   virtual DisplayError PerformCacConfig(CacConfig config, bool enable) = 0;
+
+  /*! @brief Method to handle Dynamic CAC coefficients.
+
+    @param[in] config \link DynamicCacV2Config \endlink
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetDynamicCacConfig(DynamicCacV2Config config, bool enable) = 0;
 
   /*! @brief Method to enable/disable panel OPR info.
 
@@ -1776,6 +1798,20 @@ class DisplayInterface {
    @return \link DisplayError \endlink
   */
   virtual DisplayError SetQrtcFeatureConfig(int32_t type, void *data) = 0;
+
+  /*! @brief Method to set and cache the rgb histogram roi
+   @param[in] data : RGB Histogram data (ObserverConfig)
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError UpdateRgbHistogramRoi(const void *data) = 0;
+
+  /*! @brief Method to force disable color features (e.g., LTM).
+    This is typically used when a virtual display is retained for future reuse.
+
+    @return \link kErrorNotSupported \endlink by default.
+  */
+  virtual DisplayError TurnOffColorFeature() { return kErrorNotSupported; }
 
  protected:
   virtual ~DisplayInterface() { }

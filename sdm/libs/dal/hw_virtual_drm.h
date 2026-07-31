@@ -43,7 +43,12 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace sdm {
 
-class HWVirtualDRM : public HWDeviceDRM {
+struct DeferredPPParams {
+  DRMPPFeatureInfo kernel_params = {};
+  bool crtc_feature = true;
+};
+
+class HWVirtualDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
  public:
   HWVirtualDRM(int32_t display_id, BufferAllocator *buffer_allocator,
                HWInfoInterface *hw_info_intf);
@@ -76,9 +81,20 @@ class HWVirtualDRM : public HWDeviceDRM {
   virtual DisplayError SetHdrCapabilities(const std::vector<Hdr> &hdr_types,
                                           float max_avg_luminance, float min_luminance);
 
+  // LTM is enabled when virtual PQ is active. A dummy FeaturePropIntf is provided to allow init.
+  virtual PanelFeaturePropertyIntf *GetPanelFeaturePropertyIntf() { return this; }
+  virtual int GetPanelFeature(PanelFeaturePropertyInfo *feature_info) { return 0; }
+  virtual int SetPanelFeature(const PanelFeaturePropertyInfo &feature_info) { return 0; }
+
+  // Implementations required for DPPS.
+  virtual DisplayError GetDppsFeatureInfo(void *payload, size_t size);
+  virtual DisplayError SetDppsFeature(void *payload, size_t size);
+  virtual DisplayError GetPanelBrightnessBasePath(std::string *base_path) const;
+
   std::vector<Hdr> set_hdr_types_;
   float set_max_lum_ = -1.0;
   float set_min_lum_ = -1.0;
+  bool has_dspp_ = false;
 
  private:
   void ConfigureWbConnectorFbId(uint32_t fb_id, vector<uint32_t> lsr_fb_ids);
@@ -96,6 +112,12 @@ class HWVirtualDRM : public HWDeviceDRM {
   DisplayError InvertMatrix(float mat[REPROJ_MATRIX_ROWS][REPROJ_MATRIX_COLS],
                             float invert_mat[REPROJ_MATRIX_ROWS][REPROJ_MATRIX_COLS]);
   DisplayError ConfigurePoseBuffer(std::shared_ptr<LayerBuffer> pose_buffer);
+  bool HasColorFeatureSupport();
+  DisplayError SetPPFeature(PPFeatureInfo *feature);
+  DisplayError ReplayDeferredPPFeatures();
+  DisplayError PrepareCommitResources(HWLayersInfo *hw_layers_info, uint32_t *output_fb_id,
+                                      vector<uint32_t> *lsr_out_fb_ids);
+
 #ifdef FEATURE_DNSC_BLUR
   struct sde_drm_dnsc_blur_cfg dnsc_cfg_ = {};
 #endif
@@ -109,6 +131,7 @@ class HWVirtualDRM : public HWDeviceDRM {
   uint64_t previous_pose_handle_ = 0;
   std::shared_ptr<FrameBufferObject> pose_fb_obj_ = nullptr;
   VirtualDisplayType virtual_disp_type_ = VirtualDisplayType::DPU;
+  std::vector<DeferredPPParams> deferred_pp_features_ = {};
 };
 
 }  // namespace sdm

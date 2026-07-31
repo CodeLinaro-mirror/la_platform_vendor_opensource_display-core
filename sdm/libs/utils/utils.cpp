@@ -302,17 +302,26 @@ const char* GetSocName() {
       return kShikraSocName;
     case kHamoaSocId:
       return kHamoaSocName;
+    case kSeraphSocId1:
+    case kSeraphSocId2:
+      return kSeraphSocName;
     default:
       return "";
   }
 }
 
 bool IsXRVariant() {
-  if (!strcmp(GetSocName(), kAnorakSocName) || !strcmp(GetSocName(), kNiobeSocName)) {
-    return true;
-  }
+  static bool is_xr_variant =
+      !strcmp(GetSocName(), kAnorakSocName) || !strcmp(GetSocName(), kNiobeSocName);
+  return is_xr_variant;
+}
 
-  return false;
+bool IsGpuLsrVariant() {
+  // GPU LSR is supported on seraph SoC (IDs 736, 737).
+  // Other targets sharing this codebase will return false here,
+  // preventing GPU LSR from being enabled on non-seraph hardware.
+  const char *soc = GetSocName();
+  return (soc != nullptr) && !strcmp(soc, kSeraphSocName);
 }
 
 // TODO(user): Use FP16 library instead for conversions

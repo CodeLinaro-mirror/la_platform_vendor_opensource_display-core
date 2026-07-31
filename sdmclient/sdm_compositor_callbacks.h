@@ -85,6 +85,7 @@ class SDMCompositorCallbacks {
   int NextUevent(char *buffer, int buffer_length);
 
   nsecs_t SystemTime(int clock);
+  DisplayError SendFeatenablerCommand(FeatenablerCommand cmd);
 
  private:
   // non-owning reference - must always be reset to null on/before client deinit
@@ -97,6 +98,7 @@ class SDMCompositorCallbacks {
   // Buffer ownership tracking: buffer_handle -> owning_callback
   std::unordered_map<void *, SDMSideBandCompositorCbIntf *> cwb_buffer_owners_;
   std::mutex cwb_buffer_lock_;
+  std::unordered_map<uint32_t, bool> log_once_ = {};
 };
 
 }  // namespace sdm

@@ -135,8 +135,10 @@ public:
  virtual DisplayError RetrieveDemuraTnFiles();
  virtual DisplayError UpdateTransferTime(uint32_t transfer_time);
  virtual DisplayError SetDemuraState(int state, int demura_idx);
+ virtual DisplayError SetSPRState(int state);
  virtual DisplayError SetDemuraConfig(int demura_idx);
  virtual DisplayError PerformCacConfig(CacConfig config, bool enable);
+ virtual DisplayError PerformDynamicCac(DynamicCacV2Config config, bool enable);
  virtual DisplayError IsCacV2Supported(bool *supported);
  virtual DisplayError SetSsrcMode(const std::string &mode);
  virtual DisplayError EnableCopr(bool en);
@@ -156,7 +158,7 @@ public:
  virtual DisplayError SetPoseConfig(void *buffer) override;
  virtual DisplayError SetRgbHistObserverConfig(bool state, void *data);
 
-private:
+protected:
  SDMDisplayBuiltIn(CoreInterface *core_intf, BufferAllocator *buffer_allocator,
                    SDMCompositorCallbacks *callbacks, SDMDisplayEventHandler *event_handler,
                    Display id, int32_t sdm_id);

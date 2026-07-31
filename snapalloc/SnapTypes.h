@@ -1,4 +1,4 @@
-// Copyright (c) Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #ifndef __SNAP_TYPES_H__
@@ -49,6 +49,7 @@
 #include <ROIRectMetadata.h>
 #include <CWBMetadata.h>
 #include <CustomTuningMetadata.h>
+#include <HeapType.h>
 #include <unordered_map>
 
 using vendor::qti::hardware::display::snapalloc::AllocationResult;

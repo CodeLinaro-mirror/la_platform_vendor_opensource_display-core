@@ -169,7 +169,7 @@ DisplayError CompManager::RegisterDisplay(DisplayId display_id, SDMDisplayType t
   if (!display_comp_ctx->is_primary_panel) {
     max_sde_secondary_fetch_layers_ = UINT32(Debug::GetSecondaryMaxFetchLayers());
     if (display_comp_ctx->display_type == kBuiltIn) {
-      max_sde_builtin_fetch_layers_ = max_sde_secondary_fetch_layers_;
+      max_sde_builtin_fetch_layers_ = UINT32(Debug::GetBuiltinMaxFetchLayers());
     }
   }
 
@@ -336,7 +336,7 @@ void CompManager::PrepareStrategyConstraints(Handle comp_handle,
     constraints->safe_mode = true;
   }
 
-  if (secure_event_ == kTUITransitionStart) {
+  if (secure_event_ == kTUITransitionStart || secure_event_ == kTUITransitionEnd) {
     constraints->max_layers = 1;
   }
 
@@ -861,9 +861,10 @@ void CompManager::HandleSecureEvent(Handle display_ctx, SecureEvent secure_event
     resource_intf_->Perform(ResourceInterface::kCmdResetLUT,
                             display_comp_ctx->display_resource_ctx);
     resource_intf_->HandleTUITransition(display_comp_ctx->display_resource_ctx, false);
-    safe_mode_ = false;
   }
-  safe_mode_ = (secure_event == kTUITransitionStart) ? true : safe_mode_;
+  safe_mode_ = (secure_event == kTUITransitionStart || secure_event == kTUITransitionEnd)
+                   ? true
+                   : safe_mode_;
   secure_event_ = secure_event;
 }
 
@@ -875,6 +876,8 @@ void CompManager::PostHandleSecureEvent(Handle display_ctx, SecureEvent secure_e
 
   if (secure_event == kSecureDisplayEnd) {
     resource_intf_->HandleTUITransition(display_comp_ctx->display_resource_ctx, false);
+    secure_event_ = kSecureEventMax;
+  } else if (secure_event_ == kTUITransitionEnd) {
     secure_event_ = kSecureEventMax;
   }
 }
@@ -977,6 +980,15 @@ DisplayError CompManager::GetDemuraFetchResources(Handle display_ctx,
   DisplayCompositionContext *display_comp_ctx =
       reinterpret_cast<DisplayCompositionContext *>(display_ctx);
   return resource_intf_->GetDemuraFetchResources(display_comp_ctx->display_resource_ctx, frl);
+}
+
+DisplayError CompManager::CanSupportQrtcWithSubsampling(Handle display_ctx,
+                                                        QrtcSubsamplingSupport *qrtc_support) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+  DisplayCompositionContext *display_comp_ctx =
+      reinterpret_cast<DisplayCompositionContext *>(display_ctx);
+  return resource_intf_->CanSupportQrtcWithSubsampling(display_comp_ctx->display_resource_ctx,
+                                                       qrtc_support);
 }
 
 DisplayError CompManager::SetMaxSDEClk(Handle display_ctx, uint32_t clk) {
@@ -1118,23 +1130,23 @@ DisplayError CompManager::CaptureCwb(Handle display_ctx, const LayerBuffer &outp
   return error;
 }
 
-DisplayError CompManager::ReserveWBForDisplay(Handle display_ctx, int32_t *wb_id) {
+DisplayError CompManager::ReserveWBForDisplay(Handle display_ctx, WbMapInfo *wb_info) {
   std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
 
   DisplayCompositionContext *display_comp_ctx =
       reinterpret_cast<DisplayCompositionContext *>(display_ctx);
   DisplayError error = kErrorNone;
-  error = cwb_mgr_intf_->ReserveWBForDisplay(display_comp_ctx->display_id.GetDisplayId(), wb_id);
+  error = cwb_mgr_intf_->ReserveWBForDisplay(display_comp_ctx->display_id.GetDisplayId(), wb_info);
   return error;
 }
 
-void CompManager::ReleaseWBFromDisplay(Handle display_ctx, int32_t wb_id) {
+void CompManager::ReleaseWBFromDisplay(Handle display_ctx) {
   std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
 
   DisplayCompositionContext *display_comp_ctx =
       reinterpret_cast<DisplayCompositionContext *>(display_ctx);
 
-  cwb_mgr_intf_->ReleaseWBFromDisplay(display_comp_ctx->display_id.GetDisplayId(), wb_id);
+  cwb_mgr_intf_->ReleaseWBFromDisplay(display_comp_ctx->display_id.GetDisplayId());
 }
 
 void CompManager::NotifyCwbDone(int32_t display_id, int32_t status, const LayerBuffer &buffer) {
@@ -1295,6 +1307,29 @@ DisplayError CompManager::CanTakeDPUScreenshot(Handle display_ctx) {
       reinterpret_cast<DisplayCompositionContext *>(display_ctx);
 
   return resource_intf_->CanTakeDPUScreenshot(display_comp_ctx->display_id.GetDisplayId());
+}
+
+DisplayError CompManager::GetQrtcFetchResources(Handle display_ctx,
+                                                std::vector<FetchResourceList> *frl) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+  DisplayCompositionContext *display_comp_ctx =
+      reinterpret_cast<DisplayCompositionContext *>(display_ctx);
+  return resource_intf_->GetQrtcFetchResources(display_comp_ctx->display_resource_ctx, frl);
+}
+
+DisplayError CompManager::ConfigureDynamicCacConfig(Handle display_ctx,
+                                                    DispLayerStack *disp_layer_stack) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+  DTRACE_SCOPED();
+
+  DisplayError error = kErrorNone;
+  if (resource_intf_) {
+    DisplayCompositionContext *display_comp_ctx =
+        reinterpret_cast<DisplayCompositionContext *>(display_ctx);
+    error = resource_intf_->ConfigureDynamicCaCConfig(display_comp_ctx->display_resource_ctx,
+                                                      disp_layer_stack);
+  }
+  return error;
 }
 
 }  // namespace sdm
