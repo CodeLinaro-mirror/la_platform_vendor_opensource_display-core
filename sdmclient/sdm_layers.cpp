@@ -143,9 +143,11 @@ SDMLayer::~SDMLayer() {
     // Delete luts if they are still valid
     if (layer_->lut_3d.lutEntries != nullptr) {
       delete[] layer_->lut_3d.lutEntries;
+      layer_->lut_3d.lutEntries = nullptr;
     }
     if (layer_->lut_3d.gridEntries != nullptr) {
       delete[] layer_->lut_3d.gridEntries;
+      layer_->lut_3d.gridEntries = nullptr;
     }
 
     delete layer_;
@@ -946,19 +948,25 @@ void SDMLayer::ValidateAndSetCSC(const SnapHandle *handle) {
         layer_buffer->cRI = new_metadata.cRI;
         layer_->update_mask.set(kMetadataUpdate);
       }
-      if (new_metadata.dynamicMetadata.dynamicMetaDataValid &&
-          ((new_metadata.dynamicMetadata.dynamicMetaDataLen !=
-            layer_buffer->dynamicMetadata.dynamicMetaDataLen) ||
-           !SameConfig(layer_buffer->dynamicMetadata.dynamicMetaDataPayload,
-                       new_metadata.dynamicMetadata.dynamicMetaDataPayload,
-                       new_metadata.dynamicMetadata.dynamicMetaDataLen))) {
-        layer_buffer->dynamicMetadata.dynamicMetaDataValid = true;
-        layer_buffer->dynamicMetadata.dynamicMetaDataLen =
-            new_metadata.dynamicMetadata.dynamicMetaDataLen;
-        std::memcpy(layer_buffer->dynamicMetadata.dynamicMetaDataPayload,
-                    new_metadata.dynamicMetadata.dynamicMetaDataPayload,
-                    new_metadata.dynamicMetadata.dynamicMetaDataLen);
-        layer_->update_mask.set(kContentMetadata);
+      if (new_metadata.dynamicMetadata.dynamicMetaDataValid) {
+        if (new_metadata.dynamicMetadata.dynamicMetaDataLen > QTI_HDR_DYNAMIC_META_DATA_SZ) {
+          DLOGE("Dynamic metadata length %u exceeds maximum allowed size %u, "
+                "dropping metadata to prevent buffer overflow",
+                new_metadata.dynamicMetadata.dynamicMetaDataLen,
+                QTI_HDR_DYNAMIC_META_DATA_SZ);
+        } else if ((new_metadata.dynamicMetadata.dynamicMetaDataLen !=
+                    layer_buffer->dynamicMetadata.dynamicMetaDataLen) ||
+                   !SameConfig(layer_buffer->dynamicMetadata.dynamicMetaDataPayload,
+                               new_metadata.dynamicMetadata.dynamicMetaDataPayload,
+                               new_metadata.dynamicMetadata.dynamicMetaDataLen)) {
+          layer_buffer->dynamicMetadata.dynamicMetaDataValid = true;
+          layer_buffer->dynamicMetadata.dynamicMetaDataLen =
+              new_metadata.dynamicMetadata.dynamicMetaDataLen;
+          std::memcpy(layer_buffer->dynamicMetadata.dynamicMetaDataPayload,
+                      new_metadata.dynamicMetadata.dynamicMetaDataPayload,
+                      new_metadata.dynamicMetadata.dynamicMetaDataLen);
+          layer_->update_mask.set(kContentMetadata);
+        }
       }
     } else {
       dataspace_supported_ = false;
