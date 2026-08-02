@@ -993,10 +993,9 @@ DisplayError DisplayBuiltIn::colorSamplingOff() {
 }
 
 DisplayError DisplayBuiltIn::SetupSPR() {
-  int spr_prop_value = 0;
   int spr_bypass_prop_value = 0;
   int spr_disable_value = 0;
-  Debug::GetProperty(ENABLE_SPR, &spr_prop_value);
+  Debug::GetProperty(ENABLE_SPR, &spr_prop_value_);
 
   if (IsPrimaryDisplay()) {
     Debug::Get()->GetProperty(DISABLE_SPR_PRIMARY, &spr_disable_value);
@@ -1006,7 +1005,7 @@ DisplayError DisplayBuiltIn::SetupSPR() {
     Debug::GetProperty(ENABLE_SPR_BYPASS_SECONDARY, &spr_bypass_prop_value);
   }
 
-  if (spr_prop_value && !spr_disable_value) {
+  if (spr_prop_value_ && !spr_disable_value) {
     SPRInputConfig spr_cfg;
     spr_cfg.panel_name = std::string(client_ctx_.hw_panel_info.panel_name);
     spr_cfg.spr_bypassed = (spr_bypass_prop_value) ? true : false;
@@ -6941,10 +6940,8 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
   if (qrtc_force_nonsecure_buffer)
     qrtc_config_.is_buffer_secure = false;
 
-  int spr_prop_value = 0;
   int spr_bypass_prop_value = 0;
   int spr_disable_value = 0;
-  Debug::GetProperty(ENABLE_SPR, &spr_prop_value);
 
   if (IsPrimaryDisplay()) {
     Debug::Get()->GetProperty(DISABLE_SPR_PRIMARY, &spr_disable_value);
@@ -6954,7 +6951,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
     Debug::GetProperty(ENABLE_SPR_BYPASS_SECONDARY, &spr_bypass_prop_value);
   }
 
-  if (spr_prop_value && !spr_disable_value && !spr_bypass_prop_value) {
+  if (spr_prop_value_ && !spr_disable_value && !spr_bypass_prop_value) {
     qrtc_config_.is_pentile_format = true;
   }
 
@@ -7022,7 +7019,7 @@ DisplayError DisplayBuiltIn::SetQrtcState(int state) {
     return kErrorUndefined;
   }
 
-  if (state && !isSPREnabled()) {
+  if (state && spr_prop_value_ && !isSPREnabled()) {
     DLOGE("SPR is not Enabled!!!!!!");
     return kErrorUndefined;
   }
@@ -7282,9 +7279,7 @@ bool DisplayBuiltIn::isSPREnabled() {
     return kErrorUndefined;
   }
 
-  int value = 0;
-  Debug::Get()->GetProperty(ENABLE_SPR, &value);
-  if (value == 0) {
+  if (spr_prop_value_ == 0) {
     return false;
   }
 
