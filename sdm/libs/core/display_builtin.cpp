@@ -7320,9 +7320,13 @@ DisplayError DisplayBuiltIn::GetDisplayViewMode(SDMDisplayViewMode *view_mode) {
   if (client_ctx_.hw_panel_info.is_monocular_display) {
     *view_mode = kViewModeMonocular;
   } else {
-    *view_mode = kViewModeStereo;
+    *view_mode = kViewModeBinocular;
   }
   return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetDisplayPoseLatchOffset(int64_t time_ns) {
+  return hw_intf_->SetDisplayPoseLatchOffset(time_ns);
 }
 
 }  // namespace sdm

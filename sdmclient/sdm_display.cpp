@@ -4795,4 +4795,8 @@ DisplayError SDMDisplay::GetDisplayViewMode(SDMDisplayViewMode *view_mode) {
   return display_intf_->GetDisplayViewMode(view_mode);
 }
 
+DisplayError SDMDisplay::SetDisplayPoseLatchOffset(int64_t time_ns) {
+  return display_intf_->SetDisplayPoseLatchOffset(time_ns);
+}
+
 }  // namespace sdm

@@ -239,6 +239,7 @@ class HWInterface {
   virtual DisplayError IsLedDriverUp(bool *is_led_driver_up) = 0;
   virtual DisplayError SetHdrCapabilities(const std::vector<Hdr> &hdr_types,
                                           float max_avg_luminance, float min_luminance) = 0;
+  virtual DisplayError SetDisplayPoseLatchOffset(int64_t time_ns) = 0;
 
  protected:
   virtual ~HWInterface() { }
