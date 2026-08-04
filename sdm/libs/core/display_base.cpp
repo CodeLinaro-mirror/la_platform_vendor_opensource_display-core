@@ -2175,6 +2175,28 @@ DisplayError DisplayBase::PostCommit() {
 
   if (clearstack_.load()) {
     uint8_t clearindex = (disp_stack_index_ + 1) % kDispStackCount;
+    // Defer ~FrameBufferObject for GPU reproj batch commits to avoid RemoveFbId()
+    // while the DRM driver still holds active SMMU mappings from the previous commit.
+    // Guard on the CURRENT frame's gpu_reproj_batch_size — the old stack's is 0.
+    bool is_gpu_reproj_batch = false;
+    for (auto &[core_id, hw_info] : disp_layer_stack_->info) {
+      if (hw_info.gpu_reproj_batch_size > 0) {
+        is_gpu_reproj_batch = true;
+        break;
+      }
+    }
+    if (is_gpu_reproj_batch) {
+      prev_pending_buffer_maps_.clear();
+      // Rotate: current pending → prev_pending, collect new pending from old stack.
+      prev_pending_buffer_maps_ = std::move(pending_buffer_maps_);
+      for (auto &[core_id, hw_layers_info] : disp_layer_stacks_[clearindex].info) {
+        for (auto &layer : hw_layers_info.hw_layers) {
+          if (layer.buffer_map) {
+            pending_buffer_maps_.push_back(layer.buffer_map);
+          }
+        }
+      }
+    }
     disp_layer_stacks_[clearindex].Clear();
     clearstack_.store(false);
   }
