@@ -1764,7 +1764,10 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
     // map handle ids to luts so client can retrieve it through getLuts call
     // used in screenshot layer during rotation, suspend resume, etc.
     if (layer->lut_3d.lutEntries != nullptr) {
-      CopyLut3D(layer->lut_3d, &buffer_luts_[layer->input_buffer.handle_id]);
+      // since we're storing a copy of luts, we only need to copy again when there is an update
+      if (layer->lut_3d.validLutEntries) {
+        CopyLut3D(layer->lut_3d, &buffer_luts_[layer->input_buffer.handle_id]);
+      }
     } else if (buffer_luts_.find(layer->input_buffer.handle_id) != buffer_luts_.end()) {
       if (buffer_luts_[layer->input_buffer.handle_id].lutEntries != nullptr) {
         delete[] buffer_luts_[layer->input_buffer.handle_id].lutEntries;
