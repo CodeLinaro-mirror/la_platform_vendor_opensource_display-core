@@ -338,7 +338,7 @@ DisplayError SDMDisplayBuilder::DestroyVirtualDisplay(Display display) {
       DLOGI("Retaining virtual display id:%" PRIu64 " for reuse", display);
       auto sdm_display = cb_->GetDisplayFromClientId(display);
       if (sdm_display) {
-        auto status = sdm_display->TurnOffColorFeature();
+        auto status = sdm_display->ProcessColorFeatureOps(kColorFeatureForceOff, nullptr);
         if (status != kErrorNone) {
           DLOGW("Failed to turn off color feature, display:%" PRIu64 " status=%d", display, status);
         }
