@@ -2012,7 +2012,7 @@ void DisplayBuiltIn::PollLedDriver() {
       break;
     }
     if (i == max_iteration) {
-      DLOGE("Exceeding Max Iteration. Not able to program the calibration node");
+      DLOGW("Exceeding Max Iteration. Not able to program the calibration node");
       return;
     }
     usleep(10 * 1000);
