@@ -7255,7 +7255,7 @@ DisplayError DisplayBuiltIn::SetSPRState(int state) {
   }
 
   spr_enable_ = (bool)state;
-  DLOGI("SPR status %d\n", spr_enable_);
+  DLOGI("Set SPR state to %d\n", spr_enable_);
 
   DisablePartialUpdateOneFrameInternal();
 
