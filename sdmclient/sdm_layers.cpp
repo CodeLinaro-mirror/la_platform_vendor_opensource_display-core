@@ -100,6 +100,23 @@ bool IsBT2020(const QtiColorPrimaries &color_primary) {
   }
 }
 
+bool IsLutUpdate(const Lut3d &curr_lut, const Lut3d &prev_lut) {
+  if (curr_lut.lutEntries == nullptr) {
+    return prev_lut.lutEntries != nullptr;
+  }
+
+  if (prev_lut.lutEntries == nullptr) {
+    return curr_lut.lutEntries != nullptr;
+  }
+
+  uint32_t size = curr_lut.dim * curr_lut.dim * curr_lut.dim;
+  if (curr_lut.dim != prev_lut.dim) {
+    return true;
+  }
+
+  return !SameConfig(curr_lut.lutEntries, prev_lut.lutEntries, size * sizeof(Color10Bit));
+}
+
 void CopyLut3D(const Lut3d &in, Lut3d *out) {
   out->validLutEntries = in.validLutEntries;
   out->validGridEntries = in.validGridEntries;
@@ -1301,14 +1318,7 @@ DisplayError SDMLayer::SetLayerLuts(Lut3d *luts) {
 
   luts_set_ = true;
 
-  // Check for update in lut values
-  uint32_t size = luts->dim * luts->dim * luts->dim;
-  bool lut_uninitialized = (layer_->lut_3d.lutEntries == nullptr);
-  bool lut_changed = !lut_uninitialized && ((layer_->lut_3d.dim != luts->dim) ||
-                                            !SameConfig(layer_->lut_3d.lutEntries, luts->lutEntries,
-                                                        size * sizeof(Color10Bit)));
-
-  if (lut_uninitialized || lut_changed) {
+  if (IsLutUpdate(*luts, layer_->lut_3d)) {
     layer_->update_mask.set(kContentMetadata);
     CopyLut3D(*luts, &layer_->lut_3d);
   }

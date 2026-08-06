@@ -660,7 +660,8 @@ public:
   std::map<LayerId, SDMLayerRequest> layer_requests_;
   // mapping 3d luts to layer id and handle id to retrieve info and pass to client
   std::map<LayerId, Lut3d *> display_luts_;
-  std::map<uint64_t, Lut3d> buffer_luts_;
+  std::map<LayerId, Lut3d> layer_luts_;
+  std::map<uint64_t, LayerId> layer_buffer_map_;
   bool flush_on_error_ = false;
   bool flush_ = false;
   SDMPowerMode current_power_mode_ = SDMPowerMode::POWER_MODE_OFF;
@@ -764,6 +765,9 @@ public:
   DisplayError GetParentConfig(Config *config);
   bool NotifyIdleNow();
   bool NeedsSDMExtendedResolution();
+  void PopulateLayerLuts(Layer *layer);
+  void ClearLayerLuts();
+  void ClearLayerBufferMap(const LayerId &layer_id);
 
   DisplayClass display_class_;
   uint32_t geometry_changes_on_doze_suspend_ = GeometryChanges::kNone;
