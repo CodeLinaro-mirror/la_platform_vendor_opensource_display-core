@@ -662,6 +662,7 @@ private:
   bool IsPluggableDisplayConnected();
   bool IsVirtualDisplayConnected();
   void HandlePendingRefresh();
+  bool IsNullPrimaryDisplay(uint64_t display);
   void NotifyClientStatus(bool connected);
   DisplayError TUITransitionPrepare(int disp_id);
   DisplayError TUITransitionStart(int disp_id);
