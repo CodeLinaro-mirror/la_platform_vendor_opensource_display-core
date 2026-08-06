@@ -984,18 +984,22 @@ DisplayError ConcurrencyMgr::SetClientTarget(uint64_t display, const SnapHandle 
                          1.0f /* hdr_sdr_ratio */);
 }
 
+bool ConcurrencyMgr::IsNullPrimaryDisplay(uint64_t display) {
+  return SDMDisplayBuilder::IsNullDisplayActive() && (display == SDM_DISPLAY_PRIMARY);
+}
+
 DisplayError ConcurrencyMgr::SetClientTarget(uint64_t display, const SnapHandle *target,
                                              shared_ptr<Fence> acquire_fence, int32_t dataspace,
                                              const SDMRegion &damage, uint32_t version,
                                              float hdr_sdr_ratio) {
   DTRACE_SCOPED();
 
-  if (SDMDisplayBuilder::IsNullDisplayActive()) {
-    return kErrorNone;
-  }
-
   if (display >= kNumDisplays) {
     return kErrorParameters;
+  }
+
+  if (IsNullPrimaryDisplay(display)) {
+    return kErrorNone;
   }
 
   SCOPE_LOCK(locker_[display]);
@@ -1077,9 +1081,14 @@ DisplayError ConcurrencyMgr::SetCursorPosition(Display display, LayerId layer,
 
 DisplayError ConcurrencyMgr::SetDisplayElapseTime(Display display,
                                                   uint64_t time) {
-  if (SDMDisplayBuilder::IsNullDisplayActive()) {
+  if (display >= kNumDisplays) {
+    return kErrorParameters;
+  }
+
+  if (IsNullPrimaryDisplay(display)) {
     return kErrorNone;
   }
+
   return CallDisplayFunction(display, &SDMDisplay::SetDisplayElapseTime, time);
 }
 
