@@ -575,19 +575,6 @@ DisplayError DisplayVirtualPQ::SetStcColorMode(const snapdragoncolor::ColorMode 
 
   current_color_mode_ = color_mode;
 
-  // Evaluate and update dynamic range and DPPS control
-  DynamicRangeType dynamic_range = kSdrType;
-  if (std::find(color_mode.hw_assets.begin(), color_mode.hw_assets.end(),
-                snapdragoncolor::kPbHdrBlob) != color_mode.hw_assets.end()) {
-    dynamic_range = kHdrType;
-  }
-  if ((color_mode.gamut == ColorPrimaries_BT2020 && color_mode.gamma == Transfer_SMPTE_ST2084) ||
-      (color_mode.gamut == ColorPrimaries_BT2020 && color_mode.gamma == Transfer_HLG)) {
-    dynamic_range = kHdrType;
-  }
-
-  comp_manager_->ControlDpps(dynamic_range != kHdrType);
-
   DLOGI("Set STC color mode on display %d-%d: gamut %d, gamma %d, intent %d", display_id_,
         display_type_, color_mode.gamut, color_mode.gamma, color_mode.intent);
 
@@ -604,12 +591,20 @@ DisplayError DisplayVirtualPQ::PostCommit() {
   return kErrorNone;
 }
 
-DisplayError DisplayVirtualPQ::TurnOffColorFeature() {
-  int display_type = display_type_;
+DisplayError DisplayVirtualPQ::ProcessColorFeatureOps(DisplayColorOps ops, void *payload) {
+  (void)payload;
 
-  DLOGV_IF(kTagDisplay, "Turn off ltm feature on display %d-%d", display_id_, display_type_);
-
-  dpps_info_.DppsNotifyOps(kDppsLtmForceOffEvent, &display_type, sizeof(display_type));
+  switch (ops) {
+    case kColorFeatureForceOff: {
+      int display_type = display_type_;
+      DLOGV_IF(kTagDisplay, "Turn off ltm feature on display %d-%d", display_id_, display_type_);
+      dpps_info_.DppsNotifyOps(kDppsLtmForceOffEvent, &display_type, sizeof(display_type));
+      break;
+    }
+    default:
+      DLOGE("Invalid input ops %d", ops);
+      return kErrorParameters;
+  }
   return kErrorNone;
 }
 

@@ -322,6 +322,16 @@ DisplayError DisplayBuiltIn::Init() {
   disable_fbt_for_cwb_fallback_ = (value == 1);
   DLOGI("disable_fbt_for_cwb_fallback_: %d", disable_fbt_for_cwb_fallback_);
 
+  // FBT for CWB fallback and UBWC lossy format FBT are mutually exclusive since
+  // WriteBack cannot write-out lossy format. If lossy format FBT is enabled,
+  // force disable FBT for CWB fallback.
+  value = 0;
+  Debug::Get()->GetProperty(ENABLE_UBWC_LOSSY_FORMAT_FBT, &value);
+  if (value == 1) {
+    disable_fbt_for_cwb_fallback_ = true;
+    DLOGI("Lossy format FBT enabled; disabling FBT for CWB fallback (unsupported with lossy)");
+  }
+
   value = 0;
   Debug::Get()->GetProperty(ENABLE_HFI_PATH, &value);
   hfi_path_supported_ = (value > 0);
@@ -484,24 +494,6 @@ DisplayError DisplayBuiltIn::Init() {
         panel_id_ = *panel_id;
         DLOGI("panel_id 0x%" PRIX64, panel_id_);
         SetupDemuraT0AndTn();
-      }
-    }
-
-    int qrtc_prop = 0, qrtc_enable = 0;
-    Debug::Get()->GetProperty(ENABLE_QRTC, &qrtc_prop);
-    int disable_qrtc_prop = 0;
-    if (IsPrimaryDisplay()) {
-      Debug::Get()->GetProperty(DISABLE_QRTC_PRIMARY, &disable_qrtc_prop);
-    } else {
-      Debug::Get()->GetProperty(DISABLE_QRTC_SECONDARY, &disable_qrtc_prop);
-    }
-    qrtc_enable = qrtc_prop && (!disable_qrtc_prop);
-    if (qrtc_enable) {
-      error = SetupQrtc();
-      if (error != kErrorNone) {
-        DLOGE("Failed to setup Qrtc on display %d-%d, Error %d", display_id_, display_type_, error);
-        comp_manager_->FreeQrtcFetchResources(display_id_);
-        error = kErrorNone;
       }
     }
   } else {
@@ -700,8 +692,10 @@ DisplayError DisplayBuiltIn::Deinit() {
   }
 
   if (qrtc_) {
+    qrtc_->Deinit();
     qrtc_.reset();
     qrtc_ = nullptr;
+    qrtc_setup_completed_ = false;
     ReleaseWBFromDisplay();
   }
   return DisplayBase::Deinit();
@@ -999,10 +993,9 @@ DisplayError DisplayBuiltIn::colorSamplingOff() {
 }
 
 DisplayError DisplayBuiltIn::SetupSPR() {
-  int spr_prop_value = 0;
   int spr_bypass_prop_value = 0;
   int spr_disable_value = 0;
-  Debug::GetProperty(ENABLE_SPR, &spr_prop_value);
+  Debug::GetProperty(ENABLE_SPR, &spr_prop_value_);
 
   if (IsPrimaryDisplay()) {
     Debug::Get()->GetProperty(DISABLE_SPR_PRIMARY, &spr_disable_value);
@@ -1012,7 +1005,7 @@ DisplayError DisplayBuiltIn::SetupSPR() {
     Debug::GetProperty(ENABLE_SPR_BYPASS_SECONDARY, &spr_bypass_prop_value);
   }
 
-  if (spr_prop_value && !spr_disable_value) {
+  if (spr_prop_value_ && !spr_disable_value) {
     SPRInputConfig spr_cfg;
     spr_cfg.panel_name = std::string(client_ctx_.hw_panel_info.panel_name);
     spr_cfg.spr_bypassed = (spr_bypass_prop_value) ? true : false;
@@ -2019,7 +2012,7 @@ void DisplayBuiltIn::PollLedDriver() {
       break;
     }
     if (i == max_iteration) {
-      DLOGE("Exceeding Max Iteration. Not able to program the calibration node");
+      DLOGW("Exceeding Max Iteration. Not able to program the calibration node");
       return;
     }
     usleep(10 * 1000);
@@ -3994,7 +3987,19 @@ void DisplayBuiltIn::HandleLSR_SSREvent(LSR_SSREventType lsr_ssr_event) {
     return;
   }
 
+  // During LSR-SSR end, set ssr_end_in_progress_ before PerformSubsystemRestart so that
+  // HandlePendingVSyncEnable defers vsync re-enable. The CRTC is not yet active enough
+  // for drmWaitVBlank immediately after NullCommit. ConcurrencyMgr will explicitly
+  // re-enable vsync after PerformSubsystemRestart completes.
+  if (event == kLsr_SsrEnd) {
+    ssr_end_in_progress_ = true;
+  }
+
   event_handler_->HandleEvent(event);
+
+  if (event == kLsr_SsrEnd) {
+    ssr_end_in_progress_ = false;
+  }
 
   {
     ClientLock lock(disp_mutex_);
@@ -4023,7 +4028,19 @@ void DisplayBuiltIn::HandleSSREvent(SSREventType ssr_event) {
     return;
   }
 
+  // During SSR end, set ssr_end_in_progress_ before PerformSubsystemRestart so that
+  // HandlePendingVSyncEnable defers vsync re-enable. The CRTC is not yet active enough
+  // for drmWaitVBlank immediately after NullCommit. ConcurrencyMgr will explicitly
+  // re-enable vsync after PerformSubsystemRestart completes.
+  if (event == kSsrEnd) {
+    ssr_end_in_progress_ = true;
+  }
+
   event_handler_->HandleEvent(event);
+
+  if (event == kSsrEnd) {
+    ssr_end_in_progress_ = false;
+  }
 
   {
     ClientLock lock(disp_mutex_);
@@ -4345,7 +4362,10 @@ void DisplayBuiltIn::InitCWBBuffer() {
 
 void DisplayBuiltIn::DeinitCWBBuffer() {
   if (!disable_fbt_for_cwb_fallback_) {
-    CloseFd(&cwb_layer_.input_buffer.planes[0].fd);
+    // Don't close cwb_layer_ buffer FD here, as it's managed externally (by the caller
+    // who provided the buffer).
+    // Premature closure causes CreateFbId failures when the cache is cleared and the
+    // closed FD is reused in MapOutputBufferToFbId.
     cwb_layer_ = {};
     return;
   }
@@ -6613,6 +6633,26 @@ DisplayError DisplayBuiltIn::SetQrtcFeatureConfig(int32_t type, void *data) {
   DisplayError ret = kErrorNone;
   int val = 0;
 
+  if (!qrtc_setup_completed_) {
+    int qrtc_prop = 0, qrtc_enable = 0;
+    Debug::Get()->GetProperty(ENABLE_QRTC, &qrtc_prop);
+    int disable_qrtc_prop = 0;
+    if (IsPrimaryDisplay()) {
+      Debug::Get()->GetProperty(DISABLE_QRTC_PRIMARY, &disable_qrtc_prop);
+    } else {
+      Debug::Get()->GetProperty(DISABLE_QRTC_SECONDARY, &disable_qrtc_prop);
+    }
+    qrtc_enable = qrtc_prop && (!disable_qrtc_prop);
+    if (qrtc_enable) {
+      DisplayError error = SetupQrtc();
+      if (error != kErrorNone) {
+        DLOGE("Failed to setup Qrtc on display %d-%d, Error %d", display_id_, display_type_, error);
+        comp_manager_->FreeQrtcFetchResources(display_id_);
+      }
+    }
+    qrtc_setup_completed_ = true;
+  }
+
   if (!data || !qrtc_) {
     DLOGE("data %pK qrtc_ %pK", data, qrtc_.get());
     return kErrorUndefined;
@@ -6799,8 +6839,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
       *it = '_';
     }
   }
-  std::string observer = "qrtc";
-  ControlPartialUpdateLocked(false, observer);
+
   error = CreateDisplayEventProxyIntf(client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
   if (error != kErrorNone) {
     DLOGW("Failed to initialize event proxy info");
@@ -6901,10 +6940,8 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
   if (qrtc_force_nonsecure_buffer)
     qrtc_config_.is_buffer_secure = false;
 
-  int spr_prop_value = 0;
   int spr_bypass_prop_value = 0;
   int spr_disable_value = 0;
-  Debug::GetProperty(ENABLE_SPR, &spr_prop_value);
 
   if (IsPrimaryDisplay()) {
     Debug::Get()->GetProperty(DISABLE_SPR_PRIMARY, &spr_disable_value);
@@ -6914,7 +6951,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
     Debug::GetProperty(ENABLE_SPR_BYPASS_SECONDARY, &spr_bypass_prop_value);
   }
 
-  if (spr_prop_value && !spr_disable_value && !spr_bypass_prop_value) {
+  if (spr_prop_value_ && !spr_disable_value && !spr_bypass_prop_value) {
     qrtc_config_.is_pentile_format = true;
   }
 
@@ -6930,6 +6967,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
 
   if (SetupQrtcConfig(qrtc_config_) != kErrorNone) {
     DLOGE("Unable to setup Qrtc config on Display %d-%d", display_id_, display_type_);
+    qrtc_->Deinit();
     qrtc_.reset();
     qrtc_ = nullptr;
     ReleaseWBFromDisplay();
@@ -6938,6 +6976,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
 
   if (SetupQrtcLayer() != kErrorNone) {
     DLOGE("Unable to setup Qrtc layer on Display %d-%d", display_id_, display_type_);
+    qrtc_->Deinit();
     qrtc_.reset();
     qrtc_ = nullptr;
     ReleaseWBFromDisplay();
@@ -6980,7 +7019,7 @@ DisplayError DisplayBuiltIn::SetQrtcState(int state) {
     return kErrorUndefined;
   }
 
-  if (state && !isSPREnabled()) {
+  if (state && spr_prop_value_ && !isSPREnabled()) {
     DLOGE("SPR is not Enabled!!!!!!");
     return kErrorUndefined;
   }
@@ -7216,7 +7255,7 @@ DisplayError DisplayBuiltIn::SetSPRState(int state) {
   }
 
   spr_enable_ = (bool)state;
-  DLOGI("SPR status %d\n", spr_enable_);
+  DLOGI("Set SPR state to %d\n", spr_enable_);
 
   DisablePartialUpdateOneFrameInternal();
 
@@ -7240,9 +7279,7 @@ bool DisplayBuiltIn::isSPREnabled() {
     return kErrorUndefined;
   }
 
-  int value = 0;
-  Debug::Get()->GetProperty(ENABLE_SPR, &value);
-  if (value == 0) {
+  if (spr_prop_value_ == 0) {
     return false;
   }
 
@@ -7261,6 +7298,20 @@ bool DisplayBuiltIn::isSPREnabled() {
   }
 
   return enable ? true : false;
+}
+
+DisplayError DisplayBuiltIn::GetDisplayViewMode(SDMDisplayViewMode *view_mode) {
+  if (!client_ctx_.hw_panel_info.is_lsr_display) {
+    *view_mode = kViewModeNone;
+    return kErrorNone;
+  }
+
+  if (client_ctx_.hw_panel_info.is_monocular_display) {
+    *view_mode = kViewModeMonocular;
+  } else {
+    *view_mode = kViewModeStereo;
+  }
+  return kErrorNone;
 }
 
 }  // namespace sdm

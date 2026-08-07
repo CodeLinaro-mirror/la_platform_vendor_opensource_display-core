@@ -1029,6 +1029,38 @@ Error SnapMetadataManager::SMPTE2094_10Helper(SnapMetadata *metadata, SnapHandle
   return Error::BAD_VALUE;
 }
 
+Error SnapMetadataManager::SMPTE2094_50Helper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                                              void *in_set, void *out_get,
+                                              BufferDescriptor *buf_des) {
+  if (out_get != nullptr) {
+    vendor_qti_hardware_display_common_SMPTE2094_50Metadata *c_md_out =
+        reinterpret_cast<vendor_qti_hardware_display_common_SMPTE2094_50Metadata *>(out_get);
+    c_md_out->size = metadata->smpte2094_50_metadata.size;
+    if (metadata->smpte2094_50_metadata.size > 0) {
+      memcpy(c_md_out->metadataPayload, metadata->smpte2094_50_metadata.metadataPayload,
+             metadata->smpte2094_50_metadata.size);
+    }
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    vendor_qti_hardware_display_common_SMPTE2094_50Metadata *c_md_in =
+        reinterpret_cast<vendor_qti_hardware_display_common_SMPTE2094_50Metadata *>(in_set);
+    if (c_md_in->size == 0) {
+      // size == 0 means clear/nullopt - reset the metadata
+      metadata->smpte2094_50_metadata.size = 0;
+      metadata->is_format_SMPTE2094_50 = false;
+    } else {
+      constexpr size_t MAX_PAYLOAD_SIZE = sizeof(c_md_in->metadataPayload);
+      size_t copy_size = std::min(static_cast<size_t>(c_md_in->size), MAX_PAYLOAD_SIZE);
+      // Store directly in the fixed-size struct in shared memory (cross-process safe)
+      metadata->smpte2094_50_metadata.size = copy_size;
+      memcpy(metadata->smpte2094_50_metadata.metadataPayload, c_md_in->metadataPayload, copy_size);
+      metadata->is_format_SMPTE2094_50 = true;
+    }
+    return Error::NONE;
+  }
+  return Error::BAD_VALUE;
+}
+
 Error SnapMetadataManager::VideoTranscodeStatsHelper(SnapMetadata *metadata,
                                                      SnapHandleInternal *handle, void *in_set,
                                                      void *out_get, BufferDescriptor *buf_des) {
@@ -1780,6 +1812,10 @@ Error SnapMetadataManager::Set(SnapHandleInternal *hnd,
         break;
       case vendor_qti_hardware_display_common_MetadataType::SMPTE2094_10:
         metadata->is_format_SMPTE2094_10 = false;
+        break;
+      case vendor_qti_hardware_display_common_MetadataType::SMPTE2094_50:
+        metadata->is_format_SMPTE2094_50 = false;
+        metadata->smpte2094_50_metadata.size = 0;
         break;
       case vendor_qti_hardware_display_common_MetadataType::ROI_RECT_METADATA:
         metadata->roiRectMetadata.size = 0;

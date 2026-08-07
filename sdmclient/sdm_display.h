@@ -423,6 +423,8 @@ public:
   virtual void ClearPendingPowerMode() {
     pending_power_mode_ = current_power_mode_;
   }
+  virtual bool GetPendingPowerModeValid() { return pending_power_mode_valid_; }
+  virtual void SetPendingPowerModeValid(bool valid) { pending_power_mode_valid_ = valid; }
   virtual void NotifyClientStatus(bool connected) {
     client_connected_ = connected;
   }
@@ -551,7 +553,10 @@ public:
   virtual DisplayError SetRgbHistObserverConfig(bool state, void *data) {
     return kErrorNotSupported;
   }
-  virtual DisplayError TurnOffColorFeature() { return kErrorNotSupported; }
+  virtual DisplayError ProcessColorFeatureOps(DisplayColorOps ops, void *payload) {
+    return kErrorNotSupported;
+  }
+  DisplayError GetDisplayViewMode(SDMDisplayViewMode *view_mode);
 
  protected:
   static uint32_t throttling_refresh_rate_;
@@ -743,6 +748,8 @@ public:
   uint64_t scheduled_dynamic_dsi_clk_ = 0;
   int32_t rgba_split_support_ = 0;
   bool valid_commit_ = false;
+  bool IsFcmCwbActive() const { return fcm_ && fcm_->IsCwbActive(); }
+  bool pending_power_mode_valid_ = false;
 
  private:
   bool CanSkipSdmPrepare(uint32_t *num_types, uint32_t *num_requests);
@@ -777,6 +784,7 @@ public:
   bool pending_privregions_update_ = false;
   FrameCaptureIntf *fcm_ = nullptr;
   bool composer_driven_hdcp_ = false;
+  bool disable_luts_overlay_support_ = false;
 };
 
 inline DisplayError SDMDisplay::Perform(uint32_t operation, ...) {

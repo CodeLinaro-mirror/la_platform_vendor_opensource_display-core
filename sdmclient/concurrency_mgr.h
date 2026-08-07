@@ -361,6 +361,18 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
     }
   }
 
+  void AcquireDisplayLock(uint64_t display, bool release_lock) override {
+    if (display >= kNumDisplays) {
+      return;
+    }
+
+    if (!release_lock) {
+      locker_[display].Lock();
+    } else {
+      locker_[display].Unlock();
+    }
+  }
+
   int GetProperty(const char *property_name, char *value) override;
   int GetProperty(const char *property_name, int *value) override;
 
@@ -497,6 +509,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError SetDisplayElapseTime(Display display, uint64_t time);
   DisplayError SetDisplayDeviceConfig(Display display,
                                       SDMDisplayDeviceConfig sdm_display_device_config);
+  DisplayError GetDisplayViewMode(Display display, SDMDisplayViewMode *view_mode);
 
   DisplayError SetCameraSmoothInfo(SDMCameraSmoothOp op, int32_t fps) override;
   DisplayError NotifyTUIDone(int ret, int disp_id,

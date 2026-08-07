@@ -241,9 +241,15 @@ DisplayError SDMDisplayBuiltIn::PreValidateDisplay(bool *exit_validate) {
   // If no resources are available for the current display, or pass
   // unsupported format in DPU DMA mode, mark it for GPU by
   // pass and continue to do invalidate until the resources are available
-  if (display_paused_ || CheckResourceState(&res_exhausted) || SetDpuDmaMode() != kErrorNone) {
+  bool res_wait_needed = CheckResourceState(&res_exhausted);
+  if (display_paused_ || res_wait_needed || SetDpuDmaMode() != kErrorNone) {
     MarkLayersForGPUBypass();
     *exit_validate = true;
+    if (res_wait_needed) {
+      DLOGV("exit_validate display=%" PRIu64
+            " resource wait detected, trigger refresh", id_, gettid());
+      Refresh();
+    }
     return status;
   }
 
@@ -1820,7 +1826,7 @@ DisplayError SDMDisplayBuiltIn::PerformDynamicCac(DynamicCacV2Config config, boo
 }
 
 DisplayError SDMDisplayBuiltIn::SetSPRState(int state) {
-  DLOGV("Display ID: %" PRId64 " spr state: %d", state);
+  DLOGI("Display ID: %" PRId64 " spr state: %d", id_, state);
   DisplayError error = display_intf_->SetSPRState(state);
 
   if (error != kErrorNone) {

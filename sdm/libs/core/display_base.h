@@ -357,6 +357,9 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   }
   virtual bool IsLSRSupported();
   virtual DisplayError UpdateRgbHistogramRoi(const void *data) { return kErrorNotSupported; }
+  virtual DisplayError GetDisplayViewMode(SDMDisplayViewMode *view_mode) {
+    return kErrorNotSupported;
+  }
 
  protected:
   struct DisplayMutex {
@@ -493,6 +496,10 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   DispLayerStack disp_layer_stacks_[kDispStackCount];
   std::atomic<bool> clearstack_;
   uint8_t disp_stack_index_ = 0;
+  // Two-level deferred buffer_map destruction to prevent SMMU faults during
+  // batch commit sequences.  See PostCommit() for details.
+  std::vector<std::shared_ptr<LayerBufferMap>> pending_buffer_maps_;
+  std::vector<std::shared_ptr<LayerBufferMap>> prev_pending_buffer_maps_;
   bool needs_validate_ = true;  // maintains validation state between Prepare/Commit Cycle
   bool vsync_enable_ = false;
   uint32_t max_mixer_stages_ = 0;
@@ -597,6 +604,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   qrtc::QrtcFeatureFactIntf *qrtc_factory_ = nullptr;
   bool is_ssr_active_ = false;
   bool is_lsr_ssr_active_ = false;
+  bool ssr_end_in_progress_ = false;  // Set during SSR end power restore to defer vsync
   bool lsr_first_commit_ = true;
   // GPU reproj (seraph/GPU LSR path): cached active flag and init-commit counter.
   // SDM commits to DPU exactly kReprojSlotCount (2) times to register both

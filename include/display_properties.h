@@ -91,6 +91,8 @@
 #define DISABLE_HW_RECOVERY_DUMP_PROP        DISPLAY_PROP("disable_hw_recovery_dump")
 #define HW_RECOVERY_THRESHOLD                DISPLAY_PROP("hw_recovery_threshold")
 #define DISABLE_SRC_TONEMAP_PROP             DISPLAY_PROP("disable_src_tonemap")
+#define DISABLE_UCSC_TONEMAP_PROP            DISPLAY_PROP("disable_ucsc_tonemap")
+#define RENDER_SYSUI_AS_SRGB                 DISPLAY_PROP("render_sysui_as_srgb")
 #define ENABLE_NULL_DISPLAY_PROP             DISPLAY_PROP("enable_null_display")
 #define DISABLE_EXCL_RECT_PROP               DISPLAY_PROP("disable_excl_rect")
 #define ENABLE_PIPE_PRIORITY_PROP            DISPLAY_PROP("enable_pipe_priority")
@@ -271,6 +273,7 @@
 #define USE_UNCACHED_HEAP                    GRALLOC_PROP("use_uncached_heap")
 // Enable UBWC lossy format for fbt
 #define ENABLE_UBWC_LOSSY_FORMAT_FBT         GRALLOC_PROP("enable_ubwc_lossy_format_fbt")
+#define CAMERA_PREVIEW_USES_USB_HAL_PROP     GRALLOC_PROP("camera_preview_uses_usb_hal")
 
 // Add all vendor.gralloc.properties above
 

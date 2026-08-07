@@ -371,7 +371,13 @@ DisplayError ConcurrencyMgr::PostBufferWithOwner(const CwbConfig &cwb_config, vo
   // Register buffer ownership for callback routing if PostBuffer succeeded
   auto err = callbacks_.RegisterCWBBufferOwner(buffer, owner);
   if (err == kErrorNone) {
-    return cwb_->PostBuffer(cwb_config, buffer, disp_->GetDisplayIndex(display_type));
+    auto post_err = cwb_->PostBuffer(cwb_config, buffer, disp_->GetDisplayIndex(display_type));
+    if (post_err != kErrorNone) {
+      // PostBuffer failed; roll back the ownership registration to avoid
+      // stale entries in cwb_buffer_owners_ that would block future requests.
+      callbacks_.UnregisterCWBBufferOwner(buffer);
+    }
+    return post_err;
   }
   return err;
 }
@@ -466,16 +472,30 @@ void ConcurrencyMgr::Dump(uint32_t *out_size, char *out_buffer) {
 }
 
 uint32_t ConcurrencyMgr::GetMaxVirtualDisplayCount() {
-  // Limit max virtual displays reported to SF based on the
-  // MAX_VIRTUAL_DISPLAY_COUNT property. Even though HW may support multiple
-  // virtual displays, by default only one is allowed to be used by SF.
-  // If the property is explicitly set to 0, no virtual displays are reported.
   int value = 1;
   Debug::Get()->GetProperty(MAX_VIRTUAL_DISPLAY_COUNT, &value);
-  if (value == 0) {
-    return 0;
+  if (value <= 1) {
+    DLOGI("Max virtual display count = %d", value);
+    return value;
   }
-  return 1;
+
+  HWDisplaysInfo hw_displays_info = {};
+  DisplayError error = core_intf_->GetDisplaysStatus(&hw_displays_info);
+  if (error != kErrorNone) {
+    DLOGW("Failed to get connected display list. Error = %d", error);
+    return 1;
+  }
+
+  uint32_t max_virtual_disp = 0;
+  for (auto& [disp_id, disp_info] : hw_displays_info) {
+    if (disp_info.display_type == kVirtual)
+      max_virtual_disp++;
+  }
+
+  max_virtual_disp =
+    (!max_virtual_disp) ? 1 : std::min(max_virtual_disp, static_cast<uint32_t>(value));
+  DLOGI("Max virtual display supported = %d", max_virtual_disp);
+  return max_virtual_disp;
 }
 
 DisplayError ConcurrencyMgr::AcceptDisplayChanges(Display display) {
@@ -3027,6 +3047,10 @@ void ConcurrencyMgr::PerformSubsystemRestart(bool start) {
 
 DisplayError ConcurrencyMgr::SetRgbHistObserverConfig(Display display, bool state, void *data) {
   return CallDisplayFunction(display, &SDMDisplay::SetRgbHistObserverConfig, state, data);
+}
+
+DisplayError ConcurrencyMgr::GetDisplayViewMode(Display display, SDMDisplayViewMode *view_mode) {
+  return CallDisplayFunction(display, &SDMDisplay::GetDisplayViewMode, view_mode);
 }
 
 }  // namespace sdm

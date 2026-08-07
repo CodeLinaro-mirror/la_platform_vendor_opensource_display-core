@@ -2158,6 +2158,14 @@ DisplayError DisplayBase::PostCommit() {
     // TODO: Need to clean up and add generic logic
     if (!client_ctx_.display_attributes.fsc_panel) {
       for (auto &hw_layer : info.second.hw_layers) {
+        // Skip closing FD for CWB output buffer
+        // CWB output buffer is managed by CWB manager and needs to persist
+        // across frames for caching in hw_device_drm.cpp
+        if (info.second.output_buffer != nullptr &&
+            hw_layer.input_buffer.handle_id == info.second.output_buffer->handle_id) {
+          continue;  // Don't close CWB output buffer FD
+        }
+
         CloseFd(&hw_layer.input_buffer.planes[0].fd);
       }
     }
@@ -2167,6 +2175,28 @@ DisplayError DisplayBase::PostCommit() {
 
   if (clearstack_.load()) {
     uint8_t clearindex = (disp_stack_index_ + 1) % kDispStackCount;
+    // Defer ~FrameBufferObject for GPU reproj batch commits to avoid RemoveFbId()
+    // while the DRM driver still holds active SMMU mappings from the previous commit.
+    // Guard on the CURRENT frame's gpu_reproj_batch_size — the old stack's is 0.
+    bool is_gpu_reproj_batch = false;
+    for (auto &[core_id, hw_info] : disp_layer_stack_->info) {
+      if (hw_info.gpu_reproj_batch_size > 0) {
+        is_gpu_reproj_batch = true;
+        break;
+      }
+    }
+    if (is_gpu_reproj_batch) {
+      prev_pending_buffer_maps_.clear();
+      // Rotate: current pending → prev_pending, collect new pending from old stack.
+      prev_pending_buffer_maps_ = std::move(pending_buffer_maps_);
+      for (auto &[core_id, hw_layers_info] : disp_layer_stacks_[clearindex].info) {
+        for (auto &layer : hw_layers_info.hw_layers) {
+          if (layer.buffer_map) {
+            pending_buffer_maps_.push_back(layer.buffer_map);
+          }
+        }
+      }
+    }
     disp_layer_stacks_[clearindex].Clear();
     clearstack_.store(false);
   }
@@ -3329,6 +3359,13 @@ DisplayError DisplayBase::GetRefreshRateRange(uint32_t *min_refresh_rate,
 
 DisplayError DisplayBase::HandlePendingVSyncEnable(const shared_ptr<Fence> &retire_fence) {
   if (vsync_enable_pending_) {
+    if (is_ssr_active_ || is_lsr_ssr_active_ || ssr_end_in_progress_) {
+      // Defer vsync enable while SSR is active or during SSR end power restore.
+      // is_ssr_active_ covers SSR start; ssr_end_in_progress_ covers the window
+      // between is_ssr_active_ being cleared and PerformSubsystemRestart completing.
+      DLOGI("Deferring vsync enable during SSR for display %d-%d", display_id_, display_type_);
+      return kErrorNone;
+    }
     // Retire fence signalling confirms that CRTC enabled, hence wait for retire fence before
     // we enable vsync
     Fence::Wait(retire_fence_);
@@ -3349,7 +3386,11 @@ DisplayError DisplayBase::SetVSyncState(bool enable) {
 }
 
 DisplayError DisplayBase::SetVSyncStateLocked(bool enable) {
-  if ((state_ == kStateOff || avoid_vsync_enable_ || secure_event_ != kSecureEventMax) && enable) {
+  // Defer vsync enable if: display is off, vsync is explicitly blocked,
+  // a secure/TUI event is active, or SSR (primary/LSR) is in progress or ending.
+  if ((state_ == kStateOff || avoid_vsync_enable_ || secure_event_ != kSecureEventMax ||
+       is_ssr_active_ || is_lsr_ssr_active_ || ssr_end_in_progress_) &&
+      enable) {
     DLOGW("Can't enable vsync when display %d-%d is powered off or SecureDisplay/TUI in progress",
           display_id_, display_type_);
     vsync_enable_pending_ = true;
@@ -3913,7 +3954,8 @@ void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
         display_type_, info.second.index.at(i), i);
       }
 
-      bool reprojection_buffer = (hw_layer.composition == kCompositionIWERepro);
+      bool reprojection_buffer = (hw_layer.composition == kCompositionIWERepro) ||
+                                  (layer_stack->gpu_reproj_batch_size > 0);
       auto plane_index =
           reprojection_buffer ? i % client_ctx_.display_attributes.num_fsc_fields : 0;
       hw_layer.input_buffer.planes[0].fd =
