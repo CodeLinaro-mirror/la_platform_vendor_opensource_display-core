@@ -1169,7 +1169,7 @@ DisplayError SDMDisplay::SetVsyncEnabled(bool enabled) {
 }
 
 void SDMDisplay::PostPowerMode() {
-  if (release_fence_ == nullptr) {
+  if (release_fence_ == nullptr || !sdm_layer_stack_) {
     return;
   }
 
