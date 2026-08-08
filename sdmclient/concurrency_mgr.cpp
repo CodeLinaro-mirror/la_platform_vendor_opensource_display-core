@@ -216,6 +216,10 @@ DisplayError ConcurrencyMgr::Init(BufferAllocator *buffer_allocator, SocketHandl
   selective_panel_dead_ = (value == 1);
   DLOGI("selective_panel_dead: %d", selective_panel_dead_);
 
+  value = 0;
+  Debug::Get()->GetProperty(ALLOW_SECCAM_CONCURRENCY, &value);
+  allow_seccam_concurrency_ = (value == 1);
+
   auto err = InitSubModules(debug);
   if (err != kErrorNone) {
     return err;
@@ -1606,6 +1610,14 @@ void ConcurrencyMgr::HandleSecureSession() {
     // No secure session active. No secure session transition to handle. Skip
     // remaining steps.
     return;
+  }
+
+  if (allow_seccam_concurrency_) {
+    bool requires_display_poweroff = secure_sessions[kSecureDisplay] || secure_sessions[kSecureTUI];
+    if (!requires_display_poweroff && secure_sessions[kSecureCamera]) {
+      DLOGV("Secure camera session active — skipping display power-off for other displays");
+      return;
+    }
   }
 
   // If it is called during primary prepare/commit, we need to pause any ongoing

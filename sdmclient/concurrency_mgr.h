@@ -591,7 +591,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   static shared_ptr<Fence> retire_fence_[kNumDisplays];
   static int commit_error_[kNumDisplays];
 
-private:
+ private:
   static const int kExternalConnectionTimeoutMs = 500;
   static const int kCommitDoneTimeoutMs = 100;
   static const int kDenomNstoMs = 1000000;
@@ -756,6 +756,7 @@ private:
   std::shared_ptr<ISnapMapper> snapmapper_ = nullptr;
 
   bool ssr_active_ = false;
+  bool allow_seccam_concurrency_ = false;
 };
 } // namespace sdm
 
