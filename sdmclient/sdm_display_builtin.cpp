@@ -248,7 +248,7 @@ DisplayError SDMDisplayBuiltIn::PreValidateDisplay(bool *exit_validate) {
     if (res_wait_needed) {
       DLOGV("exit_validate display=%" PRIu64
             " resource wait detected, trigger refresh", id_, gettid());
-      Refresh();
+      Refresh(kClientRefresh);
     }
     return status;
   }
@@ -436,7 +436,7 @@ DisplayError SDMDisplayBuiltIn::Present(shared_ptr<Fence> *out_retire_fence) {
   // Proceed only if any resources are available to be allocated for the current
   // display, Otherwise keep doing invalidate
   if (CheckResourceState(&res_exhausted)) {
-    Refresh();
+    Refresh(kClientRefresh);
     return status;
   }
 

@@ -537,7 +537,7 @@ class DisplayEventHandler {
     @sa DisplayInterface::Prepare
     @sa DisplayInterface::Commit
   */
-  virtual DisplayError Refresh() = 0;
+  virtual DisplayError Refresh(RefreshType type) = 0;
 
   /*! @brief Event handler for CEC messages.
 
@@ -1472,6 +1472,13 @@ class DisplayInterface {
   */
   virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config,
                                   const CWBClient &client) = 0;
+
+  /*! @brief Method to check if there is a pending CWB request queued in the CWB manager
+             that has not yet been picked up by a display commit.
+
+    @return true if a CWB request is pending, false otherwise.
+  */
+  virtual bool HasPendingCwbRequest() = 0;
 
   /*! @brief Method to allocate Writeback connector for QRTC.
 

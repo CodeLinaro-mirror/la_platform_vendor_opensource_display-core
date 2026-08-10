@@ -4495,6 +4495,7 @@ DisplayError HWDeviceDRM::SetupConcurrentWritebackModes(int32_t writeback_id) {
 }
 
 void HWDeviceDRM::ConfigureConcurrentWriteback(const HWLayersInfo &hw_layer_info) {
+  DTRACE_SCOPED();
   CwbConfig *cwb_config = hw_layer_info.hw_cwb_config;
   std::shared_ptr<LayerBuffer> output_buffer = hw_layer_info.output_buffer;
   uint32_t &vitual_conn_id = cwb_config_[core_id_].token.conn_id;

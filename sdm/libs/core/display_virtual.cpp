@@ -634,7 +634,7 @@ DisplayError DisplayVirtualPQ::DppsProcessOps(enum DppsOps op, void *payload, si
       break;
     case kDppsScreenRefresh:
       if (event_handler_) {
-        event_handler_->Refresh();
+        event_handler_->Refresh(kClientRefresh);
       }
       break;
     case kDppsPartialUpdate:

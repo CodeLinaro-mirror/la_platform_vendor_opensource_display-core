@@ -122,6 +122,21 @@ ConcurrencyMgr::~ConcurrencyMgr() {
   if (is_composer_up_) {
     Deinit();
   }
+
+  // Join all persistent self-refresh threads.
+  for (uint32_t i = 0; i < kNumDisplays; i++) {
+    if (self_refresh_thread_started_[i]) {
+      {
+        std::lock_guard<std::mutex> lock(self_refresh_mutex_[i]);
+        self_refresh_exit_[i] = true;
+      }
+      self_refresh_cv_[i].notify_one();
+      if (self_refresh_thread_[i].joinable()) {
+        self_refresh_thread_[i].join();
+      }
+      self_refresh_thread_started_[i] = false;
+    }
+  }
 }
 
 int ConcurrencyMgr::GetDisplayIndex(int dpy) {
@@ -1482,6 +1497,45 @@ void ConcurrencyMgr::Refresh(uint64_t display) {
   client_pending_refresh_.set(UINT32(display));
 }
 
+void ConcurrencyMgr::SelfRefreshThread(uint32_t idx) {
+  while (true) {
+    {
+      std::unique_lock<std::mutex> sr_lock(self_refresh_mutex_[idx]);
+      self_refresh_cv_[idx].wait(
+          sr_lock, [this, idx] { return self_refresh_count_[idx] > 0 || self_refresh_exit_[idx]; });
+      if (self_refresh_exit_[idx])
+        break;
+      self_refresh_count_[idx]--;
+    }
+
+    SEQUENCE_WAIT_SCOPE_LOCK(locker_[Display(idx)]);
+    auto sdm_display = GetDisplayFromClientId(Display(idx));
+    if (sdm_display) {
+      sdm_display->PerformSelfRefresh();
+    }
+  }
+}
+
+void ConcurrencyMgr::OnSelfRefresh(uint64_t display) {
+  uint32_t idx = UINT32(display);
+  if (idx >= kNumDisplays) {
+    return;
+  }
+
+  // Create the persistent thread lazily on first call.
+  if (!self_refresh_thread_started_[idx]) {
+    self_refresh_exit_[idx] = false;
+    self_refresh_thread_[idx] = std::thread(&ConcurrencyMgr::SelfRefreshThread, this, idx);
+    self_refresh_thread_started_[idx] = true;
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(self_refresh_mutex_[idx]);
+    self_refresh_count_[idx]++;
+  }
+  self_refresh_cv_[idx].notify_one();
+}
+
 void ConcurrencyMgr::CompositorSync(uint64_t display, CompositorSyncType sync_type) {
   if (sync_type == CompositorSyncTypeAcquire) {
     tui_mutex_.lock_shared();  // shared — allows concurrent SF threads
@@ -2281,6 +2335,15 @@ DisplayError ConcurrencyMgr::CommitOrPrepare(
   auto status = kErrorNone;
   {
     SEQUENCE_ENTRY_SCOPE_LOCK(locker_[display]);
+    {
+      uint32_t idx = UINT32(display);
+      if (idx < kNumDisplays && self_refresh_thread_started_[idx]) {
+        std::lock_guard<std::mutex> lock(self_refresh_mutex_[idx]);
+        if (self_refresh_count_[idx] > 0) {
+          self_refresh_count_[idx]--;
+        }
+      }
+    }
     sdm_display_[display]->ProcessActiveConfigChange();
     sdm_display_[display]->IsMultiDisplay(disp_->GetActiveDisplayCount() > 1);
     status = sdm_display_[display]->CommitOrPrepare(

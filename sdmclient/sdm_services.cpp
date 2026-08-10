@@ -1508,6 +1508,15 @@ DisplayError SDMServices::ConfigureFrameDumpStreaming(int disp_id, CWBPacketData
     return kErrorHardware;
   }
 
+  DLOGI(
+      "disp=%d stop=%d eye=%d field=%d frames=%d refresh_type=%d avoid_refresh=%d, "
+      "num_parallel_buffers=%d "
+      "buffer_depth=%d enable_compression=%d tap_point=%d",
+      disp_id, data.stop_cwb, data.eye_index, data.field_index, data.frame_dump_count,
+      data.cwb_config.refresh_type, data.cwb_config.avoid_refresh,
+      data.cwb_config.num_parallel_buffers, data.buffer_depth, data.enable_compression,
+      data.cwb_config.tap_point);
+
   return sdm_display->ConfigureFCM(data);
 }
 
@@ -1528,6 +1537,9 @@ DisplayError SDMServices::SetFrameDumpStreamingConfig(SDMParcel *input_parcel) {
   if (input_parcel->dataPosition() != input_parcel->dataSize()) {
     data.frame_dump_count = input_parcel->readInt32();
   }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    data.cwb_config.refresh_type = static_cast<RefreshType>(input_parcel->readInt32());
+  }
 
   // Optional CWB configuration similar to SetFrameDumpConfig
   CwbConfig &cwb_config = data.cwb_config;
@@ -1535,7 +1547,13 @@ DisplayError SDMServices::SetFrameDumpStreamingConfig(SDMParcel *input_parcel) {
     cwb_config.num_parallel_buffers = input_parcel->readInt32();
   }
   if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    data.buffer_depth = static_cast<uint32_t>(input_parcel->readInt32());
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
     cwb_config.tap_point = static_cast<CwbTapPoint>(input_parcel->readInt32());
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    data.enable_compression = static_cast<bool>(input_parcel->readInt32());
   }
   if (input_parcel->dataPosition() != input_parcel->dataSize()) {
     auto cflag = UINT32(input_parcel->readInt32());
