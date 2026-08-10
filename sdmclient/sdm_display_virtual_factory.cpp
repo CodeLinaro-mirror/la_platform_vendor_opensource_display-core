@@ -27,10 +27,8 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include "sdm_display_virtual_factory.h"
@@ -46,6 +44,7 @@ int SDMVirtualDisplayFactory::Create(CoreInterface *core_intf, BufferAllocator *
                                      uint32_t width, uint32_t height, int32_t *format,
                                      float min_lum, float max_lum, SDMDisplay **sdm_display) {
   int supported_virtual_displays = 0;
+  int demuratn_enable = 0;
   DisplayError error =
       core_intf->GetMaxDisplaysSupported(kVirtual, &supported_virtual_displays);
   if (error != kErrorNone) {
@@ -54,8 +53,10 @@ int SDMVirtualDisplayFactory::Create(CoreInterface *core_intf, BufferAllocator *
     return -1;
   }
 
+  SDMDebugHandler::Get()->GetProperty(ENABLE_ANTI_AGING, &demuratn_enable);
   SDMDisplayVirtual *sdm_display_virtual = nullptr;
-  if (supported_virtual_displays) {
+  if ((supported_virtual_displays > 1) ||
+      (supported_virtual_displays == 1 && !demuratn_enable)) {
     sdm_display_virtual =
         new SDMDisplayVirtualDPU(core_intf, buffer_allocator, callbacks, id,
                                  sdm_id, width, height, min_lum, max_lum);
