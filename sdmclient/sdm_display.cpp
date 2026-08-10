@@ -833,8 +833,10 @@ DisplayError SDMDisplay::Deinit(bool deinit_layer_builder) {
   }
 
   if (deinit_layer_builder) {
-    layer_builder_->DeInit(id_);
-    layer_builder_ = nullptr;
+    if (layer_builder_) {
+      layer_builder_->DeInit(id_);
+      layer_builder_ = nullptr;
+    }
   }
 
   if (fcm_) {

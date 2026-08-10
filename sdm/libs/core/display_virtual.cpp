@@ -592,13 +592,37 @@ DisplayError DisplayVirtualPQ::PostCommit() {
 }
 
 DisplayError DisplayVirtualPQ::ProcessColorFeatureOps(DisplayColorOps ops, void *payload) {
-  (void)payload;
-
   switch (ops) {
     case kColorFeatureForceOff: {
       int display_type = display_type_;
       DLOGV_IF(kTagDisplay, "Turn off ltm feature on display %d-%d", display_id_, display_type_);
       dpps_info_.DppsNotifyOps(kDppsLtmForceOffEvent, &display_type, sizeof(display_type));
+      break;
+    }
+    case kColorFeatureQueryLMUpdate: {
+      if (!payload) {
+        DLOGE("Null payload for kColorFeatureQueryLMUpdate");
+        return kErrorParameters;
+      }
+
+      LMQueryPayload *lm_payload = static_cast<LMQueryPayload *>(payload);
+      if (hw_resource_info_.empty()) {
+        DLOGE("hw_resource_info_ is empty");
+        return kErrorResources;
+      }
+
+      // Compare LM count for current and new width, report if topology changes.
+      uint32_t max_mixer_w = hw_resource_info_[0].max_mixer_width;
+      uint32_t current_w = client_ctx_.display_attributes.x_pixels;
+      uint32_t current_lm_count = (current_w >= max_mixer_w) ? 2 : 1;
+      uint32_t new_lm_count = (lm_payload->width >= max_mixer_w) ? 2 : 1;
+      lm_payload->lm_count_changed = (current_lm_count != new_lm_count);
+
+      DLOGV_IF(kTagDisplay,
+               "LM query on display %d-%d: max_mixer_w=%u current_w=%u new_w=%u "
+               "current_lm_count=%u new_lm_count=%u lm_count_changed=%d",
+               display_id_, display_type_, max_mixer_w, current_w, lm_payload->width,
+               current_lm_count, new_lm_count, lm_payload->lm_count_changed);
       break;
     }
     default:
