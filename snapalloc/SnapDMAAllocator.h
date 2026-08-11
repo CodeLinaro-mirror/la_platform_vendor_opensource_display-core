@@ -44,8 +44,9 @@ class SnapDMAAllocator : public ISnapMemAllocBackend {
   int ImportBuffer(int fd);
   Error SecureMemPerms(AllocData *ad);
   void GetHeapInfo(vendor_qti_hardware_display_common_BufferUsage usage, bool sensor_flag,
-                   std::string *dma_heap_name, std::vector<std::string> *dma_vm_names,
-                   unsigned int *alloc_type, unsigned int *flags, unsigned int *alloc_size);
+                   bool use_uncached, std::string *dma_heap_name,
+                   std::vector<std::string> *dma_vm_names, unsigned int *alloc_type,
+                   unsigned int *flags, unsigned int *alloc_size);
   Error SetBufferPermission(
       int fd, vendor_qti_hardware_display_common_BufferPermission *buffer_perm, int64_t *mem_hdl);
 
@@ -78,6 +79,8 @@ class SnapDMAAllocator : public ISnapMemAllocBackend {
   bool allow_camera_preview_write_ = false;
   DestroyMemBufInterface DestroyMemBuf_ = nullptr;
   bool movable_heap_system_available_ = false;
+  void GetUncachedHeapUsage();
+  bool uncached_heap_prop_ = false;
 };
 
 }  // namespace snapalloc

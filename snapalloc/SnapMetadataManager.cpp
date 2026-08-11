@@ -426,7 +426,7 @@ Error SnapMetadataManager::PlaneLayoutsHelper(SnapMetadata *metadata, SnapHandle
                                  .height = height,
                                  .layerCount =
                                      static_cast<int32_t>(handle->layer_count()),
-                                 .reservedSize = handle->reserved_size()};
+                                 .reservedSize = static_cast<long>(handle->reserved_size())};
         BufferDescriptor out_desc;
         int out_priv_flags = 0;
         auto err = constraint_mgr_->GetAllocationData(desc, &ad, &layout,

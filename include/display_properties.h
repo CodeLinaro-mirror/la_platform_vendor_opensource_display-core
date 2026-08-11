@@ -254,6 +254,8 @@
 #define ENABLE_SNAPALLOC_PROP                GRALLOC_PROP("enable_snapalloc")
 #define ENABLE_ALLOCATION_DATA_DUMPING       GRALLOC_PROP("enable_allocation_data_dumping")
 #define ALLOW_CAMERA_PREVIEW_WRITE           GRALLOC_PROP("allow_camera_preview_write")
+#define USE_UNCACHED_HEAP                    GRALLOC_PROP("use_uncached_heap")
+
 // Add all vendor.gralloc.properties above
 
 #define QDCM_DISABLE_TIMEOUT_PROP            PERSIST_DISPLAY_PROP("qdcm.disable_timeout")
