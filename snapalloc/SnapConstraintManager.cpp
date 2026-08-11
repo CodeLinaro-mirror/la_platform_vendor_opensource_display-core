@@ -742,7 +742,7 @@ uint32_t SnapConstraintManager::GetDataAlignment(
     vendor_qti_hardware_display_common_PixelFormat format,
     vendor_qti_hardware_display_common_BufferUsage usage,
     vendor_qti_hardware_display_common_PixelFormatModifier modifier) {
-  uint32_t align = PAGE_SIZE;
+  uint32_t align = getpagesize();
 
   if (format == vendor_qti_hardware_display_common_PixelFormat::YCbCr_420_SP &&
       modifier == PIXEL_FORMAT_MODIFIER_TILED) {
