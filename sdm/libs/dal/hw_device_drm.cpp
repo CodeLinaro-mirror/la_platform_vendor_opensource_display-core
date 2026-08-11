@@ -3636,8 +3636,9 @@ DisplayError HWDeviceDRM::DumpDebugData() {
         src >> driver_name;
         src.close();
         if (driver_name == "DRIVER=msm_drm") {
+          string devcd_name = i->d_name;  // copy d_name before closedir() frees the DIR struct
           closedir(dir);
-          devcd_path = devcd_dir_path + i->d_name + "/data";
+          devcd_path = devcd_dir_path + devcd_name + "/data";
           src.rdbuf()->pubsetbuf(buffer, sizeof(buffer));
           src.open(devcd_path, fstream::in);
           dst.open(filename);
