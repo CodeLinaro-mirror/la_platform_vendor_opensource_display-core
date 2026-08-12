@@ -998,6 +998,8 @@ void SDMDisplayBuilder::DestroyPluggableDisplayLocked(
     SDMDisplayPluggableTest::Destroy(sdm_display);
   }
 
+  cb_->ClearPaHistClient(UINT32(client_id));
+
   map_active_displays_.erase(client_id);
   cb_->SetDisplayByClientId(client_id, nullptr);
   map_info->Reset();
@@ -1033,6 +1035,8 @@ void SDMDisplayBuilder::DestroyNonPluggableDisplayLocked(
     virtual_display_factory_.Destroy(sdm_display);
     break;
   }
+
+  cb_->ClearPaHistClient(UINT32(client_id));
 
   map_active_displays_.erase(client_id);
 

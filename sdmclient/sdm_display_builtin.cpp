@@ -1858,4 +1858,13 @@ DisplayError SDMDisplayBuiltIn::GetCoprStats(std::vector<int> *stats) {
   return display_intf_->GetCoprStats(stats);
 }
 
+DisplayError SDMDisplayBuiltIn::SetPaHistCollection(const std::string &client_name, bool enable,
+    SdmDisplayCbInterface<PaHistCollectionPayload> *cb) {
+  return display_intf_->SetPaHistCollection(client_name, enable, cb);
+}
+
+DisplayError SDMDisplayBuiltIn::GetPaHistBins(std::array<uint32_t, HIST_BIN_SIZE> *buf) {
+  return display_intf_->GetPaHistBins(buf);
+}
+
 } // namespace sdm

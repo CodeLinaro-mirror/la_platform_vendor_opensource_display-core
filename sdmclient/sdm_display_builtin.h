@@ -139,6 +139,9 @@ public:
  virtual DisplayError SetSsrcMode(const std::string &mode);
  virtual DisplayError EnableCopr(bool en);
  virtual DisplayError GetCoprStats(std::vector<int> *stats);
+ virtual DisplayError SetPaHistCollection(const std::string &client_name, bool enable,
+     SdmDisplayCbInterface<PaHistCollectionPayload> *cb);
+ virtual DisplayError GetPaHistBins(std::array<uint32_t, HIST_BIN_SIZE> *buf);
  virtual DisplayError SetupVRRConfig();
  virtual int GetNotifyEptConfig();
  virtual DisplayError SetABCState(bool state);

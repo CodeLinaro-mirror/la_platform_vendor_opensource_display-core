@@ -67,6 +67,9 @@ public:
 
  virtual DisplayError SetupVRRConfig();
  virtual DisplayError SetQSyncMode(QSyncMode qsync_mode);
+ virtual DisplayError SetPaHistCollection(const std::string &client_name, bool enable,
+     SdmDisplayCbInterface<PaHistCollectionPayload> *cb);
+ virtual DisplayError GetPaHistBins(std::array<uint32_t, HIST_BIN_SIZE> *buf);
 private:
  SDMDisplayPluggable(CoreInterface *core_intf, BufferAllocator *buffer_allocator,
                      SDMCompositorCallbacks *callbacks, SDMDisplayEventHandler *event_handler,

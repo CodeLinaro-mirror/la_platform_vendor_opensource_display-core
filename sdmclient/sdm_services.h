@@ -38,6 +38,13 @@
 
 #include <utils/locker.h>
 
+#include <array>
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <memory>
+#include <mutex>
+#include <unordered_map>
 #include <vector>
 #include <core/buffer_allocator.h>
 #include <core/socket_handler.h>
@@ -109,6 +116,8 @@ enum {
   SDM_SERVICE_SET_BPP_MODE = 62,              // Set Panel bpp to 24bpp or 30bpp
   SDM_SERVICE_PERFORM_CAC_CONFIG = 63,        // Set CAC Configuration for the display
   SDM_SERVICE_SET_PANEL_FEATURE_CONFIG = 64,  // Common function, Set cfg for panel features
+  SDM_SERVICE_SET_PA_HIST_COLLECTION = 65,    // Start/stop PA histogram collection
+  SDM_SERVICE_GET_PA_HIST_BINS = 66,          // Read last PA histogram bins
   SDM_SERVICE_COMMAND_LIST_END = 400,
 };
 
@@ -169,6 +178,8 @@ public:
   void Init(SDMDisplayBuilder *disp, BufferAllocator *buffer_allocator,
             Locker *locker, SDMTrustedUI *tui);
   void Deinit();
+  // Drops the PA histogram client of a display that is being destroyed.
+  void ClearPaHistClient(int dpy);
 
   DisplayError notifyCallback(uint32_t command, SDMParcel *input_parcel,
                               SDMParcel *output_parcel);
@@ -313,6 +324,8 @@ private:
                                            SDMParcel *output_parcel);
   DisplayError GetDisplayPortId(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError SetPanelFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
+  DisplayError SetPaHistCollection(SDMParcel *input_parcel);
+  DisplayError GetPaHistBins(SDMParcel *input_parcel, SDMParcel *output_parcel);
 
   typedef DisplayError (SDMServices::*VndCmdSetHandler)(
       SDMParcel *input_parcel);
@@ -350,6 +363,7 @@ private:
       {SDM_SERVICE_UPDATE_TRANSFER_TIME, &SDMServices::UpdateTransferTime},
       {SDM_SERVICE_PERFORM_CAC_CONFIG, &SDMServices::PerformCacConfig},
       {SDM_SERVICE_SET_BPP_MODE, &SDMServices::SetBppMode},
+      {SDM_SERVICE_SET_PA_HIST_COLLECTION, &SDMServices::SetPaHistCollection},
   };
 
   std::unordered_map<uint32_t, VndCmdGetHandler> vnd_handlers_get_ = {
@@ -377,9 +391,33 @@ private:
       {SDM_SERVICE_SET_DEMURA_CONFIG, &SDMServices::SetDemuraConfig},
       {SDM_SERVICE_GET_DISPLAY_PORT_ID, &SDMServices::GetDisplayPortId},
       {SDM_SERVICE_SET_PANEL_FEATURE_CONFIG, &SDMServices::SetPanelFeatureConfig},
+      {SDM_SERVICE_GET_PA_HIST_BINS, &SDMServices::GetPaHistBins},
   };
 
   int bw_mode_release_fd_ = -1;
+
+  // PA histogram internal state: one slot per display
+  struct PaHistClient : public SdmDisplayCbInterface<PaHistCollectionPayload> {
+    int Notify(const PaHistCollectionPayload &) override {
+      {
+        std::lock_guard<std::mutex> guard(ready_mutex);
+        ready.store(true, std::memory_order_release);
+      }
+      ready_cv.notify_all();
+      return 0;
+    }
+    // Waits without holding any display lock; returns false on timeout.
+    bool WaitReady(int timeout_ms) {
+      std::unique_lock<std::mutex> guard(ready_mutex);
+      return ready_cv.wait_for(guard, std::chrono::milliseconds(timeout_ms),
+                               [this] { return ready.load(std::memory_order_acquire); });
+    }
+    std::atomic<bool> ready{false};
+    std::mutex ready_mutex;
+    std::condition_variable ready_cv;
+    std::array<uint32_t, HIST_BIN_SIZE> bins{};
+  };
+  std::unordered_map<int, std::shared_ptr<PaHistClient>> pa_hist_clients_;
 
   SDMServicesCbIntf *cb_ = nullptr;
   SDMDisplayBuilder *disp_ = nullptr;

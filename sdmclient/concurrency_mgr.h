@@ -528,6 +528,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                                       SDMParcel *output_parcel);
 
   bool IsClientConnected() { return client_connected_; }
+  void ClearPaHistClient(int dpy) override;
   Display GetVsyncSource() override { return vsync_source_; }
   bool VsyncCallbackRegistered() override { return client_connected_; }
   DisplayError SetupVRRConfig(uint64_t display_id);

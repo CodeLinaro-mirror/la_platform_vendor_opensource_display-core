@@ -54,6 +54,8 @@
 
 #include "sdm_compositor_callbacks.h"
 #include "sdm_layer_builder.h"
+#include <private/cb_intf.h>
+#include <private/display_event_proxy_intf.h>
 
 namespace sdm {
 
@@ -529,6 +531,11 @@ public:
   virtual DisplayError SetSsrcMode(const std::string &mode) { return kErrorNotSupported; }
   virtual DisplayError EnableCopr(bool en) { return kErrorNotSupported; }
   virtual DisplayError GetCoprStats(std::vector<int> *stats) { return kErrorNotSupported; }
+  virtual DisplayError SetPaHistCollection(const std::string &client_name, bool enable,
+      SdmDisplayCbInterface<PaHistCollectionPayload> *cb) { return kErrorNotSupported; }
+  virtual DisplayError GetPaHistBins(std::array<uint32_t, HIST_BIN_SIZE> *buf) {
+    return kErrorNotSupported;
+  }
   virtual int GetNotifyEptConfig() { return -1; }
   virtual DisplayError SetPanelFeatureConfig(int32_t type, void *data) {
     return kErrorNotSupported;
