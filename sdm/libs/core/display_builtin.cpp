@@ -4687,6 +4687,9 @@ DisplayError DisplayBuiltIn::SetPanelFeatureConfig(int32_t type, void *data) {
     case kTypeDemuraTnAgingSurfTransfer:
       ret = SetDemuraTnAgingSurfTransfer(data);
       break;
+    case kTypeSetDemuraTnCompRatio1x1:
+      ret = SetDemuraTnCompRatio(data);
+      break;
     default:
       DLOGE("Invalid type %d", type);
       ret = kErrorParameters;
@@ -5226,6 +5229,23 @@ DisplayError DisplayBuiltIn::SetDemuraTnAodHandlerCtrl(void *data) {
   }
 
   DLOGI("Set aod handler ctrl done");
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetDemuraTnCompRatio(void *data) {
+  int ret = 0;
+  GenericPayload payload;
+  (void)data;
+  if (!demuratn_) {
+    DLOGE("demuratn_ is nullptr");
+    return kErrorUndefined;
+  }
+  ret = demuratn_->SetParameter(kDemuraTnCoreUvmParamCompRatio1x1, payload);
+  if (ret) {
+    DLOGE("Failed to set compensation ratio 1x1, ret %d", ret);
+    return kErrorUndefined;
+  }
+  DLOGI("Set DemuraTn compensation 1x1 override");
   return kErrorNone;
 }
 

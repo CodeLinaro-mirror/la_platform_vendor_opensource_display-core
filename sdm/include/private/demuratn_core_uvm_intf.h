@@ -39,6 +39,8 @@ enum DemuraTnCoreUvmParams {
   kDemuraTnCoreUvmParamAodHandlerCtrl,
   /* Setter: None  */
   kDemuraTnCoreUvmParamAgingSurfTransfer,
+  /* Setter: None  */
+  kDemuraTnCoreUvmParamCompRatio1x1,
   kDemuraTnCoreUvmParamsMax = 2048,
   kDemuraTnCoreUvmPrivParamsStart = 2049,
   kDemuraTnCoreUvmPrivParamsEnd = 4096,
