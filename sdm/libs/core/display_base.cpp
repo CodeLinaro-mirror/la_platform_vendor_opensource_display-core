@@ -1780,6 +1780,21 @@ bool DisplayBase::IsPrimaryCommitNeeded() {
     return true;
   }
 
+  bool current_secure = false;
+  for (auto &[core_id, hw_info] : disp_layer_stack_->info) {
+    for (auto &hw_layer : hw_info.hw_layers) {
+      if (hw_layer.composition == kCompositionIWERepro) {
+        current_secure = hw_layer.input_buffer.flags.secure;
+        break;
+      }
+    }
+  }
+  if (current_secure != lsr_secure_state_) {
+    lsr_secure_state_ = current_secure;
+    DLOGV("LSR secure state changed to %d, forcing primary DPU commit", current_secure);
+    return true;
+  }
+
   return false;
 }
 
