@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #ifndef __SDM_DISPLAY_BUILDER_H__
@@ -85,6 +86,7 @@ class SDMDisplayBuilder {
   bool IsVirtualDisplayConnected();
   void GetVirtualDisplayList();
   bool IsHWDisplayConnected(Display client_id);
+  void AddGpuBasedVirtualDisplay(const HWDisplaysInfo *const hw_displays_info);
 
   void RemoveDisconnectedPluggableDisplays();
   bool IsPluggableDisplayConnected();
@@ -99,6 +101,7 @@ class SDMDisplayBuilder {
 
   bool IsBuiltInDisplay(uint64_t disp_id);
   DisplayError GetDisplayHwId(uint64_t disp_id, int32_t *disp_hw_id);
+  int32_t GetVirtualDisplayId(HWDisplayInfo &info);
 
  private:
   std::vector<DisplayMapInfo> map_info_primary_;    // Primary display (either builtin or pluggable)
