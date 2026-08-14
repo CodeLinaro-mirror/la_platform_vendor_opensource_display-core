@@ -53,6 +53,11 @@ bool Debug::IsSecurePreviewBufferFormatEnabled(std::string *secure_preview_buffe
   *secure_preview_buffer_format = value;
   return 0;
 }
+bool Debug::IsCameraPreviewUsingUsbHal() {
+  int value = 0;
+  GetProperty(CAMERA_PREVIEW_USES_USB_HAL_PROP, &value);
+  return (value == 1);
+}
 bool Debug::IsSecurePreviewOnlyEnabled() {
   int value = 0;
   GetProperty(SECURE_PREVIEW_ONLY_PROP, &value);

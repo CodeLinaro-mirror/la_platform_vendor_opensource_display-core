@@ -204,6 +204,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
                                              CwbConfig &cwb_config);
   virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config,
                                   const CWBClient &client);
+  virtual bool HasPendingCwbRequest();
   virtual DisplayError ReserveWBForDisplay(WbMapInfo *wb_info);
   virtual void ReleaseWBFromDisplay();
   virtual DisplayError PostHandleSecureEvent(SecureEvent secure_event) {
@@ -277,7 +278,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual void EnableLlccDuringAodMode(LayerStack *layer_stack);
   virtual DisplayError UpdateTransferTime(uint32_t transfer_time) { return kErrorNotSupported; }
   virtual void NotifyCwbDone(int32_t status, const LayerBuffer& buffer);
-  virtual void Refresh();
+  virtual void Refresh(RefreshType type);
   virtual void OnCwbTeardown(bool sync_teardown);
   virtual DisplayError OnCwbValidation(const LayerBuffer &output_buffer, CwbConfig &cwb_config);
   virtual bool HandleCwbTeardown();
@@ -289,7 +290,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError SetABCReconfig() { return kErrorNotSupported; }
   virtual DisplayError SetABCMode(const string &mode_name) { return kErrorNotSupported; }
   virtual DisplayError SetAIScalerMode(uint32_t mode_id) { return kErrorNotSupported; }
-  virtual void RefreshOnIdleTimeoutForCwb(bool is_cwb_requested);
+  virtual void RefreshOnIdleTimeoutForCwb(bool is_cwb_requested, RefreshType refresh_type);
   virtual void ResetDispLayerStack();
   virtual bool HasNoiseLayer();
   virtual bool HasConcurrentWriteback();
@@ -357,6 +358,9 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   }
   virtual bool IsLSRSupported();
   virtual DisplayError UpdateRgbHistogramRoi(const void *data) { return kErrorNotSupported; }
+  virtual DisplayError GetDisplayViewMode(SDMDisplayViewMode *view_mode) {
+    return kErrorNotSupported;
+  }
 
  protected:
   struct DisplayMutex {
@@ -493,6 +497,10 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   DispLayerStack disp_layer_stacks_[kDispStackCount];
   std::atomic<bool> clearstack_;
   uint8_t disp_stack_index_ = 0;
+  // Two-level deferred buffer_map destruction to prevent SMMU faults during
+  // batch commit sequences.  See PostCommit() for details.
+  std::vector<std::shared_ptr<LayerBufferMap>> pending_buffer_maps_;
+  std::vector<std::shared_ptr<LayerBufferMap>> prev_pending_buffer_maps_;
   bool needs_validate_ = true;  // maintains validation state between Prepare/Commit Cycle
   bool vsync_enable_ = false;
   uint32_t max_mixer_stages_ = 0;
@@ -597,6 +605,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   qrtc::QrtcFeatureFactIntf *qrtc_factory_ = nullptr;
   bool is_ssr_active_ = false;
   bool is_lsr_ssr_active_ = false;
+  bool ssr_end_in_progress_ = false;  // Set during SSR end power restore to defer vsync
   bool lsr_first_commit_ = true;
   // GPU reproj (seraph/GPU LSR path): cached active flag and init-commit counter.
   // SDM commits to DPU exactly kReprojSlotCount (2) times to register both

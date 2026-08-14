@@ -26,6 +26,8 @@ struct CompressionConfig {
   uint32_t buf_size = 0;           // Buffer size in bytes.
   float target_time = 0.0f;        // Expected target time for compression in ms.
   bool dynamic_comp_ratio = true;  // Client can specify compression level / ratio.
+  uint32_t buffer_count = 5;       // Number of compression buffer slots (pool size).
+                                   // Must match the CWB output buffer pool size.
 };
 
 struct QueueItem {
@@ -69,8 +71,9 @@ class Compressor {
 
  private:
   const int kReadThreadCount = 1;
-  const int kMaxBufferCount = 20;
+  const int kMaxBufferCount = 5;
   const int kFlushFrequency = 5;  // Flush data for every these no of frames.
+  int buffer_count_ = kMaxBufferCount;
 
   void ProcessReadQueue();
   void ProcessWriteQueue();

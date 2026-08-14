@@ -159,7 +159,7 @@ class DisplayVirtualPQ : public DisplayVirtual, public DppsPropIntf {
   virtual DisplayError GetStcColorModes(snapdragoncolor::ColorModeList *mode_list) override;
   virtual DisplayError SetStcColorMode(const snapdragoncolor::ColorMode &color_mode) override;
   virtual DisplayError PostCommit() override;
-  virtual DisplayError TurnOffColorFeature() override;
+  virtual DisplayError ProcessColorFeatureOps(DisplayColorOps ops, void *payload) override;
 
   // Implement the DppsPropIntf
   virtual DisplayError DppsProcessOps(enum DppsOps op, void *payload, size_t size) override;

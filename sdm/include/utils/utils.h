@@ -145,6 +145,14 @@ void CopyColorMetadata(T1 &input, T2 &output) {
   output.dynamicMetadata = input.dynamicMetadata;
 }
 
+template <typename T>
+void SafeDeleteArray(T *&ptr) {
+  if (ptr != nullptr) {
+    delete[] ptr;
+    ptr = nullptr;
+  }
+}
+
 template<class T>
 bool SameConfig(T *t1, T *t2, unsigned int size) {
   return !(std::memcmp(t1, t2, size));

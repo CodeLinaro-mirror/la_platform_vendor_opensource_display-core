@@ -1155,8 +1155,8 @@ void CompManager::NotifyCwbDone(int32_t display_id, int32_t status, const LayerB
   }
 }
 
-void CompManager::TriggerRefresh(int32_t display_id) {
-  callback_map_[display_id]->Refresh();
+void CompManager::TriggerRefresh(int32_t display_id, RefreshType type) {
+  callback_map_[display_id]->Refresh(type);
 }
 
 void CompManager::TriggerCwbTeardown(int32_t display_id, bool sync_teardown) {

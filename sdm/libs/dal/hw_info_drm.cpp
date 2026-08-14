@@ -494,6 +494,8 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
   uint32_t virtual_pipe_count = 0;
   int disable_src_tonemap = 0;
   Debug::Get()->GetProperty(DISABLE_SRC_TONEMAP_PROP, &disable_src_tonemap);
+  int disable_ucsc_tonemap = 0;
+  Debug::Get()->GetProperty(DISABLE_UCSC_TONEMAP_PROP, &disable_ucsc_tonemap);
 
   MapPlaneToConnector(hw_resource);
   GetInitialDemuraInfo(hw_resource);
@@ -641,14 +643,14 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
           ucsc_block = kUcscUnmult;
           break;
         case DRMUcscBlockType::UCSC_IGC:
-          // don't set ucsc block if src tonemap feature is disabled using property
-          ucsc_block = !disable_src_tonemap ? kUcscIgc : ucsc_block;
+          // don't set ucsc block if src tonemap or ucsc tonemap feature is disabled using property
+          ucsc_block = (!disable_src_tonemap && !disable_ucsc_tonemap) ? kUcscIgc : ucsc_block;
           break;
         case DRMUcscBlockType::UCSC_CSC:
           ucsc_block = kUcscCsc;
           break;
         case DRMUcscBlockType::UCSC_GC:
-          ucsc_block = !disable_src_tonemap ? kUcscGc : ucsc_block;
+          ucsc_block = (!disable_src_tonemap && !disable_ucsc_tonemap) ? kUcscGc : ucsc_block;
           break;
         case DRMUcscBlockType::UCSC_ALPHA_DITHER:
           ucsc_block = kUcscAlphaDither;

@@ -12,19 +12,52 @@
 // Public data structures — no Vulkan types exposed here.
 // ---------------------------------------------------------------------------
 
+// Opaque data blob (mirrors kernel struct drm_msm_opaque_config).
+// Used to pass sparse_grid and radial_dis_grid to libgpu_reproj.so.
+struct GpuReprojOpaqueConfig {
+  uint64_t size;  // size of data buffer in bytes
+  uint64_t flags;
+  uint32_t crc;
+  uint64_t data;  // pointer to data buffer cast to uint64_t
+};
+
+// Per-eye point pair (mirrors kernel struct sde_drm_lsr_point).
+// points[0] = left eye, points[1] = right eye.
+struct GpuReprojLsrPoint {
+  struct {
+    uint32_t x, y;
+  } points[2];
+};
+
+// ---------------------------------------------------------------------------
+// GpuReprojStaticConfig — unified one-time calibration config.
+// Populated by SDMDisplayBuiltInGpuReproj::SetStaticConfig() from:
+//   • SDMDisplayDeviceConfig (SFLUA)          — proj matrices, gamma, rotation
+//   • libLayerConversion.so::GetLDCCACParams  — sparse grid, radial LUT, optical params
+//   • display_intf_->GetFrameBufferConfig()   — display dimensions
+// ---------------------------------------------------------------------------
 struct GpuReprojStaticConfig {
-  float *sparse_grid;
-  int grid_w, grid_h;
-  float *radial_dis_grid;
-  int distort_resolution;
+  // ---- From SDMDisplayDeviceConfig (SFLUA) ----
   float proj_matrix_left[16], proj_matrix_right[16];
-  float inv_proj_matrix_left[16], inv_proj_matrix_right[16];
-  float optical_axis_offset[4];
-  float r_max;
-  float to_lrgb_left, to_lrgb_right;
-  float *gamma_lut;
-  int gamma_size;
-  int display_width, display_height;
+  float inv_proj_matrix_left[16], inv_proj_matrix_right[16];  // computed by SDM
+  float gamma_lut[256];
+  float rotation_left[4], rotation_right[4];  // per-eye orientation {x,y,z,w}
+
+  // ---- From libLayerConversion.so::GetLDCCACParams (LDC CSV files) ----
+  GpuReprojOpaqueConfig reproj_sparse_grid;  // LensOut::sparse_grid (RG32F warp mesh)
+  uint32_t reproj_grid_w;
+  uint32_t reproj_grid_h;
+  GpuReprojOpaqueConfig reproj_radial_dis_grid;  // BBOxOut::radial_distortion_grid (R32F LUT)
+  uint32_t distort_resolution;                   // BBOxOut::distor_res (257)
+  GpuReprojLsrPoint reproj_optical_axis_offset;  // BBOxOut::point[2]
+  float reproj_r_max;                            // BBOxOut::reprojection_r_max
+  uint32_t reproj_error_tol;                     // BBOxOut::errortol
+  float reproj_tol_rgb_left;                     // BBOxOut::reproj_tol_rgb_left
+  float reproj_tol_rgb_right;                    // BBOxOut::reproj_tol_rgb_right
+
+  // ---- From hardware (GetFrameBufferConfig) ----
+  uint32_t reproj_disp_im_width;   // per-eye buffer width  (x_pixels / 2)
+  uint32_t reproj_disp_im_height;  // per-eye buffer height (y_pixels)
 };
 
 // Plain-old-data descriptor for a DMA-BUF-backed image buffer.

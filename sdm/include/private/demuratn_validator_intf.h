@@ -21,6 +21,8 @@ enum DemuraTnValidatorParams {
   kDemuraTnValidatorDoubleBufferCodebookFlags,
   /* Getter: Query all parsers, out: std::map<uint64_t, std::shared_ptr<DemuraParserIntf>> */
   kDemuraTnValidatorQueryAllParsers,
+  /* Release the stored parser for one panel_id after reconfig, input: uint64_t panel_id */
+  kDemuraTnValidatorReleaseParser,
   kDemuraTnValidatorParamsMax = 0xff,
 };
 

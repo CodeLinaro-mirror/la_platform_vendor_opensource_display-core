@@ -103,6 +103,8 @@ struct SnapMetadata {
   int64_t bufferDequeueDuration;
   bool is_format_SMPTE2094_10 = false;
   std::vector<uint8_t> custom_content_metadata;
+  bool is_format_SMPTE2094_50 = false;
+  vendor_qti_hardware_display_common_SMPTE2094_50Metadata smpte2094_50_metadata;
   vendor_qti_hardware_display_common_ThreeDimensionalRefInfo three_dimensional_ref_info;
   uint32_t viewId;
   /* Set by camera to indicate areas where encoding quality should be improved */
