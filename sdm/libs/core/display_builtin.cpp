@@ -4023,6 +4023,15 @@ void DisplayBuiltIn::HandleSSREvent(SSREventType ssr_event) {
   is_ssr_active_ = (event == kSsrStart);
   dpu_core_mux_->SetSSRState(is_ssr_active_);
 
+  // Notify DemuraTn on SSR triggered.
+  if (is_ssr_active_ && demuratn_ && demuratn_enabled_) {
+    GenericPayload payload;
+    int ret = demuratn_->SetParameter(kDemuraTnCoreUvmParamSsrEvent, payload);
+    if (ret) {
+      DLOGW("Failed to notify DemuraTn of SSR event, ret %d", ret);
+    }
+  }
+
   if (!event_handler_) {
     DLOGW("Event handler is null");
     return;
