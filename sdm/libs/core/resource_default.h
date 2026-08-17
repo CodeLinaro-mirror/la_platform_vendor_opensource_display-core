@@ -96,11 +96,18 @@ class ResourceDefault : public ResourceInterface {
     return kErrorNone;
   }
   virtual DisplayError FreeQrtcFetchResources(const int32_t &display_id) { return kErrorNone; }
+  virtual DisplayError CanSupportQrtcWithSubsampling(Handle display_ctx,
+                                                     QrtcSubsamplingSupport *qrtc_support) {
+    return kErrorNone;
+  }
   virtual DisplayError ReserveABCFetchResources(const uint32_t &display_id, bool is_primary,
                                                 const int8_t &req_cnt) {
     return kErrorNone;
   }
   virtual DisplayError GetDemuraFetchResources(Handle display_ctx, vector<FetchResourceList> *frl) {
+    return kErrorNone;
+  }
+  virtual DisplayError GetQrtcFetchResources(Handle display_ctx, vector<FetchResourceList> *frl) {
     return kErrorNone;
   }
   virtual DisplayError SetMaxSDEClk(Handle display_ctx, uint32_t clk) { return kErrorNotSupported; }
@@ -147,6 +154,10 @@ class ResourceDefault : public ResourceInterface {
     return kErrorNone;
   }
   virtual DisplayError CanTakeDPUScreenshot(uint32_t display_id) { return kErrorNone; };
+  virtual DisplayError ConfigureDynamicCaCConfig(Handle display_ctx,
+                                                 DispLayerStack *disp_layer_stack) {
+    return kErrorNone;
+  }
 
  private:
   enum PipeOwner {

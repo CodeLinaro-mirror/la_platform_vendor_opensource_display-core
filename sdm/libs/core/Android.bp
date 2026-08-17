@@ -38,6 +38,7 @@ cc_library_shared {
         "display_pluggable.cpp",
         "display_virtual.cpp",
         "display_null.cpp",
+        "dpps_info.cpp",
         "noise_plugin_intf_impl.cpp",
         "comp_manager.cpp",
         "strategy.cpp",
@@ -49,6 +50,7 @@ cc_library_shared {
         "dpu_multi_core.cpp",
         "privacy_region_manager.cpp",
         "pu_subject_intf_impl.cpp",
+        "refresh_rate_manager.cpp",
     ],
 
 }

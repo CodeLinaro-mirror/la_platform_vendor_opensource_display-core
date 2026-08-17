@@ -117,6 +117,7 @@ struct HWDisplayInfo {
   bool is_primary = false;                     //!< True only if this is the main display of the
                                                //!< device.
   bool is_wb_ubwc_supported = true;            //!< check hardware wb ubwc support
+  bool is_wb_downscale_supported = false;      //!< check whether connector(WB) supports downscale
   bool is_reserved = false;                    //!< check if currently reserved by any display
   uint32_t max_linewidth = 0;                  //!< max width supported by connector
   uint32_t max_cwb = 0;                        //!< Maximum CWB instances supported concurrently,
@@ -354,6 +355,22 @@ class CoreInterface {
   */
   virtual void SetHdrCapabilities(Display display, const std::vector<Hdr> &hdr_types,
                                   float max_avg_luminance, float min_luminance) = 0;
+
+  /*! @brief Method to set the virtual display type used for virtual display creation.
+
+    @param[in] type \link SDMVirtualDispType \endlink
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetVirtualDispType(SDMVirtualDispType type) = 0;
+
+  /*! @brief Method to get the current virtual display type.
+
+    @param[out] out \link SDMVirtualDispType \endlink
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError GetVirtualDispType(SDMVirtualDispType *out) = 0;
 
  protected:
   virtual ~CoreInterface() { }

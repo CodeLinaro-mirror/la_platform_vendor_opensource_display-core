@@ -70,6 +70,7 @@
 #define NULL_DISPLAY_RESOLUTION_PROP         DISPLAY_PROP("null_display_resolution")
 #define SIMULATED_CONFIG_PROP                DISPLAY_PROP("simulated_config")
 #define MAX_SECONDARY_FETCH_LAYERS_PROP      DISPLAY_PROP("max_secondary_fetch_layers")
+#define MAX_BUILTIN_FETCH_LAYERS_PROP        DISPLAY_PROP("max_builtin_fetch_layers")
 #define ENABLE_EXTERNAL_DOWNSCALE_PROP       DISPLAY_PROP("enable_external_downscale")
 #define EXTERNAL_ACTION_SAFE_WIDTH_PROP      DISPLAY_PROP("external_action_safe_width")
 #define EXTERNAL_ACTION_SAFE_HEIGHT_PROP     DISPLAY_PROP("external_action_safe_height")
@@ -158,6 +159,9 @@
 #define ENABLE_MEMORY_MAPPING                DISPLAY_PROP("enable_memory_mapping")
 #define DISABLE_SPR_PRIMARY                  DISPLAY_PROP("disable_spr_primary")
 #define DISABLE_SPR_SECONDARY                DISPLAY_PROP("disable_spr_secondary")
+
+//SPI Display
+#define SPI_DISPLAY_PRESENT                  DISPLAY_PROP("has_spi_display")
 
 // Panel Feature Demura Properties
 #define ENABLE_DEMURA                        DISPLAY_PROP("enable_demura")
@@ -282,6 +286,7 @@
 #define DISABLE_IDLE_SCALING_LAYERS          DISPLAY_PROP("disable_idle_scaling_layers")
 #define DISABLE_LLCC_DURING_AOD              DISPLAY_PROP("disable_llcc_during_aod")
 #define DISABLE_CWB_IDLE_FALLBACK            DISPLAY_PROP("disable_cwb_idle_fallback")
+#define DISABLE_FBT_FOR_CWB_FALLBACK         DISPLAY_PROP("disable_fbt_for_cwb_fallback")
 #define PRIORITIZE_CLIENT_CWB                DISPLAY_PROP("prioritize_client_cwb")
 #define ENABLE_CWB_CPU_BOOSTING              DISPLAY_PROP("enable_cwb_cpu_boosting")
 #define DISABLE_CWB_OPTIMIZATION             DISPLAY_PROP("disable_cwb_optimization")
@@ -304,6 +309,7 @@
 #define BUILTIN_PRESENTATION                 DISPLAY_PROP("builtin_presentation")
 #define DISABLE_DYNAMIC_SPLIT                DISPLAY_PROP("disable_dynamic_split")
 #define DISABLE_FP16_SUPPORT                 DISPLAY_PROP("disable_fp16_support")
+#define DISABLE_HDR_GAMMA_SUPPORT            DISPLAY_PROP("disable_hdr_gamma_support")
 #define LSR_VARIANT                          DISPLAY_PROP("lsr_variant")
 #define ENABLE_SPLIT_VOTE                    DISPLAY_PROP("enable_split_vote")
 #define ENABLE_SELECTIVE_PANEL_DEAD          DISPLAY_PROP("selective_panel_dead")
@@ -331,9 +337,20 @@
 #define DISABLE_PUNCHHOLE_LAYERS          DISPLAY_PROP("disable_punchhole_layers")
 
 #define FORCE_LSR_RENDER_MODE             DISPLAY_PROP("force_lsr_render_mode")
+#define SET_VSYNC_OFFSET                  DISPLAY_PROP("set_vsync_offset")
 
 // Enable RGB Histogram
 #define ENABLE_RGB_HISTOGRAM              DISPLAY_PROP("enable_rgb_histogram")
+// Enable Dynamic CAC
+#define DYNAMIC_CAC_FILE_PATH             DISPLAY_PROP("dynamic_cac_file_path")
+
+// Enable composer driven HDCP path
+#define COMPOSER_DRIVEN_HDCP              DISPLAY_PROP("composer_driven_hdcp")
+
+//Max virtual display count supported
+#define MAX_VIRTUAL_DISPLAY_COUNT         DISPLAY_PROP("max_virtual_display_count")
+
+#define ENABLE_ROTATOR_CONCURRENCY           DISPLAY_PROP("enable_rotator_concurrency")
 
 // Add all other.properties above
 // End of property

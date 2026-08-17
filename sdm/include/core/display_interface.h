@@ -406,11 +406,19 @@ struct PanelFeatureInfo {
 */
 struct RgbHistConfigWrapper {
   bool enable = false;
-  uint32_t disp_width = 0;
-  uint32_t disp_height = 0;
   void *payload = nullptr;
   void *observer = nullptr;
   std::string observer_id;
+};
+
+/*! @brief Wrapper for demura layers and application state.
+
+  @sa DisplayInterface::DemuraLayerWrapper
+*/
+struct DemuraLayerWrapper {
+  std::vector<Layer> demura_layer;  //!< Demura layers.
+  bool pending_cleared = false;     //!< True if a deferred clear of demura_layer is pending.
+  bool applied = false;             //!< True if demura layer has been applied.
 };
 
 /*! @brief This enum represents the panel feature cmd types supported by the vendService cmd.
@@ -443,7 +451,8 @@ enum PanelFeatureVendorServiceType {
   kTypeSwitchToDAC = 12,
   /* Getter: char* */
   kTypeGetDemuraTnAgingValue = 13,
-  kTypeRgbHistConfig = 14,
+  /* Setter: None */
+  kTypeSetDemuraTnCompRatio1x1 = 14,
   PanelFeatureVendorServiceTypeMax,
 };
 
@@ -458,12 +467,27 @@ enum QrtcVendorServiceType {
   kTypeQrtcSubsample = 1,
   /* Setter: int */
   kTypeQrtcDumpBuffer = 2,
+  /* Setter: int */
+  kTypeQrtcTuningMode = 3,
+  /* Setter: None */
+  kTypeQrtcTuningCfg = 4,
   KQrtcVendorServiceTypeMax,
+};
+
+/*! @brief This struct stores QrtcSubsamplingSupport capability
+
+  @sa DisplayInterface::QrtcSubsamplingSupport
+*/
+struct QrtcSubsamplingSupport {
+  uint32_t subsample_h;
+  uint32_t subsample_v;
+  bool supported;
 };
 
 enum ClientCapability {
   kPunchholeSupported,
   kHDRSupported,
+  kGPUCompositionSupported,
   kClientCapabilityMax,
 };
 
@@ -1439,6 +1463,23 @@ class DisplayInterface {
   virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config,
                                   const CWBClient &client) = 0;
 
+  /*! @brief Method to allocate Writeback connector for QRTC.
+
+    @param[out] writeback connector id
+
+    @return \link DisplayError \endlink
+  */
+
+  virtual DisplayError ReserveWBForDisplay(int32_t *wb_id) = 0;
+
+  /*! @brief Method to deallocate Writeback connector QRTC in use by QRTC.
+
+    @param[in] writeback connector id
+
+    @return \link void \endlink
+  */
+  virtual void ReleaseWBFromDisplay(int32_t wb_id) = 0;
+
   /*! @brief Method to handle CWB teardown on the display
 
     @return \link DisplayError \endlink
@@ -1489,6 +1530,14 @@ class DisplayInterface {
     @return \link DisplayError \endlink
   */
   virtual DisplayError PerformCacConfig(CacConfig config, bool enable) = 0;
+
+  /*! @brief Method to handle Dynamic CAC coefficients.
+
+    @param[in] config \link DynamicCacV2Config \endlink
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetDynamicCacConfig(DynamicCacV2Config config, bool enable) = 0;
 
   /*! @brief Method to enable/disable panel OPR info.
 
@@ -1655,6 +1704,14 @@ class DisplayInterface {
   */
   virtual DisplayError DumpDemuraSurface(const char *dir_path, uint32_t frame_index) = 0;
 
+  /*! @brief Method to set stc feature configurations
+
+   @param[in] data : Configuration or operation data
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetStcFeatureConfig(void *data) = 0;
+
   /*! @brief Method to trigger Timeout event on current display
 
    @return \link void \endlink
@@ -1729,12 +1786,19 @@ class DisplayInterface {
   virtual DisplayError SetRgbHistObserverConfig(bool state, void *data) = 0;
 
   /*! @brief Method to configure QRTC feature
-   @param[in] state: Enable/Disable   @param[in] type : Operation type
+   @param[in] type : Operation type
    @param[in] data : Configuration or operation data
 
    @return \link DisplayError \endlink
   */
   virtual DisplayError SetQrtcFeatureConfig(int32_t type, void *data) = 0;
+
+  /*! @brief Method to set and cache the rgb histogram roi
+   @param[in] data : RGB Histogram data (ObserverConfig)
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError UpdateRgbHistogramRoi(const void *data) = 0;
 
  protected:
   virtual ~DisplayInterface() { }

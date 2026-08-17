@@ -92,6 +92,7 @@ struct ReprojectionConfig {
   uint32_t reprojection_mode_enabled = true;
   float reproj_tol_rgb_left = 0;
   float reproj_tol_rgb_right = 0;
+  uint64_t vsync_offset = 0;  // vsync offset in nanoseconds
 };
 
 enum HWFeature {

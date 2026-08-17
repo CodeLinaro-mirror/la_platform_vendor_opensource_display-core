@@ -133,10 +133,13 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
 
   bool GetComposerStatus() override;
 
-  void CompositorSync(CompositorSyncType sync_type) override;
+  void CompositorSync(uint64_t display, CompositorSyncType sync_type) override;
 
-  DisplayError PostBuffer(const CwbConfig &cwb_config, void *buffer,
-                          int32_t display_type);
+  DisplayError PostBuffer(const CwbConfig &cwb_config, void *buffer, int32_t display_type);
+
+  DisplayError PostBufferWithOwner(const CwbConfig &cwb_config, void *buffer, int32_t display_type,
+                                   SDMSideBandCompositorCbIntf *owner);
+
   DisplayError SetPoseConfig(uint64_t disp_id, void *buffer);
 
   template <typename... Args>
@@ -373,6 +376,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   bool IsBuiltInDisplay(uint64_t disp_id) override;
   bool IsAsyncVDSCreationSupported() override;
   DisplayError CreateVirtualDisplay(int width, int height, int format) override;
+  DisplayError SetVirtualDispType(SDMVirtualDispType type) override;
   DisplayError GetDSIClk(uint64_t disp_id, uint64_t *bit_clk) override;
   DisplayError SetDSIClk(uint64_t disp_id, uint64_t bit_clk) override;
   DisplayError SetQsyncMode(uint64_t disp_id, QSyncMode mode) override;
@@ -384,6 +388,8 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError GetActiveBuiltinDisplay(uint64_t *disp_id) override;
 
   void RegisterSideBandCallback(SDMSideBandCompositorCbIntf *cb, bool enable) override;
+  void RegisterSideBandCallbackEx(SDMSideBandCompositorCbIntf *cb, bool enable,
+                                  SideBandCallbackClient intf_type) override;
 
   void GetCapabilities(uint32_t *outCount, int32_t *outCapabilities);
   void Dump(uint32_t *out_size, char *out_buffer);
@@ -496,6 +502,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                              SDMTUIEventType event_type) override;
   DisplayError SetContentFps(const std::string &name, int32_t fps) override;
   int GetDisplayConfigGroup(uint64_t display, DisplayConfigGroupInfo variable_config);
+  int GetDisplayConfigGroup(uint64_t display, DisplayConfigGroupInfo variable_config, uint32_t fps);
 
   // SDMDisplayEventHandler
   virtual void DisplayPowerReset(int32_t display);
@@ -554,12 +561,14 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError SetAIScalerMode(uint64_t display_id, uint32_t mode_id);
   DisplayError SetPanelFeatureConfig(Display display, int32_t type, void *data);
   DisplayError GetPanelFeatureConfig(Display display, int32_t type, void *data, uint32_t data_size);
+  DisplayError SetStcFeatureConfig(Display display, void *data);
   DisplayError ClearBuffersMappedToLayer(uint64_t display, LayerId layer_id,
                                          const SnapHandle *layerBuffer);
   DisplayError SetRgbHistObserverConfig(Display display, bool state, void *data);
   DisplayError SetQrtcFeatureConfig(Display display, int32_t type, void *data);
 
   void SetPrimaryConnected(bool state) { primary_connected_ = state; }
+  bool IsPluggablePrimary() const override;
 
   static const int locker_count_ = pluggable_lock_index_ + 1;
   static Locker locker_[locker_count_];
@@ -627,6 +636,9 @@ private:
   DisplayError PerformCacConfig(uint64_t disp_id, CacConfig cac_config, bool enable) {
     return CallDisplayFunction(disp_id, &SDMDisplay::PerformCacConfig, cac_config, enable);
   }
+  DisplayError PerformDynamicCac(uint64_t disp_id, DynamicCacV2Config cac_config, bool enable) {
+    return CallDisplayFunction(disp_id, &SDMDisplay::PerformDynamicCac, cac_config, enable);
+  }
   // Internal methods
   void HandleSecureSession();
   void HandlePendingPowerMode(Display display,
@@ -658,6 +670,7 @@ private:
   DisplayError TUIEventHandler(uint64_t disp_id, SDMTUIEventType event_type);
   void GetPendingHotplug(vector<Display> &pending_hotplugs);
   bool IsEPTSupported();
+  void SendFeatenablerCommand(FeatenablerCommand cmd);
 
   CoreInterface *core_intf_ = nullptr;
   SDMCompositorCallbacks callbacks_{};

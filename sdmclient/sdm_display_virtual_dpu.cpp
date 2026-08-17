@@ -35,6 +35,7 @@
  */
 #include "sdm_display_virtual_dpu.h"
 #include <BufferDescriptor.h>
+#include "sdm_color_mode_stc.h"
 
 #define __CLASS__ "SDMDisplayVirtualDPU"
 
@@ -83,7 +84,18 @@ DisplayError SDMDisplayVirtualDPU::Init() {
     return status;
   }
 
-  color_mode_ = new SDMColorModeMgr(display_intf_);
+  SDMVirtualDispType type = kVirtualTypeDefault;
+  status = core_intf_->GetVirtualDispType(&type);
+  if (status != kErrorNone) {
+    DLOGE("Failed to get virtual display type");
+    return status;
+  }
+
+  if (type == kVirtualTypePQ) {
+    color_mode_ = new SDMColorModeStc(display_intf_);
+  } else {
+    color_mode_ = new SDMColorModeMgr(display_intf_);
+  }
   color_mode_->Init();
   return SDMDisplayVirtual::Init();
 }

@@ -162,6 +162,7 @@ enum GeometryChanges {
   kBufferGeometry = 0x200,
   kColorTransform = 0x400,
   kLayerBrightness = 0x800,
+  kReprojectionParams = 0x1000,
   kDefault = 0xFFFF,
 };
 
@@ -414,6 +415,7 @@ struct LayerStackFlags {
                                             //!< layer in the stack has been updated.
       uint32_t qrtc_present : 1;  //!< This flag shall be set to true to indicate stack has qrtc
 
+      uint32_t rgb_histogram_updated : 1;
     };
 
     uint32_t flags = 0;               //!< For initialization purpose only.
@@ -586,6 +588,19 @@ struct CacConfig {
   uint32_t skip_inc = 0;
 };
 
+struct DynamicCacV2Poly {
+  double rhc[3]; // red horizontal rhc[2] * (x ^ 2) + rhc[1] * x + rhc[0]
+  double bhc[3]; // blue horizontal
+  double rvc[3]; // red vertical rvc[2] * (y ^ 2) + rvc[1] * y + rvc[0]
+  double bvc[3]; // blue vertical
+  uint32_t gpu_coef_flags; // bit 0: GPU coefficient mode, bit 1: right eye mode
+};
+
+struct DynamicCacV2Config {
+  DynamicCacV2Poly poly_ctrl_left;
+  DynamicCacV2Poly poly_ctrl_right;
+};
+
 /*! @brief This structure defines a layer stack that contains layers which need to be composed and
   rendered onto the target.
 
@@ -652,6 +667,8 @@ struct LayerStack {
   uint64_t expected_present_time = 0;  //!< Expected Present timestamp for current frame.
 
   uint32_t frame_interval_ns = 0;  //!< Frame Interval for current frame.
+
+  LayerRect rgb_histogram_roi = {};  //!< RGB Histogram ROI
 };
 
 enum PrivacyRegionState {

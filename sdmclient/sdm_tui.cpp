@@ -177,7 +177,7 @@ DisplayError SDMTrustedUI::TUITransitionPrepare(int disp_id) {
     { SEQUENCE_WAIT_SCOPE_LOCK(locker_[info.client_id]); }
 
     // Wait until all commands are flushed.
-    std::lock_guard<std::mutex> tui_lock(cb_->tui_mutex_);
+    std::unique_lock<std::shared_mutex> tui_lock(cb_->tui_mutex_);
     SCOPE_LOCK(locker_[info.client_id]);
 
     auto display = cb_->GetDisplayFromClientId(info.client_id);
@@ -219,7 +219,7 @@ DisplayError SDMTrustedUI::TUITransitionStart(int disp_id) {
   }
 
   {
-    std::lock_guard<std::mutex> tui_lock(cb_->tui_mutex_);
+    std::unique_lock<std::shared_mutex> tui_lock(cb_->tui_mutex_);
     SCOPE_LOCK(locker_[target_display]);
 
     // disable idle time out for video mode

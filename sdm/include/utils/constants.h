@@ -58,7 +58,10 @@
 #define ROUND_UP_ALIGN_DOWN(value, a) FLOAT(FloorToMultipleOf(UINT32(value + 0.5f), UINT32(a)))
 #define ROUND_UP_ALIGN_UP(value, a) FLOAT(CeilToMultipleOf(UINT32(value + 0.5f), UINT32(a)))
 
+#ifndef IDLE_TIMEOUT_DEFAULT_MS
 #define IDLE_TIMEOUT_DEFAULT_MS 70
+#endif
+
 #define IDLE_TIMEOUT_ACTIVE_MS IDLE_TIMEOUT_DEFAULT_MS
 #define IDLE_TIMEOUT_INACTIVE_MS 520
 

@@ -54,22 +54,21 @@
 #include <string>
 #include <future>
 #include <vector>
+#include <array>
 
 #include "display_base.h"
 #include "drm_interface.h"
+#include "dpps_info.h"
 #include "pu_subject_intf_impl.h"
-
-#ifndef TRUSTED_VM
 #include "rgb_hist_feature_intf.h"
 #include "rgb_hist_manager_intf.h"
-#include "rgb_hist_fact_intf_impl.h"
-#endif
+#include "rgb_hist_fact_intf.h"
 
 namespace sdm {
 
-#ifndef TRUSTED_VM
+#define DEMURA_LAYER_WRAPPER_COUNT 2
+
 using rgb_histogram::HistData;
-#endif
 
 struct DeferFpsConfig {
   uint32_t frame_count = 0;
@@ -109,25 +108,6 @@ struct DeferFpsConfig {
     dirty = false;
     apply = false;
   }
-};
-
-class DppsInfo {
- public:
-  void Init(DppsPropIntf *intf, const std::string &panel_name, DisplayInterface *display_intf,
-            PanelFeaturePropertyIntf *prop_intf);
-  void Deinit();
-  void DppsNotifyOps(enum DppsNotifyOps op, void *payload, size_t size);
-  bool disable_pu_ = false;
-
- private:
-  const char *kDppsLib_ = "libdpps.so";
-  DynLib dpps_impl_lib_;
-  static DppsInterface *dpps_intf_;
-  static std::vector<int32_t> display_id_;
-  std::mutex lock_;
-  DppsInterface *(*GetDppsInterface)() = NULL;
-
-  void Deinit_nolock();
 };
 
 class EventProxyInfo {
@@ -203,12 +183,8 @@ class QrtcScreenRefreshImp : public qrtc::QrtcScreenRefreshIntf {
 class DisplayBuiltIn : public DisplayBase,
                        HWEventHandler,
                        DppsPropIntf,
-                       SdmDisplayCbInterface<TvmServiceCbEvent>
-#ifndef TRUSTED_VM
-    ,
-                       rgb_histogram::NotifyInterface<HistData>
-#endif
-{
+                       SdmDisplayCbInterface<TvmServiceCbEvent>,
+                       rgb_histogram::NotifyInterface<HistData> {
  public:
   DisplayBuiltIn(DisplayEventHandler *event_handler,
                  sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> hw_info_intf,
@@ -280,6 +256,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetDemuraState(int state, int demura_idx) override;
   DisplayError SetDemuraConfig(int demura_idx) override;
   DisplayError PerformCacConfig(CacConfig config, bool enable) override;
+  DisplayError SetDynamicCacConfig(DynamicCacV2Config config, bool enable) override;
   bool IsCacV2Supported() override;
   DisplayError
   PanelOprInfo(const std::string &client_name, bool enable,
@@ -308,6 +285,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError GetCoprStats(std::vector<int> *stats) override;
 #endif
   DisplayError GetScalerCount(uint32_t *scaler_count) override;
+  DisplayError SetStcFeatureConfig(void *data) override;
   DisplayError DumpDemuraSurface(const char *dir_path, uint32_t frame_index) override;
   DisplayError SetIllumination(uint32_t eye, const IlluminationConfig &config) override;
   DisplayError SetRgbHistObserverConfig(bool state, void *data) override;
@@ -331,6 +309,7 @@ class DisplayBuiltIn : public DisplayBase,
   void HandleVmReclaimEvent() override;
   void GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) override;
   bool IsPrimaryDisplay() override;
+  void UpdateFrameBufferForCWB() override;
   DisplayError GetPanelBrightnessBasePath(std::string *base_path) override;
   void HandleSSREvent(SSREventType ssr_event) override;
   void HandleLSR_SSREvent(LSR_SSREventType lsr_ssr_event) override;
@@ -348,10 +327,8 @@ class DisplayBuiltIn : public DisplayBase,
   // Implement SdmDisplayCbInterface
   int Notify(const TvmServiceCbEvent &) override;
 
-#ifndef TRUSTED_VM
   // Implement rgb histogram callback interface
   int Notify(const HistData &data) override;
-#endif
 
   DisplayError SetDisplayDeviceConfig(const SDMDisplayDeviceConfig &display_device_config) override;
   DisplayError SetPoseConfig(const LayerBuffer &buffer) override;
@@ -381,6 +358,8 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetQrtcState(int state);
   DisplayError SetQrtcSubsample(int subsample);
   DisplayError DumpQrtcBuffer(int count);
+  DisplayError SetQrtcTuningMode(int enable);
+  DisplayError SetQrtcTuningCfg();
   DisplayError SetQrtcFeatureConfig(int32_t type, void *data) override;
   DisplayError SetDisplayStateForDemuraTn(DisplayState state);
   DisplayError BuildLayerStackStats(LayerStack *layer_stack) override;
@@ -423,7 +402,13 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SetDemuraTnAodHandlerCtrl(void *data);
   DisplayError SetDemuraTnAgingSurfTransfer(void *data);
   DisplayError SwitchToDAC(void *data);
+  DisplayError SetDemuraTnCompRatio(void *data);
+  void AppendCWBLayerWithFBT(LayerStack *layer_stack);
+  void UpdateCWBLayer(LayerBuffer &layer_buffer);
   void ClearDemuraMultiCfgParsers();
+  void ClearDemuraLayerWrappers();
+  DemuraLayerWrapper *GetActiveDemuraLayerWrapper();
+  DemuraLayerWrapper *GetFreeDemuraLayerWrapper();
   int StartVmFileServiceAndExportFiles();
   int CreateServiceManager();
   int HandleTvmServiceEvent(const TvmServiceCbEvent &event);
@@ -439,6 +424,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError CreateDisplayEventProxyIntf(const std::string &panel_name, DisplayInterface *intf,
                                            PanelFeaturePropertyIntf *prop_intf);
   DisplayError SetupRgbHistogram();
+  DisplayError UpdateRgbHistogramRoi(const void *data) override;
 
   const uint32_t kPuTimeOutMs = 1000;
   std::map<uint32_t, std::vector<HWEvent>> event_list_;
@@ -486,7 +472,7 @@ class DisplayBuiltIn : public DisplayBase,
   bool demuratn_enabled_ = false;
   std::shared_ptr<DemuraTnCoreUvmIntf> demuratn_ = nullptr;
   uint64_t panel_id_ = 0;
-  std::vector<Layer> demura_layer_ = {};
+  std::array<DemuraLayerWrapper, DEMURA_LAYER_WRAPPER_COUNT> demura_layer_wrappers_;
   bool demura_intended_ = false;
   bool demura_dynamic_enabled_ = true;
   int demura_current_idx_ = -1;
@@ -511,7 +497,9 @@ class DisplayBuiltIn : public DisplayBase,
   bool lower_fps_ = false;
   bool cwb_buffer_initialized_ = false;
   bool enable_cac_ = false;
+  bool enable_dynamic_cac_ = false;
   CacConfig cac_config_ = {};
+  DynamicCacV2Config cac_config_dynamic_v2_ = {};
   BufferInfo output_buffer_info_ = {};
   EventProxyInfo event_proxy_info_ = {};
   bool enable_brightness_drm_prop_ = false;
@@ -524,9 +512,11 @@ class DisplayBuiltIn : public DisplayBase,
 
   bool avr_step_enabled_ = false;
   bool vrr_enabled_ = false;
+  std::string avf_obs_name_ = "DisplayBuiltIn";
   std::shared_ptr<TvmDispServiceManagerIntf> service_manager_intf_ = nullptr;
   std::shared_ptr<DemuraParserManagerIntf> pm_intf_ = nullptr;
   std::shared_ptr<VMFileXferIntf> vm_file_xfer_intf_ = nullptr;
+  std::mutex file_xfer_intf_mutex_;
   bool demura_allowed_ = false;
   bool demuratn_allowed_ = false;
   bool demura_enable_ = false;
@@ -534,6 +524,10 @@ class DisplayBuiltIn : public DisplayBase,
   VmFileXferClientFactIntfExtn *factory_extn_ = nullptr;
   std::shared_ptr<FeatureLicenseIntf> feat_license_intf_ = nullptr;
   bool hfi_path_supported_ = false;
+  bool disable_fbt_for_cwb_fallback_ = false;
+  LayerBuffer prev_framebuffer_ = {};
+  LayerBuffer curr_framebuffer_ = {};
+  bool is_wb_ubwc_supported_ = true;
   bool double_buffer_codebook_supported_ = false;
   bool previous_frame_default_strategy_ = false;
   PrivacyRegionManager *privacy_region_mgr_ = nullptr;
@@ -556,11 +550,10 @@ class DisplayBuiltIn : public DisplayBase,
 
   // RGB Histogram
   bool rgb_histogram_enable_ = false;
-#ifndef TRUSTED_VM
   rgb_histogram::RgbHistFactIntf *rgb_hist_fact_intf_ = nullptr;
   std::shared_ptr<rgb_histogram::RgbHistManagerIntf> rgb_hist_manager_intf_ = nullptr;
+  LayerRect rgb_hist_roi_ = {};
   std::string kRgbHistogramClient_ = "rgb_histogram_client";
-#endif
 };
 
 }  // namespace sdm

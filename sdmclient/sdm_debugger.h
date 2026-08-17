@@ -73,6 +73,7 @@ public:
   static void DebugWbUsage(bool enable, int verbose_level);
   static void DebugDemura(bool enable, int verbose_level);
   static void DebugColorProc(bool enable, int verbose_level);
+  static void DebugRefreshRate(bool enable, int verbose_level);
 
   virtual void Error(const char *fmt, ...)
       __attribute__((format(printf, 2, 3)));

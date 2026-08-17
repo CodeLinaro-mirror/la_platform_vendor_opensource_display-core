@@ -93,6 +93,7 @@ namespace sdm {
                     LayerRect *out_rect);
   void SplitFromBottom(float split_factor, const Layer &layer, const float start_index,
                        LayerRect *out_rect);
+  bool IsZeroRoi(const LayerRect &rect);
 }  // namespace sdm
 
 #endif  // __RECT_H__

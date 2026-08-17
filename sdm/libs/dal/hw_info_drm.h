@@ -65,6 +65,9 @@ class HWInfoDRM : public HWInfoInterface {
   virtual DisplayError GetPanelBootParamString(std::string *panel_boot_param_string);
   virtual uint32_t GetMaxMixerCount();
   virtual uint32_t GetMaxDNSCBlurBlockCount();
+  virtual uint32_t GetMaxWritebackBlockCount();
+  virtual bool IsQrtcSupported();
+  virtual bool IsDownscaledCwbSupported(int32_t wb_block_index);
   virtual uint32_t GetCoreId() { return core_id_; }
   virtual DisplayError GetDemuraDoubleBufferCodebookFlags(bool *out);
 

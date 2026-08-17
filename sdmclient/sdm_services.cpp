@@ -69,6 +69,14 @@ void SDMServices::Init(SDMDisplayBuilder *disp,
 
   panel_feature_data_type_map_[kTypeDeleteDemuraConfig] = "uint64_t";
   panel_feature_data_type_map_[kTypeDeleteDemuraTnConfig] = "uint64_t";
+
+  stc_feature_funcs_[snapdragoncolor::kTypeSetManualAls] = &SDMServices::SetStcManualAls;
+  stc_feature_funcs_[snapdragoncolor::kTypeSetAlpha] = &SDMServices::SetStcAlphaValue;
+  stc_feature_funcs_[snapdragoncolor::kTypeSetState] = &SDMServices::SetSatCompensationState;
+
+  int value = 0;
+  SDMDebugHandler::Get()->GetProperty(COMPOSER_DRIVEN_HDCP, &value);
+  composer_driven_hdcp_ = (value == 1);
 }
 
 void SDMServices::Deinit() {
@@ -167,6 +175,10 @@ DisplayError SDMServices::DynamicDebug(int type, bool enable,
 
   case SDM_SERVICE_DEBUG_COLOR_PROCESSING:
     SDMDebugHandler::DebugColorProc(enable, verbose_level);
+    break;
+
+  case SDM_SERVICE_DEBUG_REFRESH_RATE:
+    SDMDebugHandler::DebugRefreshRate(enable, verbose_level);
     break;
 
   default:
@@ -353,7 +365,10 @@ SDMServices::MinHdcpEncryptionLevelChanged(int disp_id,
   // SSG team hardcoded disp_id as external because it applies to external only
   // but SSG team sends this level irrespective of external connected or not. So
   // to honor the call, make disp_id to primary & set level.
-  disp_id = SDM_DISPLAY_PRIMARY;
+  if (!composer_driven_hdcp_) {
+    disp_id = SDM_DISPLAY_PRIMARY;
+  }
+
   int disp_idx = disp_->GetDisplayIndex(disp_id);
   if (disp_idx == -1) {
     DLOGE("Invalid display = %d", disp_id);
@@ -2107,6 +2122,97 @@ DisplayError SDMServices::SetPanelFeatureConfig(SDMParcel *input_parcel, SDMParc
   } else {
     output_parcel->writeInt32(ret);
   }
+  return ret;
+}
+
+DisplayError SDMServices::SetStcManualAls(int disp_id, StcFeatureCmdType cmd_type,
+                                          SDMParcel *input_parcel) {
+  bool manual_control = UINT32(input_parcel->readInt32());
+  int als = 0;
+  if (manual_control) {
+    als = INT(input_parcel->readInt32());
+  }
+
+  snapdragoncolor::StcFeaturePayload payload;
+  payload.cmd_type = cmd_type;
+  payload.payload_len = sizeof(snapdragoncolor::ManualAlsInput);
+  payload.payload = std::make_shared<snapdragoncolor::ManualAlsInput>();
+
+  if (!payload.payload || !payload.payload.get()) {
+    DLOGE("Invalid parameters");
+    return kErrorParameters;
+  }
+  snapdragoncolor::ManualAlsInput *payload_cfg =
+      reinterpret_cast<snapdragoncolor::ManualAlsInput *>(payload.payload.get());
+  payload_cfg->manual_control = manual_control;
+  payload_cfg->als = als;
+
+  auto ret = cb_->SetStcFeatureConfig(disp_id, &payload);
+
+  return ret;
+}
+
+DisplayError SDMServices::SetStcAlphaValue(int disp_id, StcFeatureCmdType cmd_type,
+                                           SDMParcel *input_parcel) {
+  int alpha = INT(input_parcel->readInt32());
+  snapdragoncolor::StcFeaturePayload payload;
+  payload.cmd_type = cmd_type;
+  payload.payload_len = sizeof(int32_t);
+  payload.payload = std::make_shared<int32_t>();
+
+  if (!payload.payload || !payload.payload.get()) {
+    DLOGE("Invalid parameters");
+    return kErrorParameters;
+  }
+  int32_t *payload_cfg = reinterpret_cast<int32_t *>(payload.payload.get());
+  *payload_cfg = alpha;
+
+  auto ret = cb_->SetStcFeatureConfig(disp_id, &payload);
+
+  return ret;
+}
+
+DisplayError SDMServices::SetSatCompensationState(int disp_id, StcFeatureCmdType cmd_type,
+                                                  SDMParcel *input_parcel) {
+  int enable = INT(input_parcel->readInt32());
+  snapdragoncolor::StcFeaturePayload payload;
+  payload.cmd_type = cmd_type;
+  payload.payload_len = sizeof(int32_t);
+  payload.payload = std::make_shared<int32_t>();
+
+  if (!payload.payload || !payload.payload.get()) {
+    DLOGE("Invalid parameters");
+    return kErrorParameters;
+  }
+  int32_t *payload_cfg = reinterpret_cast<int32_t *>(payload.payload.get());
+  *payload_cfg = enable;
+
+  auto ret = cb_->SetStcFeatureConfig(disp_id, &payload);
+
+  return ret;
+}
+
+DisplayError SDMServices::SetStcFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel) {
+  int disp_id = input_parcel->readInt32();
+  int cmd_type = input_parcel->readInt32();
+  DisplayError ret = kErrorNone;
+
+  auto it = stc_feature_funcs_.find(static_cast<StcFeatureCmdType>(cmd_type));
+  if (it == stc_feature_funcs_.end() || !it->second) {
+    DLOGE("Invalid type %d, function %pK", cmd_type, it->second);
+    ret = kErrorNotSupported;
+    output_parcel->write("FAILED", strlen("FAILED"));
+    return ret;
+  }
+
+  DLOGI("Set type: %d for stc feature on display %d", cmd_type, disp_id);
+  ret = (this->*(it->second))(disp_id, static_cast<StcFeatureCmdType>(cmd_type), input_parcel);
+  if (ret != kErrorNone) {
+    output_parcel->write("FAILED", strlen("FAILED"));
+  } else {
+    output_parcel->writeInt32(ret);
+  }
+
   return ret;
 }
 

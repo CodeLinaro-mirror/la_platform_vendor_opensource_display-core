@@ -75,8 +75,12 @@ DisplayError CoreImpl::Init() {
   SCOPE_LOCK(locker_);
   DisplayError error = kErrorNone;
 
-  // Try to load extension library & get handle to its interface.
-  if (extension_lib_.Open(EXTENSION_LIBRARY_NAME)) {
+  int value = 0;
+  Debug::Get()->GetProperty(SPI_DISPLAY_PRESENT, &value);
+  bool is_spi_display = (value == 1);
+
+  // Try to load extension library & get handle to its interface, if it not a SPI Display.
+  if (!is_spi_display && extension_lib_.Open(EXTENSION_LIBRARY_NAME)) {
     if (!extension_lib_.Sym(CREATE_EXTENSION_INTERFACE_NAME,
                             reinterpret_cast<void **>(&create_extension_intf_)) ||
         !extension_lib_.Sym(DESTROY_EXTENSION_INTERFACE_NAME,
@@ -100,7 +104,7 @@ DisplayError CoreImpl::Init() {
 #endif
   }
 
-  int value = 0;
+  value = 0;
   Debug::Get()->GetProperty(ENABLE_NULL_DISPLAY_PROP, &value);
   enable_null_display_ = (value == 1);
   DLOGI("property: enable_null_display_ = %d", enable_null_display_);
@@ -342,8 +346,20 @@ DisplayError CoreImpl::CreateDisplay(int32_t display_id, DisplayEventHandler *ev
                                           buffer_allocator_, &comp_mgr_);
       break;
     case kVirtual:
-      display_base = new DisplayVirtual(disp_id, event_handler, hw_info_intf, buffer_allocator_,
-                                        &comp_mgr_, set_hdr_types_, set_max_lum_, set_min_lum_);
+      switch (set_virtual_disp_type_) {
+        case kVirtualTypeDefault:
+          display_base = new DisplayVirtual(disp_id, event_handler, hw_info_intf, buffer_allocator_,
+                                            &comp_mgr_, set_hdr_types_, set_max_lum_, set_min_lum_);
+          break;
+        case kVirtualTypePQ:
+          display_base =
+              new DisplayVirtualPQ(disp_id, event_handler, hw_info_intf, buffer_allocator_,
+                                   &comp_mgr_, set_hdr_types_, set_max_lum_, set_min_lum_);
+          break;
+        default:
+          DLOGE("Unexpected virtual display type %d", set_virtual_disp_type_);
+          break;
+      }
       ResetCachedHDRCaps();
       break;
     default:
@@ -534,53 +550,6 @@ void CoreImpl::InitializeSDMUtils() {
   sdm_utils_factory_intf_->CreateSDMPropUtils(hw_resource_);
 }
 
-void CoreImpl::OverRideDemuraPanelIds(std::vector<uint64_t> *panel_ids) {
-  uint64_t panel_id_prim = 0, panel_id_sec = 0;
-  int panel_id_w = 0;
-  uint32_t count;
-
-  if (!panel_ids)
-    return;
-
-  panel_id_w = 0;
-  // primary panel id
-  Debug::Get()->GetProperty(DEMURA_PRIMARY_PANEL_OVERRIDE_LOW, &panel_id_w);
-  panel_id_prim = static_cast<uint32_t>(panel_id_w);
-  Debug::Get()->GetProperty(DEMURA_PRIMARY_PANEL_OVERRIDE_HIGH, &panel_id_w);
-  panel_id_prim |=  ((static_cast<uint64_t>(panel_id_w)) << 32);
-
-  panel_id_w = 0;
-  // secondary panel id
-  Debug::Get()->GetProperty(DEMURA_SECONDARY_PANEL_OVERRIDE_LOW, &panel_id_w);
-  panel_id_sec = static_cast<uint32_t>(panel_id_w);
-  Debug::Get()->GetProperty(DEMURA_SECONDARY_PANEL_OVERRIDE_HIGH, &panel_id_w);
-  panel_id_sec |=  ((static_cast<uint64_t>(panel_id_w)) << 32);
-
-  count = panel_ids->size();
-
-  if (count >= 2 && (!panel_id_prim || !panel_id_sec)) {
-    DLOGI("skip panel override count 2 panel_id_prim %" PRIX64 " panel_id_sec %" PRIX64 "\n",
-      panel_id_prim, panel_id_sec);
-    return;
-  }
-
-  if (count == 1 && !panel_id_prim && !panel_id_sec) {
-    DLOGI("skip panel override count 1 panel_id_prim %" PRIX64 " panel_id_sec %" PRIX64 "\n",
-      panel_id_prim, panel_id_sec);
-    return;
-  }
-
-  panel_ids->clear();
-  if (panel_id_prim) {
-    DLOGI("override primary panel id %" PRIX64 "\n", panel_id_prim);
-    panel_ids->push_back(panel_id_prim);
-  }
-  if (panel_id_sec) {
-    DLOGI("override secondary panel id %" PRIX64 "\n", panel_id_sec);
-    panel_ids->push_back(panel_id_sec);
-  }
-}
-
 DisplayError CoreImpl::ReserveABCResources(std::map<uint32_t, uint8_t> required_demura_fetch_cnt) {
   DisplayError err = kErrorNone;
   int primary_off = 0;
@@ -643,10 +612,42 @@ DisplayError CoreImpl::ReserveDemuraResources(
   int primary_off = 0;
   int secondary_off = 0;
   int available_blocks = 0;
+  int ret = 0;
 
   available_blocks = hw_resource_[0].demura_count;
-  Debug::Get()->GetProperty(DISABLE_DEMURA_PRIMARY, &primary_off);
-  Debug::Get()->GetProperty(DISABLE_DEMURA_SECONDARY, &secondary_off);
+
+  std::shared_ptr<DucDacConfigParserIntf> duc_dac_config_parser =
+      panel_feature_factory_intf_->CreateDucDacConfigParserIntf();
+  if (!duc_dac_config_parser) {
+    DLOGE("Invalid duc dac config parser instance");
+    return kErrorUndefined;
+  }
+  if (duc_dac_config_parser->Init() != kErrorNone) {
+    DLOGE("Failed to initialize duc dac config parser");
+    return kErrorUndefined;
+  }
+
+  int *duc_off = nullptr;
+  GenericPayload duc_off_pl;
+  ret = duc_off_pl.CreatePayload<int>(duc_off);
+  if (ret || duc_off == nullptr) {
+    DLOGE("Failed to create secondary_off payload: ret %d, duc_off %d", ret, duc_off == nullptr);
+    return kErrorUndefined;
+  }
+
+  ret = duc_dac_config_parser->GetParameter(kDucDisable, &duc_off_pl);
+  if (ret || duc_off == nullptr) {
+    DLOGE("Failed to get disable demura status: ret %d, duc_off_pl %d", ret, duc_off == nullptr);
+    return kErrorUndefined;
+  }
+  primary_off = *duc_off;
+
+  ret = duc_dac_config_parser->GetParameter(kDucDisableSecondary, &duc_off_pl);
+  if (ret || duc_off == nullptr) {
+    DLOGE("Failed to get disable demura status: ret %d, duc_off_pl %d", ret, duc_off == nullptr);
+    return kErrorUndefined;
+  }
+  secondary_off = *duc_off;
 
   for (auto r = required_demura_fetch_cnt.begin(); r != required_demura_fetch_cnt.end();) {
     HWDisplayInfo &info = hw_displays_info_[r->first];
@@ -856,11 +857,6 @@ DisplayError CoreImpl::ReserveDemuraPipeResources() {
       return err;
     }
   } else if (enable_demura) {
-    if ((err = ReserveDemuraResources(required_demura_fetch_cnt)) != kErrorNone) {
-      DLOGE("Failed to reserve Demura feature resources error = %d", err);
-      return err;
-    }
-
     GetPanelFeatureFactory get_factory_f_ptr = nullptr;
     if (!extension_lib_.Sym(GET_PANEL_FEATURE_FACTORY,
                             reinterpret_cast<void **>(&get_factory_f_ptr))) {
@@ -872,6 +868,11 @@ DisplayError CoreImpl::ReserveDemuraPipeResources() {
     if (!panel_feature_factory_intf_) {
       DLOGE("Failed to get panel feature factory intf");
       return kErrorResources;
+    }
+
+    if ((err = ReserveDemuraResources(required_demura_fetch_cnt)) != kErrorNone) {
+      DLOGE("Failed to reserve Demura feature resources error = %d", err);
+      return err;
     }
 
     ValidateAndCleanupDemuraFiles();
@@ -1142,6 +1143,27 @@ void CoreImpl::SetHdrCapabilities(Display display, const std::vector<Hdr> &hdr_t
   set_hdr_types_ = hdr_types;
   set_max_lum_ = max_avg_luminance;
   set_min_lum_ = min_luminance;
+}
+
+DisplayError CoreImpl::SetVirtualDispType(SDMVirtualDispType type) {
+  if (type >= kVirtualTypeMax) {
+    DLOGE("Invalid virtual display type %d", type);
+    return kErrorParameters;
+  }
+
+  set_virtual_disp_type_ = type;
+  DLOGI("Set virtual display type %d", type);
+  return kErrorNone;
+}
+
+DisplayError CoreImpl::GetVirtualDispType(SDMVirtualDispType *out) {
+  if (!out) {
+    DLOGE("Invalid out is nullptr");
+    return kErrorParameters;
+  }
+
+  *out = set_virtual_disp_type_;
+  return kErrorNone;
 }
 
 void CoreImpl::ResetCachedHDRCaps() {
