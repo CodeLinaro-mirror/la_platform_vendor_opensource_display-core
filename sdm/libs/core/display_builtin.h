@@ -481,6 +481,7 @@ class DisplayBuiltIn : public DisplayBase,
   bool demura_intended_ = false;
   bool demura_dynamic_enabled_ = true;
   int demura_current_idx_ = -1;
+  bool demura_need_screen_refresh_ = false;
   const std::string kDemuraTnUserCtrlFile = "/mnt/vendor/persist/display/demuratn_user_ctrl";
   std::shared_ptr<DemuraTnCleanupIntf> demuratn_cleanup_intf_;
   bool demuratn_user_disabled_ = false;
