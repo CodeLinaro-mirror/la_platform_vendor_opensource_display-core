@@ -273,6 +273,7 @@
 #define DISABLE_IDLE_SCALING_LAYERS          DISPLAY_PROP("disable_idle_scaling_layers")
 #define DISABLE_LLCC_DURING_AOD              DISPLAY_PROP("disable_llcc_during_aod")
 #define DISABLE_CWB_IDLE_FALLBACK            DISPLAY_PROP("disable_cwb_idle_fallback")
+#define DISABLE_FBT_FOR_CWB_FALLBACK         DISPLAY_PROP("disable_fbt_for_cwb_fallback")
 #define PRIORITIZE_CLIENT_CWB                DISPLAY_PROP("prioritize_client_cwb")
 #define ENABLE_CWB_CPU_BOOSTING              DISPLAY_PROP("enable_cwb_cpu_boosting")
 #define DISABLE_CWB_OPTIMIZATION             DISPLAY_PROP("disable_cwb_optimization")
@@ -315,6 +316,8 @@
 #define DISABLE_QUERY_LUTS                DISPLAY_PROP("disable_query_luts")
 
 #define ENABLE_PRIVACY_LAYERS             DISPLAY_PROP("enable_privacy_layers")
+
+#define ENABLE_ROTATOR_CONCURRENCY           DISPLAY_PROP("enable_rotator_concurrency")
 
 // Add all other.properties above
 // End of property

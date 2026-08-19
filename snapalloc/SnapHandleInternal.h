@@ -48,6 +48,8 @@ class SnapHandleInternal : public SnapHandle {
   uint64_t &pixel_format_modifier();
   uint64_t &reserved_region_base();
   uint64_t &custom_content_md_region_base();
+  unsigned &batch_mode_dyn_md_reserved_size();
+  uint64_t &batch_mode_dyn_md_region_base();
   //static const int kNumFds = 2;
   unsigned &flush();
   // Lock count to ensure nested lock/unlock situations are handled correctly
@@ -65,7 +67,7 @@ class SnapHandleInternal : public SnapHandle {
       int uh, vendor_qti_hardware_display_common_PixelFormat format, int buf_type, uint64_t id,
       unsigned size, vendor_qti_hardware_display_common_BufferUsage usage,
       uint64_t pixel_format_modifier, unsigned layer_count, unsigned reserved_size,
-      unsigned custom_content_md_size);
+      unsigned custom_content_md_size, unsigned batch_mode_dyn_md_size);
 
   static SnapHandleInternal *createMultiviewHandle(
       int fd1, int meta_fd1, int fd2, int meta_fd2, int flags, int width_in_bytes,
@@ -73,7 +75,7 @@ class SnapHandleInternal : public SnapHandle {
       vendor_qti_hardware_display_common_PixelFormat format, int buf_type, uint64_t id1,
       uint64_t id2, unsigned size, vendor_qti_hardware_display_common_BufferUsage usage,
       uint64_t pixel_format_modifier, unsigned layer_count, unsigned reserved_size,
-      unsigned custom_content_md_size);
+      unsigned custom_content_md_size, unsigned batch_mode_dyn_md_size);
 
   std::vector<FdPair> getFds();
   void closeFds();

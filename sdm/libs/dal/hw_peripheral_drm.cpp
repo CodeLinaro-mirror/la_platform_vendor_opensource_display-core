@@ -881,7 +881,7 @@ DisplayError HWPeripheralDRM::PowerOn(const HWQosData &qos_data, SyncPoints *syn
 
 DisplayError HWPeripheralDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   DTRACE_SCOPED();
-  if ((tui_state_ != kTUIStateNone && tui_state_ != kTUIStateEnd) || pending_cwb_teardown_) {
+  if ((tui_state_ != kTUIStateNone) || pending_cwb_teardown_) {
     DLOGI("Request deferred TUI state %d pending cwb teardown %d", tui_state_,
           pending_cwb_teardown_);
     pending_power_state_ = kPowerStateOff;
