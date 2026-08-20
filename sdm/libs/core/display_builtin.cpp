@@ -1367,7 +1367,7 @@ void DisplayBuiltIn::PreCommit(LayerStack *layer_stack) {
 
     dpu_core_mux_->SetAutoRefresh(enable);
     if (need_refresh) {
-      event_handler_->Refresh();
+      event_handler_->Refresh(kClientRefresh);
     }
   }
 
@@ -1960,7 +1960,7 @@ void DisplayBuiltIn::HandleQsyncPostCommit() {
       needs_avr_update_.reset();
     } else if (needs_avr_update_.any()) {
       validated_ = false;
-      event_handler_->Refresh();
+      event_handler_->Refresh(kClientRefresh);
     }
   } else if (qsync_mode_ == kQSyncModeNone) {
     needs_avr_update_.reset();
@@ -2117,7 +2117,7 @@ DisplayError DisplayBuiltIn::SetDisplayState(DisplayState state, bool teardown,
   }
 
   if (pending_power_state_ != kPowerStateNone) {
-    event_handler_->Refresh();
+    event_handler_->Refresh(kClientRefresh);
   }
 
   // Must only happen after NullCommit and get applied in next frame
@@ -2208,7 +2208,7 @@ DisplayError DisplayBuiltIn::SetDisplayMode(uint32_t mode) {
 
   // Request for a new draw cycle. New display mode will get applied on next draw cycle.
   // New idle time will get configured as part of this.
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 
   return error;
 }
@@ -2431,7 +2431,7 @@ bool DisplayBuiltIn::IdleTimeout() {
   }
 
   validated_ = false;
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
   return true;
 }
 
@@ -2483,7 +2483,7 @@ void DisplayBuiltIn::PanelDead() {
     validated_ = false;
   }
   event_handler_->HandleEvent(kPanelDeadEvent);
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 }
 
 // HWEventHandler overload, not DisplayBase
@@ -2662,7 +2662,7 @@ DisplayError DisplayBuiltIn::DppsProcessOps(enum DppsOps op, void *payload, size
       enable = *(reinterpret_cast<bool *>(payload));
       dpps_info_.disable_pu_ = !enable;
       ControlPartialUpdate(enable, kPuDppsClient);
-      event_handler_->Refresh();
+      event_handler_->Refresh(kClientRefresh);
       {
         ClientLock lock(disp_mutex_);
         validated_ = false;
@@ -3102,7 +3102,7 @@ DisplayError DisplayBuiltIn::SetQSyncMode(QSyncMode qsync_mode) {
   qsync_mode_ = qsync_mode;
   needs_avr_update_.set(kUpdateAVRModeFlag);
   validated_ = false;
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
   return kErrorNone;
 }
 
@@ -3420,7 +3420,7 @@ DisplayError DisplayBuiltIn::UpdateTransferTime(uint32_t transfer_time) {
     DisplayBase::ReconfigureDisplay();
   }
 
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 
   return error;
 }
@@ -4008,7 +4008,7 @@ void DisplayBuiltIn::HandleLSR_SSREvent(LSR_SSREventType lsr_ssr_event) {
   }
 
   if (event == kLsr_SsrEnd) {
-    event_handler_->Refresh();
+    event_handler_->Refresh(kClientRefresh);
   }
 }
 
@@ -4022,6 +4022,15 @@ void DisplayBuiltIn::HandleSSREvent(SSREventType ssr_event) {
   DLOGI("Handle %s event", (event == kSsrStart) ? "SSR Start" : "SSR End");
   is_ssr_active_ = (event == kSsrStart);
   dpu_core_mux_->SetSSRState(is_ssr_active_);
+
+  // Notify DemuraTn on SSR triggered.
+  if (is_ssr_active_ && demuratn_ && demuratn_enabled_) {
+    GenericPayload payload;
+    int ret = demuratn_->SetParameter(kDemuraTnCoreUvmParamSsrEvent, payload);
+    if (ret) {
+      DLOGW("Failed to notify DemuraTn of SSR event, ret %d", ret);
+    }
+  }
 
   if (!event_handler_) {
     DLOGW("Event handler is null");
@@ -4049,7 +4058,7 @@ void DisplayBuiltIn::HandleSSREvent(SSREventType ssr_event) {
   }
 
   if (event == kSsrEnd) {
-    event_handler_->Refresh();
+    event_handler_->Refresh(kClientRefresh);
   }
 }
 
@@ -4130,7 +4139,7 @@ DisplayError DisplayBuiltIn::PostHandleSecureEvent(SecureEvent secure_event) {
   }
   if (secure_event == kTUITransitionEnd) {
     comp_manager_->PostHandleSecureEvent(display_comp_ctx_, secure_event);
-    event_handler_->Refresh();
+    event_handler_->Refresh(kClientRefresh);
   }
   return kErrorNone;
 }
@@ -4898,7 +4907,7 @@ DisplayError DisplayBuiltIn::PerformCacConfig(CacConfig config, bool enable) {
   enable_cac_ = enable;
   cac_config_ = config;
   validated_ = false;
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 
   return kErrorNone;
 }
@@ -4965,7 +4974,7 @@ DisplayError DisplayBuiltIn::EnableCopr(bool en) {
   if (ret) {
     DLOGW("Failed to enable COPR ret %d", ret);
   } else {
-    event_handler_->Refresh();
+    event_handler_->Refresh(kClientRefresh);
     copr_enabled_ = en;
   }
 
@@ -5292,7 +5301,7 @@ DisplayError DisplayBuiltIn::SetAvrStepFpsState(uint32_t index, bool enable) {
 
   needs_avr_update_.set(kUpdateAVRStepFpsFlag);
   validated_ = false;
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 
   return kErrorNone;
 }
@@ -5315,7 +5324,7 @@ DisplayError DisplayBuiltIn::SetAVRStepState(bool enable) {
   avr_step_enabled_ = enable;
   needs_avr_update_.set(kUpdateAVRStepFlag);
   validated_ = false;
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
   DLOGI("AVR Step state set to %d successfully", avr_step_enabled_);
 
   return kErrorNone;
@@ -5906,7 +5915,7 @@ DisplayError DisplayBuiltIn::HandleDemuraScreenRefresh() {
     }
 
     if (*need_screen_refresh) {
-      event_handler_->Refresh();
+      event_handler_->Refresh(kClientRefresh);
     }
   }
 
@@ -6085,7 +6094,7 @@ DisplayError DisplayBuiltIn::TriggerDemuraOemPlugIn(void *data) {
   }
 
   // Trigger refresh, new config take effect
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 
   DLOGI("Trigger demura oem plugin success");
   return kErrorNone;
@@ -7268,7 +7277,7 @@ DisplayError DisplayBuiltIn::SetSPRState(int state) {
   }
 
   avoid_qsync_mode_change_ = true;
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 
   return kErrorNone;
 }
@@ -7301,7 +7310,7 @@ bool DisplayBuiltIn::isSPREnabled() {
 }
 
 DisplayError DisplayBuiltIn::GetDisplayViewMode(SDMDisplayViewMode *view_mode) {
-  if (!client_ctx_.hw_panel_info.is_lsr_display) {
+  if (!client_ctx_.hw_panel_info.is_lsr_display && !IsGpuLsrVariant()) {
     *view_mode = kViewModeNone;
     return kErrorNone;
   }

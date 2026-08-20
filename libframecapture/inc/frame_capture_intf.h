@@ -13,6 +13,7 @@ namespace sdm {
 enum CWBEyeIndex {
   kLeftEye = 0,  // Dump for left eye
   kRightEye,     // Dump for right eye
+  kBothEyes,     // Dump both eyes (full display width, binocular mode only)
 };
 
 enum CWBField {
@@ -28,6 +29,13 @@ struct CWBPacketData {
   CWBField field_index = kAllFSCField;
   int32_t frame_dump_count = 0;
   CwbConfig cwb_config = {};
+  uint32_t buffer_depth = 5;       //!< Total number of output buffers to allocate in the pool.
+                                   //!< Optional, defaults to 20. Controls memory usage.
+                                   //!< The number of in-flight slots is derived automatically:
+                                   //!< 2 if cwb_config.num_parallel_buffers > 1, else 1.
+  bool enable_compression = true;  //!< Enable LZ4 compression on captured frames.
+                                   //!< Optional, defaults to true. Set to false to write raw
+                                   //!< uncompressed BGR888 frames directly to the output file.
 };
 
 class FrameCaptureIntf {

@@ -1882,7 +1882,6 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
     is_synchronous = true;
   }
   int ret = NullCommit(is_synchronous, false /* retain_planes */);
-  sync_points->retire_fence = Fence::Create(INT(retire_fence_fd), "retire_power_off");
   if (ret) {
     if (is_ssr_active_ || is_lsr_ssr_active_) {
       DLOGW(
@@ -1897,6 +1896,11 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
           "panel_mode_changed_=%d bit_clk_rate_=%" PRIu64 " bpp_mode_changed_=%d",
           ret, hw_panel_info_.dynamic_fps, seamless_mode_switch_, vrefresh_, panel_mode_changed_,
           bit_clk_rate_, bpp_mode_changed_);
+    }
+    // Close retire fence fd to prevent leak; kernel does not reclaim it on commit failure.
+    if (retire_fence_fd >= 0) {
+      close(retire_fence_fd);
+      retire_fence_fd = -1;
     }
     bpp_mode_changed_ = 0;
     return kErrorHardware;
@@ -1919,9 +1923,12 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
 
   if (is_ssr_active_ || is_lsr_ssr_active_) {
     DLOGI("SSR Active, close Power-Off Retire fence %" PRId64, retire_fence_fd);
+    // Fence::Create not called yet; retire_fence_fd is unowned, close() is safe.
     close(retire_fence_fd);
     retire_fence_fd = -1;
   }
+
+  sync_points->retire_fence = Fence::Create(INT(retire_fence_fd), "retire_power_off");
 
   pending_power_state_ = kPowerStateNone;
 
@@ -3636,8 +3643,9 @@ DisplayError HWDeviceDRM::DumpDebugData() {
         src >> driver_name;
         src.close();
         if (driver_name == "DRIVER=msm_drm") {
+          string devcd_name = i->d_name;  // copy d_name before closedir() frees the DIR struct
           closedir(dir);
-          devcd_path = devcd_dir_path + i->d_name + "/data";
+          devcd_path = devcd_dir_path + devcd_name + "/data";
           src.rdbuf()->pubsetbuf(buffer, sizeof(buffer));
           src.open(devcd_path, fstream::in);
           dst.open(filename);
@@ -4495,6 +4503,7 @@ DisplayError HWDeviceDRM::SetupConcurrentWritebackModes(int32_t writeback_id) {
 }
 
 void HWDeviceDRM::ConfigureConcurrentWriteback(const HWLayersInfo &hw_layer_info) {
+  DTRACE_SCOPED();
   CwbConfig *cwb_config = hw_layer_info.hw_cwb_config;
   std::shared_ptr<LayerBuffer> output_buffer = hw_layer_info.output_buffer;
   uint32_t &vitual_conn_id = cwb_config_[core_id_].token.conn_id;

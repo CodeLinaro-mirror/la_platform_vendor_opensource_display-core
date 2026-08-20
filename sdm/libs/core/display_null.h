@@ -83,6 +83,7 @@ class DisplayNull : public DisplayInterface {
   virtual void ScreenRefresh() {}
   virtual bool IsWriteBackSupportedFormat(const LayerBufferFormat &format) { return false; }
   virtual bool HandleCwbTeardown() { return false; }
+  virtual bool HasPendingCwbRequest() { return false; }
   virtual void Abort() {}
   virtual void ReleaseWBFromDisplay() {}
   virtual uint32_t GetAvailableMixerCount() { return 0; }

@@ -30,6 +30,7 @@ enum DucDacConfigParserParams {
   kDacPanelTimerInfo,                // Getter: DemuraTnPropertyInfo
   kDacPanelTimerInfoSecondary,       // DemuraTnPropertyInfo
   kDacServiceRetryWaitTime,          // Getter: int
+  kAvfVmRestartInterval,             // Getter: int
   kDacDisableAODHandle,              // Getter: int
   kDacDisableCWBDownScale,           // Getter: int
   kDacDisableCWBDownScaleSecondary,  // Getter: int

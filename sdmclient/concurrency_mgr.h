@@ -537,6 +537,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                                  std::vector<int32_t> *out_configs);
   DisplayError GetVsyncPeriod(Display disp, uint32_t *vsync_period);
   void Refresh(uint64_t display);
+  void OnSelfRefresh(uint64_t display);
   void TriggerTimeoutOnBuiltins();
 
   DisplayError GetDisplayVsyncPeriod(Display display,
@@ -591,7 +592,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   static shared_ptr<Fence> retire_fence_[kNumDisplays];
   static int commit_error_[kNumDisplays];
 
-private:
+ private:
   static const int kExternalConnectionTimeoutMs = 500;
   static const int kCommitDoneTimeoutMs = 100;
   static const int kDenomNstoMs = 1000000;
@@ -611,6 +612,7 @@ private:
   void SendHotplug(Display display, bool state);
   DisplayError Hotplug(Display display, bool state);
   void SendRefresh(Display display);
+  void SelfRefreshThread(uint32_t display_idx);
 
   DisplayError GetConfigCount(uint64_t disp_id, uint32_t *count);
   DisplayError GetActiveConfigIndex(uint64_t disp_id, uint32_t *config);
@@ -662,6 +664,7 @@ private:
   bool IsPluggableDisplayConnected();
   bool IsVirtualDisplayConnected();
   void HandlePendingRefresh();
+  bool IsNullPrimaryDisplay(uint64_t display);
   void NotifyClientStatus(bool connected);
   DisplayError TUITransitionPrepare(int disp_id);
   DisplayError TUITransitionStart(int disp_id);
@@ -712,6 +715,13 @@ private:
   std::bitset<kNumDisplays>
       client_pending_refresh_; // compositor refresh pending
 
+  std::thread self_refresh_thread_[kNumDisplays];
+  std::mutex self_refresh_mutex_[kNumDisplays];
+  std::condition_variable self_refresh_cv_[kNumDisplays];
+  uint32_t self_refresh_count_[kNumDisplays] = {};  // pending refresh requests
+  bool self_refresh_exit_[kNumDisplays] = {};
+  bool self_refresh_thread_started_[kNumDisplays] = {};
+
   bool async_vds_creation_ = false;
   bool tui_state_transition_[kNumDisplays] = {};
   bool secure_session_active_ = false;
@@ -756,6 +766,7 @@ private:
   std::shared_ptr<ISnapMapper> snapmapper_ = nullptr;
 
   bool ssr_active_ = false;
+  bool allow_seccam_concurrency_ = false;
 };
 } // namespace sdm
 

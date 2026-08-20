@@ -1855,7 +1855,7 @@ void DisplayBase::CommitThread() {
         }
       }
 
-      RefreshOnIdleTimeoutForCwb(false);
+      RefreshOnIdleTimeoutForCwb(false, kClientRefresh);
       continue;
     }
 
@@ -4524,7 +4524,7 @@ DisplayError DisplayBase::GetPendingDisplayState(DisplayState *disp_state) {
       if (error != kErrorNone) {
         return error;
       }
-      event_handler_->Refresh();
+      event_handler_->Refresh(kClientRefresh);
       break;
     }
     case kPowerStateDozeSuspend:
@@ -4798,7 +4798,7 @@ void DisplayBase::MMRMEvent(uint32_t clk) {
 
   // Invalidate to retrigger clk calculation
   validated_ = false;
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 }
 
 void DisplayBase::WaitForCompletionAsync(shared_ptr<Fence> retire_fence, SyncPoints sync_points) {
@@ -5140,7 +5140,7 @@ void DisplayBase::ScreenRefresh() {
     /* do not skip validate */
     validated_ = false;
   }
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 }
 
 DisplayError DisplayBase::GetPanelFeatureInfo(PanelFeatureInfo *info) {
@@ -5315,8 +5315,8 @@ void DisplayBase::NotifyCwbDone(int32_t status, const LayerBuffer &buffer) {
   event_handler_->NotifyCwbDone(status, buffer);
 }
 
-void DisplayBase::Refresh() {
-  event_handler_->Refresh();
+void DisplayBase::Refresh(RefreshType type) {
+  event_handler_->Refresh(type);
 }
 
 void DisplayBase::OnCwbTeardown(bool sync_teardown) {
@@ -5682,7 +5682,7 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
     return error;
   }
 
-  RefreshOnIdleTimeoutForCwb(true);
+  RefreshOnIdleTimeoutForCwb(true, config.refresh_type);
 
   cwb_output_buf_.width = output_buffer.width;
   cwb_output_buf_.height = output_buffer.height;
@@ -5690,6 +5690,10 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
   cwb_active_ = true;
 
   return kErrorNone;
+}
+
+bool DisplayBase::HasPendingCwbRequest() {
+  return comp_manager_->HasPendingCwbRequest(display_comp_ctx_);
 }
 
 DisplayError DisplayBase::ReserveWBForDisplay(WbMapInfo *wb_info) {
@@ -5730,7 +5734,7 @@ uint32_t DisplayBase::GetAvailableMixerCount() {
   return max_count - cur_count;
 }
 
-void DisplayBase::RefreshOnIdleTimeoutForCwb(bool is_cwb_requested) {
+void DisplayBase::RefreshOnIdleTimeoutForCwb(bool is_cwb_requested, RefreshType refresh_type) {
   int idle_time_ms = disp_layer_stack_->stack_info.common_info.set_idle_time_ms;
   if (client_ctx_.hw_panel_info.mode == kModeCommand || idle_active_ms_ <= 0) {
     // Idle Timer is configured to notify display idle to AIDL clients
@@ -5743,7 +5747,7 @@ void DisplayBase::RefreshOnIdleTimeoutForCwb(bool is_cwb_requested) {
       (mirror_src_display_id_ == -1 || comp_manager_->IsActiveDisplay(mirror_src_display_id_)) &&
       (handle_idle_timeout_ || idle_hint_set_ || idle_time_ms <= 0) && !qsync_enabled &&
       (is_cwb_requested || comp_manager_->HasPendingCwbRequest(display_comp_ctx_))) {
-    event_handler_->Refresh();
+    event_handler_->Refresh(refresh_type);
   }
 }
 
@@ -5856,7 +5860,7 @@ void DisplayBase::HandleSelfRefresh() {
   // Allow HAL Self-Refresh Commit path on validated stack of single display in ON state.
   bool multi_display = (comp_manager_->GetActiveDisplayCount() > 1);
   if (!enable_hal_self_refresh_ || multi_display || !validated_ || (state_ != kStateOn)) {
-    event_handler_->Refresh();
+    event_handler_->Refresh(kClientRefresh);
     return;
   }
 
@@ -5864,7 +5868,7 @@ void DisplayBase::HandleSelfRefresh() {
   bool unsupported = !avr_step_ || !client_ctx_.display_attributes.fps;
   uint64_t ept = disp_layer_stack_->stack_info.common_info.expected_present_time;
   if (unsupported || !ept || !next_expected_present_) {
-    event_handler_->Refresh();
+    event_handler_->Refresh(kClientRefresh);
     return;
   }
 
@@ -5920,7 +5924,7 @@ DisplayError DisplayBase::SetRGBASplit(int enable) {
   DLOGI("RGBASplit enable: %d on display %d-%d", enable, display_id_, display_type_);
   rgba_split_enable_ = enable;
   validated_ = false;
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 
   return kErrorNone;
 }

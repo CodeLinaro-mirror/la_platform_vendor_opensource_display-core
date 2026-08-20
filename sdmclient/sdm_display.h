@@ -557,6 +557,7 @@ public:
     return kErrorNotSupported;
   }
   DisplayError GetDisplayViewMode(SDMDisplayViewMode *view_mode);
+  virtual DisplayError PerformSelfRefresh();
 
  protected:
   static uint32_t throttling_refresh_rate_;
@@ -569,7 +570,7 @@ public:
 
   // DisplayEventHandler methods
   virtual DisplayError VSync(const DisplayEventVSync &vsync);
-  virtual DisplayError Refresh();
+  virtual DisplayError Refresh(RefreshType type);
   virtual DisplayError CECMessage(char *message);
   virtual DisplayError HistogramEvent(int source_fd, uint32_t blob_id);
   virtual DisplayError HandleEvent(DisplayEvent event);
@@ -785,6 +786,7 @@ public:
   FrameCaptureIntf *fcm_ = nullptr;
   bool composer_driven_hdcp_ = false;
   bool disable_luts_overlay_support_ = false;
+  bool allow_seccam_concurrency_ = false;
 };
 
 inline DisplayError SDMDisplay::Perform(uint32_t operation, ...) {

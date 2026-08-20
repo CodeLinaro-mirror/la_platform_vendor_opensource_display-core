@@ -248,7 +248,7 @@ DisplayError SDMDisplayBuiltIn::PreValidateDisplay(bool *exit_validate) {
     if (res_wait_needed) {
       DLOGV("exit_validate display=%" PRIu64
             " resource wait detected, trigger refresh", id_, gettid());
-      Refresh();
+      Refresh(kClientRefresh);
     }
     return status;
   }
@@ -436,7 +436,7 @@ DisplayError SDMDisplayBuiltIn::Present(shared_ptr<Fence> *out_retire_fence) {
   // Proceed only if any resources are available to be allocated for the current
   // display, Otherwise keep doing invalidate
   if (CheckResourceState(&res_exhausted)) {
-    Refresh();
+    Refresh(kClientRefresh);
     return status;
   }
 
@@ -1537,11 +1537,9 @@ bool SDMDisplayBuiltIn::NeedsLargeCompPerfHint() {
     return true;
   }
 
-  // Send hints when the device is in multi-display or when a skip layer is
-  // present.
-  if (layer_stack_.flags.skip_present || is_multi_display_) {
-    trace = "skip layer " + to_string(layer_stack_.flags.skip_present) + " multidisplay " +
-            to_string(is_multi_display_);
+  // Send hints when the device is in multi-display
+  if (is_multi_display_) {
+    trace = " multidisplay " + to_string(is_multi_display_);
     DTRACE_BEGIN(trace.c_str());
     DTRACE_END();
     return true;
