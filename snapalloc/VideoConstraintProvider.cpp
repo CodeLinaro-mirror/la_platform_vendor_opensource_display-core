@@ -88,7 +88,7 @@ int VideoConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferConst
       mmm_color_format = mapper.MapPixelFormatWithMmmColorFormat(
           desc.format, desc.usage, pixel_format_modifier, false);  // false indicates not ubwc
       if (mmm_color_format < 0) {
-        ALOGE("Failed to get format mapping to use mmm_color_fmt");
+        ALOGD_IF(DEBUG, "Failed to get format mapping to use mmm_color_fmt");
         return -1;
       }
       ALOGD_IF(DEBUG, "mmm_color_fmt %d", mmm_color_format);

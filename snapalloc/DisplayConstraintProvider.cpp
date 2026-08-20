@@ -86,7 +86,7 @@ int DisplayConstraintProvider::BuildConstraints(BufferDescriptor desc, BufferCon
               pixel_format_modifier),
           false);  // false indicates not ubwc
       if (mmm_color_format < 0) {
-        ALOGE("Failed to get format mapping to use mmm_color_fmt");
+        ALOGD_IF(DEBUG, "Failed to get format mapping to use mmm_color_fmt");
         return -1;
       }
       switch (component_type) {
@@ -127,7 +127,7 @@ int DisplayConstraintProvider::GetConstraints(BufferDescriptor desc, BufferConst
   int status = 0;
   status = BuildConstraints(desc, &data);
   if (status != Error::NONE) {
-    ALOGW("Error while getting constraints from display libs width %d, height %d, format %" PRIu64,
+    ALOGD_IF(DEBUG, "Error while getting constraints from display libs width %d, height %d, format %" PRIu64,
           desc.width, desc.height, static_cast<uint64_t>(desc.format));
     return -1;
   }

@@ -174,7 +174,7 @@ ADRENOPIXELFORMAT GraphicsConstraintProvider::GetGpuPixelFormat(
   if (snap_to_adreno_pixel_format_.find(snap_desc) != snap_to_adreno_pixel_format_.end()) {
     format = snap_to_adreno_pixel_format_.at(snap_desc);
   } else {
-    ALOGE("%s: No map for format: 0x%x", __FUNCTION__, snap_format);
+    ALOGD_IF(DEBUG, "%s: No map for format: 0x%x", __FUNCTION__, snap_format);
   }
   return format;
 }
