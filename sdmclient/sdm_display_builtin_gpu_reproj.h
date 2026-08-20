@@ -74,12 +74,6 @@ class SDMDisplayBuiltInGpuReproj : public SDMDisplayBuiltIn {
   DisplayError SetDisplayDeviceConfig(SDMDisplayDeviceConfig sdm_display_device_config) override;
 
  private:
-  // -----------------------------------------------------------------------
-  // LDC calibration data structures — defined locally to mirror DisplaySW_DS.h
-  // from LayerConversion without including proprietary headers.
-  // Memory layout must match the corresponding types in DisplaySW_DS.h so that
-  // the void* cast in ResolveLDCCACGrid_C works correctly.
-  // -----------------------------------------------------------------------
   static constexpr int kLdcDistRes = 257;  // radial distortion LUT columns (CURVE_ESTIMATION_RES)
 
   // Sparse grid dimensions — must match SPARSE_GRID_WIDTH/HEIGHT in LayerConversion.h
@@ -136,25 +130,12 @@ class SDMDisplayBuiltInGpuReproj : public SDMDisplayBuiltIn {
   // Mirrors LCExecutionPath from DisplaySW_DS.h
   enum class LdcExecutionPath { kGpu = 0, kHwPath = 1 };
 
-  // Mirrors LCGridResult from DisplaySW_DS.h.
-  // Field order and types must exactly match LCGridResult so that the void*
-  // cast in ResolveLDCCACGrid_C is valid across the open-source/proprietary
-  // boundary.  On Bonsai only float_grid and bbox_params are populated;
-  // quantized_grid is present for layout compatibility only.
   struct LdcGridResult {
     LdcExecutionPath execution_path = LdcExecutionPath::kGpu;
     LdcFloatLensOut float_grid;  // populated by ResolveLDCCACGrid (GPU path)
     LdcLensOut quantized_grid;   // layout placeholder — not used on Bonsai
     LdcBBoxOut bbox_params;      // populated by ResolveLDCCACGrid (both paths)
   };
-
-  // -----------------------------------------------------------------------
-  // Local mirrors of LayerConversion conversion input/output types.
-  // Memory layout must exactly match the corresponding types in LayerConversion.h
-  // so that void* casts in the extern "C" wrappers work correctly.
-  // Used by ConvertLayerParams() to call LC conversion functions via dlsym
-  // without including proprietary LayerConversion.h.
-  // -----------------------------------------------------------------------
 
   // Mirrors Data::FVec3 (3 floats: x, y, z)
   struct LcVec3 {
