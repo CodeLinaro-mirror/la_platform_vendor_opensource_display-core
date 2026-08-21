@@ -380,21 +380,33 @@ SDMServices::MinHdcpEncryptionLevelChanged(int disp_id,
                                            uint32_t min_enc_level) {
   // SSG team hardcoded disp_id as external because it applies to external only
   // but SSG team sends this level irrespective of external connected or not. So
-  // to honor the call, make disp_id to primary & set level.
-  if (!composer_driven_hdcp_) {
-    disp_id = SDM_DISPLAY_PRIMARY;
-  }
-
+  // to honor the call, add fallback to primary & set level.
   int disp_idx = disp_->GetDisplayIndex(disp_id);
-  if (disp_idx == -1) {
-    DLOGE("Invalid display = %d", disp_id);
-    return kErrorNotSupported;
+  SDMDisplay *sdm_display = nullptr;
+
+  if (disp_idx != -1) {
+    sdm_display = cb_->GetDisplayFromClientId(disp_idx);
   }
 
-  SDMDisplay *sdm_display = cb_->GetDisplayFromClientId(disp_idx);
   if (!sdm_display) {
-    DLOGE("Display = %d is not connected.", disp_idx);
-    return kErrorNotSupported;
+    if (composer_driven_hdcp_) {
+      DLOGE("Invalid display = %d", disp_id);
+      return kErrorNotSupported;
+    }
+
+    DLOGV("Display = %d is not available. Falling back to primary display.", disp_id);
+    disp_id = SDM_DISPLAY_PRIMARY;
+    disp_idx = disp_->GetDisplayIndex(disp_id);
+    if (disp_idx == -1) {
+      DLOGE("Invalid primary display = %d", disp_id);
+      return kErrorNotSupported;
+    }
+
+    sdm_display = cb_->GetDisplayFromClientId(disp_idx);
+    if (!sdm_display) {
+      DLOGE("Primary display = %d is not connected.", disp_idx);
+      return kErrorNotSupported;
+    }
   }
 
   return sdm_display->OnMinHdcpEncryptionLevelChange(min_enc_level);
