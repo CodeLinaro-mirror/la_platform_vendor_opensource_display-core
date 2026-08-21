@@ -126,6 +126,7 @@ class DisplayPluggable : public DisplayBase, HWEventHandler, DppsPropIntf {
   DisplayError SetAVRStepState(bool enable);
   CacVersion GetCacVerion();
   DisplayError HandleDemuraLayer(LayerStack *layer_stack);
+  DisplayError SetupSPR();
   DisplayError HandleSPR();
   void DeinitCWBBuffer();
   void AppendCWBLayer(LayerStack *layer_stack);
@@ -145,6 +146,9 @@ class DisplayPluggable : public DisplayBase, HWEventHandler, DppsPropIntf {
   bool IsAnamorphicFoveationEnabled(LayerStack *layer_stack);
   void HandleQsyncPostCommit();
   void SetDeferredFpsConfig();
+  DisplayError SendPanelIdToParserManager();
+  DisplayError SetupDemura();
+  DisplayError SetupDemuraT0Primary();
   int SetDemuraIntfStatus(bool enable, int current_idx = kDemuraDefaultIdx);
   DisplayError SetDisplayStateForDemuraTn(DisplayState state);
   DisplayError SetupCorrectionLayer();
@@ -191,9 +195,12 @@ class DisplayPluggable : public DisplayBase, HWEventHandler, DppsPropIntf {
   std::shared_ptr<DemuraIntf> demura_ = nullptr;
   uint32_t hfc_buffer_width_ = 0;
   uint32_t hfc_buffer_height_ = 0;
+  uint64_t panel_id_ = 0;
   bool demura_intended_ = false;
   bool demura_dynamic_enabled_ = true;
   int demura_current_idx_ = -1;
+  std::shared_ptr<DemuraParserManagerIntf> pm_intf_ = nullptr;
+  bool demura_allowed_ = false;
   float cached_brightness_ = 0.0f;
   bool pending_brightness_ = false;
   bool demura_calib_files_reloaded_ = false;

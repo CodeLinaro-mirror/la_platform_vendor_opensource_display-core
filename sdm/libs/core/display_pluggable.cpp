@@ -29,8 +29,10 @@
 
 #include <utils/constants.h>
 #include <utils/debug.h>
+#include <display_properties.h>
 #include <private/hw_interface.h>
 #include <private/hw_info_interface.h>
+#include <inttypes.h>
 #include <map>
 #include <string>
 #include <utility>
@@ -189,6 +191,20 @@ DisplayError DisplayPluggable::Init() {
          client_ctx_.hw_panel_info.is_primary_panel ? "primary" : "secondary",
          display_id_, display_type_, client_ctx_.hw_panel_info.is_rc_supported);
 
+  int enable_demura = 0;
+  Debug::Get()->GetProperty(ENABLE_DEMURA, &enable_demura);
+  if (enable_demura && IsPrimaryDisplay()) {
+    error = SetupDemuraT0Primary();
+    if (error != kErrorNone) {
+      DLOGE("Failed to setup DemuraT0 on primary pluggable display %d-%d, error %d",
+            display_id_, display_type_, error);
+      error = kErrorNone;
+    }
+  } else if (enable_demura) {
+    DLOGI("Skipping DemuraT0 setup on non-primary pluggable display %d-%d", display_id_,
+          display_type_);
+  }
+
   current_refresh_rate_ = client_ctx_.hw_panel_info.max_fps;
 
   int value = 0;
@@ -209,6 +225,32 @@ DisplayError DisplayPluggable::Init() {
 DisplayError DisplayPluggable::Deinit() {
   {
     ClientLock lock(disp_mutex_);
+
+    if (demura_) {
+      int current_idx = (demura_current_idx_ >= 0) ? demura_current_idx_ : kDemuraDefaultIdx;
+      SetDemuraIntfStatus(false, current_idx);
+      if (demura_->Deinit() != 0) {
+        DLOGE("Unable to DeInit Demura on Display %d-%d", display_id_, display_type_);
+      }
+      demura_.reset();
+    }
+
+    if (pm_intf_ && pm_intf_.use_count() == 1) {
+      GenericPayload dummy;
+      int ret = pm_intf_->SetParameter(kDemuraParserManagerParamReleaseParsers, dummy);
+      if (ret < 0) {
+        DLOGW("Failed to release demura parsers");
+      }
+      pm_intf_->Deinit();
+      pm_intf_.reset();
+    }
+
+    if (demura_intended_ || demura_allowed_) {
+      comp_manager_->FreeDemuraFetchResources(display_id_);
+    }
+    demura_intended_ = false;
+    demura_allowed_ = false;
+    demura_dynamic_enabled_ = true;
 
     for (auto &res_info : hw_resource_info_)
       hw_rc_blocks_in_use_[res_info.core_id] -= rc_blocks_reserved_;
@@ -315,6 +357,56 @@ DisplayError DisplayPluggable::HandleSPR() {
     }
     spr_enable_ = *enable;
   }
+
+  return kErrorNone;
+}
+
+DisplayError DisplayPluggable::SetupSPR() {
+  if (spr_) {
+    return kErrorNone;
+  }
+
+  int spr_prop_value = 0;
+  int spr_bypass_prop_value = 0;
+  int spr_disable_value = 0;
+  Debug::GetProperty(ENABLE_SPR, &spr_prop_value);
+  Debug::GetProperty(ENABLE_SPR_BYPASS, &spr_bypass_prop_value);
+
+  if (IsPrimaryDisplay()) {
+    Debug::Get()->GetProperty(DISABLE_SPR_PRIMARY, &spr_disable_value);
+  } else {
+    Debug::Get()->GetProperty(DISABLE_SPR_SECONDARY, &spr_disable_value);
+  }
+
+  if (!spr_prop_value || spr_disable_value) {
+    DLOGE("SPR interface is required for Demura on pluggable display %d-%d, enable_spr %d, "
+          "disable_spr %d", display_id_, display_type_, spr_prop_value, spr_disable_value);
+    return kErrorResources;
+  }
+
+  SPRInputConfig spr_cfg;
+  spr_cfg.panel_name = std::string(client_ctx_.hw_panel_info.panel_name);
+  spr_cfg.spr_bypassed = (spr_bypass_prop_value) ? true : false;
+  spr_ = pf_factory_->CreateSPRIntf(spr_cfg, prop_intf_);
+  if (!spr_) {
+    DLOGE("Failed to create SPR interface for pluggable display %d-%d", display_id_,
+          display_type_);
+    return kErrorResources;
+  }
+
+  if (spr_->Init() != 0) {
+    DLOGE("Failed to initialize SPR for pluggable display %d-%d", display_id_, display_type_);
+    spr_.reset();
+    return kErrorResources;
+  }
+
+  spr_bypassed_ = spr_cfg.spr_bypassed;
+  if (color_mgr_) {
+    color_mgr_->ColorMgrSetSprIntf(spr_);
+  }
+  comp_manager_->SetSprIntf(display_comp_ctx_, spr_);
+  DLOGI("Initialized SPR dependency for Demura on pluggable display %d-%d, bypass %d",
+        display_id_, display_type_, spr_bypassed_);
 
   return kErrorNone;
 }
@@ -1887,6 +1979,223 @@ void DisplayPluggable::SetDeferredFpsConfig() {
     device_ctx_[i].hw_panel_info.transfer_time_us = deferred_config_.transfer_time_us;
   }
   deferred_config_.Clear();
+}
+
+DisplayError DisplayPluggable::SendPanelIdToParserManager() {
+  if (!pm_intf_) {
+    DLOGE("Invalid Parser Manager intf");
+    return kErrorUndefined;
+  }
+
+  std::vector<uint64_t> *panel_ids = nullptr;
+  GenericPayload in;
+  int ret = in.CreatePayload<std::vector<uint64_t>>(panel_ids);
+  if (ret) {
+    DLOGE("Failed to create payload for panel ids, error = %d", ret);
+    return kErrorResources;
+  }
+  panel_ids->push_back(panel_id_);
+
+  ret = pm_intf_->SetParameter(kDemuraParserManagerParamPanelIds, in);
+  if (ret) {
+    DLOGE("Failed to set panel id 0x%" PRIx64 " to parser manager, error = %d", panel_id_, ret);
+    return kErrorResources;
+  }
+
+  return kErrorNone;
+}
+
+DisplayError DisplayPluggable::SetupDemura() {
+  DemuraInputConfig input_cfg;
+  input_cfg.secure_session = false;
+  std::string brightness_base;
+  dpu_core_mux_->GetPanelBrightnessBasePath(&brightness_base);
+  input_cfg.brightness_path = brightness_base + "brightness";
+
+  std::vector<FetchResourceList> fetch_resource_lists;
+  fetch_resource_lists.resize(core_count_);
+  comp_manager_->GetDemuraFetchResources(display_comp_ctx_, &fetch_resource_lists);
+  auto fetch_resource_list = fetch_resource_lists[0];
+  for (auto &fetch_resource : fetch_resource_list) {
+    int index = std::get<1>(fetch_resource);
+    input_cfg.resources.set(index);
+  }
+
+#ifdef TRUSTED_VM
+  input_cfg.secure_session = true;
+#endif
+  input_cfg.panel_id = panel_id_;
+  DLOGI("DemuraT0 primary pluggable panel id %" PRIu64, input_cfg.panel_id);
+  input_cfg.panel_name = client_ctx_.hw_panel_info.panel_name;
+  input_cfg.display_intf = this;
+
+  std::unique_ptr<DemuraIntf> demura =
+      pf_factory_->CreateDemuraIntf(input_cfg, prop_intf_, buffer_allocator_, spr_);
+  if (!demura) {
+    DLOGE("Unable to create Demura on Display %d-%d", display_id_, display_type_);
+    return kErrorMemory;
+  }
+
+  demura_ = std::move(demura);
+  if (demura_->Init() != 0) {
+    DLOGE("Unable to initialize Demura on Display %d-%d", display_id_, display_type_);
+    return kErrorUndefined;
+  }
+
+  GenericPayload display_event_state_payload;
+  if (demura_->SetParameter(kDemuraFeatureParamDispEventState, display_event_state_payload) != 0) {
+    DLOGE("Unable to disable Demura display events on pluggable Display %d-%d", display_id_,
+          display_type_);
+    return kErrorUndefined;
+  }
+  DLOGI("Disabled Demura display event registration for primary pluggable display");
+
+  if (SetupCorrectionLayer() != kErrorNone) {
+    DLOGE("Unable to setup Demura layer on Display %d-%d", display_id_, display_type_);
+    return kErrorUndefined;
+  }
+
+  if (SetDemuraIntfStatus(true)) {
+    return kErrorUndefined;
+  }
+
+  demura_current_idx_ = kDemuraDefaultIdx;
+  comp_manager_->SetDemuraStatusForDisplay(display_id_, true);
+  demura_intended_ = true;
+  DLOGI("Enabled Demura Core on primary pluggable display!");
+
+  return kErrorNone;
+}
+
+DisplayError DisplayPluggable::SetupDemuraT0Primary() {
+  if (!pf_factory_ || !prop_intf_) {
+    DLOGW("Panel feature factory is not available for primary pluggable DemuraT0");
+    return kErrorNone;
+  }
+
+  int value = 0;
+  Debug::Get()->GetProperty(DISABLE_DEMURA_PRIMARY, &value);
+  if (value > 0) {
+    comp_manager_->FreeDemuraFetchResources(display_id_);
+    comp_manager_->SetDemuraStatusForDisplay(display_id_, false);
+    DLOGI("DemuraT0 primary pluggable setup disabled by property");
+    return kErrorNone;
+  } else if (value < 0) {
+    return kErrorUndefined;
+  }
+
+  int panel_id_word = 0;
+  uint64_t panel_id = 0;
+  Debug::Get()->GetProperty(DEMURA_PRIMARY_PANEL_OVERRIDE_LOW, &panel_id_word);
+  panel_id = static_cast<uint32_t>(panel_id_word);
+  panel_id_word = 0;
+  Debug::Get()->GetProperty(DEMURA_PRIMARY_PANEL_OVERRIDE_HIGH, &panel_id_word);
+  panel_id |= (static_cast<uint64_t>(static_cast<uint32_t>(panel_id_word)) << 32);
+  DLOGI("panel override total value for primary pluggable display 0x%" PRIx64, panel_id);
+
+  PanelFeaturePropertyInfo info;
+  if (!panel_id) {
+    info.prop_ptr = reinterpret_cast<uint64_t>(&panel_id);
+    info.prop_id = kPanelFeatureDemuraPanelId;
+    int ret = prop_intf_->GetPanelFeature(&info);
+    if (ret) {
+      DLOGE("Failed to get Demura panel id for primary pluggable display, error = %d", ret);
+      return kErrorUndefined;
+    }
+  }
+  panel_id_ = panel_id;
+  DLOGI("primary pluggable DemuraT0 panel_id 0x%" PRIx64, panel_id_);
+
+  if (!pm_intf_) {
+    pm_intf_ = pf_factory_->CreateDemuraParserManager(nullptr, buffer_allocator_);
+    if (!pm_intf_) {
+      DLOGE("Failed to create Parser Manager intf");
+      return kErrorResources;
+    }
+    if (pm_intf_->Init() != 0) {
+      DLOGE("Failed to init Parser Manager intf");
+      pm_intf_->Deinit();
+      pm_intf_ = nullptr;
+      return kErrorResources;
+    }
+  }
+
+  DisplayError error = SendPanelIdToParserManager();
+  if (error != kErrorNone) {
+    DLOGE("Failed to setup parser manager for primary pluggable DemuraT0, error %d", error);
+    return error;
+  }
+
+#if defined SDM_UNIT_TESTING || defined TRUSTED_VM
+  demura_allowed_ = true;
+#else
+  if (!feature_license_factory_) {
+    DLOGI("Feature license factory is not available");
+    return kErrorNone;
+  }
+
+  std::shared_ptr<FeatureLicenseIntf> feature_license_intf =
+      feature_license_factory_->CreateFeatureLicenseIntf();
+  if (!feature_license_intf) {
+    feature_license_factory_ = nullptr;
+    DLOGE("Failed to create FeatureLicenseIntf");
+    return kErrorUndefined;
+  }
+
+  int ret = feature_license_intf->Init();
+  if (ret) {
+    DLOGE("Failed to init FeatureLicenseIntf");
+    return kErrorUndefined;
+  }
+
+  GenericPayload demura_payload;
+  DemuraValidatePermissionInput *demura_input = nullptr;
+  ret = demura_payload.CreatePayload<DemuraValidatePermissionInput>(demura_input);
+  if (ret) {
+    DLOGE("Failed to create the payload. Error:%d", ret);
+    return kErrorUndefined;
+  }
+
+  GenericPayload out_payload;
+  bool *allowed = nullptr;
+  ret = out_payload.CreatePayload<bool>(allowed);
+  if (ret) {
+    DLOGE("Failed to create the payload. Error:%d", ret);
+    return kErrorUndefined;
+  }
+
+  demura_input->id = kDemura;
+  demura_input->panel_id = panel_id_;
+  ret = feature_license_intf->ProcessOps(kValidatePermission, demura_payload, &out_payload);
+  if (ret) {
+    DLOGE("Failed to get the license permission for Demura. Error:%d", ret);
+  } else {
+    demura_allowed_ = *allowed;
+  }
+#endif
+
+  DLOGI("Primary pluggable Demura enable allowed %d", demura_allowed_);
+  if (demura_allowed_) {
+    error = SetupSPR();
+    if (error != kErrorNone) {
+      DLOGE("Failed to setup SPR dependency for primary pluggable demura T0, error %d", error);
+      return error;
+    }
+
+    error = HandleSPR();
+    if (error != kErrorNone) {
+      DLOGE("Failed to query SPR dependency for primary pluggable demura T0, error %d", error);
+      return error;
+    }
+
+    error = SetupDemura();
+    if (error != kErrorNone) {
+      DLOGE("Failed to setup primary pluggable demura T0, error %d", error);
+      return error;
+    }
+  }
+
+  return kErrorNone;
 }
 
 int DisplayPluggable::SetDemuraIntfStatus(bool enable, int current_idx) {

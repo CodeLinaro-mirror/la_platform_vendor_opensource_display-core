@@ -759,11 +759,16 @@ DisplayError CoreImpl::ReserveDemuraPipeResources() {
     uint32_t disp_id = r->first;
     for (auto display_info : hw_displays_info_) {
       uint32_t base_core_id = DisplayId::GetBaseCoreId(display_info.first);
+      if (base_core_id != 0) {
+        continue;
+      }
       if (DisplayId::GetConnId(display_info.first, base_core_id) == r->first) {
         disp_id = display_info.first;
+        break;
       }
     }
 
+    DLOGI("Demura connector %u maps to display %u count %u", r->first, disp_id, r->second);
     required_demura_fetch_cnt.insert({disp_id, r->second});
   }
 

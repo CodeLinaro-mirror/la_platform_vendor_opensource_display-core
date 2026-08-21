@@ -116,6 +116,12 @@ static uint8_t FRAME_TRIGGER_DEFAULT = 0;
 static uint8_t FRAME_TRIGGER_SERIALIZE = 1;
 static uint8_t FRAME_TRIGGER_POSTED_START = 2;
 
+static bool IsDemuraConnectorType(uint32_t conn_type) {
+  return conn_type == DRM_MODE_CONNECTOR_DSI ||
+         conn_type == DRM_MODE_CONNECTOR_eDP ||
+         conn_type == DRM_MODE_CONNECTOR_DisplayPort;
+}
+
 static uint8_t DRM_MODE_COLORIMETRY_DEFAULT            = 0;
 static uint8_t DRM_MODE_COLORIMETRY_SMPTE_170M_YCC     = 1;
 static uint8_t DRM_MODE_COLORIMETRY_BT709_YCC          = 2;
@@ -520,7 +526,6 @@ void DRMConnectorManager::Free(DRMDisplayToken *token) {
   token->conn_id = 0;
 }
 
-// DSI only
 int DRMConnectorManager::GetPreferredModeLMCounts(std::map<uint32_t, uint8_t> *lm_counts) {
   lock_guard<mutex> lock(lock_);
   int ret = 0;
@@ -528,9 +533,14 @@ int DRMConnectorManager::GetPreferredModeLMCounts(std::map<uint32_t, uint8_t> *l
     uint32_t conn_type;
     const uint32_t &id = conn.first;
     conn.second->GetType(&conn_type);
-    if (conn_type == DRM_MODE_CONNECTOR_DSI) {
+    if (IsDemuraConnectorType(conn_type)) {
       DRMConnectorInfo info = {};
       connector_pool_[id]->GetInfo(&info);
+      if (info.modes.empty()) {
+        DLOGW("No modes for demura capable connector %u type %u", id, conn_type);
+        continue;
+      }
+
       uint8_t lm_cnt = 0;
       uint32_t mode_index = 0;
       for (uint32_t index = 0; index < info.modes.size(); index++) {
@@ -540,7 +550,18 @@ int DRMConnectorManager::GetPreferredModeLMCounts(std::map<uint32_t, uint8_t> *l
         }
       }
 
+      if (info.modes[mode_index].sub_modes.empty()) {
+        DLOGW("No submodes for demura capable connector %u type %u", id, conn_type);
+        continue;
+      }
+
       uint32_t curr_submode_idx = info.modes[mode_index].curr_submode_index;
+      if (curr_submode_idx >= info.modes[mode_index].sub_modes.size()) {
+        DLOGW("Invalid submode %u for demura capable connector %u type %u", curr_submode_idx, id,
+              conn_type);
+        continue;
+      }
+
       switch (info.modes[mode_index].sub_modes[curr_submode_idx].topology) {
         case DRMTopology::SINGLE_LM:
         case DRMTopology::SINGLE_LM_DSC:

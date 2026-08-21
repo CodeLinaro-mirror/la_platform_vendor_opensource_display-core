@@ -101,6 +101,20 @@ using std::to_string;
 
 namespace sdm {
 
+static uint64_t GetPanelIdOverride(const char *low_prop, const char *high_prop) {
+  int panel_id_word = 0;
+  uint64_t panel_id = 0;
+
+  Debug::Get()->GetProperty(low_prop, &panel_id_word);
+  panel_id = static_cast<uint32_t>(panel_id_word);
+
+  panel_id_word = 0;
+  Debug::Get()->GetProperty(high_prop, &panel_id_word);
+  panel_id |= (static_cast<uint64_t>(static_cast<uint32_t>(panel_id_word)) << 32);
+
+  return panel_id;
+}
+
 static HWQseedStepVersion GetQseedStepVersion(sde_drm::QSEEDStepVersion drm_version) {
   HWQseedStepVersion sdm_version;
   switch (drm_version) {
@@ -1187,12 +1201,22 @@ DisplayError HWInfoDRM::GetRequiredDemuraFetchResourceCount(
     drm_mgr_intf_->GetRequiredDemuraFetchResourceCount(required_demura_fetch_cnt);
 
     // Filter out displays that don't have panel_id
+    uint64_t primary_panel_override =
+        GetPanelIdOverride(DEMURA_PRIMARY_PANEL_OVERRIDE_LOW, DEMURA_PRIMARY_PANEL_OVERRIDE_HIGH);
+    uint64_t secondary_panel_override =
+        GetPanelIdOverride(DEMURA_SECONDARY_PANEL_OVERRIDE_LOW, DEMURA_SECONDARY_PANEL_OVERRIDE_HIGH);
     for (auto it = required_demura_fetch_cnt->begin(); it != required_demura_fetch_cnt->end();) {
       sde_drm::DRMConnectorInfo info;
       drm_mgr_intf_->GetConnectorInfo(it->first, &info);
-      if (!info.panel_id) {
+      const uint64_t role_panel_override =
+          info.is_primary ? primary_panel_override : secondary_panel_override;
+      if (!info.panel_id && !role_panel_override) {
+        DLOGI("Removing connector %u from demura list: no panel id or panel override", it->first);
         it = required_demura_fetch_cnt->erase(it);
       } else {
+        DLOGI("Keeping connector %u for demura: panel id 0x%" PRIx64
+              " role override 0x%" PRIx64,
+              it->first, info.panel_id, role_panel_override);
         ++it;
       }
     }
