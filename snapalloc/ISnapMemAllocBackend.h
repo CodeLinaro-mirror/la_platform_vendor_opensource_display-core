@@ -1,6 +1,7 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
-
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __ISNAPMEMALLOCBACKEND_H__
 #define __ISNAPMEMALLOCBACKEND_H__
@@ -23,8 +24,9 @@ class ISnapMemAllocBackend {
   virtual Error CleanBuffer(void *base, unsigned int size, int op, int fd) = 0;
   virtual int ImportBuffer(int fd) = 0;
   virtual Error SecureMemPerms(AllocData *ad) = 0;
-  virtual void GetHeapInfo(vendor_qti_hardware_display_common_BufferUsage usage, bool sensor_flag,
-                           bool use_uncached, std::string *heap_name,
+  virtual void GetHeapInfo(vendor_qti_hardware_display_common_BufferUsage usage,
+                           vendor_qti_hardware_display_common_HeapType heap_name_opt,
+                           bool sensor_flag, bool use_uncached, std::string *heap_name,
                            std::vector<std::string> *vm_names, unsigned int *alloc_type,
                            unsigned int *flags, unsigned int *alloc_size) = 0;
   virtual Error SetBufferPermission(

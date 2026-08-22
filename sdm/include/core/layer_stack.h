@@ -667,8 +667,15 @@ struct LayerStack {
   uint64_t expected_present_time = 0;  //!< Expected Present timestamp for current frame.
 
   uint32_t frame_interval_ns = 0;  //!< Frame Interval for current frame.
-
   LayerRect rgb_histogram_roi = {};  //!< RGB Histogram ROI
+  bool gpu_reproj_active = false;  //!< Set when GPU reproj blit is active this frame.
+  uint32_t gpu_reproj_batch_size = 0;   //!< GPU LSR init: total ping-pong slot count (2).
+                                        //!< 0 = not an init commit.
+  uint32_t gpu_reproj_batch_index = 0;  //!< GPU LSR init: 1-based slot index (1 or 2).
+  uint32_t gpu_reproj_batch_type = 0;   //!< GPU LSR batch type: 0=NONE, 1=LSR.
+  std::shared_ptr<LayerBuffer> gpu_reproj_shared_buffer = nullptr;
+                                        //!< GPU LSR init: DCP<->GPU coordination buffer.
+                                        //!< Set only on batch_index=1 commit.
 };
 
 enum PrivacyRegionState {

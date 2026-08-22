@@ -57,9 +57,9 @@ std::pair<uint32_t, uint32_t> alpha_range_ = {0, UINT16_MAX};
 void ParseFormats(const string &line, vector<pair<uint32_t, uint64_t>> *formats) {
   // Match fourcc strings like RA24 or C8<space><space> or those with modifier like
   // RA24/5/1 or C8<space><space>/5/1. The digit after first / is vendor code, the digit
-  // after second / is modifier code.
-  regex exp_base("[[:alnum:]]{2}([[:alnum:]]{2}|[[:space:]]{2})(/[[:digit:]]/([[:digit:]]){1,3})?");
-  regex exp_mod("[[:alnum:]]{2}([[:alnum:]]{2}|[[:space:]]{2})(/[[:digit:]]/([[:digit:]]){1,3})");
+  // after second / is modifier code (hex, up to 5 digits to support e.g. LUMA_ONLY=0x10000).
+  regex exp_base("[[:alnum:]]{2}([[:alnum:]]{2}|[[:space:]]{2})(/[[:digit:]]/([[:xdigit:]]){1,5})?");
+  regex exp_mod("[[:alnum:]]{2}([[:alnum:]]{2}|[[:space:]]{2})(/[[:digit:]]/([[:xdigit:]]){1,5})");
   string tmp_line = line;
   std::smatch str_match;  // Resultant match
   while (std::regex_search(tmp_line, str_match, exp_base)) { //clang_sa_ignore[core.CallAndMessage]

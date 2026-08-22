@@ -107,6 +107,13 @@ DisplayError SDMDisplayVirtual::CommitOrPrepare(
   return kErrorNone;
 }
 
+DisplayError SDMDisplayVirtual::TurnOffColorFeature() {
+  if (display_intf_) {
+    return display_intf_->TurnOffColorFeature();
+  }
+  return kErrorNotSupported;
+}
+
 DisplayError SDMDisplayVirtual::DumpVDSBuffer() {
   if (dump_frame_count_ && !flush_ && dump_output_layer_) {
     if (output_handle_) {

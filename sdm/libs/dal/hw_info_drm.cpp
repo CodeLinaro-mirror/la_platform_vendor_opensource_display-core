@@ -1,7 +1,6 @@
 /*
 * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
 *
-* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are
@@ -80,6 +79,12 @@
 #endif
 #ifndef DRM_FORMAT_MOD_QCOM_DMA
 #define DRM_FORMAT_MOD_QCOM_DMA fourcc_mod_code(QCOM, 0x400)
+#endif
+#ifndef DRM_FORMAT_MOD_QCOM_ALPHA_ONLY
+#define DRM_FORMAT_MOD_QCOM_ALPHA_ONLY fourcc_mod_code(QCOM, 0x8000)
+#endif
+#ifndef DRM_FORMAT_MOD_QCOM_LUMA_ONLY
+#define DRM_FORMAT_MOD_QCOM_LUMA_ONLY fourcc_mod_code(QCOM, 0x10000)
 #endif
 
 #define __CLASS__ "HWInfoDRM"
@@ -472,6 +477,7 @@ void HWInfoDRM::GetSystemInfo(HWResourceInfo *hw_resource) {
   hw_resource->rc_total_mem_size = info.rc_total_mem_size;
   hw_resource->dsc_block_count = info.dsc_block_count;
   hw_resource->hw_ai_scaler_count = info.ai_scaler_count;
+  hw_resource->max_lsr_batch_size = info.max_lsr_batch_size;
 }
 
 void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
@@ -1046,9 +1052,19 @@ void HWInfoDRM::GetSDMFormat(uint32_t drm_format, uint64_t drm_format_modifier,
         fmts.push_back(kFormatYCbCr420P010Venus);
       } else if (drm_format_modifier == DRM_FORMAT_MOD_QCOM_DMA) {
         fmts.push_back(kFormatNV12Y);
+      } else if ((drm_format_modifier & DRM_FORMAT_MOD_QCOM_LUMA_ONLY) ==
+                 DRM_FORMAT_MOD_QCOM_LUMA_ONLY) {
+        fmts.push_back(kFormatNV12Y10);
+      } else if ((drm_format_modifier & DRM_FORMAT_MOD_QCOM_ALPHA_ONLY) ==
+                 DRM_FORMAT_MOD_QCOM_ALPHA_ONLY) {
+        fmts.push_back(kFormatNV12A10);
       } else {
-        fmts.push_back(kFormatYCbCr420SemiPlanarVenus);
-        fmts.push_back(kFormatYCbCr420SemiPlanar);
+        if (drm_format_modifier == 0) {
+          fmts.push_back(kFormatYCbCr420SemiPlanarVenus);
+          fmts.push_back(kFormatYCbCr420SemiPlanar);
+        } else {
+          fmts.push_back(kFormatNV12Y);
+        }
       }
       break;
     case DRM_FORMAT_NV21:
@@ -1071,15 +1087,22 @@ void HWInfoDRM::GetSDMFormat(uint32_t drm_format, uint64_t drm_format_modifier,
       }
       break;
     case DRM_FORMAT_C8:
-      if (drm_format_modifier & DRM_FORMAT_MOD_QCOM_COMPRESSED) {
-        if (drm_format_modifier & DRM_FORMAT_MOD_QCOM_FSC_TILE) {
+      // All QCOM modifiers share the vendor prefix 0x0500000000000000.
+      // A bare & check is always non-zero for any QCOM modifier, so use ==
+      // to check for the exact bit combination (vendor prefix + specific bits).
+      if ((drm_format_modifier & DRM_FORMAT_MOD_QCOM_COMPRESSED) ==
+          DRM_FORMAT_MOD_QCOM_COMPRESSED) {
+        if ((drm_format_modifier & DRM_FORMAT_MOD_QCOM_FSC_TILE) == DRM_FORMAT_MOD_QCOM_FSC_TILE) {
           fmts.push_back(kFormatC8Ubwc);
-        } else if (drm_format_modifier & DRM_FORMAT_MOD_QCOM_FSC_4R_TILE) {
+        } else if ((drm_format_modifier & DRM_FORMAT_MOD_QCOM_FSC_4R_TILE) ==
+                   DRM_FORMAT_MOD_QCOM_FSC_4R_TILE) {
           fmts.push_back(kFormatC84RUbwc);
-        } else if (drm_format_modifier & DRM_FORMAT_MOD_QCOM_NV12_4R_4Y) {
+        } else if ((drm_format_modifier & DRM_FORMAT_MOD_QCOM_NV12_4R_4Y) ==
+                   DRM_FORMAT_MOD_QCOM_NV12_4R_4Y) {
           fmts.push_back(kFormatC84R4YUbwc);
         }
-      } else if (drm_format_modifier & DRM_FORMAT_MOD_QCOM_FSC_TILE) {
+      } else if ((drm_format_modifier & DRM_FORMAT_MOD_QCOM_FSC_TILE) ==
+                 DRM_FORMAT_MOD_QCOM_FSC_TILE) {
         fmts.push_back(kFormatC8);
       }
       break;
@@ -1134,6 +1157,8 @@ DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
     return kErrorUndefined;
   }
 
+  DRMCrtcInfo crtc_info = {};
+  drm_mgr_intf_->GetCrtcInfo(0 /* system_info */, &crtc_info);
   for (auto &iter : conns_info) {
     HWDisplayInfo hw_info = {};
     hw_info.display_id =
@@ -1174,7 +1199,10 @@ DisplayError HWInfoDRM::GetDisplaysStatus(HWDisplaysInfo *hw_displays_info) {
     }
     hw_info.is_reserved = iter.second.is_reserved;
     hw_info.max_linewidth = iter.second.max_linewidth;
-    hw_info.is_wb_downscale_supported = iter.second.is_wb_downscale_supported;
+    hw_info.is_wb_downscale_supported = iter.second.is_wb_dnsc_supported;
+    hw_info.wb_dnsc_min_ratio = iter.second.wb_dnsc_min_ratio;
+    hw_info.wb_dnsc_max_ratio = iter.second.wb_dnsc_max_ratio;
+    hw_info.is_wb_qrtc_supported = !!crtc_info.qrtc_count;
 
     if (iter.second.type == DRM_MODE_CONNECTOR_DSI) {
       uint32_t mode_index = 0;
@@ -1234,6 +1262,9 @@ DisplayError HWInfoDRM::GetVirtualDisplayStatus(VirtualDisplayType type, HWDispl
     return kErrorUndefined;
   }
 
+  DRMCrtcInfo crtc_info = {};
+  drm_mgr_intf_->GetCrtcInfo(0 /* system_info */, &crtc_info);
+
   bool connector_found = false;
   SDMDisplayType display_type = kVirtual;
   for (auto &iter : conns_info) {
@@ -1291,7 +1322,10 @@ DisplayError HWInfoDRM::GetVirtualDisplayStatus(VirtualDisplayType type, HWDispl
     hw_info->is_wb_ubwc_supported = iter.second.is_wb_ubwc_supported;
     hw_info->is_reserved = iter.second.is_reserved;
     hw_info->max_linewidth = iter.second.max_linewidth;
-    hw_info->is_wb_downscale_supported = iter.second.is_wb_downscale_supported;
+    hw_info->is_wb_downscale_supported = iter.second.is_wb_dnsc_supported;
+    hw_info->wb_dnsc_min_ratio = iter.second.wb_dnsc_min_ratio;
+    hw_info->wb_dnsc_max_ratio = iter.second.wb_dnsc_max_ratio;
+    hw_info->is_wb_qrtc_supported = !!crtc_info.qrtc_count;
 
     if (!hw_info->max_cwb) {
       auto &conn_mode = iter.second.modes[0];
@@ -1486,25 +1520,28 @@ uint32_t HWInfoDRM::GetMaxDNSCBlurBlockCount() {
 #endif
 }
 
-uint32_t HWInfoDRM::GetMaxWritebackBlockCount() {
+bool HWInfoDRM::WbHwSupportsBuiltInDownscale() {
   sde_drm::DRMConnectorsInfo conns_info = {};
   auto drm_err = drm_mgr_intf_->GetConnectorsInfo(&conns_info);
   if (drm_err) {
     DLOGE("DRM Driver get connector error %d while getting max displays supported!", drm_err);
-    return 0;
+    return false;
   }
 
-  uint32_t wb_count = 0;
   for (auto &iter : conns_info) {
-    if (iter.second.type == DRM_MODE_CONNECTOR_VIRTUAL) {
-      wb_count++;
+    if (iter.second.type == DRM_MODE_CONNECTOR_VIRTUAL && iter.second.is_wb_dnsc_supported) {
+      return true;
     }
   }
-  return wb_count;
+
+  return false;
 }
 
 bool HWInfoDRM::IsQrtcSupported() {
-  return false;
+  DRMCrtcInfo crtc_info = {};
+  drm_mgr_intf_->GetCrtcInfo(0 /* system_info */, &crtc_info);
+
+  return !!crtc_info.qrtc_count;
 }
 
 bool HWInfoDRM::IsDownscaledCwbSupported(int32_t wb_block_index) {
@@ -1515,20 +1552,22 @@ bool HWInfoDRM::IsDownscaledCwbSupported(int32_t wb_block_index) {
     return false;
   }
 
-  uint32_t wb_count = 0;
+  int32_t wb_count = 0;
   for (auto &iter : conns_info) {
     if (iter.second.type == DRM_MODE_CONNECTOR_VIRTUAL) {
-      if (iter.second.is_wb_downscale_supported &&
-          (wb_block_index == wb_count || wb_block_index < 0)) {
+      if (iter.second.is_wb_dnsc_supported && (wb_block_index == wb_count || wb_block_index < 0)) {
         return true;
       }
-
       wb_count++;
     }
   }
+  // If QRTC supports, legacy downscale support would not be compatible anymore.
+  if (wb_block_index >= wb_count || IsQrtcSupported()) {
+    return false;
+  }
 
-  // For legacy compatibility.
-  if (wb_count < 3 && wb_block_index <= 0) {
+  // As till here, no any built-in downscale supported WB found, so keep legacy compatibility.
+  if (wb_block_index <= 0) {
     return !!GetMaxDNSCBlurBlockCount();
   }
 

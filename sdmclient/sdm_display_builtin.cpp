@@ -37,6 +37,8 @@
 #include <utils/debug.h>
 #include <utils/utils.h>
 
+#include "sdm_display_builtin_gpu_reproj.h"
+
 #include <map>
 #include <string>
 #include <vector>
@@ -66,8 +68,13 @@ DisplayError SDMDisplayBuiltIn::Create(CoreInterface *core_intf, BufferAllocator
   uint32_t builtin_width = 0;
   uint32_t builtin_height = 0;
 
-  SDMDisplay *sdm_display_builtin = new SDMDisplayBuiltIn(
-      core_intf, buffer_allocator, callbacks, event_handler, id, sdm_id);
+  // On seraph SoC (GPU LSR variant, SoC IDs 736/737) instantiate the GPU-reproj derived class.
+  // All other targets get the base SDMDisplayBuiltIn.
+  SDMDisplay *sdm_display_builtin =
+      IsGpuLsrVariant() ? static_cast<SDMDisplay *>(new SDMDisplayBuiltInGpuReproj(
+                              core_intf, buffer_allocator, callbacks, event_handler, id, sdm_id))
+                        : static_cast<SDMDisplay *>(new SDMDisplayBuiltIn(
+                              core_intf, buffer_allocator, callbacks, event_handler, id, sdm_id));
   auto status = sdm_display_builtin->Init();
   if (status != kErrorNone) {
     delete sdm_display_builtin;
@@ -1810,6 +1817,20 @@ DisplayError SDMDisplayBuiltIn::PerformDynamicCac(DynamicCacV2Config config, boo
   }
 
   return error;
+}
+
+DisplayError SDMDisplayBuiltIn::SetSPRState(int state) {
+  DLOGV("Display ID: %" PRId64 " spr state: %d", state);
+  DisplayError error = display_intf_->SetSPRState(state);
+
+  if (error != kErrorNone) {
+    DLOGE("Failed to set spr state = %d, error = %d", state, error);
+    return kErrorParameters;
+  }
+
+  callbacks_->OnRefresh(id_);
+
+  return kErrorNone;
 }
 
 DisplayError SDMDisplayBuiltIn::SetDemuraConfig(int demura_idx) {

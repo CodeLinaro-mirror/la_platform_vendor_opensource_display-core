@@ -1465,20 +1465,18 @@ class DisplayInterface {
 
   /*! @brief Method to allocate Writeback connector for QRTC.
 
-    @param[out] writeback connector id
+    @param[out] writeback connector map info
 
     @return \link DisplayError \endlink
   */
 
-  virtual DisplayError ReserveWBForDisplay(int32_t *wb_id) = 0;
+  virtual DisplayError ReserveWBForDisplay(WbMapInfo *wb_info) = 0;
 
-  /*! @brief Method to deallocate Writeback connector QRTC in use by QRTC.
-
-    @param[in] writeback connector id
+  /*! @brief Method to deallocate Writeback connector which is in use by QRTC.
 
     @return \link void \endlink
   */
-  virtual void ReleaseWBFromDisplay(int32_t wb_id) = 0;
+  virtual void ReleaseWBFromDisplay() = 0;
 
   /*! @brief Method to handle CWB teardown on the display
 
@@ -1522,6 +1520,14 @@ class DisplayInterface {
    @return \link DisplayError \endlink
   */
   virtual DisplayError SetDemuraConfig(int demura_idx) = 0;
+
+  /*! @brief Method to set config for spr feature.
+
+   @param[in] spr_idx : spr config index
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetSPRState(int state) = 0;
 
   /*! @brief Method to handle CAC configuration.
 
@@ -1799,6 +1805,13 @@ class DisplayInterface {
    @return \link DisplayError \endlink
   */
   virtual DisplayError UpdateRgbHistogramRoi(const void *data) = 0;
+
+  /*! @brief Method to force disable color features (e.g., LTM).
+    This is typically used when a virtual display is retained for future reuse.
+
+    @return \link kErrorNotSupported \endlink by default.
+  */
+  virtual DisplayError TurnOffColorFeature() { return kErrorNotSupported; }
 
  protected:
   virtual ~DisplayInterface() { }

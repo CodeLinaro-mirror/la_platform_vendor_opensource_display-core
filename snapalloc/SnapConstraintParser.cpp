@@ -41,6 +41,7 @@ static std::unordered_map<std::string, vendor_qti_hardware_display_common_PixelF
         {"RAW10", RAW10},
         {"RAW12", RAW12},
         {"RAW14", RAW14},
+        {"RAW14_1", RAW14_1},
         {"RGBA_1010102", RGBA_1010102},
         {"Y8", Y8},
         {"Y16", Y16},

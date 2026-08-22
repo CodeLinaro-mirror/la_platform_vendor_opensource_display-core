@@ -514,6 +514,25 @@ enum struct DRMOps {
    */
   CRTC_SET_LSR_MODE,
   /*
+   * Op: Sets GPU LSR batch size (total number of ping-pong slots).
+   * Used during the two init commits to register all output buffers with DCP.
+   * Args: uint32_t - CRTC ID
+   *       uint32_t - batch_size (2 for double-buffered GPU reproj)
+   */
+  CRTC_SET_BATCH_SIZE,
+  /*
+   * Op: Sets GPU LSR batch index (1-based slot index within the batch).
+   * Commit 1 carries index=1 (slot 0 buffers), commit 2 carries index=2 (slot 1 buffers).
+   * Args: uint32_t - CRTC ID
+   *       uint32_t - batch_index (1 or 2)
+   */
+  CRTC_SET_BATCH_INDEX,
+  /*
+   * Op: Set the batch type for GPU LSR init commits.
+   * Arg: uint32_t - batch_type (0=NONE, 1=LSR)
+   */
+  CRTC_SET_BATCH_TYPE,
+  /*
    * Op: Returns retire fence for this commit. Should be called after Commit()
    * on DRMAtomicReqInterface. Arg: uint32_t - Connector ID int * - Pointer to
    * an integer that will hold the returned fence
@@ -685,6 +704,11 @@ enum struct DRMOps {
    */
   CONNECTOR_DNSC_BLR,
   /*
+   * Op: writeback downscale properties
+   * Arg: drmModeAtomicReq - Atomic request
+   */
+  CONNECTOR_WB_DNSC,
+  /*
    * Op: WB usage type (wfd/cwb/iwe)
    * Arg: drmModeAtomicReq - Atomic request
    */
@@ -776,6 +800,13 @@ enum struct DRMOps {
    *      drmModeAtomicReq - Atomic request
    */
   CONNECTOR_SET_LSR_OUTPUT_FB_ID,
+  /*
+   * Op: Sets the shared HFI coordination buffer FB ID for GPU LSR (built-in display path).
+   * Sent on the first init commit only (batch_index=1).
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - Framebuffer ID of the DCP<->GPU coordination buffer
+   */
+  CONNECTOR_SET_GMU_DCP_INTF_MEM,
   /*
    * Op: Sets primary display conn id for repro connector
    * Arg: uint32_t - Connector ID
@@ -880,6 +911,12 @@ enum struct DRMOps {
    *      uint64_t - vsync offset value in nanoseconds
    */
   CONNECTOR_SET_VSYNC_OFFSET,
+  /*
+   * Op: Sets SPR mode on connector
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - SPR mode (0 = disabled, 1 = enabled)
+   */
+  CONNECTOR_SET_SPR_MODE,
 };
 
 enum struct DRMRotation {
@@ -1065,6 +1102,7 @@ struct DRMCrtcInfo {
   bool has_cesta = false;
   uint32_t ai_scaler_count = 0;
   bool is_udc_supported = true;
+  uint32_t max_lsr_batch_size = 0;  // >0 only when kernel has SDE_FEATURE_BATCH_COMMIT+GMU_REPROJ
 };
 
 enum struct DRMPlaneType {
@@ -1207,6 +1245,7 @@ struct DRMSubModeInfo {
   std::vector<uint64_t> dyn_bitclk_list;
   uint32_t bpp_mode;
   std::vector<uint32_t> emsync_fps_list;
+  bool spr_mode = false;  // SPR enabled for this sub-mode
 };
 
 enum DynamicFrontPorchType {
@@ -1256,6 +1295,7 @@ struct DRMModeInfo {
   uint32_t lm_mask = 0;
   bool is_virtual_config = false;
   int32_t parent_config_index = -1;
+  bool current_spr_mode = false;  // Current SPR mode state
 };
 
 /* Per Connector Info*/
@@ -1281,7 +1321,9 @@ struct DRMConnectorInfo {
   // Connection status of this connector
   bool is_connected;
   bool is_wb_ubwc_supported;
-  bool is_wb_downscale_supported = false;
+  bool is_wb_dnsc_supported = false;
+  uint32_t wb_dnsc_min_ratio = 0;
+  uint32_t wb_dnsc_max_ratio = 0;
   uint32_t topology_control;
   bool dyn_bitclk_support;
   std::vector<uint8_t> edid;

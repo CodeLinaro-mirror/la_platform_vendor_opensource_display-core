@@ -40,15 +40,23 @@ typedef enum : unsigned int {
                                                   // individual APIs
   CAMERA_PIXEL_FORMAT_UBWC_FLEX_8_BATCH = 0x130,  // YUV format with fliexible alignment defined by
                                                   // individual APIs
+  CAMERA_PIXEL_FORMAT_YUV_FLEX_2_BATCH = 0x140,   // YUV format with fliexible alignment defined by
+                                                  // individual APIs
+  CAMERA_PIXEL_FORMAT_YUV_FLEX_4_BATCH = 0x141,   // YUV format with fliexible alignment defined by
+                                                  // individual APIs
+  CAMERA_PIXEL_FORMAT_YUV_FLEX_8_BATCH = 0x142,   // YUV format with fliexible alignment defined by
+                                                  // individual APIs
   CAMERA_PIXEL_FORMAT_NV12_VENUS = 0x7FA30C04,    // NV12 video format
   CAMERA_PIXEL_FORMAT_NV12_HEIF = 0x00000116,     // HEIF video YUV420 format
-  CAMERA_PIXEL_FORMAT_YCbCr_420_SP_UBWC = 0x7FA30C06,      // 8 bit YUV 420 semi-planar UBWC format
-  CAMERA_PIXEL_FORMAT_YCbCr_420_TP10_UBWC = 0x7FA30C09,    // TP10 YUV 420 semi-planar UBWC format
-  CAMERA_PIXEL_FORMAT_YCbCr_420_P010_UBWC = 0x124,         // P010 YUV 420 semi-planar UBWC format
-  CAMERA_PIXEL_FORMAT_RAW_OPAQUE = 0x24,                   // Opaque RAW format
-  CAMERA_PIXEL_FORMAT_RAW10 = 0x25,                        // Opaque RAW10 bit format
-  CAMERA_PIXEL_FORMAT_RAW12 = 0x26,                        // Opaque RAW12 bit format
-  CAMERA_PIXEL_FORMAT_RAW14 = 0x144,                       // Opaque RAW14 bit format
+  CAMERA_PIXEL_FORMAT_YCbCr_420_SP_UBWC = 0x7FA30C06,    // 8 bit YUV 420 semi-planar UBWC format
+  CAMERA_PIXEL_FORMAT_YCbCr_420_TP10_UBWC = 0x7FA30C09,  // TP10 YUV 420 semi-planar UBWC format
+  CAMERA_PIXEL_FORMAT_YCbCr_420_P010_UBWC = 0x124,       // P010 YUV 420 semi-planar UBWC format
+  CAMERA_PIXEL_FORMAT_RAW_OPAQUE = 0x24,                 // Opaque RAW format
+  CAMERA_PIXEL_FORMAT_RAW10 = 0x25,                      // Opaque RAW10 bit format
+  CAMERA_PIXEL_FORMAT_RAW12 = 0x26,                      // Opaque RAW12 bit format
+  CAMERA_PIXEL_FORMAT_RAW14_LEGACY = 0x144,              // Opaque RAW14 bit to maintain
+                                                         // backward compatibilty
+  CAMERA_PIXEL_FORMAT_RAW14 = 0x2C,                      // Opaque RAW14 bit
   CAMERA_PIXEL_FORMAT_RAW8 = 0x00000123,                   // Opaque RAW8 bit format
   CAMERA_PIXEL_FORMAT_YCbCr_420_NV12_UBWC_MIPMAP = 0x223,  // UBWCNV12 MIPMAP
   CAMERA_PIXEL_FORMAT_YCbCr_420_NV12_MIPMAP = 0x224,       // NV12 MIPMAP
@@ -78,6 +86,7 @@ typedef enum : unsigned int {
   CAMERA_PIXEL_FORMAT_P210_UBWC_FLEX_8_BATCH =
       0x165,  // YUV format with flexible alignment defined by individual APIs
   CAMERA_PIXEL_FORMAT_YCbCr_422_I = 0x14,
+  CAMERA_PIXEL_FORMAT_YCbCr_420_UBWC4R = 0x7FA30C07,  // 8 bit YUV 420 semi-planar UBWC 4R format
 } CamxPixelFormat;
 
 // Camera Result Codes
@@ -271,6 +280,9 @@ class CameraConstraintProvider : public SnapConstraintProvider {
            CAMERA_PIXEL_FORMAT_RAW12},
           {{.format = vendor_qti_hardware_display_common_PixelFormat::RAW14,
             .modifier = PIXEL_FORMAT_MODIFIER_NONE},
+           CAMERA_PIXEL_FORMAT_RAW14_LEGACY},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::RAW14_1,
+            .modifier = PIXEL_FORMAT_MODIFIER_NONE},
            CAMERA_PIXEL_FORMAT_RAW14},
           {{.format = vendor_qti_hardware_display_common_PixelFormat::RAW8,
             .modifier = PIXEL_FORMAT_MODIFIER_NONE},
@@ -284,6 +296,9 @@ class CameraConstraintProvider : public SnapConstraintProvider {
           {{.format = vendor_qti_hardware_display_common_PixelFormat::YCbCr_420_SP,
             .modifier = PIXEL_FORMAT_MODIFIER_VENUS},
            CAMERA_PIXEL_FORMAT_NV12_VENUS},
+          {{.format = vendor_qti_hardware_display_common_PixelFormat::YCbCr_420_SP,
+            .modifier = PIXEL_FORMAT_MODIFIER_4R},
+           CAMERA_PIXEL_FORMAT_YCbCr_420_UBWC4R},
           {{.format = vendor_qti_hardware_display_common_PixelFormat::TP10,
             .modifier = PIXEL_FORMAT_MODIFIER_UBWC_MIPMAP},
            CAMERA_PIXEL_FORMAT_YCbCr_420_TP10_UBWC_MIPMAP},

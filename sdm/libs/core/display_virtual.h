@@ -72,6 +72,7 @@
 #include <utils/multi_core_instantiator.h>
 #include <vector>
 #include "display_base.h"
+#include "dpps_info.h"
 
 namespace sdm {
 
@@ -145,7 +146,7 @@ class DisplayVirtual : public DisplayBase {
   virtual bool NeedsDspp() const { return false; }
 };
 
-class DisplayVirtualPQ : public DisplayVirtual {
+class DisplayVirtualPQ : public DisplayVirtual, public DppsPropIntf {
  public:
   DisplayVirtualPQ(DisplayId display_id, DisplayEventHandler *event_handler,
                    sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> hw_info_intf,
@@ -157,6 +158,11 @@ class DisplayVirtualPQ : public DisplayVirtual {
   virtual std::string Dump() override;
   virtual DisplayError GetStcColorModes(snapdragoncolor::ColorModeList *mode_list) override;
   virtual DisplayError SetStcColorMode(const snapdragoncolor::ColorMode &color_mode) override;
+  virtual DisplayError PostCommit() override;
+  virtual DisplayError TurnOffColorFeature() override;
+
+  // Implement the DppsPropIntf
+  virtual DisplayError DppsProcessOps(enum DppsOps op, void *payload, size_t size) override;
 
  private:
   bool NeedsDspp() const override { return true; }
@@ -165,6 +171,7 @@ class DisplayVirtualPQ : public DisplayVirtual {
   snapdragoncolor::ColorMode current_color_mode_ = {};
   // Panel name forwarded to STC manager to locate calibration files.
   std::string panel_name_ = "virtual_display_panel_with_pq";
+  DppsInfo dpps_info_ = {};
 };
 
 }  // namespace sdm
