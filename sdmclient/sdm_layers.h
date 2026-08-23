@@ -103,7 +103,7 @@ Error SetCSC(const SnapHandle *handle, ColorMetadata *color_metadata, std::share
 Error GetMetadata(const SnapHandle *handle, MetadataType type, void *out,
                   std::shared_ptr<ISnapMapper> snapmapper_);
 bool IsBT2020(const QtiColorPrimaries &color_primary);
-bool IsBT2020(const QtiColorPrimaries &color_primary);
+void CopyLut3D(const Lut3d &in, Lut3d *out);
 
 class SDMLayer {
  public:
