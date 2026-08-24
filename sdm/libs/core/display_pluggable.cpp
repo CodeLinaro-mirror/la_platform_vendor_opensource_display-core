@@ -886,6 +886,34 @@ DisplayError DisplayPluggable::GetPanelBrightnessBasePath(std::string *base_path
   return dpu_core_mux_->GetPanelBrightnessBasePath(base_path);
 }
 
+DisplayError DisplayPluggable::GetPanelBrightnessLevel(int *level) {
+  if (!level) {
+    DLOGE("Invalid input pointer is null");
+    return kErrorParameters;
+  }
+
+  DisplayError err = dpu_core_mux_->GetPanelBrightness(level);
+  if (err != kErrorNone) {
+    DLOGE("Failed to get panel brightness, err %d", err);
+    return err;
+  }
+
+  DLOGI_IF(kTagDisplay, "Current panel level %d", *level);
+  return err;
+}
+
+DisplayError DisplayPluggable::GetPanelMaxBrightness(uint32_t *max_brightness_level) {
+  if (!max_brightness_level) {
+    DLOGE("Invalid input pointer is null");
+    return kErrorParameters;
+  }
+
+  *max_brightness_level = static_cast<uint32_t>(client_ctx_.hw_panel_info.panel_max_brightness);
+
+  DLOGI_IF(kTagDisplay, "Get panel max_brightness_level %u", *max_brightness_level);
+  return kErrorNone;
+}
+
 DisplayError DisplayPluggable::NotifyDisplayCalibrationMode(bool in_calibration) {
   ClientLock lock(disp_mutex_);
   if (!color_mgr_) {

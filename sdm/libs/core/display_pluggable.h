@@ -91,6 +91,8 @@ class DisplayPluggable : public DisplayBase, HWEventHandler, DppsPropIntf {
   void GetDRMDisplayToken(uint32_t core_id, sde_drm::DRMDisplayToken *token) override;
   bool IsPrimaryDisplay() override;
   DisplayError GetPanelBrightnessBasePath(std::string *base_path) override;
+  DisplayError GetPanelBrightnessLevel(int *level) override;
+  DisplayError GetPanelMaxBrightness(uint32_t *max_brightness_level) override;
 
   void UpdateColorModes();
   void InitializeColorModesFromColorspace();
