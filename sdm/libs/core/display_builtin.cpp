@@ -7230,6 +7230,78 @@ DisplayError DisplayBuiltIn::UpdateRgbHistogramRoi(const void *data) {
   return kErrorNone;
 }
 
+DisplayError DisplayBuiltIn::SetDynamicSPRMode(int state) {
+  DisplayError ret = kErrorNone;
+  int demura_config_index = 0;  //TBD: customer to update config_idx
+
+  if (!spr_prop_value_) {
+    return kErrorUndefined;
+  }
+
+  if (!state) {
+    if (qrtc_enabled_) {
+      ret = SetQrtcFeatureConfig(kTypeQrtcState, &state);
+      if (ret != kErrorNone) {
+        return ret;
+      }
+      dyn_spr_state_.qrtc_enabled = true;
+    }
+
+    if (demuratn_enabled_) {
+      ret = SetPanelFeatureConfig(kTypeDemuraTnEventsCtrl, &state);
+      if (ret != kErrorNone) {
+        return ret;
+      }
+      dyn_spr_state_.demuratn_enabled = true;
+    }
+
+    if (demura_intended_ && demura_dynamic_enabled_) {
+      ret = SetDemuraState(state, demura_config_index);
+      if (ret != kErrorNone) {
+        return ret;
+      }
+      dyn_spr_state_.demura_enabled = true;
+    }
+
+    ret = SetSPRState(state);
+    if (ret != kErrorNone) {
+      return ret;
+    }
+  } else {
+    ret = SetSPRState(state);
+    if (ret != kErrorNone) {
+      return ret;
+    }
+
+    if (dyn_spr_state_.demura_enabled) {
+      ret = SetDemuraState(state, demura_config_index);
+      if (ret != kErrorNone) {
+        return ret;
+      }
+      dyn_spr_state_.demura_enabled = false;
+    }
+
+    if (dyn_spr_state_.demuratn_enabled) {
+      ret = SetPanelFeatureConfig(kTypeDemuraTnEventsCtrl, &state);
+      if (ret != kErrorNone) {
+        return ret;
+      }
+      dyn_spr_state_.demuratn_enabled = false;
+    }
+
+    if (dyn_spr_state_.qrtc_enabled) {
+      ret = SetQrtcFeatureConfig(kTypeQrtcState, &state);
+      if (ret != kErrorNone) {
+        return ret;
+      }
+      dyn_spr_state_.qrtc_enabled = false;
+    }
+  }
+
+  return kErrorNone;
+}
+
+
 DisplayError DisplayBuiltIn::SetSPRState(int state) {
   ClientLock lock(disp_mutex_);
 

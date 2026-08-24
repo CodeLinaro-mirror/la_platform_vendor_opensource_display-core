@@ -346,7 +346,7 @@ private:
   DisplayError SetRgbHistObserverConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError SetPaHistCollection(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError SetQrtcFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
-  DisplayError SetSPRState(SDMParcel *input_parcel, SDMParcel *output_parcel);
+  DisplayError SetDynamicSPRMode(SDMParcel *input_parcel, SDMParcel *output_parcel);
 
   typedef DisplayError (SDMServices::*VndCmdSetHandler)(
       SDMParcel *input_parcel);
@@ -421,7 +421,7 @@ private:
       {SDM_SERVICE_SET_RGB_HISTOGRAM_CONFIG, &SDMServices::SetRgbHistObserverConfig},
       {SDM_SERVICE_SET_PA_HIST_COLLECTION, &SDMServices::SetPaHistCollection},
       {SDM_SERVICE_SET_QRTC_FEATURE_CONFIG, &SDMServices::SetQrtcFeatureConfig},
-      {SDM_SERVICE_SET_SPR_STATE, &SDMServices::SetSPRState},
+      {SDM_SERVICE_SET_SPR_STATE, &SDMServices::SetDynamicSPRMode},
   };
 
   int bw_mode_release_fd_ = -1;
@@ -439,9 +439,6 @@ private:
                                                          SDMParcel *input_parcel);
   std::map<StcFeatureCmdType, SetStcFeatureFunc> stc_feature_funcs_ = {};
   bool spr_enabled_ = false;
-  bool demura_enabled_ = false;
-  bool demuratn_enabled_ = false;
-  bool qrtc_enabled_ = false;
 };
 
 } // namespace sdm

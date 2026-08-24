@@ -1837,9 +1837,9 @@ DisplayError SDMDisplayBuiltIn::PerformDynamicCac(DynamicCacV2Config config, boo
   return error;
 }
 
-DisplayError SDMDisplayBuiltIn::SetSPRState(int state) {
+DisplayError SDMDisplayBuiltIn::SetDynamicSPRMode(int state) {
   DLOGI("Display ID: %" PRId64 " spr state: %d", id_, state);
-  DisplayError error = display_intf_->SetSPRState(state);
+  DisplayError error = display_intf_->SetDynamicSPRMode(state);
 
   if (error != kErrorNone) {
     DLOGE("Failed to set spr state = %d, error = %d", state, error);
