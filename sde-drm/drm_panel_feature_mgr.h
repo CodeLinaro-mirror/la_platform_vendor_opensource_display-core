@@ -28,9 +28,9 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
 *
-* Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted (subject to the limitations in the
@@ -44,7 +44,7 @@
 *      disclaimer in the documentation and/or other materials provided
 *      with the distribution.
 *
-*    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+*    * Neither the name of Qualcomm Technologies, Inc. nor the names of its
 *      contributors may be used to endorse or promote products derived
 *      from this software without specific prior written permission.
 *
@@ -69,6 +69,7 @@
 #include <vector>
 #include <mutex>
 #include <deque>
+#include <set>
 
 #include "drm_interface.h"
 #include "drm_property.h"
@@ -107,11 +108,10 @@ class DRMPanelFeatureMgr : public DRMPanelFeatureMgrIntf {
   std::map<DRMPanelFeatureID, DRMPropType> drm_prop_type_map_ {};
   std::map<DRMPanelFeatureID, std::deque<uint32_t>> drm_prop_blob_ids_cache_{};
   std::array<DRMPanelFeatureInfo, kDRMPanelFeatureMax> feature_info_tbl_ {};
-  std::map<uint32_t /* obj_id */, DRMPanelFeatureID> apply_in_null_commit_ {};
+  std::map<uint32_t /* obj_id */, std::set<DRMPanelFeatureID>> apply_in_null_commit_ {};
   bool enable_ai_scaler_ = false;
 };
 
 }  // namespace sde_drm
 
 #endif  // __DRM_PANEL_FEATURE_MGR_H__
-

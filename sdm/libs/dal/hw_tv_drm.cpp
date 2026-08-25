@@ -69,6 +69,7 @@
 */
 
 #include "hw_tv_drm.h"
+#include <inttypes.h>
 #include <math.h>
 #include <sys/time.h>
 #include <utils/debug.h>
@@ -316,6 +317,14 @@ DisplayError HWTVDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
     // LP connecter prop N/A for External
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_ACTIVE, token_.crtc_id, 0);
   }
+
+  if (!first_cycle_) {
+    drm_mgr_intf_->MarkPanelFeatureForNullCommit(token_,
+                                                 panel_feature_property_map_[kPanelFeatureDemuraInitCfg]);
+    drm_mgr_intf_->MarkPanelFeatureForNullCommit(token_,
+                                                 panel_feature_property_map_[kPanelFeatureABCCfg]);
+  }
+
   int64_t retire_fence_fd = -1;
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_GET_RETIRE_FENCE, token_.conn_id, &retire_fence_fd);
 

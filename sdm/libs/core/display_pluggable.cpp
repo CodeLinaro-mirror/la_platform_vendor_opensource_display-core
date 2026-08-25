@@ -378,35 +378,29 @@ DisplayError DisplayPluggable::SetupSPR() {
     Debug::Get()->GetProperty(DISABLE_SPR_SECONDARY, &spr_disable_value);
   }
 
-  if (!spr_prop_value || spr_disable_value) {
-    DLOGE("SPR interface is required for Demura on pluggable display %d-%d, enable_spr %d, "
-          "disable_spr %d", display_id_, display_type_, spr_prop_value, spr_disable_value);
-    return kErrorResources;
-  }
+  if (spr_prop_value && !spr_disable_value) {
+    SPRInputConfig spr_cfg;
+    spr_cfg.panel_name = std::string(client_ctx_.hw_panel_info.panel_name);
+    spr_cfg.spr_bypassed = (spr_bypass_prop_value) ? true : false;
+    spr_ = pf_factory_->CreateSPRIntf(spr_cfg, prop_intf_);
+    if (!spr_) {
+      DLOGE("Failed to create SPR interface for pluggable display %d-%d", display_id_,
+            display_type_);
+      return kErrorResources;
+    }
 
-  SPRInputConfig spr_cfg;
-  spr_cfg.panel_name = std::string(client_ctx_.hw_panel_info.panel_name);
-  spr_cfg.spr_bypassed = (spr_bypass_prop_value) ? true : false;
-  spr_ = pf_factory_->CreateSPRIntf(spr_cfg, prop_intf_);
-  if (!spr_) {
-    DLOGE("Failed to create SPR interface for pluggable display %d-%d", display_id_,
-          display_type_);
-    return kErrorResources;
-  }
+    if (spr_->Init() != 0) {
+      DLOGE("Failed to initialize SPR for pluggable display %d-%d", display_id_, display_type_);
+      spr_.reset();
+      return kErrorResources;
+    }
 
-  if (spr_->Init() != 0) {
-    DLOGE("Failed to initialize SPR for pluggable display %d-%d", display_id_, display_type_);
-    spr_.reset();
-    return kErrorResources;
+    spr_bypassed_ = spr_cfg.spr_bypassed;
+    if (color_mgr_) {
+      color_mgr_->ColorMgrSetSprIntf(spr_);
+    }
+    comp_manager_->SetSprIntf(display_comp_ctx_, spr_);
   }
-
-  spr_bypassed_ = spr_cfg.spr_bypassed;
-  if (color_mgr_) {
-    color_mgr_->ColorMgrSetSprIntf(spr_);
-  }
-  comp_manager_->SetSprIntf(display_comp_ctx_, spr_);
-  DLOGI("Initialized SPR dependency for Demura on pluggable display %d-%d, bypass %d",
-        display_id_, display_type_, spr_bypassed_);
 
   return kErrorNone;
 }
@@ -2658,7 +2652,10 @@ DisplayError DisplayPluggable::DppsProcessOps(enum DppsOps op, void *payload, si
 }
 
 DisplayError DisplayPluggable::PostCommit() {
-  DisplayBase::PostCommit();
+  DisplayError err = DisplayBase::PostCommit();
+  if (err == kErrorNone) {
+    HandleDemuraScreenRefresh();
+  }
 
   if (commit_event_enabled_) {
     dpps_info_.DppsNotifyOps(kDppsCommitEvent, &display_type_, sizeof(display_type_));
@@ -2667,7 +2664,7 @@ DisplayError DisplayPluggable::PostCommit() {
   if (prop_intf_)
     dpps_info_.Init(this, client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
 
-  return kErrorNone;
+  return err;
 }
 
 DisplayError DisplayPluggable::SetDppsFeatureLocked(void *payload, size_t size) {

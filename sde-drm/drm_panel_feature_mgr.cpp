@@ -593,14 +593,17 @@ void DRMPanelFeatureMgr::NullCommitPanelFeatures(drmModeAtomicReq *req,
         continue;
       }
 
-      if (entry_iter->second != info.prop_id) {
+      if (!entry_iter->second.count(info.prop_id)) {
         it++;
         continue;
       }
 
       ApplyDirtyFeature(req, token, info);
       it = dirty_features_.erase(it);
-      apply_in_null_commit_.erase(info.obj_id);
+      entry_iter->second.erase(info.prop_id);
+      if (entry_iter->second.empty()) {
+        apply_in_null_commit_.erase(entry_iter);
+      }
     } else {
       it++;
     }
@@ -655,7 +658,7 @@ void DRMPanelFeatureMgr::MarkForNullCommit(const DRMDisplayToken &token, const D
     default:
       return;
   }
-  apply_in_null_commit_[obj_id] = id;
+  apply_in_null_commit_[obj_id].insert(id);
   DLOGI("Marked %u for null commit", id);
 }
 

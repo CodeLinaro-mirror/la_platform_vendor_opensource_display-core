@@ -93,6 +93,7 @@ class DisplayPluggable : public DisplayBase, HWEventHandler, DppsPropIntf {
   DisplayError GetPanelBrightnessBasePath(std::string *base_path) override;
   DisplayError GetPanelBrightnessLevel(int *level) override;
   DisplayError GetPanelMaxBrightness(uint32_t *max_brightness_level) override;
+  bool HasDemura() override { return (demura_intended_ || abc_enabled_); }
 
   void UpdateColorModes();
   void InitializeColorModesFromColorspace();
