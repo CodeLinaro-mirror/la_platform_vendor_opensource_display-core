@@ -816,6 +816,12 @@ enum SDMDisplayViewMode {
                        //!< eye_index selects left half, right half, or full display.
 };
 
+/*! @brief This enum tracks different sub-types of SSR events */
+enum HWSSRType {
+  kSSR,    // Standard full subsystem restart
+  kSSRLsr  // Late Stage Reprojection subsystem restart
+};
+
 }  // namespace sdm
 
 #endif  // __SDM_TYPES_H__
