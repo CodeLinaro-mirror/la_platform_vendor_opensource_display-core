@@ -1882,7 +1882,6 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
     is_synchronous = true;
   }
   int ret = NullCommit(is_synchronous, false /* retain_planes */);
-  sync_points->retire_fence = Fence::Create(INT(retire_fence_fd), "retire_power_off");
   if (ret) {
     if (is_ssr_active_ || is_lsr_ssr_active_) {
       DLOGW(
@@ -1897,6 +1896,11 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
           "panel_mode_changed_=%d bit_clk_rate_=%" PRIu64 " bpp_mode_changed_=%d",
           ret, hw_panel_info_.dynamic_fps, seamless_mode_switch_, vrefresh_, panel_mode_changed_,
           bit_clk_rate_, bpp_mode_changed_);
+    }
+    // Close retire fence fd to prevent leak; kernel does not reclaim it on commit failure.
+    if (retire_fence_fd >= 0) {
+      close(retire_fence_fd);
+      retire_fence_fd = -1;
     }
     bpp_mode_changed_ = 0;
     return kErrorHardware;
@@ -1919,9 +1923,12 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
 
   if (is_ssr_active_ || is_lsr_ssr_active_) {
     DLOGI("SSR Active, close Power-Off Retire fence %" PRId64, retire_fence_fd);
+    // Fence::Create not called yet; retire_fence_fd is unowned, close() is safe.
     close(retire_fence_fd);
     retire_fence_fd = -1;
   }
+
+  sync_points->retire_fence = Fence::Create(INT(retire_fence_fd), "retire_power_off");
 
   pending_power_state_ = kPowerStateNone;
 
@@ -3460,8 +3467,21 @@ DisplayError HWDeviceDRM::OnMinHdcpEncryptionLevelChange(uint32_t min_enc_level)
   DisplayError error = kErrorNone;
   int fd = -1;
   char data[kMaxStringLength] = {'\0'};
+  const char *hdcp_node = "/sys/devices/virtual/hdcp/msm_hdcp";
 
-  snprintf(data, sizeof(data), "/sys/devices/virtual/hdcp/msm_hdcp/min_level_change");
+  if (connector_info_.type == DRM_MODE_CONNECTOR_DisplayPort) {
+    switch (connector_info_.port_id) {
+      case 1:
+        hdcp_node = "/sys/devices/virtual/hdcp/msm_hdcp1";
+        break;
+      case 0:
+      default:
+        hdcp_node = "/sys/devices/virtual/hdcp/msm_hdcp";
+        break;
+    }
+  }
+
+  snprintf(data, sizeof(data), "%s/min_level_change", hdcp_node);
 
   fd = Sys::open_(data, O_WRONLY);
   if (fd < 0) {

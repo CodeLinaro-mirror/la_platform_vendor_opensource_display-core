@@ -775,7 +775,7 @@ bool CompManager::SetDisplayState(Handle display_ctx, DisplayState state,
       reinterpret_cast<DisplayCompositionContext *>(display_ctx);
 
   resource_intf_->Perform(ResourceInterface::kCmdSetDisplayState,
-                          display_comp_ctx->display_resource_ctx, state);
+                          display_comp_ctx->display_resource_ctx, state, &sync_points);
 
   switch (state) {
   case kStateOff:

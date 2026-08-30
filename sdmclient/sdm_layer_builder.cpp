@@ -224,6 +224,8 @@ DisplayError SDMLayerBuilder::DestroyLayerLocked(uint64_t display_id, int64_t la
   for (auto current = z_range.first; current != z_range.second; ++current) {
     if (*current == layer) {
       current = layer_set.erase(current);
+      // store layer ids to delete copy of luts
+      StoreLutsDeletion(display_id, layer);
       delete layer;
       break;
     }
@@ -231,6 +233,22 @@ DisplayError SDMLayerBuilder::DestroyLayerLocked(uint64_t display_id, int64_t la
 
   layer_stack.geometry_changes_ |= GeometryChanges::kRemoved;
   return kErrorNone;
+}
+
+void SDMLayerBuilder::HandleLutsDeletion(uint64_t display_id, std::vector<uint64_t> &layer_ids) {
+  layer_ids = valid_lut_layer_ids_[display_id];
+  valid_lut_layer_ids_[display_id].clear();
+}
+
+void SDMLayerBuilder::StoreLutsDeletion(uint64_t display_id, SDMLayer *sdm_layer) {
+  if (!sdm_layer) {
+    return;
+  }
+
+  auto layer = sdm_layer->GetSDMLayer();
+  if (layer != nullptr && layer->lut_3d.lutEntries != nullptr) {
+    valid_lut_layer_ids_[display_id].push_back(layer->layer_id);
+  }
 }
 
 SDMCompositionType
