@@ -1954,11 +1954,12 @@ DisplayError SDMDisplay::AcceptDisplayChanges() {
     return kErrorNeedsValidate;
   }
 
+  auto &layer_map = sdm_layer_stack_->layer_map_;
   for (const auto &change : layer_changes_) {
-    auto sdm_layer = sdm_layer_stack_->layer_map_[change.first];
+    auto layer_iter = layer_map.find(change.first);
     auto composition = change.second;
-    if (sdm_layer != nullptr) {
-      sdm_layer->UpdateClientCompositionType(composition);
+    if (layer_iter != layer_map.end() && layer_iter->second != nullptr) {
+      layer_iter->second->UpdateClientCompositionType(composition);
     } else {
       DLOGW("Invalid layer: %" PRIu64, change.first);
     }
