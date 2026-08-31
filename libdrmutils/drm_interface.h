@@ -1007,6 +1007,8 @@ enum struct QSEEDStepVersion {
   V3LITE_V9,
   V3LITE_V10,
   V3LITE_V11,
+  V3LITE_V11_7001,
+  V3LITE_V11_7002,
 };
 
 enum struct SmartDMARevision {
