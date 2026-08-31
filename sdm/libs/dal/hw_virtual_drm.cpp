@@ -930,6 +930,7 @@ DisplayError HWVirtualDRM::GetDppsFeatureInfo(void *payload, size_t size) {
 
   feature_info = reinterpret_cast<DRMDppsFeatureInfo *>(payload);
   feature_info->obj_id = token_.crtc_id;
+  feature_info->virtual_disp_with_dspp = true;
   drm_mgr_intf_->GetDppsFeatureInfo(feature_info);
   return kErrorNone;
 }

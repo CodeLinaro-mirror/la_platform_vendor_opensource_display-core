@@ -499,6 +499,7 @@ enum ClientCapability {
 enum DisplayColorOps {
   kColorFeatureForceOff,       // Force disable the color feature
   kColorFeatureQueryLMUpdate,  // Query whether LM count changes for a new width
+  kColorFeatureDppsReconfig,   // Mark display to reconfigure/reuse previous DPPS/LTM features
   kColorFeatureOpsMax
 };
 
