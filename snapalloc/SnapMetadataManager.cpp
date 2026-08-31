@@ -1100,7 +1100,7 @@ Error SnapMetadataManager::DynamicMetadataHelper(SnapMetadata *metadata, SnapHan
 
       // Fill dynamicMetadata field in each FrameMetadata entry
       for (int i = 0; i < batch_size; i++) {
-        frame_metadata_ptr[i].dynamicMetadata = *dyn_md_in;
+        frame_metadata_ptr[i].dynamicMetadata = dyn_md_in[i];
       }
       return Error::NONE;
     }
