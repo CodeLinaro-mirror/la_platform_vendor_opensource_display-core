@@ -274,6 +274,7 @@ class HWDeviceDRM : public HWInterface {
   void SetDGMCscV1(const HWCsc &dgm_csc, sde_drm_csc_v1 *csc_v1);
   void SetSsppLutFeatures(HWPipeInfo *pipe_info);
   void AddDimLayerIfNeeded();
+  DisplayError PrepareColorShutdown();
   DisplayError NullCommit(bool synchronous, bool retain_planes);
   void DumpConnectorModeInfo();
   void ResetROI();
