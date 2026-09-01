@@ -57,7 +57,7 @@ Error SnapAllocCore::AllocateBuffer(AllocData *ad, AllocData *m_data,
 
   m_data->size =
       metadata_mgr_->GetMetaDataSize(reserved_size, custom_content_md_size, batch_mode_dyn_md_size);
-  m_data->align = PAGE_SIZE;
+  m_data->align = getpagesize();
   err = mem_alloc_intf_->AllocateMem(
       m_data, static_cast<vendor_qti_hardware_display_common_BufferUsage>(0),
       static_cast<vendor_qti_hardware_display_common_PixelFormat>(0));
@@ -75,7 +75,8 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
   std::lock_guard<std::shared_mutex> buffer_lock(buffer_lock_);
   for (int i = 0; i < count; i++) {
     OVERFLOW_ERR_RETURN(desc.reservedSize, sizeof(SnapMetadata), OverflowType::ADD);
-    OVERFLOW_ERR_RETURN((desc.reservedSize + sizeof(SnapMetadata)), PAGE_SIZE, OverflowType::ADD);
+    OVERFLOW_ERR_RETURN((desc.reservedSize + sizeof(SnapMetadata)), getpagesize(),
+                        OverflowType::ADD);
 
     AllocData ad;
     AllocData m_data;
