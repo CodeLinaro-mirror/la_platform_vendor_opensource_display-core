@@ -101,6 +101,19 @@ bool IsBT2020(const QtiColorPrimaries &color_primary) {
   }
 }
 
+void CopyLut3D(const Lut3d &in, Lut3d *out) {
+  if (out->lutEntries != nullptr) {
+    delete[] out->lutEntries;
+    out->lutEntries = nullptr;
+  }
+
+  uint32_t size = in.dim * in.dim * in.dim;
+  out->dim = in.dim;
+  out->validLutEntries = in.validLutEntries;
+  out->lutEntries = new Color10Bit[size];
+  std::memcpy(out->lutEntries, in.lutEntries, size * sizeof(Color10Bit));
+}
+
 static bool IsSdrDimmingDisabled() {
   static bool read_prop = false;
   static bool disable_sdr_dimming = false;
