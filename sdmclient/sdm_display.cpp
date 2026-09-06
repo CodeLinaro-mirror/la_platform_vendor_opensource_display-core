@@ -1173,16 +1173,6 @@ DisplayError SDMDisplay::SetVsyncEnabled(bool enabled) {
   return kErrorNone;
 }
 
-void SDMDisplay::PostPowerMode() {
-  if (release_fence_ == nullptr || !sdm_layer_stack_) {
-    return;
-  }
-
-  for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
-    sdm_layer->SetReleaseFence(release_fence_);
-  }
-}
-
 DisplayError SDMDisplay::SetPowerMode(SDMPowerMode mode, bool teardown) {
   DLOGI("display = %" PRId64 ", mode = %s", id_, to_string(mode).c_str());
   DisplayState state = kStateOff;
@@ -1243,8 +1233,6 @@ DisplayError SDMDisplay::SetPowerMode(SDMPowerMode mode, bool teardown) {
   // Update release fence.
   release_fence_ = release_fence;
   current_power_mode_ = mode;
-
-  PostPowerMode();
 
   if (scheduled_dynamic_dsi_clk_ &&
       (mode == SDMPowerMode::POWER_MODE_ON || mode == SDMPowerMode::POWER_MODE_DOZE)) {
