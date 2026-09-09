@@ -1041,6 +1041,13 @@ enum struct DDRVersion {
   kDDRVersion6,
 };
 
+/* Display commit operating mode */
+enum struct DisplayCommitOp {
+  kDisplayCommitOpNone,
+  kHWIO,
+  kHFI,
+};
+
 /* Type for panel feature resource reservation info */
 typedef std::tuple<std::string, int32_t, int8_t> FetchResource;
 typedef std::vector<FetchResource> FetchResourceList;
@@ -1101,6 +1108,7 @@ struct DRMCrtcInfo {
   uint32_t dsc_block_count = 0;
   CacVersion cac_version = CacVersion::NONE;
   DDRVersion ddr_version = DDRVersion::kDDRVersionNone;
+  DisplayCommitOp disp_commit_op = DisplayCommitOp::kDisplayCommitOpNone;
   bool has_cesta = false;
   uint32_t ai_scaler_count = 0;
   bool is_udc_supported = true;
