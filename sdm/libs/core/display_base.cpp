@@ -4503,6 +4503,7 @@ DisplayError DisplayBase::ResetPendingPowerState(const shared_ptr<Fence> &retire
     sync_points.retire_fence = retire_fence;
     WaitForCompletion(&sync_points);
 
+    sync_points.retire_fence = nullptr;
     DisplayState pending_state;
     GetPendingDisplayState(&pending_state);
     if (IsPrimaryDisplayLocked() && (pending_power_state_ != kPowerStateOff)) {
