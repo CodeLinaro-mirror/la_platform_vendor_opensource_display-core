@@ -300,7 +300,8 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc,
       desc.format, desc.usage, pixel_format_modifier, true);  // true indicates ubwc is enabled
   bool use_adreno_for_size =
       (providers.size() == 1) && (providers.begin()->first->GetProviderType() == kGraphics);
-  if (mmm_color_format != -1) {
+  if (mmm_color_format != -1 &&
+      !(desc.usage & vendor_qti_hardware_display_common_BufferUsage::GPU_MIPMAP_COMPLETE)) {
     // Double the number of planes to account for meta planes
     out_layout->plane_count = format_data.planes.size() * 2;
     if (IsYuv(desc.format)) {
