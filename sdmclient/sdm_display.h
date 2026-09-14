@@ -415,7 +415,6 @@ public:
                                                     uint32_t *out_data_size,
                                                     uint8_t *out_data);
   virtual DisplayError SetBLScale(uint32_t level) { return kErrorNotSupported; }
-  virtual void PostPowerMode();
   virtual SDMPowerMode GetPendingPowerMode() { return pending_power_mode_; }
   virtual void SetPendingPowerMode(SDMPowerMode mode) {
     pending_power_mode_ = mode;
