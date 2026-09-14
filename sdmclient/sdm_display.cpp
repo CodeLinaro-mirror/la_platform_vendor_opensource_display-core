@@ -1791,11 +1791,10 @@ void SDMDisplay::ClearLayerBufferMap(const LayerId &layer_id) {
 void SDMDisplay::ClearLayerLuts() {
   // delete copy of luts for destroyed layers
   std::vector<uint64_t> layer_ids;
-  if (!layer_builder_->NeedsLutsDeletion(id_)) {
+  if (!layer_builder_->RetrievePendingLutDeletions(id_, layer_ids)) {
     return;
   }
 
-  layer_builder_->HandleLutsDeletion(id_, layer_ids);
   for (auto &id : layer_ids) {
     if (layer_luts_.find(id) != layer_luts_.end()) {
       SafeDeleteArray(layer_luts_[id].lutEntries);

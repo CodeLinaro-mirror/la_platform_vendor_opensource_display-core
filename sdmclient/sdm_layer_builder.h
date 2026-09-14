@@ -105,8 +105,9 @@ class SDMLayerBuilder : public SDMDisplayLayerBuilderIntf {
 
   DisplayError SetLayerLuts(uint64_t display, int64_t layer, Lut3d *luts) override;
 
-  bool NeedsLutsDeletion(uint64_t display_id) { return !valid_lut_layer_ids_[display_id].empty(); }
-  void HandleLutsDeletion(uint64_t display_id, std::vector<uint64_t> &layer_ids);
+  // Retrieves and clears pending layer IDs that have had their LUT entries deleted.
+  // Returns true if pending deletions were found and transferred to layer_ids.
+  bool RetrievePendingLutDeletions(uint64_t display_id, std::vector<uint64_t> &layer_ids);
 
  private:
   SDMLayer *GetSDMLayer(uint64_t display_id, int64_t layer_id);
@@ -146,6 +147,10 @@ class SDMLayerBuilder : public SDMDisplayLayerBuilderIntf {
   static uint32_t ref_count_;
   static std::mutex lock_;
   static Locker locker_[kNumDisplays];
+  // Lock ordering invariant: locker_[display_id] must always be acquired before
+  // luts_deletion_lock_ to prevent deadlock. This lock protects valid_lut_layer_ids_
+  // which is shared across all displays.
+  static Locker luts_deletion_lock_;
   std::map<uint64_t, std::vector<uint64_t>> valid_lut_layer_ids_;
 };
 

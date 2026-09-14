@@ -15,6 +15,7 @@
 namespace sdm {
 
 Locker SDMLayerBuilder::locker_[kNumDisplays];
+Locker SDMLayerBuilder::luts_deletion_lock_;
 
 // final cleanup if any displays were lost
 SDMLayerBuilder::~SDMLayerBuilder() {
@@ -72,6 +73,11 @@ DisplayError SDMLayerBuilder::DeInit(uint64_t display_id) {
     delete sdm_layer;
   }
   display_layer_stack_.erase(display);
+
+  {
+    SCOPE_LOCK(luts_deletion_lock_);
+    valid_lut_layer_ids_.erase(display_id);
+  }
 
   return kErrorNone;
 }
@@ -235,9 +241,19 @@ DisplayError SDMLayerBuilder::DestroyLayerLocked(uint64_t display_id, int64_t la
   return kErrorNone;
 }
 
-void SDMLayerBuilder::HandleLutsDeletion(uint64_t display_id, std::vector<uint64_t> &layer_ids) {
-  layer_ids = valid_lut_layer_ids_[display_id];
-  valid_lut_layer_ids_[display_id].clear();
+bool SDMLayerBuilder::RetrievePendingLutDeletions(uint64_t display_id,
+                                                  std::vector<uint64_t> &layer_ids) {
+  SCOPE_LOCK(luts_deletion_lock_);
+
+  auto it = valid_lut_layer_ids_.find(display_id);
+  if (it == valid_lut_layer_ids_.end() || it->second.empty()) {
+    return false;
+  }
+
+  layer_ids.swap(it->second);
+  valid_lut_layer_ids_.erase(it);
+
+  return true;
 }
 
 void SDMLayerBuilder::StoreLutsDeletion(uint64_t display_id, SDMLayer *sdm_layer) {
@@ -247,6 +263,7 @@ void SDMLayerBuilder::StoreLutsDeletion(uint64_t display_id, SDMLayer *sdm_layer
 
   auto layer = sdm_layer->GetSDMLayer();
   if (layer != nullptr && layer->lut_3d.lutEntries != nullptr) {
+    SCOPE_LOCK(luts_deletion_lock_);
     valid_lut_layer_ids_[display_id].push_back(layer->layer_id);
   }
 }
