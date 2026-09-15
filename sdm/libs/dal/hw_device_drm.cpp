@@ -1529,8 +1529,15 @@ void HWDeviceDRM::GetHWDisplayPortAndMode() {
 
   switch (connector_info_.type) {
     case DRM_MODE_CONNECTOR_DSI:
-      hw_panel_info_.port = kPortDSI;
-      interface_str_ = "DSI";
+      if (connector_info_.is_dsi_to_hdmi_bridge) {
+        // DSI-to-HDMI bridge is a pluggable display driven over HDMI; treat it like kPortDTV
+        // so it goes through the same colorspace/HDR metadata path as DP and HDMI.
+        hw_panel_info_.port = kPortDTV;
+        interface_str_ = "HDMI";
+      } else {
+        hw_panel_info_.port = kPortDSI;
+        interface_str_ = "DSI";
+      }
       break;
     case DRM_MODE_CONNECTOR_LVDS:
       hw_panel_info_.port = kPortLVDS;
@@ -3467,8 +3474,21 @@ DisplayError HWDeviceDRM::OnMinHdcpEncryptionLevelChange(uint32_t min_enc_level)
   DisplayError error = kErrorNone;
   int fd = -1;
   char data[kMaxStringLength] = {'\0'};
+  const char *hdcp_node = "/sys/devices/virtual/hdcp/msm_hdcp";
 
-  snprintf(data, sizeof(data), "/sys/devices/virtual/hdcp/msm_hdcp/min_level_change");
+  if (connector_info_.type == DRM_MODE_CONNECTOR_DisplayPort) {
+    switch (connector_info_.port_id) {
+      case 1:
+        hdcp_node = "/sys/devices/virtual/hdcp/msm_hdcp1";
+        break;
+      case 0:
+      default:
+        hdcp_node = "/sys/devices/virtual/hdcp/msm_hdcp";
+        break;
+    }
+  }
+
+  snprintf(data, sizeof(data), "%s/min_level_change", hdcp_node);
 
   fd = Sys::open_(data, O_WRONLY);
   if (fd < 0) {

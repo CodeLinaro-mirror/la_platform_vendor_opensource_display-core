@@ -560,11 +560,10 @@ SDMDisplay::SDMDisplay(CoreInterface *core_intf, BufferAllocator *buffer_allocat
 }
 
 SDMDisplay::~SDMDisplay() {
-  for (auto &it : buffer_luts_) {
+  for (auto &it : layer_luts_) {
     SafeDeleteArray(it.second.lutEntries);
     SafeDeleteArray(it.second.gridEntries);
   }
-  buffer_luts_.clear();
 }
 
 DisplayError SDMDisplay::Init() {
@@ -1174,16 +1173,6 @@ DisplayError SDMDisplay::SetVsyncEnabled(bool enabled) {
   return kErrorNone;
 }
 
-void SDMDisplay::PostPowerMode() {
-  if (release_fence_ == nullptr || !sdm_layer_stack_) {
-    return;
-  }
-
-  for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
-    sdm_layer->SetReleaseFence(release_fence_);
-  }
-}
-
 DisplayError SDMDisplay::SetPowerMode(SDMPowerMode mode, bool teardown) {
   DLOGI("display = %" PRId64 ", mode = %s", id_, to_string(mode).c_str());
   DisplayState state = kStateOff;
@@ -1244,8 +1233,6 @@ DisplayError SDMDisplay::SetPowerMode(SDMPowerMode mode, bool teardown) {
   // Update release fence.
   release_fence_ = release_fence;
   current_power_mode_ = mode;
-
-  PostPowerMode();
 
   if (scheduled_dynamic_dsi_clk_ &&
       (mode == SDMPowerMode::POWER_MODE_ON || mode == SDMPowerMode::POWER_MODE_DOZE)) {
@@ -1791,6 +1778,52 @@ void SDMDisplay::ClearRequestMaps() {
   display_luts_.clear();
 }
 
+void SDMDisplay::ClearLayerBufferMap(const LayerId &layer_id) {
+  for (auto it = layer_buffer_map_.begin(); it != layer_buffer_map_.end();) {
+    if (it->second == layer_id) {
+      it = layer_buffer_map_.erase(it);
+    } else {
+      it++;
+    }
+  }
+}
+
+void SDMDisplay::ClearLayerLuts() {
+  // delete copy of luts for destroyed layers
+  std::vector<uint64_t> layer_ids;
+  if (!layer_builder_->RetrievePendingLutDeletions(id_, layer_ids)) {
+    return;
+  }
+
+  for (auto &id : layer_ids) {
+    if (layer_luts_.find(id) != layer_luts_.end()) {
+      SafeDeleteArray(layer_luts_[id].lutEntries);
+      SafeDeleteArray(layer_luts_[id].gridEntries);
+      layer_luts_.erase(id);
+      ClearLayerBufferMap(id);
+    }
+  }
+}
+
+void SDMDisplay::PopulateLayerLuts(Layer *layer) {
+  // map handle ids to luts so client can retrieve it through getLuts call
+  // used in screenshot layer during rotation, suspend resume, etc.
+  uint64_t &layer_id = layer->layer_id;
+  uint64_t &handle_id = layer->input_buffer.handle_id;
+  if (layer->lut_3d.lutEntries != nullptr) {
+    // since we're storing a copy of luts, we only need to copy again when there is an update
+    if (IsLutUpdate(layer->lut_3d, layer_luts_[layer_id])) {
+      CopyLut3D(layer->lut_3d, &layer_luts_[layer_id]);
+    }
+    layer_buffer_map_[handle_id] = layer_id;
+  } else if (layer_luts_.find(layer_id) != layer_luts_.end()) {
+    SafeDeleteArray(layer_luts_[layer_id].lutEntries);
+    SafeDeleteArray(layer_luts_[layer_id].gridEntries);
+    layer_luts_.erase(layer_id);
+    ClearLayerBufferMap(layer_id);
+  }
+}
+
 DisplayError SDMDisplay::PrepareLayerStack(uint32_t *out_num_types, uint32_t *out_num_requests) {
   ClearRequestMaps();
   has_client_composition_ = false;
@@ -1846,6 +1879,8 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
   geometry_changes_on_doze_suspend_ = GeometryChanges::kNone;
 
   ClearRequestMaps();
+  ClearLayerLuts();
+
   has_client_composition_ = false;
   for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
     Layer *layer = sdm_layer->GetSDMLayer();
@@ -1873,18 +1908,7 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
       }
     }
 
-    // map handle ids to luts so client can retrieve it through getLuts call
-    // used in screenshot layer during rotation, suspend resume, etc.
-    if (layer->lut_3d.lutEntries != nullptr) {
-      // since we're storing a copy of luts, we only need to copy again when there is an update
-      if (layer->lut_3d.validLutEntries) {
-        CopyLut3D(layer->lut_3d, &buffer_luts_[layer->input_buffer.handle_id]);
-      }
-    } else if (buffer_luts_.find(layer->input_buffer.handle_id) != buffer_luts_.end()) {
-      SafeDeleteArray(buffer_luts_[layer->input_buffer.handle_id].lutEntries);
-      SafeDeleteArray(buffer_luts_[layer->input_buffer.handle_id].gridEntries);
-      buffer_luts_.erase(layer->input_buffer.handle_id);
-    }
+    PopulateLayerLuts(layer);
 
     // Update the changes list only if the requested composition is different
     // from SDM comp type
@@ -2054,9 +2078,9 @@ DisplayError SDMDisplay::GetBufferLuts(const std::vector<SnapHandle *> &buffers,
   for (uint32_t i = 0; i < num_elements; i++) {
     uint64_t handle_id = 0;
     GetMetadata(buffers.at(i), MetadataType::BUFFER_ID, &handle_id, snapmapper_);
-    auto it = buffer_luts_.find(handle_id);
-    if (it != buffer_luts_.end()) {
-      out_luts->push_back(&it->second);
+    auto it = layer_buffer_map_.find(handle_id);
+    if (it != layer_buffer_map_.end() && layer_luts_.find(it->second) != layer_luts_.end()) {
+      out_luts->push_back(&layer_luts_[it->second]);
     } else {
       out_luts->push_back(nullptr);
     }

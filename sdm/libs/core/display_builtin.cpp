@@ -3931,6 +3931,22 @@ int DisplayBuiltIn::SetDemuraIntfStatus(bool enable, int current_idx) {
       return ret;
     }
   }
+
+  if (!abc_prop_){
+    GenericPayload refresh_pl;
+    int32_t *need_screen_refresh = nullptr;
+    int rc = refresh_pl.CreatePayload<int32_t>(need_screen_refresh);
+    if (rc) {
+      DLOGE("Failed to create payload for need_screen_refresh, error = %d", rc);
+      return rc;
+    }
+    rc = demura_->GetParameter(kDemuraFeatureParamNeedScreenRefresh, &refresh_pl);
+    if (rc) {
+      DLOGE("Failed to get need screen refresh, error %d", rc);
+      return rc;
+    }
+    demura_need_screen_refresh_ = (*need_screen_refresh != 0);
+  }
   demura_current_idx_ = current_idx;
   DLOGI("Demura is now %s and current index is %d ", enable ? "Enabled" : "Disabled", current_idx);
   return ret;
@@ -5900,21 +5916,7 @@ DisplayError DisplayBuiltIn::HandleDemuraScreenRefresh() {
       return kErrorParameters;
     }
 
-    GenericPayload pl;
-    int32_t *need_screen_refresh = nullptr;
-    int rc = 0;
-    if ((rc = pl.CreatePayload<int32_t>(need_screen_refresh))) {
-      DLOGE("Failed to create payload for need_screen_refresh, error = %d", rc);
-      return kErrorParameters;
-    }
-
-    rc = demura_->GetParameter(kDemuraFeatureParamNeedScreenRefresh, &pl);
-    if (rc) {
-      DLOGE("Failed to get need screen refresh, error %d", rc);
-      return kErrorParameters;
-    }
-
-    if (*need_screen_refresh) {
+    if (demura_need_screen_refresh_) {
       event_handler_->Refresh(kClientRefresh);
     }
   }

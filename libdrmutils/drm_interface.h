@@ -1304,6 +1304,7 @@ struct DRMConnectorInfo {
   uint32_t mmHeight;
   uint32_t type;
   uint32_t type_id;
+  uint32_t port_id = 0;
   std::vector<DRMModeInfo> modes;
   std::string panel_name;
   DRMPanelMode panel_mode;
@@ -1485,6 +1486,7 @@ struct DRMDppsFeatureInfo {
   uint32_t version;
   uint32_t payload_size;
   void *payload;
+  bool virtual_disp_with_dspp = false;
 };
 
 enum DRMPanelFeatureID {
