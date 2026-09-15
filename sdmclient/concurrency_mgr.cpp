@@ -3027,7 +3027,7 @@ DisplayError ConcurrencyMgr::SetAIScalerMode(uint64_t display_id, uint32_t mode_
     return kErrorResources;
   }
 
-  SCOPE_LOCK(locker_[disp_idx]);
+  SEQUENCE_WAIT_SCOPE_LOCK(locker_[disp_idx]);
   if (!sdm_display_[disp_idx]) {
     DLOGW("Display %" PRIu64 " is not connected.", display_id);
     return kErrorResources;
