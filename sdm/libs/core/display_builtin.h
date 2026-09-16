@@ -360,6 +360,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError SendPanelIdToParserManager();
   DisplayError ReloadDemuraCalibFiles(void *data);
   DisplayError SetDemuraDisplayEventsCtrl(void *data);
+  DisplayError SetDemuraTnCompRatio(void *data);
   DisplayError QueryDemuraTnInfo(void *data);
   DisplayError SetDemuraTnBatchId(void *data);
   DisplayError SetDemuraTnAodHandlerCtrl(void *data);

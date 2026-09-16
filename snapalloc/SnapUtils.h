@@ -33,13 +33,19 @@ inline int roundUpToPageSize(int x) {
 
 enum OverflowType { ADD = 0, MUL };
 
-#define OVERFLOW_MUL(x, y)                                                               \
-  (sizeof(x) == 4) ? (((y) != 0) && ((x) > (std::numeric_limits<int32_t>::max() / (y)))) \
-                   : (((y) != 0) && ((x) > (std::numeric_limits<int64_t>::max() / (y))))
+#define OVERFLOW_MUL(x, y)                                                                         \
+  (((decltype(+x))(-1) > 0)                                                                        \
+       ? ((sizeof(x) == 4) ? (((y) != 0) && ((x) > (std::numeric_limits<uint32_t>::max() / (y))))  \
+                           : (((y) != 0) && ((x) > (std::numeric_limits<uint64_t>::max() / (y))))) \
+       : ((sizeof(x) == 4) ? (((y) != 0) && ((x) > (std::numeric_limits<int32_t>::max() / (y))))   \
+                           : (((y) != 0) && ((x) > (std::numeric_limits<int64_t>::max() / (y))))))
 
-#define OVERFLOW_ADD(x, y)                                                              \
-  (sizeof(x) == 4) ? (((y) > 0) && ((x) > (std::numeric_limits<int32_t>::max() - (y)))) \
-                   : (((y) > 0) && ((x) > (std::numeric_limits<int64_t>::max() - (y))))
+#define OVERFLOW_ADD(x, y)                                                         \
+  (((decltype(+x))(-1) > 0)                                                        \
+       ? ((sizeof(x) == 4) ? ((x) > (std::numeric_limits<uint32_t>::max() - (y)))  \
+                           : ((x) > (std::numeric_limits<uint64_t>::max() - (y)))) \
+       : ((sizeof(x) == 4) ? ((x) > (std::numeric_limits<int32_t>::max() - (y)))   \
+                           : ((x) > (std::numeric_limits<int64_t>::max() - (y)))))
 
 #define OVERFLOW_ERR_RETURN(x, y, type)                       \
   {                                                           \

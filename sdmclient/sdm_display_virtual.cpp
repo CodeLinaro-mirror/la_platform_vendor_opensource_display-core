@@ -27,15 +27,14 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the
- * following license:
- *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <stdarg.h>
 #include <utils/constants.h>
 #include <utils/debug.h>
+#include <dlfcn.h>
 
 #include "sdm_debugger.h"
 #include "sdm_display_virtual.h"
@@ -62,6 +61,26 @@ SDMDisplayVirtual::SDMDisplayVirtual(CoreInterface *core_intf, BufferAllocator *
 
 DisplayError SDMDisplayVirtual::Init() {
   flush_on_error_ = true;
+
+  if (snapmapper_ == NULL) {
+    const std::string snapalloc_lib_name = "vendor.qti.hardware.display.snapalloc-impl.so";
+    void *snap_impl_lib_ = ::dlopen(snapalloc_lib_name.c_str(), RTLD_NOW);
+    if (!snap_impl_lib_) {
+      DLOGE("Dlopen error for snapalloc impl: %s", dlerror());
+      return kErrorPermission;
+    }
+
+    std::shared_ptr<ISnapMapper> (*LINK_FETCH_ISnapMapper)(DebugCallbackIntf *) = nullptr;
+    *reinterpret_cast<void **>(&LINK_FETCH_ISnapMapper) =
+        ::dlsym(snap_impl_lib_, "FETCH_ISnapMapper");
+    if (LINK_FETCH_ISnapMapper) {
+      snapmapper_ = LINK_FETCH_ISnapMapper(nullptr);
+    } else {
+      DLOGE("Failed to get snapalloc instance");
+      return kErrorPermission;
+    }
+  }
+
   return kErrorNone;
 }
 
