@@ -107,6 +107,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   virtual DisplayError SetIllumination(uint32_t eye, const IlluminationConfig &config);
   virtual DisplayError SetPixelShift(uint32_t eye, const PixelShiftConfig &config);
   virtual DisplayError IsLedDriverUp(bool *is_led_driver_up);
+  virtual DisplayError SetDisplayPoseLatchOffset(int64_t time_ns);
 
  private:
   void SetAIScalerData(const AIScalerInfoMap ai_scale_info_map);
@@ -168,7 +169,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   FieldFd right_field_fds_;
   PanelShiftFd left_panel_shifts_;
   PanelShiftFd right_panel_shifts_;
-  uint64_t vsync_offset_ns_ = 0;
+  uint64_t pose_latch_offset_ns_ = 0;
 };
 
 }  // namespace sdm

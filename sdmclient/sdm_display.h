@@ -557,6 +557,7 @@ public:
   }
   DisplayError GetDisplayViewMode(SDMDisplayViewMode *view_mode);
   virtual DisplayError PerformSelfRefresh();
+  DisplayError SetDisplayPoseLatchOffset(int64_t time_ns);
 
  protected:
   static uint32_t throttling_refresh_rate_;

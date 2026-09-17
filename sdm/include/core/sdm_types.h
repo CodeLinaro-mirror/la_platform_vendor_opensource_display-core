@@ -812,7 +812,7 @@ enum SDMDisplayViewMode {
                        //!< eye_index is ignored; ROI always covers the full display.
   kViewModeMonocular,  //!< XR glass with a single eye — full display for any eye setting.
                        //!< eye_index is ignored; ROI always covers the full display.
-  kViewModeStereo,     //!< XR glass with two eyes — left/right/both eye ROI splitting.
+  kViewModeBinocular,  //!< XR glass with two eyes — left/right/both eye ROI splitting.
                        //!< eye_index selects left half, right half, or full display.
 };
 

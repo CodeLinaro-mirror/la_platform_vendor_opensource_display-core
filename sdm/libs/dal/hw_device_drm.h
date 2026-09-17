@@ -239,6 +239,8 @@ class HWDeviceDRM : public HWInterface {
     return kErrorNotSupported;
   }
 
+  virtual DisplayError SetDisplayPoseLatchOffset(int64_t time_ns) { return kErrorNotSupported; }
+
   enum {
     kHWEventVSync,
     kHWEventBlank,

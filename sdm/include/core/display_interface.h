@@ -1853,6 +1853,13 @@ class DisplayInterface {
   */
   virtual DisplayError GetDisplayViewMode(SDMDisplayViewMode *view_mode) = 0;
 
+  /*! @brief Method to set display pose latch offset for XR systems
+   @param[in] time_ns : offset in nano seconds
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetDisplayPoseLatchOffset(int64_t time_ns) = 0;
+
  protected:
   virtual ~DisplayInterface() { }
 };

@@ -510,6 +510,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError SetDisplayDeviceConfig(Display display,
                                       SDMDisplayDeviceConfig sdm_display_device_config);
   DisplayError GetDisplayViewMode(Display display, SDMDisplayViewMode *view_mode);
+  DisplayError SetDisplayPoseLatchOffset(Display display, int64_t time_ns);
 
   DisplayError SetCameraSmoothInfo(SDMCameraSmoothOp op, int32_t fps) override;
   DisplayError NotifyTUIDone(int ret, int disp_id,

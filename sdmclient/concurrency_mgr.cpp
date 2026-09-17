@@ -3145,4 +3145,8 @@ DisplayError ConcurrencyMgr::GetDisplayViewMode(Display display, SDMDisplayViewM
   return CallDisplayFunction(display, &SDMDisplay::GetDisplayViewMode, view_mode);
 }
 
+DisplayError ConcurrencyMgr::SetDisplayPoseLatchOffset(Display display, int64_t time_ns) {
+  return CallDisplayFunction(display, &SDMDisplay::SetDisplayPoseLatchOffset, time_ns);
+}
+
 }  // namespace sdm
