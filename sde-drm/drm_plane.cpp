@@ -331,6 +331,11 @@ static QSEEDStepVersion PopulateQseedStepVersion(uint32_t hw_ver) {
     case 0x3004:
       return QSEEDStepVersion::V3LITE_V10;
     case 0x3005:
+      return QSEEDStepVersion::V3LITE_V11;
+    case 0x7001:
+      return QSEEDStepVersion::V3LITE_V11_7001;
+    case 0x7002:
+      return QSEEDStepVersion::V3LITE_V11_7002;
     // update default value to newest available version
     default:
       return QSEEDStepVersion::V3LITE_V11;
