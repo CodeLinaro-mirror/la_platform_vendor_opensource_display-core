@@ -5,6 +5,7 @@
 
 #include <iostream>
 
+#include "Debug.h"
 #include "GraphicsConstraintProvider.h"
 #include "SnapConstraintParser.h"
 #include "SnapTypes.h"
@@ -52,6 +53,8 @@ void SnapConstraintManager::Init() {
   providers_.push_back(video_provider);
 
   debug_ = Debug::GetInstance();
+
+  debug_->GetProperty(ENABLE_UBWC_LOSSY_FORMAT_FBT, &enable_ubwc_lossy_fbt_);
 }
 
 bool SnapConstraintManager::CanAllocateZSLForSecureCamera() {
@@ -68,6 +71,18 @@ bool SnapConstraintManager::CanAllocateZSLForSecureCamera() {
   inited = true;
   DLOGI("CanAllocateZSLForSecureCamera: %d", can_allocate);
   return can_allocate;
+}
+
+bool SnapConstraintManager::IsCameraPreviewUsingUsbHal() {
+  static bool inited = false;
+  static bool is_usb_hal = false;
+  if (inited) {
+    return is_usb_hal;
+  }
+  is_usb_hal = debug_->IsCameraPreviewUsingUsbHal();
+  inited = true;
+  DLOGI("IsCameraPreviewUsingUsbHal: %d", is_usb_hal);
+  return is_usb_hal;
 }
 
 void SnapConstraintManager::GetImplDefinedFormat(
@@ -127,7 +142,10 @@ void SnapConstraintManager::GetImplDefinedFormat(
       }
     } else if (usage & vendor_qti_hardware_display_common_BufferUsage::CAMERA_OUTPUT) {
       if (format == vendor_qti_hardware_display_common_PixelFormat::YCBCR_420_888) {
-        if ((usage & vendor_qti_hardware_display_common_BufferUsage::PROTECTED) &&
+        if (IsCameraPreviewUsingUsbHal()) {
+          *out_format = vendor_qti_hardware_display_common_PixelFormat::YCbCr_420_SP;
+          *out_modifier = PIXEL_FORMAT_MODIFIER_VENUS;
+        } else if ((usage & vendor_qti_hardware_display_common_BufferUsage::PROTECTED) &&
             (!CanAllocateZSLForSecureCamera())) {
           *out_format = vendor_qti_hardware_display_common_PixelFormat::YCrCb_420_SP;
           *out_modifier = PIXEL_FORMAT_MODIFIER_VENUS;
@@ -164,6 +182,11 @@ bool SnapConstraintManager::ValidateDescriptor(const BufferDescriptor &snap_desc
   int bpp = (format_data.bits_per_pixel) / 8;
   bpp = (bpp == -1 || bpp == 0) ? 1 : bpp;
 
+  if ((static_cast<int32_t>(snap_desc.format) <= 0) || snap_desc.layerCount <= 0) {
+    DLOGE("Invalid Descriptor: format %d, layer_count %d", snap_desc.format, snap_desc.layerCount);
+    return false;
+  }
+
   // First check multiplication overflow of (w, bpp) then check overflow of (w*bpp, h)
   if (snap_desc.width <= 0 || snap_desc.height <= 0 || OVERFLOW_MUL(snap_desc.width, bpp)) {
     DLOGE("%s: Invalid Descriptor: uw%dxuh%d bpp:%d overflow_detected %d", __FUNCTION__,
@@ -171,8 +194,25 @@ bool SnapConstraintManager::ValidateDescriptor(const BufferDescriptor &snap_desc
     return false;
   }
 
-  if ((OVERFLOW_MUL((snap_desc.width * bpp), snap_desc.height)) ||
-      (static_cast<int32_t>(snap_desc.format) <= 0) || snap_desc.layerCount <= 0) {
+  if (snap_desc.format == SnapPixelFormat::TP10) {
+    /*
+     * The current JSON configuration does not provide the correct bpp value
+     * for TP10. TP10 requires fractional bits-per-pixel support, but the
+     * current implementation stores/uses bpp as an integer.
+     *
+     * Since the generic descriptor-size validation below relies on an integer
+     * bpp value, it may incorrectly reject valid TP10 descriptors.
+     *
+     * Skip this generic validation for TP10. TP10-specific size and alignment
+     * checks are handled later in the allocation flow.
+     *
+     * TODO: Fix the JSON/configuration path to support the correct TP10 bpp
+     * representation and remove this early return.
+     */
+    return true;
+  }
+
+  if ((OVERFLOW_MUL((snap_desc.width * bpp), snap_desc.height))) {
     DLOGE("Invalid Descriptor: uw%dxuh%d, format %d, layer_count %d, overflow_detected %d bpp:%d",
           snap_desc.width, snap_desc.height, snap_desc.format, snap_desc.layerCount,
           (OVERFLOW_MUL((snap_desc.width * bpp), snap_desc.height)) ? 1 : 0, bpp);
@@ -255,6 +295,15 @@ Error SnapConstraintManager::GetAllocationData(
       }
     }
     ubwc_caps_.version = ubwc_version;
+    // Apply UBWC lossy usage if UBWC allocation is requested
+    const uint64_t lossy_usage = GetUBWCLossyUsage(*out_desc);
+
+    if (lossy_usage != 0) {
+      out_desc->usage |= static_cast<vendor_qti_hardware_display_common_BufferUsage>(lossy_usage);
+      DLOGD_IF(enable_logs, "%s: UBWC lossy flag enabled. Updated usage=0x%lx", __func__,
+               out_desc->usage);
+    }
+
     err = ubwc_policy_->GetUBWCAlloc(*out_desc, cap_map, ubwc_caps_, out_ad, out_layout,
                                      &used_adreno_for_size);
   } else {
@@ -446,6 +495,11 @@ Error SnapConstraintManager::ConstraintsToBufferLayout(
     layout->size_in_bytes += layout->planes[i].size_in_bytes;
   }
   layout->size_in_bytes = ALIGN(layout->size_in_bytes, constraints->size_align_bytes);
+
+  vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
+      static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
+          GetPixelFormatModifier(desc));
+  layout->size_in_bytes *= GetBatchSize(pixel_format_modifier);
 
   return Error::NONE;
 }
@@ -736,6 +790,26 @@ bool SnapConstraintManager::UseUncached(vendor_qti_hardware_display_common_Pixel
   }
 
   return false;
+}
+
+uint64_t SnapConstraintManager::GetUBWCLossyUsage(BufferDescriptor out_desc) {
+  if (!enable_ubwc_lossy_fbt_ || !ubwc_policy_->IsUBWCAlloc(out_desc)) {
+    DLOGD_IF(enable_logs, "%s: Lossy UBWC usage not set", __func__);
+    return 0;
+  }
+
+  // WriteBack cannot write-out as UBWC Lossy_2_1 format
+  if (out_desc.usage & vendor_qti_hardware_display_common_BufferUsage::QTI_PRIVATE_WFD) {
+    return 0;
+  }
+
+  if ((out_desc.usage & vendor_qti_hardware_display_common_BufferUsage::COMPOSER_CLIENT_TARGET) &&
+      (out_desc.usage & vendor_qti_hardware_display_common_BufferUsage::COMPOSER_OVERLAY) &&
+      (out_desc.format == vendor_qti_hardware_display_common_PixelFormat::RGBA_8888)) {
+    DLOGD_IF(enable_logs, "%s: Enabling UBWC lossy format", __func__);
+    return vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC_L_2_TO_1;
+  }
+  return 0;
 }
 
 }  // namespace snapalloc

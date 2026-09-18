@@ -34,6 +34,7 @@ inline int roundUpToPageSize(int x) {
 using SnapPixelFormat = vendor_qti_hardware_display_common_PixelFormat;
 using SnapPixelFormatModifier = vendor_qti_hardware_display_common_PixelFormatModifier;
 using SnapUsage = vendor_qti_hardware_display_common_BufferUsage;
+using SnapHeapType = vendor_qti_hardware_display_common_HeapType;
 
 enum OverflowType { ADD = 0, MUL };
 
@@ -87,6 +88,8 @@ uint64_t GetPixelFormatModifier(BufferDescriptor desc);
 bool CpuCanRead(SnapUsage usage);
 bool CpuCanWrite(SnapUsage usage);
 bool CpuCanAccess(SnapUsage usage);
+SnapHeapType GetHeapNameOptValue(
+    std::vector<vendor_qti_hardware_display_common_KeyValuePair> additional_options);
 
 struct SnapFormatDescriptor {
   SnapPixelFormat format;

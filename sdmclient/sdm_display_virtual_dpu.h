@@ -56,6 +56,8 @@ public:
                                       uint32_t *out_num_types, uint32_t *out_num_requests,
                                       bool *needs_commit);
  virtual DisplayError SetColorTransform(const float *matrix, SDMColorTransform hint);
+ virtual DisplayError PrepareRetainedDisplay() override;
+ virtual DisplayError RestoreRetainedDisplay() override;
 
  // Color mode and render intent methods
  DisplayError SetColorMode(SDMColorMode mode);

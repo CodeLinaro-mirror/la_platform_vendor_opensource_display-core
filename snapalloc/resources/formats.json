@@ -807,6 +807,26 @@
             }
         },
         {
+            "format": "RAW14_1",
+            "data": {
+                "bits_per_pixel": 14,
+                "planes": [
+                    {
+                        "components": [
+                            {
+                                "component_type": "RAW",
+                                "offset_bits": 0,
+                                "size_bits": 14
+                            }
+                        ],
+                        "sample_increment_bits": 14,
+                        "h_subsampling_factor": 1,
+                        "v_subsampling_factor": 1
+                    }
+                ]
+            }
+        },
+        {
             "format": "RAW16",
             "data": {
                 "bits_per_pixel": 16,

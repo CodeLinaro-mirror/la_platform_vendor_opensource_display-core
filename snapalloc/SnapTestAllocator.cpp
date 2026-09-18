@@ -1,5 +1,7 @@
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include "SnapTestAllocator.h"
 #include <fcntl.h>
@@ -73,10 +75,12 @@ Error SnapTestAllocator::SecureMemPerms(AllocData *ad) {
 }
 
 void SnapTestAllocator::GetHeapInfo(vendor_qti_hardware_display_common_BufferUsage usage,
+                                    vendor_qti_hardware_display_common_HeapType heap_name_opt,
                                     bool sensor_flag, bool use_uncached, std::string *heap_name,
                                     std::vector<std::string> *vm_names, unsigned int *alloc_type,
                                     unsigned int *flags, unsigned int *alloc_size) {
   (void)usage;
+  (void)heap_name_opt;
   (void)sensor_flag;
   (void)use_uncached;
   (void)heap_name;

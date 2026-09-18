@@ -46,7 +46,8 @@ class SnapMetadataManager {
       BufferDescriptor out_desc, const AllocData ad,
       vendor_qti_hardware_display_common_BufferLayout *layout);  // TODO: make this API extensible
   uint32_t GetCustomContentMetadataSize(vendor_qti_hardware_display_common_PixelFormat format,
-                                        vendor_qti_hardware_display_common_BufferUsage usage);
+                                        vendor_qti_hardware_display_common_BufferUsage usage,
+                                        uint64_t pixel_format_modifier);
   uint64_t GetBatchModeDynamicMetadataSize(uint64_t pixel_format_modifier);
   Error GetMetadataState(SnapHandleInternal *hnd, vendor_qti_hardware_display_common_MetadataType type, bool *out);
   bool IsFormatSupportedByGPU(BufferDescriptor desc);
@@ -215,6 +216,9 @@ class SnapMetadataManager {
                               void *in_set = nullptr, void *out_get = nullptr,
                               BufferDescriptor *buf_des = nullptr);
   Error SMPTE2094_10Helper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                           void *in_set = nullptr, void *out_get = nullptr,
+                           BufferDescriptor *buf_des = nullptr);
+  Error SMPTE2094_50Helper(SnapMetadata *metadata, SnapHandleInternal *handle,
                            void *in_set = nullptr, void *out_get = nullptr,
                            BufferDescriptor *buf_des = nullptr);
   Error MatrixCoefficientsHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
@@ -490,6 +494,7 @@ class SnapMetadataManager {
           {CONTENT_LIGHT_LEVEL, &SnapMetadataManager::ContentLightLevelHelper},
           {DYNAMIC_METADATA, &SnapMetadataManager::DynamicMetadataHelper},
           {SMPTE2094_10, &SnapMetadataManager::SMPTE2094_10Helper},
+          {SMPTE2094_50, &SnapMetadataManager::SMPTE2094_50Helper},
           {MATRIX_COEFFICIENTS, &SnapMetadataManager::MatrixCoefficientsHelper},
           {COLOR_REMAPPING_INFO, &SnapMetadataManager::ColorRemappingInfoHelper},
           {BASE_ADDRESS, &SnapMetadataManager::BaseAddressHelper},
@@ -567,6 +572,7 @@ class SnapMetadataManager {
           {CONTENT_LIGHT_LEVEL, {true}},
           {DYNAMIC_METADATA, {true}},
           {SMPTE2094_10, {true}},
+          {SMPTE2094_50, {true}},
           {MATRIX_COEFFICIENTS, {true}},
           {COLOR_REMAPPING_INFO, {true}},
           {BASE_ADDRESS, {false}},

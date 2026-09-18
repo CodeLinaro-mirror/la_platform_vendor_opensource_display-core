@@ -538,4 +538,33 @@ void DisplayPluggable::HandleSSREvent(SSREventType ssr_event) {
   DLOGW("SSR is not supported for pluggable displays");
 }
 
+DisplayError DisplayPluggable::SetActiveConfig(uint32_t index) {
+  ClientLock lock(disp_mutex_);
+  DisplayError error = kErrorNone;
+  uint32_t active_index = 0;
+  error = dpu_core_mux_->GetActiveConfig(&active_index);
+  if (error != kErrorNone) {
+    return error;
+  }
+
+  bool needs_modeset = (active_index != index);
+  bool vsync_was_enabled = vsync_enable_ && needs_modeset;
+  if (vsync_was_enabled) {
+    error = SetVSyncStateLocked(false);
+    if (error != kErrorNone) {
+      return error;
+    }
+    // Re-enable after the post-modeset retire fence is signalled.
+    vsync_enable_pending_ = true;
+  }
+
+  error = DisplayBase::SetActiveConfig(index);
+
+  if (error != kErrorNone && vsync_was_enabled) {
+    vsync_enable_pending_ = true;
+  }
+
+  return error;
+}
+
 }  // namespace sdm

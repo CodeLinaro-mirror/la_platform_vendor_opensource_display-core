@@ -42,6 +42,7 @@ class Debug {
   bool IsAhardwareBufferDisabled();
   bool IsUBWCDisabled();
   bool IsSecurePreviewBufferFormatEnabled(std::string *secure_preview_buffer_format);
+  bool IsCameraPreviewUsingUsbHal();
   bool IsSecurePreviewOnlyEnabled();
   bool UseDMABufHeaps();
   bool UseSystemHeapForSensors();

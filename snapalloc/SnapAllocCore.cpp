@@ -46,7 +46,8 @@ Error SnapAllocCore::AllocateBuffer(AllocData *ad, AllocData *m_data,
                                     unsigned custom_content_md_size,
                                     unsigned batch_mode_dyn_md_size, BufferDescriptor *desc,
                                     BufferDescriptor *out_desc, bool test_alloc) {
-  auto err = mem_alloc_intf_->AllocateMem(ad, out_desc->usage, out_desc->format);
+  auto err =
+      mem_alloc_intf_->AllocateMem(ad, out_desc->usage, out_desc->format, desc->additionalOptions);
   if (err != Error::NONE) {
     DLOGE("Failed to allocate memory for format %d usage %d", out_desc->format, out_desc->usage);
     return err;
@@ -82,6 +83,9 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
     BufferDescriptor out_desc;
     SnapHandleInternal *hnd;
     int out_priv_flags = 0;
+    uint64_t lossy_usage = constraint_mgr_->GetUBWCLossyUsage(desc);
+    desc.usage =
+        desc.usage | static_cast<vendor_qti_hardware_display_common_BufferUsage>(lossy_usage);
     auto err = constraint_mgr_->GetAllocationData(desc, &ad, &layout, &out_desc, &out_priv_flags);
     if (err != Error::NONE) {
       DLOGE("Constraint manager failed to get allocation data - err %d", err);
@@ -104,8 +108,8 @@ Error SnapAllocCore::Allocate(BufferDescriptor desc, int count,
     constraint_mgr_->ConvertAlignedWidthFromBytesToPixels(
         out_desc.format, layout.aligned_width_in_bytes, pixel_format_modifier,
         &aligned_width_in_pixels);
-    unsigned custom_content_md_size =
-        metadata_mgr_->GetCustomContentMetadataSize(out_desc.format, out_desc.usage);
+    unsigned custom_content_md_size = metadata_mgr_->GetCustomContentMetadataSize(
+        out_desc.format, out_desc.usage, pixel_format_modifier);
     unsigned batch_mode_dyn_md_size =
         metadata_mgr_->GetBatchModeDynamicMetadataSize(pixel_format_modifier);
 

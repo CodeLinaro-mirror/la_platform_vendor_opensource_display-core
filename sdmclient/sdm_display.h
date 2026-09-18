@@ -164,44 +164,39 @@ private:
 
 class SDMDisplay : public DisplayEventHandler {
 public:
-  virtual ~SDMDisplay() {}
+ virtual ~SDMDisplay();
 
-  virtual DisplayError Init();
-  virtual DisplayError Deinit(bool deinit_layer_builder = true);
+ virtual DisplayError Init();
+ virtual DisplayError Deinit(bool deinit_layer_builder = true);
+ virtual DisplayError PrepareRetainedDisplay() { return kErrorNotSupported; }
+ virtual DisplayError RestoreRetainedDisplay() { return kErrorNotSupported; }
 
-  virtual DisplayError GetFixedConfig(DisplayConfigFixedInfo *info);
-  void DumpXRInputProjectionTable(std::ostringstream *os);
-  bool HasProjectionInputLayers() const;
+ virtual DisplayError GetFixedConfig(DisplayConfigFixedInfo *info);
+ void DumpXRInputProjectionTable(std::ostringstream *os);
+ bool HasProjectionInputLayers() const;
 
-  // Framebuffer configurations
-  virtual void SetIdleTimeoutMs(uint32_t timeout_ms, uint32_t inactive_ms);
-  virtual DisplayError SetFrameDumpConfig(uint32_t count,
-                                          uint32_t bit_mask_layer_type,
-                                          int32_t format);
-  virtual DisplayError SetFrameDumpConfig(uint32_t count,
-                                          uint32_t bit_mask_layer_type,
-                                          int32_t format,
-                                          CwbConfig &cwb_config);
-  virtual DisplayError SetMaxMixerStages(uint32_t max_mixer_stages);
-  virtual DisplayError ControlPartialUpdate(bool enable) { return kErrorNotSupported; }
-  virtual SDMPowerMode GetCurrentPowerMode();
-  virtual DisplayError SetFrameBufferResolution(uint32_t x_pixels,
-                                                uint32_t y_pixels);
-  virtual void GetFrameBufferResolution(uint32_t *x_pixels, uint32_t *y_pixels);
-  virtual DisplayError SetDisplayStatus(SDMDisplayStatus display_status);
-  virtual DisplayError OnMinHdcpEncryptionLevelChange(uint32_t min_enc_level);
-  virtual DisplayError Perform(uint32_t operation, ...);
-  virtual DisplayError
-  HandleSecureSession(const std::bitset<kSecureMax> &secure_sessions,
-                      bool *power_on_pending, bool is_active_secure_display);
-  virtual DisplayError HandleSecureEvent(SecureEvent secure_event,
-                                         bool *needs_refresh,
-                                         bool update_event_only);
-  virtual DisplayError PostHandleSecureEvent(SecureEvent secure_event);
-  virtual DisplayError
-  GetActiveSecureSession(std::bitset<kSecureMax> *secure_sessions) {
-    return kErrorNone;
-  };
+ // Framebuffer configurations
+ virtual void SetIdleTimeoutMs(uint32_t timeout_ms, uint32_t inactive_ms);
+ virtual DisplayError SetFrameDumpConfig(uint32_t count, uint32_t bit_mask_layer_type,
+                                         int32_t format);
+ virtual DisplayError SetFrameDumpConfig(uint32_t count, uint32_t bit_mask_layer_type,
+                                         int32_t format, CwbConfig &cwb_config);
+ virtual DisplayError SetMaxMixerStages(uint32_t max_mixer_stages);
+ virtual DisplayError ControlPartialUpdate(bool enable) { return kErrorNotSupported; }
+ virtual SDMPowerMode GetCurrentPowerMode();
+ virtual DisplayError SetFrameBufferResolution(uint32_t x_pixels, uint32_t y_pixels);
+ virtual void GetFrameBufferResolution(uint32_t *x_pixels, uint32_t *y_pixels);
+ virtual DisplayError SetDisplayStatus(SDMDisplayStatus display_status);
+ virtual DisplayError OnMinHdcpEncryptionLevelChange(uint32_t min_enc_level);
+ virtual DisplayError Perform(uint32_t operation, ...);
+ virtual DisplayError HandleSecureSession(const std::bitset<kSecureMax> &secure_sessions,
+                                          bool *power_on_pending, bool is_active_secure_display);
+ virtual DisplayError HandleSecureEvent(SecureEvent secure_event, bool *needs_refresh,
+                                        bool update_event_only);
+ virtual DisplayError PostHandleSecureEvent(SecureEvent secure_event);
+ virtual DisplayError GetActiveSecureSession(std::bitset<kSecureMax> *secure_sessions) {
+   return kErrorNone;
+ };
   virtual DisplayError SetMixerResolution(uint32_t width, uint32_t height);
   virtual DisplayError GetMixerResolution(uint32_t *width, uint32_t *height);
   virtual uint32_t GetAvailableMixerCount();
@@ -428,6 +423,8 @@ public:
   virtual void ClearPendingPowerMode() {
     pending_power_mode_ = current_power_mode_;
   }
+  virtual bool GetPendingPowerModeValid() { return pending_power_mode_valid_; }
+  virtual void SetPendingPowerModeValid(bool valid) { pending_power_mode_valid_ = valid; }
   virtual void NotifyClientStatus(bool connected) {
     client_connected_ = connected;
   }
@@ -453,7 +450,7 @@ public:
       SDMVsyncPeriodChangeTimeline *out_timeline);
 
   DisplayError SetDisplayElapseTime(uint64_t time);
-  DisplayError SetDisplayDeviceConfig(SDMDisplayDeviceConfig sdm_display_device_config);
+  virtual DisplayError SetDisplayDeviceConfig(SDMDisplayDeviceConfig sdm_display_device_config);
   virtual bool IsDisplayIdle() { return false; };
   virtual bool HasReadBackBufferSupport() { return false; }
   virtual DisplayError NotifyDisplayCalibrationMode(bool in_calibration) {
@@ -482,6 +479,7 @@ public:
   }
   virtual DisplayError RetrieveDemuraTnFiles() { return kErrorNotSupported; }
   virtual DisplayError SetDemuraState(int state, int demura_idx) { return kErrorNotSupported; }
+  virtual DisplayError SetSPRState(int state) { return kErrorNotSupported; }
   virtual DisplayError SetDemuraConfig(int demura_idx) {
     return kErrorNotSupported;
   }
@@ -555,6 +553,11 @@ public:
   virtual DisplayError SetRgbHistObserverConfig(bool state, void *data) {
     return kErrorNotSupported;
   }
+  virtual DisplayError ProcessColorFeatureOps(DisplayColorOps ops, void *payload) {
+    return kErrorNotSupported;
+  }
+  DisplayError GetDisplayViewMode(SDMDisplayViewMode *view_mode);
+  virtual DisplayError PerformSelfRefresh();
 
  protected:
   static uint32_t throttling_refresh_rate_;
@@ -567,7 +570,7 @@ public:
 
   // DisplayEventHandler methods
   virtual DisplayError VSync(const DisplayEventVSync &vsync);
-  virtual DisplayError Refresh();
+  virtual DisplayError Refresh(RefreshType type);
   virtual DisplayError CECMessage(char *message);
   virtual DisplayError HistogramEvent(int source_fd, uint32_t blob_id);
   virtual DisplayError HandleEvent(DisplayEvent event);
@@ -657,7 +660,8 @@ public:
   std::map<LayerId, SDMLayerRequest> layer_requests_;
   // mapping 3d luts to layer id and handle id to retrieve info and pass to client
   std::map<LayerId, Lut3d *> display_luts_;
-  std::map<uint64_t, Lut3d *> buffer_luts_;
+  std::map<LayerId, Lut3d> layer_luts_;
+  std::map<uint64_t, LayerId> layer_buffer_map_;
   bool flush_on_error_ = false;
   bool flush_ = false;
   SDMPowerMode current_power_mode_ = SDMPowerMode::POWER_MODE_OFF;
@@ -746,6 +750,8 @@ public:
   uint64_t scheduled_dynamic_dsi_clk_ = 0;
   int32_t rgba_split_support_ = 0;
   bool valid_commit_ = false;
+  bool IsFcmCwbActive() const { return fcm_ && fcm_->IsCwbActive(); }
+  bool pending_power_mode_valid_ = false;
 
  private:
   bool CanSkipSdmPrepare(uint32_t *num_types, uint32_t *num_requests);
@@ -759,6 +765,9 @@ public:
   DisplayError GetParentConfig(Config *config);
   bool NotifyIdleNow();
   bool NeedsSDMExtendedResolution();
+  void PopulateLayerLuts(Layer *layer);
+  void ClearLayerLuts();
+  void ClearLayerBufferMap(const LayerId &layer_id);
 
   DisplayClass display_class_;
   uint32_t geometry_changes_on_doze_suspend_ = GeometryChanges::kNone;
@@ -780,6 +789,8 @@ public:
   bool pending_privregions_update_ = false;
   FrameCaptureIntf *fcm_ = nullptr;
   bool composer_driven_hdcp_ = false;
+  bool disable_luts_overlay_support_ = false;
+  bool allow_seccam_concurrency_ = false;
 };
 
 inline DisplayError SDMDisplay::Perform(uint32_t operation, ...) {

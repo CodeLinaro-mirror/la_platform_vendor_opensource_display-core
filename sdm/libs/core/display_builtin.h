@@ -254,6 +254,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError UpdateTransferTime(uint32_t transfer_time) override;
   DisplayError RetrieveDemuraTnFiles() override;
   DisplayError SetDemuraState(int state, int demura_idx) override;
+  DisplayError SetSPRState(int state) override;
   DisplayError SetDemuraConfig(int demura_idx) override;
   DisplayError PerformCacConfig(CacConfig config, bool enable) override;
   DisplayError SetDynamicCacConfig(DynamicCacV2Config config, bool enable) override;
@@ -407,6 +408,7 @@ class DisplayBuiltIn : public DisplayBase,
   void UpdateCWBLayer(LayerBuffer &layer_buffer);
   void ClearDemuraMultiCfgParsers();
   void ClearDemuraLayerWrappers();
+  void MarkOldDemuraLayerWrapperForClear();
   DemuraLayerWrapper *GetActiveDemuraLayerWrapper();
   DemuraLayerWrapper *GetFreeDemuraLayerWrapper();
   int StartVmFileServiceAndExportFiles();
@@ -425,6 +427,8 @@ class DisplayBuiltIn : public DisplayBase,
                                            PanelFeaturePropertyIntf *prop_intf);
   DisplayError SetupRgbHistogram();
   DisplayError UpdateRgbHistogramRoi(const void *data) override;
+  bool isSPREnabled();
+  DisplayError GetDisplayViewMode(SDMDisplayViewMode *view_mode) override;
 
   const uint32_t kPuTimeOutMs = 1000;
   std::map<uint32_t, std::vector<HWEvent>> event_list_;
@@ -460,6 +464,7 @@ class DisplayBuiltIn : public DisplayBase,
   snapdragoncolor::ColorModeList stc_color_modes_ = {};
 
   std::shared_ptr<SPRIntf> spr_ = nullptr;
+  int spr_prop_value_ = 0;
   bool needs_validate_on_pu_enable_ = false;
   bool enable_qsync_idle_ = false;
   uint32_t pending_cycles_for_poms_setup_ = 0;
@@ -476,6 +481,7 @@ class DisplayBuiltIn : public DisplayBase,
   bool demura_intended_ = false;
   bool demura_dynamic_enabled_ = true;
   int demura_current_idx_ = -1;
+  bool demura_need_screen_refresh_ = false;
   const std::string kDemuraTnUserCtrlFile = "/mnt/vendor/persist/display/demuratn_user_ctrl";
   std::shared_ptr<DemuraTnCleanupIntf> demuratn_cleanup_intf_;
   bool demuratn_user_disabled_ = false;
@@ -519,7 +525,6 @@ class DisplayBuiltIn : public DisplayBase,
   std::mutex file_xfer_intf_mutex_;
   bool demura_allowed_ = false;
   bool demuratn_allowed_ = false;
-  bool demura_enable_ = false;
   bool demura_calib_files_reloaded_ = false;
   VmFileXferClientFactIntfExtn *factory_extn_ = nullptr;
   std::shared_ptr<FeatureLicenseIntf> feat_license_intf_ = nullptr;
@@ -538,6 +543,7 @@ class DisplayBuiltIn : public DisplayBase,
   std::unique_ptr<qrtc::QrtcFeatureIntf> qrtc_ = nullptr;
   std::vector<Layer> qrtc_layer_ = {};
   qrtc::QrtcFeatureConfig qrtc_config_;
+  bool qrtc_setup_completed_ = false;
 
   friend class PuSubjectIntfImpl;
   std::unique_ptr<PuSubjectIntf> pu_subject_ = nullptr;

@@ -53,7 +53,7 @@ class CompManagerEventHandler {
  public:
   virtual ~CompManagerEventHandler() {}
   virtual void NotifyCwbDone(int32_t status, const LayerBuffer& buffer) = 0;
-  virtual void Refresh() = 0;
+  virtual void Refresh(RefreshType type) = 0;
   virtual void OnCwbTeardown(bool sync_teardown) = 0;
   virtual DisplayError OnCwbValidation(const LayerBuffer &output_buffer, CwbConfig &cwb_config) = 0;
 };
@@ -138,15 +138,15 @@ class CompManager : public CwbCallback {
   DisplayError HandleCwbFrequencyBoost(bool isRequest);
   DisplayError PreCommit(Handle display_ctx);
   DisplayError CaptureCwb(Handle display_ctx, const LayerBuffer &buffer, const CwbConfig &config);
-  DisplayError ReserveWBForDisplay(Handle display_ctx, int32_t *wb_id);
-  void ReleaseWBFromDisplay(Handle display_ctx, int32_t wb_id);
+  DisplayError ReserveWBForDisplay(Handle display_ctx, WbMapInfo *wb_info);
+  void ReleaseWBFromDisplay(Handle display_ctx);
   bool HasPendingCwbRequest(Handle display_ctx);
   bool HandleCwbTeardown(Handle display_ctx);
   DisplayError RequestVirtualDisplayId(int32_t *vdisp_id);
   DisplayError AllocateVirtualDisplayId(int32_t *vdisp_id);
   DisplayError DeallocateVirtualDisplayId(int32_t vdisp_id);
   virtual void NotifyCwbDone(int32_t display_id, int32_t status, const LayerBuffer& buffer);
-  virtual void TriggerRefresh(int32_t display_id);
+  virtual void TriggerRefresh(int32_t display_id, RefreshType type);
   virtual void TriggerCwbTeardown(int32_t display_id, bool sync_teardown);
   virtual DisplayError ValidateCwbRequest(int32_t display_id, const LayerBuffer &output_buffer,
                                           CwbConfig &cwb_config);

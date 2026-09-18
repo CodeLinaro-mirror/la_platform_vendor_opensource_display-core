@@ -28,11 +28,10 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-*
-* Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -496,6 +495,7 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
   string ai_scaler_count = "ai_scaler_count=";
   string is_udc_supported = "is_udc_supported=";
   string qrtc_count = "qrtc_count=";
+  string max_lsr_batch_size = "max_lsr_batch_size=";
 
   while (std::getline(stream, line)) {
     if (line.find(max_blendstages) != string::npos) {
@@ -659,6 +659,8 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
       crtc_info_.ai_scaler_count = std::stoi(string(line, ai_scaler_count.length()));
     } else if (line.find(is_udc_supported) != string::npos) {
       crtc_info_.is_udc_supported = std::stoi(string(line, is_udc_supported.length()));
+    } else if (line.find(max_lsr_batch_size) != string::npos) {
+      crtc_info_.max_lsr_batch_size = std::stoi(string(line, max_lsr_batch_size.length()));
     }
   }
   drmModeFreePropertyBlob(blob);
@@ -1006,6 +1008,45 @@ void DRMCrtc::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       AddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::LSR_MODE), lsr_mode,
                   true /* cache */, tmp_prop_val_map_);
       DRM_LOGD("CRTC %d: Set lsr_mode %d", obj_id, lsr_mode);
+    }; break;
+
+    case DRMOps::CRTC_SET_BATCH_SIZE: {
+      uint32_t batch_size = va_arg(args, uint32_t);
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::BATCH_SIZE)) {
+        DRM_LOGE("CRTC %d: batch_size property NOT available — kernel missing? value=%u", obj_id,
+                 batch_size);
+        return;
+      }
+      AddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::BATCH_SIZE), batch_size,
+                  true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("CRTC %d: Set batch_size=%u prop_id=%u", obj_id, batch_size,
+               prop_mgr_.GetPropertyId(DRMProperty::BATCH_SIZE));
+    }; break;
+
+    case DRMOps::CRTC_SET_BATCH_INDEX: {
+      uint32_t batch_index = va_arg(args, uint32_t);
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::BATCH_INDEX)) {
+        DRM_LOGE("CRTC %d: batch_index property NOT available — kernel missing? value=%u", obj_id,
+                 batch_index);
+        return;
+      }
+      AddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::BATCH_INDEX), batch_index,
+                  true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("CRTC %d: Set batch_index=%u prop_id=%u", obj_id, batch_index,
+               prop_mgr_.GetPropertyId(DRMProperty::BATCH_INDEX));
+    }; break;
+
+    case DRMOps::CRTC_SET_BATCH_TYPE: {
+      uint32_t batch_type = va_arg(args, uint32_t);
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::BATCH_TYPE)) {
+        DRM_LOGE("CRTC %d: batch_type property NOT available — kernel missing? value=%u", obj_id,
+                 batch_type);
+        return;
+      }
+      AddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::BATCH_TYPE), batch_type,
+                  true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("CRTC %d: Set batch_type=%u prop_id=%u", obj_id, batch_type,
+               prop_mgr_.GetPropertyId(DRMProperty::BATCH_TYPE));
     }; break;
 
     default:

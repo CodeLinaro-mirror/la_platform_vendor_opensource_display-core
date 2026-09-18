@@ -145,6 +145,14 @@ void CopyColorMetadata(T1 &input, T2 &output) {
   output.dynamicMetadata = input.dynamicMetadata;
 }
 
+template <typename T>
+void SafeDeleteArray(T *&ptr) {
+  if (ptr != nullptr) {
+    delete[] ptr;
+    ptr = nullptr;
+  }
+}
+
 template<class T>
 bool SameConfig(T *t1, T *t2, unsigned int size) {
   return !(std::memcmp(t1, t2, size));
@@ -162,9 +170,9 @@ const char *GetRenderLayerReferenceSpaceName(const SDMRenderLayerReferenceSpaceT
 const char *GetLayerVisibilityName(const SDMLayerVisibilityType &type);
 const char* GetSocName();
 bool IsXRVariant();
+bool IsGpuLsrVariant();
 uint16_t float_2_FP16(const float in);
 float FP16_2_float(const uint16_t in);
 }  // namespace sdm
 
 #endif  // __UTILS_H__
-

@@ -118,10 +118,14 @@ struct HWDisplayInfo {
                                                //!< device.
   bool is_wb_ubwc_supported = true;            //!< check hardware wb ubwc support
   bool is_wb_downscale_supported = false;      //!< check whether connector(WB) supports downscale
+  bool is_wb_qrtc_supported = false;           //!< check hardware wb has QRTC support
+  bool is_wbaligner_supported = false;         //!< check hardware wb has built-in wbaligner.
   bool is_reserved = false;                    //!< check if currently reserved by any display
   uint32_t max_linewidth = 0;                  //!< max width supported by connector
   uint32_t max_cwb = 0;                        //!< Maximum CWB instances supported concurrently,
                                                //!< and it is valid only for virtual display.
+  uint32_t wb_dnsc_min_ratio = 0;              //!< WB output downscale minimum divisor.
+  uint32_t wb_dnsc_max_ratio = 0;              //!< WB output downscale maximum divisor.
   bool has_disp_in_other_core = false;         //!< check if display is also present in other core
   uint32_t lm_mask = 0;                        //!< the mask of layer mixer id
 };

@@ -268,7 +268,7 @@ DisplayError HWTVDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_GET_RETIRE_FENCE, token_.conn_id, &retire_fence_fd);
 
   if (cwb_config_[core_id_].enabled) {
-    DeconfigureDNSCfromCwb();
+    DeconfigureDownscaleFromCWB();
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, cwb_config_[core_id_].token.conn_id, 0);
     DLOGI("Teardown CWB on %d-%d", display_id_, disp_type_);
   }
@@ -364,10 +364,17 @@ DisplayError HWTVDRM::Commit(HWLayersInfo *hw_layers_info) {
 }
 
 DisplayError HWTVDRM::UpdateHDRMetaData(HWLayersInfo *hw_layers_info) {
-  // Set colorspace on external DP when DP supports colorspace.
-  // For P3 use case set colorspace only.
-  // For HDR use case set both hdr metadata and colorspace.
-  if (hw_panel_info_.port == kPortDP && hw_panel_info_.supported_colorspaces) {
+  // Set colorspace on connector when supported.
+  // For DP: only when the driver advertises supported_colorspaces.
+  // For HDMI (kPortDTV): when supported_colorspaces is set OR when HDR is enabled —
+  //   HDMI requires the colorimetry AVI InfoFrame to be updated to BT2020 for HDR
+  //   even when the kernel does not expose the SUPPORTED_COLORSPACES property.
+  bool set_colorspace = false;
+  if ((hw_panel_info_.port == kPortDP) || (hw_panel_info_.port == kPortDTV)) {
+    set_colorspace = (hw_panel_info_.supported_colorspaces != 0) || hw_panel_info_.hdr_enabled;
+  }
+
+  if (set_colorspace) {
     sde_drm::DRMColorspace colorspace = sde_drm::DRMColorspace::DEFAULT;
     if (blend_space_.primaries == QtiColorPrimaries_DCIP3 &&
         blend_space_.transfer == QtiTransfer_sRGB) {

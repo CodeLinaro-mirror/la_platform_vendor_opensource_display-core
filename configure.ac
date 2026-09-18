@@ -60,9 +60,11 @@ AC_CONFIG_FILES([ \
         Makefile \
         libdebug/Makefile \
         libdrmutils/Makefile \
+        libframecapture/Makefile \
         sde-drm/Makefile \
         sdm/libs/utils/Makefile \
         sdm/libs/dal/Makefile \
-        sdm/libs/core/Makefile
+        sdm/libs/core/Makefile \
+        sdmclient/Makefile
         ])
 AC_OUTPUT

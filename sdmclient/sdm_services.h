@@ -121,6 +121,7 @@ enum {
   SDM_SERVICE_SET_RGB_HISTOGRAM_CONFIG = 70,         // Set rgb histogram config
   SDM_SERVICE_SET_QRTC_FEATURE_CONFIG = 71,  // Common function for setting QRTC configuration
   SDM_SERVICE_SET_STC_FEATURE_CONFIG = 72,   // Common function, Set cfg for stc feature
+  SDM_SERVICE_SET_SPR_STATE = 73,            // Enable/disable SPR feature
   SDM_SERVICE_COMMAND_LIST_END = 400,
 };
 
@@ -343,6 +344,7 @@ private:
   DisplayError SetPrivacyRegions(SDMParcel *input_parcel);
   DisplayError SetRgbHistObserverConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError SetQrtcFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
+  DisplayError SetSPRState(SDMParcel *input_parcel, SDMParcel *output_parcel);
 
   typedef DisplayError (SDMServices::*VndCmdSetHandler)(
       SDMParcel *input_parcel);
@@ -416,6 +418,7 @@ private:
       {SDM_SERVICE_SET_STC_FEATURE_CONFIG, &SDMServices::SetStcFeatureConfig},
       {SDM_SERVICE_SET_RGB_HISTOGRAM_CONFIG, &SDMServices::SetRgbHistObserverConfig},
       {SDM_SERVICE_SET_QRTC_FEATURE_CONFIG, &SDMServices::SetQrtcFeatureConfig},
+      {SDM_SERVICE_SET_SPR_STATE, &SDMServices::SetSPRState},
   };
 
   int bw_mode_release_fd_ = -1;
@@ -432,6 +435,10 @@ private:
   typedef DisplayError (SDMServices::*SetStcFeatureFunc)(int disp_id, StcFeatureCmdType cmd_type,
                                                          SDMParcel *input_parcel);
   std::map<StcFeatureCmdType, SetStcFeatureFunc> stc_feature_funcs_ = {};
+  bool spr_enabled_ = false;
+  bool demura_enabled_ = false;
+  bool demuratn_enabled_ = false;
+  bool qrtc_enabled_ = false;
 };
 
 } // namespace sdm

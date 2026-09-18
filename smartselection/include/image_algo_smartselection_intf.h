@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <cstddef>
+#include <cstdint>
 
 // GenericIntf<ParamEnum, OpsEnum, PayloadType> — same base template used by ClstcInterface.
 #include <private/generic_intf.h>
@@ -35,90 +37,146 @@ namespace imagealgo {
 // output (GenericPayload*) is unused (pass nullptr) for all current operations.
 // ---------------------------------------------------------------------------
 enum SmartSelectionOp {
-    // kSSInit
-    //   input:  SmartSelectionInitInput*
-    //             .config_json  — optional JSON config string; if empty, loads from
-    //                             /vendor/etc/smartselection_config.json in adapter
-    //             .callback     — SmartSelectionEmitCallbackFn invoked when frames are emitted
-    //             .cookie       — opaque pointer passed unchanged to callback
-    //   output: nullptr
-    //   return: 0 on success, -EINVAL if pipeline already initialized or config missing,
-    //           -ENOMEM if pipeline allocation fails
-    kSSInit = 0,
+  // kSSInit
+  //   input:  SmartSelectionInitInput*
+  //             .config_json  — optional JSON config string; if empty, loads from
+  //                             /vendor/etc/smartselection_config.json in adapter
+  //             .callback     — SmartSelectionEmitCallbackFn invoked when frames are emitted
+  //             .cookie       — opaque pointer passed unchanged to callback
+  //   output: nullptr
+  //   return: 0 on success, -EINVAL if pipeline already initialized or config missing,
+  //           -ENOMEM if pipeline allocation fails
+  kSSInit = 0,
 
-    // kSSReconfigure
-    //   input:  std::string* — new CaptureConfig JSON; replaces the active config
-    //   output: nullptr
-    //   return: 0 on success, -EINVAL on failure
-    kSSReconfigure,
+  // kSSReconfigure
+  //   input:  std::string* — new CaptureConfig JSON; replaces the active config
+  //   output: nullptr
+  //   return: 0 on success, -EINVAL on failure
+  kSSReconfigure,
 
-    // kSSEnqueue
-    //   input:  SmartSelectionEnqueueInput*
-    //             .input_type    — selects buffer representation (default: kSSFrameNativeHandle)
-    //             .buffer        — native_handle_t*, AHardwareBuffer*, or GraphicBuffer*
-    //             .parcel_fd     — file descriptor (kSSFrameParcelFd only)
-    //             .metadata_json — JSON string passed directly to QaiorSS_enqueue() as metadataJson
-    //                              Required fields: appName, width, height, stride,
-    //                              alignedHeight, format (see SmartSelectionEnqueueInput)
-    //   output: nullptr
-    //   return: 0 on success, -EINVAL on failure
-    //   note:   results are delivered asynchronously via the emit callback
-    kSSEnqueue,
+  // kSSEnqueue
+  //   input:  SmartSelectionEnqueueInput*
+  //             .input_type    — selects buffer representation (default: kSSFrameNativeHandle)
+  //             .buffer        — native_handle_t*, AHardwareBuffer*, or GraphicBuffer*
+  //             .parcel_fd     — file descriptor (kSSFrameParcelFd only)
+  //             .metadata_json — JSON string passed directly to QaiorSS_enqueue() as metadataJson
+  //                              Required fields: appName, width, height, stride,
+  //                              alignedHeight, format (see SmartSelectionEnqueueInput)
+  //   output: nullptr
+  //   return: 0 on success, -EINVAL on failure
+  //   note:   results are delivered asynchronously via the emit callback
+  kSSEnqueue,
 
-    // kSSFlushByConfig
-    //   input:  std::string* — JSON filter identifying which app's frames to flush
-    //   output: nullptr
-    //   return: 0 on success, -EINVAL on failure
-    //   note:   triggers emit callback with selected/rejected frames matching the filter
-    kSSFlushByConfig,
+  // kSSFlushByConfig
+  //   input:  std::string* — JSON filter identifying which app's frames to flush
+  //   output: nullptr
+  //   return: 0 on success, -EINVAL on failure
+  //   note:   triggers emit callback with selected/rejected frames matching the filter
+  kSSFlushByConfig,
 
-    // kSSFlushAll
-    //   input:  nullptr (no input payload needed)
-    //   output: nullptr
-    //   return: 0 on success, -EINVAL on failure
-    //   note:   triggers emit callback with all buffered frames across all queues
-    kSSFlushAll,
+  // kSSFlushAll
+  //   input:  nullptr (no input payload needed)
+  //   output: nullptr
+  //   return: 0 on success, -EINVAL on failure
+  //   note:   triggers emit callback with all buffered frames across all queues
+  kSSFlushAll,
 
-    // kSSDeleteByConfig
-    //   input:  std::string* — JSON filter identifying which app's frames to delete
-    //   output: SmartSelectionDeleteResult* — deleted frames returned to caller
-    //   return: 0 on success, -EINVAL on failure
-    //   note:   deleted frames are returned via output; no emit callback fired.
-    //           For kSSFrameParcelFd frames: caller MUST close() parcel_fd.
-    //           For kSSFrameAHardwareBuffer frames: caller MUST call AHardwareBuffer_release().
-    //           Pass output=nullptr to discard deleted frames (adapter closes fds internally).
-    kSSDeleteByConfig,
+  // kSSDeleteByConfig
+  //   input:  std::string* — JSON filter identifying which app's frames to delete
+  //   output: SmartSelectionDeleteResult* — deleted frames returned to caller
+  //   return: 0 on success, -EINVAL on failure
+  //   note:   deleted frames are returned via output; no emit callback fired.
+  //           For kSSFrameParcelFd frames: caller MUST close() parcel_fd.
+  //           For kSSFrameAHardwareBuffer frames: caller MUST call AHardwareBuffer_release().
+  //           Pass output=nullptr to discard deleted frames (adapter closes fds internally).
+  kSSDeleteByConfig,
 
-    // kSSDeleteAll
-    //   input:  nullptr (no input payload needed)
-    //   output: SmartSelectionDeleteResult* — deleted frames returned to caller
-    //   return: 0 on success, -EINVAL on failure
-    //   note:   deleted frames are returned via output; no emit callback fired.
-    //           For kSSFrameParcelFd frames: caller MUST close() parcel_fd.
-    //           For kSSFrameAHardwareBuffer frames: caller MUST call AHardwareBuffer_release().
-    //           Pass output=nullptr to discard deleted frames (adapter closes fds internally).
-    kSSDeleteAll,
+  // kSSDeleteAll
+  //   input:  nullptr (no input payload needed)
+  //   output: SmartSelectionDeleteResult* — deleted frames returned to caller
+  //   return: 0 on success, -EINVAL on failure
+  //   note:   deleted frames are returned via output; no emit callback fired.
+  //           For kSSFrameParcelFd frames: caller MUST close() parcel_fd.
+  //           For kSSFrameAHardwareBuffer frames: caller MUST call AHardwareBuffer_release().
+  //           Pass output=nullptr to discard deleted frames (adapter closes fds internally).
+  kSSDeleteAll,
 
-    // kSSDeinit
-    //   input:  nullptr (no input payload needed)
-    //   output: nullptr
-    //   return: 0 on success, -EINVAL if pipeline not initialized
-    //   note:   destroys pipeline/context; adapter remains loaded for re-initialization
-    //           via a subsequent kSSInit call without reloading the library
-    kSSDeinit,
+  // kSSDeinit
+  //   input:  nullptr (no input payload needed)
+  //   output: nullptr
+  //   return: 0 on success, -EINVAL if pipeline not initialized
+  //   note:   destroys pipeline/context; adapter remains loaded for re-initialization
+  //           via a subsequent kSSInit call without reloading the library
+  kSSDeinit,
 
-    // kSSWaitUntilIdle
-    //   input:  SmartSelectionWaitInput*
-    //             .timeout_ms — maximum wait time in milliseconds (default: 5000)
-    //   output: nullptr
-    //   return: 0 if pipeline became idle within timeout
-    //           -ETIMEDOUT if timeout expired before pipeline became idle
-    //           -EINVAL if pipeline not initialized or timeout_ms is negative
-    //   note:   intended for test/debug use; call before kSSFlushAll to ensure all
-    //           enqueued frames have been processed
-    kSSWaitUntilIdle,
+  // kSSWaitUntilIdle
+  //   input:  SmartSelectionWaitInput*
+  //             .timeout_ms — maximum wait time in milliseconds (default: 5000)
+  //   output: nullptr
+  //   return: 0 if pipeline became idle within timeout
+  //           -ETIMEDOUT if timeout expired before pipeline became idle
+  //           -EINVAL if pipeline not initialized or timeout_ms is negative
+  //   note:   intended for test/debug use; call before kSSFlushAll to ensure all
+  //           enqueued frames have been processed
+  kSSWaitUntilIdle,
 
-    kSSOpMax = 0xFF,   ///< Reserved; used for bounds checking
+  // kSSFlushSelected
+  //   input:  SmartSelectionFlushSelectedInput*
+  //             .app_name — null-terminated UTF-8 app name (must not be empty)
+  //             .user_id  — optional user-id filter; empty string to ignore
+  //   output: nullptr
+  //   return: 0 on success,
+  //           -EINVAL if pipeline not initialized, app_name is empty, or
+  //                   app/user_id not found
+  //   note:   emits only screenshots already selected for the given app via the
+  //           emit callback; clears the selector's internal queue for that app.
+  //           Pending (not-yet-selected) tasks are left untouched.
+  kSSFlushSelected,
+
+  // kSSQuerySelectorStatus
+  //   input:  SmartSelectionQuerySelectorInput*
+  //             .app_name — null-terminated UTF-8 string identifying the app pipeline.
+  //   output: SmartSelectionQuerySelectorOutput*
+  //             .selected_count — number of selected screenshots (>=0), or -1 on error
+  //   return: 0 on success, -EINVAL if pipeline not initialized or app_name is empty
+  //   note:   does not modify any internal state; safe to call at any time after kSSInit
+  kSSQuerySelectorStatus,
+
+  // kSSSetQueueThresholdCallback
+  //   input:  SmartSelectionSetQueueThresholdCallbackInput*
+  //             .callback  — invoked when selected queue crosses threshold/back below
+  //             .cookie    — opaque pointer returned to callback
+  //   output: nullptr
+  //   return: 0 on success
+  //   note:   maps directly to QaiorSS_setQueueThresholdCallback().
+  //           Queue threshold configuration is performed separately via
+  //           kSSConfigureQueueThreshold(), matching the SDK E2E flow.
+  kSSSetQueueThresholdCallback,
+
+  // kSSSetBufferReleaseCallback
+  //   input:  SmartSelectionSetBufferReleaseCallbackInput*
+  //             .callback — invoked when SmartSelection has consumed a buffer
+  //             .cookie   — opaque pointer returned to callback as userData
+  //   output: nullptr
+  //   return: 0 on success
+  //   note:   maps to QaiorSS_setBufferReleaseCallback(). This is the earliest-safe
+  //           notification that the client may reuse/release the submitted buffer.
+  kSSSetBufferReleaseCallback,
+
+  // kSSConfigureQueueThreshold
+  //   input:  SmartSelectionConfigureQueueThresholdInput*
+  //             .app_name  — configured app pipeline to monitor
+  //             .threshold — selected screenshot queue threshold
+  //             .enabled   — true to enable notifications, false to disable
+  //   output: nullptr
+  //   return: 0 on success
+  //   note:   maps directly to QaiorSS_configureQueueThreshold().
+  //           Exposed separately because the SDK documents this as a runtime
+  //           reconfiguration call and E2E tests invoke it independently from
+  //           QaiorSS_setQueueThresholdCallback().
+  kSSConfigureQueueThreshold,
+
+  kSSOpMax = 0xFF,  ///< Reserved; used for bounds checking
 };
 
 // ---------------------------------------------------------------------------
@@ -139,8 +197,7 @@ enum SmartSelectionOp {
 //
 // Do NOT delete SmartSelectionIntf* directly; use shared_ptr (returned by CreateAdapter).
 // ---------------------------------------------------------------------------
-typedef sdm::GenericIntf<int, SmartSelectionOp, sdm::GenericPayload>
-    SmartSelectionIntf;
+typedef sdm::GenericIntf<int, SmartSelectionOp, sdm::GenericPayload> SmartSelectionIntf;
 
 // ---------------------------------------------------------------------------
 // Payload Structures
@@ -154,28 +211,28 @@ typedef sdm::GenericIntf<int, SmartSelectionOp, sdm::GenericPayload>
 // in the public interface so clients do not need to include internal headers.
 // ---------------------------------------------------------------------------
 enum SmartSelectionFrameInputType {
-    /// buffer = native_handle_t* from CWB/BufferAllocator.
-    /// The adapter converts it to AHardwareBuffer via
-    /// AHardwareBuffer_createFromHandle(CLONE) internally.
-    /// This is the default (backward-compatible) mode.
-    kSSFrameNativeHandle    = 0,
+  /// buffer = native_handle_t* from CWB/BufferAllocator.
+  /// The adapter converts it to AHardwareBuffer via
+  /// AHardwareBuffer_createFromHandle(CLONE) internally.
+  /// This is the default (backward-compatible) mode.
+  kSSFrameNativeHandle = 0,
 
-    /// buffer = AHardwareBuffer* (NDK).
-    /// The adapter calls AHardwareBuffer_acquire() and passes it directly to
-    /// QaiorSS_enqueue() as QAIOR_SS_FRAME_AHARDWAREBUFFER.
-    /// AHardwareBuffer_release() is called in the emit callback.
-    kSSFrameAHardwareBuffer = 1,
+  /// buffer = AHardwareBuffer* (NDK).
+  /// The adapter calls AHardwareBuffer_acquire() and passes it directly to
+  /// QaiorSS_enqueue() as QAIOR_SS_FRAME_AHARDWAREBUFFER.
+  /// AHardwareBuffer_release() is called in the emit callback.
+  kSSFrameAHardwareBuffer = 1,
 
-    /// buffer = android::GraphicBuffer* (platform).
-    /// Passed directly to QaiorSS_enqueue() as QAIOR_SS_FRAME_GRAPHICBUFFER.
-    /// Caller must keep the GraphicBuffer alive until the emit callback fires.
-    kSSFrameGraphicBuffer   = 2,
+  /// buffer = android::GraphicBuffer* (platform).
+  /// Passed directly to QaiorSS_enqueue() as QAIOR_SS_FRAME_GRAPHICBUFFER.
+  /// Caller must keep the GraphicBuffer alive until the emit callback fires.
+  kSSFrameGraphicBuffer = 2,
 
-    /// parcel_fd = file descriptor.
-    /// Passed directly to QaiorSS_enqueue() as QAIOR_SS_FRAME_PARCELFD.
-    /// The library dups the fd internally; caller retains ownership of the
-    /// original fd.
-    kSSFrameParcelFd        = 3,
+  /// parcel_fd = file descriptor.
+  /// Passed directly to QaiorSS_enqueue() as QAIOR_SS_FRAME_PARCELFD.
+  /// The library dups the fd internally; caller retains ownership of the
+  /// original fd.
+  kSSFrameParcelFd = 3,
 };
 
 // ---------------------------------------------------------------------------
@@ -214,6 +271,10 @@ enum SmartSelectionFrameInputType {
 ///   kSSFrameParcelFd            → kSSFrameParcelFd, parcel_fd = dup'd fd
 ///                                 (caller MUST close(parcel_fd))
 ///
+/// cookie: the per-frame OEM cookie set in SmartSelectionEnqueueInput::cookie at
+///         enqueue time. Passed through unchanged from QaiorSS_FrameHandle_t::cookie.
+///         Useful for correlating emit results back to specific enqueued frames.
+///
 /// metadata_json format (UTF-8 JSON string, deep-copied from the library):
 /// {
 ///   "appName":      "<string>",   // application identifier from SmartSelectionEnqueueInput
@@ -226,16 +287,17 @@ enum SmartSelectionFrameInputType {
 ///                                 //               "RGB888"
 /// }
 struct SmartSelectionFrame {
-    SmartSelectionFrameInputType type        = kSSFrameNativeHandle;
-    void*                        buffer      = nullptr;  ///< native_handle_t*, AHardwareBuffer*, or GraphicBuffer*
-    int                          parcel_fd   = -1;       ///< valid when type == kSSFrameParcelFd
-    void*                        other_handle = nullptr; ///< OEM-defined handle
-    std::string                  metadata_json;          ///< deep copy of per-frame JSON metadata
+  SmartSelectionFrameInputType type = kSSFrameNativeHandle;
+  void *buffer = nullptr;        ///< native_handle_t*, AHardwareBuffer*, or GraphicBuffer*
+  int parcel_fd = -1;            ///< valid when type == kSSFrameParcelFd
+  void *other_handle = nullptr;  ///< OEM-defined handle
+  void *cookie = nullptr;        ///< per-frame OEM cookie (passed through from enqueue)
+  std::string metadata_json;     ///< deep copy of per-frame JSON metadata
 };
 
 struct SmartSelectionEmitResult {
-    std::vector<SmartSelectionFrame> selected_frames;
-    std::vector<SmartSelectionFrame> rejected_frames;
+  std::vector<SmartSelectionFrame> selected_frames;
+  std::vector<SmartSelectionFrame> rejected_frames;
 };
 
 /// Output for ProcessOps(kSSDeleteByConfig) and ProcessOps(kSSDeleteAll).
@@ -244,18 +306,16 @@ struct SmartSelectionEmitResult {
 /// For kSSFrameParcelFd: caller MUST close() parcel_fd.
 /// For kSSFrameAHardwareBuffer: caller MUST call AHardwareBuffer_release(buffer).
 struct SmartSelectionDeleteResult {
-    std::vector<SmartSelectionFrame> deleted_frames;
+  std::vector<SmartSelectionFrame> deleted_frames;
 };
 
-typedef void (*SmartSelectionEmitCallbackFn)(
-    const SmartSelectionEmitResult* result,
-    void* cookie);
+typedef void (*SmartSelectionEmitCallbackFn)(const SmartSelectionEmitResult *result, void *cookie);
 
 /// Input for ProcessOps(kSSInit)
 struct SmartSelectionInitInput {
-    std::string config_json;              ///< optional: overrides file config
-    SmartSelectionEmitCallbackFn callback = nullptr;
-    void* cookie = nullptr;
+  std::string config_json;  ///< optional: overrides file config
+  SmartSelectionEmitCallbackFn callback = nullptr;
+  void *cookie = nullptr;
 };
 
 /// Input for ProcessOps(kSSEnqueue)
@@ -287,28 +347,108 @@ struct SmartSelectionInitInput {
 /// NOTE: Both cwb-test and libImageAlgoAdapter_smartselection.so MUST be
 /// compiled with the same version of this struct (GenericPayload sizeof check).
 struct SmartSelectionEnqueueInput {
-    /// Frame input type — controls how buffer/parcel_fd is interpreted.
-    SmartSelectionFrameInputType input_type = kSSFrameNativeHandle;
+  /// Frame input type — controls how buffer/parcel_fd is interpreted.
+  SmartSelectionFrameInputType input_type = kSSFrameNativeHandle;
 
-    /// Buffer pointer — interpretation depends on input_type:
-    ///   kSSFrameNativeHandle:    native_handle_t* (converted to AHB by adapter)
-    ///   kSSFrameAHardwareBuffer: AHardwareBuffer*
-    ///   kSSFrameGraphicBuffer:   android::GraphicBuffer*
-    ///   kSSFrameParcelFd:        unused (set parcel_fd instead)
-    void*       buffer    = nullptr;
+  /// Buffer pointer — interpretation depends on input_type:
+  ///   kSSFrameNativeHandle:    native_handle_t* (converted to AHB by adapter)
+  ///   kSSFrameAHardwareBuffer: AHardwareBuffer*
+  ///   kSSFrameGraphicBuffer:   android::GraphicBuffer*
+  ///   kSSFrameParcelFd:        unused (set parcel_fd instead)
+  void *buffer = nullptr;
 
-    /// File descriptor — used only when input_type == kSSFrameParcelFd.
-    /// The library dups it internally; caller retains ownership of the original fd.
-    int         parcel_fd = -1;
+  /// File descriptor — used only when input_type == kSSFrameParcelFd.
+  /// The library dups it internally; caller retains ownership of the original fd.
+  int parcel_fd = -1;
 
-    /// JSON metadata string passed directly to QaiorSS_enqueue() as metadataJson.
-    /// Must contain: appName, width, height, stride, alignedHeight, format.
-    std::string metadata_json;
+  /// JSON metadata string passed directly to QaiorSS_enqueue() as metadataJson.
+  /// Must contain: appName, width, height, stride, alignedHeight, format.
+  std::string metadata_json;
+
+  /// OEM-defined per-frame cookie stored in QaiorSS_FrameHandle_t::cookie.
+  /// Passed through unchanged to SmartSelectionFrame::cookie in the emit callback.
+  /// Use this to correlate emit results back to specific enqueued frames
+  /// (e.g. a pointer to a filename string or a frame sequence number).
+  /// The adapter does NOT dereference or manage the lifetime of this pointer.
+  void *cookie = nullptr;
 };
 
 /// Input for ProcessOps(kSSWaitUntilIdle)
 struct SmartSelectionWaitInput {
-    int32_t timeout_ms = 5000;
+  int32_t timeout_ms = 5000;
+};
+
+/// Input for ProcessOps(kSSFlushSelected)
+struct SmartSelectionFlushSelectedInput {
+  std::string app_name;  ///< app name to flush selected frames for (required, non-empty)
+  std::string user_id;   ///< optional user-id filter; empty string to ignore
+};
+
+/// Input for ProcessOps(kSSQuerySelectorStatus)
+struct SmartSelectionQuerySelectorInput {
+  std::string app_name;  ///< app name to query (required, non-empty)
+};
+
+/// Output for ProcessOps(kSSQuerySelectorStatus)
+struct SmartSelectionQuerySelectorOutput {
+  int selected_count = -1;  ///< number of selected screenshots (>=0), or -1 on error
+};
+
+/// Event delivered by ProcessOps(kSSSetQueueThresholdCallback).
+/// Mirrors QaiorSS_QueueThresholdEvent_t but deep-copies strings.
+struct SmartSelectionQueueThresholdEvent {
+  std::string app_name;
+  std::string user_id;
+  size_t current_queue_size = 0;
+  size_t threshold = 0;
+  int64_t timestamp_ms = 0;
+  bool threshold_crossed = false;  ///< true: crossed above, false: back below
+};
+
+typedef void (*SmartSelectionQueueThresholdCallbackFn)(
+    const SmartSelectionQueueThresholdEvent *event, void *cookie);
+
+/// Input for ProcessOps(kSSSetQueueThresholdCallback).
+///
+/// This directly maps to QaiorSS_setQueueThresholdCallback().
+/// Queue threshold enable/disable and threshold value are configured separately
+/// via ProcessOps(kSSConfigureQueueThreshold), matching the SDK E2E flow.
+/// Pass callback=nullptr to disable queue threshold notifications.
+struct SmartSelectionSetQueueThresholdCallbackInput {
+  SmartSelectionQueueThresholdCallbackFn callback = nullptr;
+  void *cookie = nullptr;
+};
+
+/// Event delivered by ProcessOps(kSSSetBufferReleaseCallback).
+///
+/// The callback is fired when SmartSelection has finished reading the buffer,
+/// which can happen before the final emit callback. For kSSFrameNativeHandle,
+/// buffer is the original native_handle_t* passed at enqueue time. For direct
+/// AHardwareBuffer/GraphicBuffer inputs, buffer is the original pointer passed
+/// to the adapter. The adapter releases only its internal reference/clone.
+struct SmartSelectionBufferReleaseEvent {
+  SmartSelectionFrameInputType type = kSSFrameNativeHandle;
+  void *buffer = nullptr;
+  void *cookie = nullptr;  ///< per-frame cookie supplied in SmartSelectionEnqueueInput
+};
+
+typedef void (*SmartSelectionBufferReleaseCallbackFn)(const SmartSelectionBufferReleaseEvent *event,
+                                                      void *cookie);
+
+/// Input for ProcessOps(kSSSetBufferReleaseCallback).
+/// Pass callback=nullptr to disable buffer release notifications.
+struct SmartSelectionSetBufferReleaseCallbackInput {
+  SmartSelectionBufferReleaseCallbackFn callback = nullptr;
+  void *cookie = nullptr;
+};
+
+/// Input for ProcessOps(kSSConfigureQueueThreshold).
+/// This directly maps to QaiorSS_configureQueueThreshold() so callers can
+/// update threshold/enabled at runtime without re-registering the callback.
+struct SmartSelectionConfigureQueueThresholdInput {
+  std::string app_name;  ///< configured app pipeline to monitor (required)
+  size_t threshold = 0;  ///< selected queue size threshold
+  bool enabled = true;   ///< true to enable notifications, false to disable
 };
 
 }  // namespace imagealgo
@@ -330,8 +470,7 @@ struct AdapterTraits;  // forward declaration (primary template in image_algo_in
 
 template <>
 struct AdapterTraits<SmartSelectionIntf> {
-    static constexpr const char* kLibPath =
-        "/vendor/lib64/libImageAlgoAdapter_smartselection.so";
+  static constexpr const char *kLibPath = "/vendor/lib64/libImageAlgoAdapter_smartselection.so";
 };
 
 }  // namespace imagealgo

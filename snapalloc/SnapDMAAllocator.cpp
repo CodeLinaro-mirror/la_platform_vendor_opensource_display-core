@@ -161,6 +161,7 @@ Error SnapDMAAllocator::SecureMemPerms(AllocData *ad) {
 }
 
 void SnapDMAAllocator::GetHeapInfo(vendor_qti_hardware_display_common_BufferUsage usage,
+                                   vendor_qti_hardware_display_common_HeapType heap_name_opt,
                                    bool sensor_flag, bool use_uncached, std::string *dma_heap_name,
                                    std::vector<std::string> *dma_vm_names, unsigned int *alloc_type,
                                    unsigned int *flags, unsigned int *alloc_size) {
@@ -172,6 +173,12 @@ void SnapDMAAllocator::GetHeapInfo(vendor_qti_hardware_display_common_BufferUsag
     heap_name = "qcom,system-uncached";
   }
   unsigned int type = 0;
+  if (heap_name_opt == SnapHeapType::HEAP_TCM) {
+    *dma_heap_name = "qcom,sc-tcm-heap";
+    *alloc_type = type;
+    return;
+  }
+
   if (static_cast<uint64_t>(usage & vendor_qti_hardware_display_common_BufferUsage::PROTECTED)) {
     if (usage & vendor_qti_hardware_display_common_BufferUsage::QTI_PRIVATE_SECURE_DISPLAY) {
       heap_name = "qcom,display";

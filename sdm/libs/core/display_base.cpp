@@ -54,6 +54,12 @@ namespace sdm {
 
 #define ABC_LIBRARY_NAME "libabc.so"
 #define QRTC_LIBRARY_NAME "libqrtc.so"
+#define CLAMP_U32(v, lo, hi) (UINT32(((v) < (lo)) ? (lo) : (((v) > (hi)) ? (hi) : (v))))
+
+#define ROUNDED_DNSC_SCALE(full, dnsc) \
+  (UINT32(((UINT64(2U) * UINT64(full)) + UINT64(dnsc)) / (UINT64(2U) * UINT64(dnsc))))
+
+#define MIN_SCALE_TO_FIT_IN_BUFFER(full, buf) (UINT32((UINT64(full) / (UINT64(buf) + 1U)) + 1U))
 
 std::atomic<uint32_t> DisplayBase::hw_rc_blocks_in_use_(0);
 bool DisplayBase::display_power_reset_pending_ = false;
@@ -184,7 +190,29 @@ DisplayError DisplayBase::Init() {
     HWResourceInfo res_info;
     info_intf->second->GetHWResourceInfo(&res_info);
     wb_downscale_supports_ |= info_intf->second->IsDownscaledCwbSupported(-1 /* For any WB */);
+    wb_qrtc_supports_ |= !!res_info.qrtc_count;
     hw_resource_info_.push_back(res_info);
+    // Assumption: considering for all cores with all WBs have same downscale ratio support.
+    if (wb_dnsc_min_ratio_ && wb_dnsc_max_ratio_) {
+      continue;
+    }
+
+    HWDisplaysInfo displays_info = {};
+    if (info_intf->second->GetDisplaysStatus(&displays_info) != kErrorNone) {
+      continue;
+    }
+
+    for (auto &iter : displays_info) {
+      if (iter.second.display_type != kVirtual) {
+        continue;
+      }
+      auto &vinfo = iter.second;
+      if (vinfo.wb_dnsc_min_ratio && vinfo.wb_dnsc_max_ratio > vinfo.wb_dnsc_min_ratio) {
+        wb_dnsc_min_ratio_ = vinfo.wb_dnsc_min_ratio;
+        wb_dnsc_max_ratio_ = vinfo.wb_dnsc_max_ratio;
+        break;
+      }
+    }
   }
 
   uint32_t num_blending_stages = INT_MAX;
@@ -1709,9 +1737,28 @@ bool DisplayBase::IsLSRSupported() {
 bool DisplayBase::IsPrimaryCommitNeeded() {
   if (!client_ctx_.hw_panel_info.is_lsr_display) {
     lsr_first_commit_ = true;
+    gpu_reproj_init_commit_count_ = 0;
     return true;
   }
 
+  // GPU reproj (seraph/GPU LSR path): commit exactly twice — once per ping-pong slot —
+  // to register both output buffers with the DPU.  After that, DCP drives the buffer
+  // switching autonomously via IPCC; no further SDM commits are needed.
+  if (gpu_reproj_active_) {
+    if (gpu_reproj_init_commit_count_ < 2) {
+      gpu_reproj_init_commit_count_++;
+      DLOGI("GPU reproj: init commit %d/2 — registering slot buffer with DPU",
+            gpu_reproj_init_commit_count_);
+      return true;
+    }
+    DLOGV_IF(kTagDisplay, "GPU reproj: skipping primary commit — DCP/IPCC drives buffer flip");
+    return false;
+  }
+
+  // GPU reproj not active — reset counter for next activation.
+  gpu_reproj_init_commit_count_ = 0;
+
+  // IWE LSR path (original logic unchanged).
   bool lsr_enabled = (disp_layer_stack_->stack_info.iwe_repro_left_index != -1) ||
                      (disp_layer_stack_->stack_info.iwe_repro_right_index != -1);
   bool is_cwb_commit = (disp_layer_stack_->stack_info.output_buffer != nullptr);
@@ -1730,6 +1777,21 @@ bool DisplayBase::IsPrimaryCommitNeeded() {
   // CWB teardown commit needed as we are not doing commit on primary for LSR.
   if (!is_cwb_commit && cwb_with_lsr_active_) {
     cwb_with_lsr_active_ = is_cwb_commit;
+    return true;
+  }
+
+  bool current_secure = false;
+  for (auto &[core_id, hw_info] : disp_layer_stack_->info) {
+    for (auto &hw_layer : hw_info.hw_layers) {
+      if (hw_layer.composition == kCompositionIWERepro) {
+        current_secure = hw_layer.input_buffer.flags.secure;
+        break;
+      }
+    }
+  }
+  if (current_secure != lsr_secure_state_) {
+    lsr_secure_state_ = current_secure;
+    DLOGV("LSR secure state changed to %d, forcing primary DPU commit", current_secure);
     return true;
   }
 
@@ -1808,7 +1870,7 @@ void DisplayBase::CommitThread() {
         }
       }
 
-      RefreshOnIdleTimeoutForCwb(false);
+      RefreshOnIdleTimeoutForCwb(false, kClientRefresh);
       continue;
     }
 
@@ -1841,7 +1903,7 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
     info.second.output_buffer = layer_stack->output_buffer;
     info.second.cwb_id = DisplayId(layer_stack->cwb_id).GetConnId(info.first);
     info.second.hw_cwb_config = layer_stack->cwb_config;
-    if (info.second.cwb_id > 0 && !info.second.dnsc_cfg.enabled &&
+    if (!wb_qrtc_supports_ && info.second.cwb_id > 0 && !info.second.dnsc_cfg.enabled &&
         (info.second.hw_cwb_config->cwb_control_params.needs_downscale ||
          info.second.hw_cwb_config->cwb_control_params.needs_1x_downscale)) {
       info.second.hw_cwb_config->cwb_control_params.dnsc_configured = false;
@@ -2111,6 +2173,14 @@ DisplayError DisplayBase::PostCommit() {
     // TODO: Need to clean up and add generic logic
     if (!client_ctx_.display_attributes.fsc_panel) {
       for (auto &hw_layer : info.second.hw_layers) {
+        // Skip closing FD for CWB output buffer
+        // CWB output buffer is managed by CWB manager and needs to persist
+        // across frames for caching in hw_device_drm.cpp
+        if (info.second.output_buffer != nullptr &&
+            hw_layer.input_buffer.handle_id == info.second.output_buffer->handle_id) {
+          continue;  // Don't close CWB output buffer FD
+        }
+
         CloseFd(&hw_layer.input_buffer.planes[0].fd);
       }
     }
@@ -2120,6 +2190,28 @@ DisplayError DisplayBase::PostCommit() {
 
   if (clearstack_.load()) {
     uint8_t clearindex = (disp_stack_index_ + 1) % kDispStackCount;
+    // Defer ~FrameBufferObject for GPU reproj batch commits to avoid RemoveFbId()
+    // while the DRM driver still holds active SMMU mappings from the previous commit.
+    // Guard on the CURRENT frame's gpu_reproj_batch_size — the old stack's is 0.
+    bool is_gpu_reproj_batch = false;
+    for (auto &[core_id, hw_info] : disp_layer_stack_->info) {
+      if (hw_info.gpu_reproj_batch_size > 0) {
+        is_gpu_reproj_batch = true;
+        break;
+      }
+    }
+    if (is_gpu_reproj_batch) {
+      prev_pending_buffer_maps_.clear();
+      // Rotate: current pending → prev_pending, collect new pending from old stack.
+      prev_pending_buffer_maps_ = std::move(pending_buffer_maps_);
+      for (auto &[core_id, hw_layers_info] : disp_layer_stacks_[clearindex].info) {
+        for (auto &layer : hw_layers_info.hw_layers) {
+          if (layer.buffer_map) {
+            pending_buffer_maps_.push_back(layer.buffer_map);
+          }
+        }
+      }
+    }
     disp_layer_stacks_[clearindex].Clear();
     clearstack_.store(false);
   }
@@ -3282,6 +3374,13 @@ DisplayError DisplayBase::GetRefreshRateRange(uint32_t *min_refresh_rate,
 
 DisplayError DisplayBase::HandlePendingVSyncEnable(const shared_ptr<Fence> &retire_fence) {
   if (vsync_enable_pending_) {
+    if (is_ssr_active_ || is_lsr_ssr_active_ || ssr_end_in_progress_) {
+      // Defer vsync enable while SSR is active or during SSR end power restore.
+      // is_ssr_active_ covers SSR start; ssr_end_in_progress_ covers the window
+      // between is_ssr_active_ being cleared and PerformSubsystemRestart completing.
+      DLOGI("Deferring vsync enable during SSR for display %d-%d", display_id_, display_type_);
+      return kErrorNone;
+    }
     // Retire fence signalling confirms that CRTC enabled, hence wait for retire fence before
     // we enable vsync
     Fence::Wait(retire_fence_);
@@ -3302,7 +3401,11 @@ DisplayError DisplayBase::SetVSyncState(bool enable) {
 }
 
 DisplayError DisplayBase::SetVSyncStateLocked(bool enable) {
-  if ((state_ == kStateOff || avoid_vsync_enable_ || secure_event_ != kSecureEventMax) && enable) {
+  // Defer vsync enable if: display is off, vsync is explicitly blocked,
+  // a secure/TUI event is active, or SSR (primary/LSR) is in progress or ending.
+  if ((state_ == kStateOff || avoid_vsync_enable_ || secure_event_ != kSecureEventMax ||
+       is_ssr_active_ || is_lsr_ssr_active_ || ssr_end_in_progress_) &&
+      enable) {
     DLOGW("Can't enable vsync when display %d-%d is powered off or SecureDisplay/TUI in progress",
           display_id_, display_type_);
     vsync_enable_pending_ = true;
@@ -3846,9 +3949,15 @@ void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
   }
 
   bool is_lsr_commit = (disp_layer_stack_->stack_info.iwe_repro_left_index != -1);
+
   // Copy the acquire fence from clients layers  to HWLayers
   for (auto& info : disp_layer_stack_->info) {
     info.second.lsr_commit = is_lsr_commit;
+    // GPU reproj init commit batch params — forwarded to hw_peripheral_drm for DRM property set.
+    info.second.gpu_reproj_batch_size = layer_stack->gpu_reproj_batch_size;
+    info.second.gpu_reproj_batch_index = layer_stack->gpu_reproj_batch_index;
+    info.second.gpu_reproj_batch_type = layer_stack->gpu_reproj_batch_type;
+    info.second.gpu_reproj_shared_buffer = layer_stack->gpu_reproj_shared_buffer;
     uint32_t hw_layers_count = UINT32(info.second.hw_layers.size());
 
     for (uint32_t i = 0; i < hw_layers_count; i++) {
@@ -3860,7 +3969,8 @@ void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
         display_type_, info.second.index.at(i), i);
       }
 
-      bool reprojection_buffer = (hw_layer.composition == kCompositionIWERepro);
+      bool reprojection_buffer = (hw_layer.composition == kCompositionIWERepro) ||
+                                  (layer_stack->gpu_reproj_batch_size > 0);
       auto plane_index =
           reprojection_buffer ? i % client_ctx_.display_attributes.num_fsc_fields : 0;
       hw_layer.input_buffer.planes[0].fd =
@@ -4429,7 +4539,7 @@ DisplayError DisplayBase::GetPendingDisplayState(DisplayState *disp_state) {
       if (error != kErrorNone) {
         return error;
       }
-      event_handler_->Refresh();
+      event_handler_->Refresh(kClientRefresh);
       break;
     }
     case kPowerStateDozeSuspend:
@@ -4703,7 +4813,7 @@ void DisplayBase::MMRMEvent(uint32_t clk) {
 
   // Invalidate to retrigger clk calculation
   validated_ = false;
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 }
 
 void DisplayBase::WaitForCompletionAsync(shared_ptr<Fence> retire_fence, SyncPoints sync_points) {
@@ -5045,7 +5155,7 @@ void DisplayBase::ScreenRefresh() {
     /* do not skip validate */
     validated_ = false;
   }
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 }
 
 DisplayError DisplayBase::GetPanelFeatureInfo(PanelFeatureInfo *info) {
@@ -5220,8 +5330,8 @@ void DisplayBase::NotifyCwbDone(int32_t status, const LayerBuffer &buffer) {
   event_handler_->NotifyCwbDone(status, buffer);
 }
 
-void DisplayBase::Refresh() {
-  event_handler_->Refresh();
+void DisplayBase::Refresh(RefreshType type) {
+  event_handler_->Refresh(type);
 }
 
 void DisplayBase::OnCwbTeardown(bool sync_teardown) {
@@ -5270,6 +5380,129 @@ DisplayError DisplayBase::ValidateCwbRoiWithOutputBuffer(const LayerBuffer &outp
   }
 
   return kErrorNone;
+}
+
+bool DisplayBase::ValidateAndAdjustCwbDnscDimensions(uint32_t &dnsc_width, uint32_t &dnsc_height,
+                                                     uint32_t full_width, uint32_t full_height,
+                                                     uint32_t buf_width, uint32_t buf_height) {
+  // Early validation
+  if (dnsc_width == 0 || dnsc_height == 0 || full_width == 0 || full_height == 0 ||
+      buf_width == 0 || buf_height == 0) {
+    return false;
+  }
+
+  // Adjust for 1xN downscale
+  if (dnsc_width == full_width) {
+    DLOGW(
+        "1xN downscale is not supported as per expected output(%d, %d). "
+        "So, it is falling back to NxN downscale subsample on display %d-%d.",
+        dnsc_width, dnsc_height, display_id_, display_type_);
+    dnsc_width = UINT32((UINT64(full_width) * dnsc_height) / full_height);
+  }
+
+  return true;
+}
+
+uint32_t DisplayBase::CalculateScaleFactors(uint32_t full_dim, uint32_t req_dim, uint32_t buf_dim) {
+  // Clamp requested dimension to buffer size
+  req_dim = (req_dim > buf_dim) ? buf_dim : req_dim;
+
+  // Calculate required scale
+  uint32_t req_scale = ROUNDED_DNSC_SCALE(full_dim, req_dim);
+  req_scale = CLAMP_U32(req_scale, wb_dnsc_min_ratio_, wb_dnsc_max_ratio_);
+
+  // Calculate minimum fit scale
+  uint32_t fit_scale = MIN_SCALE_TO_FIT_IN_BUFFER(full_dim, buf_dim);
+  if (fit_scale > wb_dnsc_max_ratio_) {
+    return 0;  // Buffer insufficient
+  }
+
+  return (req_scale < fit_scale) ? fit_scale : req_scale;
+}
+
+uint32_t DisplayBase::FindClosestScaleForIntDim(uint32_t full_dim, uint32_t req_dim,
+                                                uint32_t buf_dim, bool prefer_h_scale) {
+  uint32_t req_scale = CalculateScaleFactors(full_dim, req_dim, buf_dim);
+
+  if (!req_scale) {
+    return 0;
+  }
+
+  if (full_dim % req_scale == 0 && (full_dim / req_scale <= buf_dim)) {
+    return req_scale;
+  }
+
+  auto &max_scale = wb_dnsc_max_ratio_;
+  auto &min_scale = wb_dnsc_min_ratio_;
+  for (int32_t i = 0; req_scale + i <= max_scale && req_scale - i > min_scale; i++) {
+    auto ls_ok = (full_dim % (req_scale - i) == 0) && (full_dim / (req_scale - i) <= buf_dim);
+    auto hs_ok = (full_dim % (req_scale + i) == 0) && (full_dim / (req_scale + i) <= buf_dim);
+    if (ls_ok || hs_ok) {
+      req_scale = ((prefer_h_scale || !ls_ok) && hs_ok) ? req_scale + i : req_scale - i;
+      break;
+    }
+  }
+
+  return req_scale;
+}
+
+void DisplayBase::AdjustCwbOutputOffset(LayerRect &ds_rect, uint32_t dnsc_width,
+                                        uint32_t dnsc_height, uint32_t buf_width,
+                                        uint32_t buf_height) {
+  // Validate and adjust output offset
+  if (UINT32(ds_rect.left + dnsc_width) > buf_width) {
+    ds_rect.left = 0.0f;
+  }
+  if (UINT32(ds_rect.top + dnsc_height) > buf_height) {
+    ds_rect.top = 0.0f;
+  }
+
+  ds_rect.right = ds_rect.left + dnsc_width;
+  ds_rect.bottom = ds_rect.top + dnsc_height;
+}
+
+bool DisplayBase::AlignCwbDnscDim(const LayerBuffer &output_buffer, CwbConfig &cwb_config) {
+  auto &ds_rect = cwb_config.cwb_downscaled_rect;
+  auto buf_width = UINT32(output_buffer.width);
+  auto buf_height = UINT32(output_buffer.height);
+  auto full_width = UINT32(cwb_config.cwb_full_rect.right - cwb_config.cwb_full_rect.left);
+  auto full_height = UINT32(cwb_config.cwb_full_rect.bottom - cwb_config.cwb_full_rect.top);
+  auto dnsc_width = UINT32(ds_rect.right - ds_rect.left);
+  auto dnsc_height = UINT32(ds_rect.bottom - ds_rect.top);
+  // UWBC ouput buffer format doesn't support downscale
+  if (output_buffer.usage & BufferUsage::QTI_ALLOC_UBWC) {
+    DLOGW("UBWC output is not supported while CWB downscaled mode is enabled! Display %d-%d",
+          display_id_, display_type_);
+    return false;
+  }
+  // Validate and adjust dimensions
+  if (!ValidateAndAdjustCwbDnscDimensions(dnsc_width, dnsc_height, full_width, full_height,
+                                          buf_width, buf_height)) {
+    return false;
+  }
+  // Find best integer dimensions for width and height
+  auto scale_x = FindClosestScaleForIntDim(full_width, dnsc_width, buf_width, false);
+  auto scale_y = FindClosestScaleForIntDim(full_height, dnsc_height, buf_height, true);
+  if (!scale_x || !scale_y) {
+    auto buf_dim = buf_width;
+    if (!scale_y) {
+      buf_dim = buf_height;
+    }
+    DLOGW("Buffer %s(%d) insufficient for max downscale ratio(%d) on display %d-%d",
+          (!scale_y) ? "height" : "width", buf_dim, wb_dnsc_max_ratio_, display_id_, display_type_);
+    return false;
+  }
+  // final downscale resolution
+  dnsc_width = full_width / scale_x;
+  dnsc_height = full_height / scale_y;
+  if (dnsc_width == 0 || dnsc_height == 0) {
+    DLOGW("Invalid downscale resolution detected with dnsc_subsample(%dx%d)! on display %d-%d",
+          scale_x, scale_y, display_id_, display_type_);
+    return false;
+  }
+  // Adjust output offset
+  AdjustCwbOutputOffset(ds_rect, dnsc_width, dnsc_height, buf_width, buf_height);
+  return true;
 }
 
 bool DisplayBase::ValidateCwbConfigForDownscale(const LayerBuffer &output_buffer,
@@ -5345,17 +5578,17 @@ bool DisplayBase::ValidateCwbConfigForDownscale(const LayerBuffer &output_buffer
   (height > output_buffer.height) && (height = output_buffer.height);
 
   // Validate output offset
-  (UINT32(ds_rect.left + width) > output_buffer.width) && (ds_rect.left = 0.0f);
-  (UINT32(ds_rect.top + height) > output_buffer.height) && (ds_rect.top = 0.0f);
-
-  ds_rect.right = ds_rect.left + width;
-  ds_rect.bottom = ds_rect.top + height;
+  AdjustCwbOutputOffset(ds_rect, width, height, output_buffer.width, output_buffer.height);
 
   if (!wb_downscale_supports_) {
     DLOGW(
         "DNSC_block is not supported to handle downscale! Still requested downscale output with"
         " Dest-Rectangle (%.f, %.f, %.f, %.f) on display %d-%d.",
         ds_rect.left, ds_rect.top, ds_rect.right, ds_rect.bottom, display_id_, display_type_);
+    return false;
+  }
+
+  if (wb_qrtc_supports_ && !AlignCwbDnscDim(output_buffer, cwb_config)) {
     return false;
   }
 
@@ -5464,7 +5697,7 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
     return error;
   }
 
-  RefreshOnIdleTimeoutForCwb(true);
+  RefreshOnIdleTimeoutForCwb(true, config.refresh_type);
 
   cwb_output_buf_.width = output_buffer.width;
   cwb_output_buf_.height = output_buffer.height;
@@ -5474,14 +5707,18 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
   return kErrorNone;
 }
 
-DisplayError DisplayBase::ReserveWBForDisplay(int32_t *wb_id) {
-  ClientLock lock(disp_mutex_);
-  return comp_manager_->ReserveWBForDisplay(display_comp_ctx_, wb_id);
+bool DisplayBase::HasPendingCwbRequest() {
+  return comp_manager_->HasPendingCwbRequest(display_comp_ctx_);
 }
 
-void DisplayBase::ReleaseWBFromDisplay(int32_t wb_id) {
+DisplayError DisplayBase::ReserveWBForDisplay(WbMapInfo *wb_info) {
   ClientLock lock(disp_mutex_);
-  comp_manager_->ReleaseWBFromDisplay(display_comp_ctx_, wb_id);
+  return comp_manager_->ReserveWBForDisplay(display_comp_ctx_, wb_info);
+}
+
+void DisplayBase::ReleaseWBFromDisplay() {
+  ClientLock lock(disp_mutex_);
+  comp_manager_->ReleaseWBFromDisplay(display_comp_ctx_);
 }
 
 bool DisplayBase::HandleCwbTeardown() {
@@ -5512,7 +5749,7 @@ uint32_t DisplayBase::GetAvailableMixerCount() {
   return max_count - cur_count;
 }
 
-void DisplayBase::RefreshOnIdleTimeoutForCwb(bool is_cwb_requested) {
+void DisplayBase::RefreshOnIdleTimeoutForCwb(bool is_cwb_requested, RefreshType refresh_type) {
   int idle_time_ms = disp_layer_stack_->stack_info.common_info.set_idle_time_ms;
   if (client_ctx_.hw_panel_info.mode == kModeCommand || idle_active_ms_ <= 0) {
     // Idle Timer is configured to notify display idle to AIDL clients
@@ -5520,11 +5757,12 @@ void DisplayBase::RefreshOnIdleTimeoutForCwb(bool is_cwb_requested) {
   }
 
   bool qsync_enabled = qsync_mode_ != kQSyncModeNone;
-  if (state_ == kStateOn && !enable_client_control_cwb_refresh_ && !force_refresh_to_process_cwb_ &&
+  bool demura_on_doze = demura_enable_ && (state_ == kStateDoze || state_ == kStateDozeSuspend);
+  if (!demura_on_doze && !enable_client_control_cwb_refresh_ && !force_refresh_to_process_cwb_ &&
       (mirror_src_display_id_ == -1 || comp_manager_->IsActiveDisplay(mirror_src_display_id_)) &&
       (handle_idle_timeout_ || idle_hint_set_ || idle_time_ms <= 0) && !qsync_enabled &&
       (is_cwb_requested || comp_manager_->HasPendingCwbRequest(display_comp_ctx_))) {
-    event_handler_->Refresh();
+    event_handler_->Refresh(refresh_type);
   }
 }
 
@@ -5637,7 +5875,7 @@ void DisplayBase::HandleSelfRefresh() {
   // Allow HAL Self-Refresh Commit path on validated stack of single display in ON state.
   bool multi_display = (comp_manager_->GetActiveDisplayCount() > 1);
   if (!enable_hal_self_refresh_ || multi_display || !validated_ || (state_ != kStateOn)) {
-    event_handler_->Refresh();
+    event_handler_->Refresh(kClientRefresh);
     return;
   }
 
@@ -5645,7 +5883,7 @@ void DisplayBase::HandleSelfRefresh() {
   bool unsupported = !avr_step_ || !client_ctx_.display_attributes.fps;
   uint64_t ept = disp_layer_stack_->stack_info.common_info.expected_present_time;
   if (unsupported || !ept || !next_expected_present_) {
-    event_handler_->Refresh();
+    event_handler_->Refresh(kClientRefresh);
     return;
   }
 
@@ -5701,7 +5939,7 @@ DisplayError DisplayBase::SetRGBASplit(int enable) {
   DLOGI("RGBASplit enable: %d on display %d-%d", enable, display_id_, display_type_);
   rgba_split_enable_ = enable;
   validated_ = false;
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 
   return kErrorNone;
 }

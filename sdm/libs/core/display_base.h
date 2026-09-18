@@ -46,6 +46,7 @@
 #include <private/strategy_interface.h>
 #include <utils/multi_core_instantiator.h>
 #include <qrtc_feature_fact_intf.h>
+#include <BufferUsage.h>
 
 #include <limits.h>
 #include <map>
@@ -77,6 +78,7 @@ namespace sdm {
 
 using std::recursive_mutex;
 using std::lock_guard;
+using BufferUsage = vendor_qti_hardware_display_common_BufferUsage;
 
 typedef PanelFeatureFactoryIntf* (*GetPanelFeatureFactory)();
 typedef DemuraTnCoreUvmFactoryIntf* (*GetDemuraTnFactory)();
@@ -202,8 +204,9 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
                                              CwbConfig &cwb_config);
   virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config,
                                   const CWBClient &client);
-  virtual DisplayError ReserveWBForDisplay(int32_t *wb_id);
-  virtual void ReleaseWBFromDisplay(int32_t wb_id);
+  virtual bool HasPendingCwbRequest();
+  virtual DisplayError ReserveWBForDisplay(WbMapInfo *wb_info);
+  virtual void ReleaseWBFromDisplay();
   virtual DisplayError PostHandleSecureEvent(SecureEvent secure_event) {
     return kErrorNotSupported;
   }
@@ -275,18 +278,19 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual void EnableLlccDuringAodMode(LayerStack *layer_stack);
   virtual DisplayError UpdateTransferTime(uint32_t transfer_time) { return kErrorNotSupported; }
   virtual void NotifyCwbDone(int32_t status, const LayerBuffer& buffer);
-  virtual void Refresh();
+  virtual void Refresh(RefreshType type);
   virtual void OnCwbTeardown(bool sync_teardown);
   virtual DisplayError OnCwbValidation(const LayerBuffer &output_buffer, CwbConfig &cwb_config);
   virtual bool HandleCwbTeardown();
   virtual uint32_t GetAvailableMixerCount();
   virtual DisplayError SetDemuraState(int state, int demura_idx) { return kErrorNotSupported; }
+  virtual DisplayError SetSPRState(int state) { return kErrorNotSupported; }
   virtual DisplayError SetDemuraConfig(int demura_idx) { return kErrorNotSupported; }
   virtual DisplayError SetABCState(bool state) { return kErrorNotSupported; }
   virtual DisplayError SetABCReconfig() { return kErrorNotSupported; }
   virtual DisplayError SetABCMode(const string &mode_name) { return kErrorNotSupported; }
   virtual DisplayError SetAIScalerMode(uint32_t mode_id) { return kErrorNotSupported; }
-  virtual void RefreshOnIdleTimeoutForCwb(bool is_cwb_requested);
+  virtual void RefreshOnIdleTimeoutForCwb(bool is_cwb_requested, RefreshType refresh_type);
   virtual void ResetDispLayerStack();
   virtual bool HasNoiseLayer();
   virtual bool HasConcurrentWriteback();
@@ -354,6 +358,9 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   }
   virtual bool IsLSRSupported();
   virtual DisplayError UpdateRgbHistogramRoi(const void *data) { return kErrorNotSupported; }
+  virtual DisplayError GetDisplayViewMode(SDMDisplayViewMode *view_mode) {
+    return kErrorNotSupported;
+  }
 
  protected:
   struct DisplayMutex {
@@ -455,6 +462,17 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   DisplayError ValidateExtendedDisplayResolutions(vector<pair<uint32_t, uint32_t>> ext_disp_res,
                                                   vector<pair<uint32_t, uint32_t>> *fin_disp_res);
   void UpdateColorModes();
+  bool AlignCwbDnscDim(const LayerBuffer &output_buffer, CwbConfig &cwb_config);
+
+  // Helper functions for AlignCwbDnscDim
+  bool ValidateAndAdjustCwbDnscDimensions(uint32_t &dnsc_width, uint32_t &dnsc_height,
+                                          uint32_t full_width, uint32_t full_height,
+                                          uint32_t buf_width, uint32_t buf_height);
+  uint32_t CalculateScaleFactors(uint32_t full_dim, uint32_t req_dim, uint32_t buf_dim);
+  uint32_t FindClosestScaleForIntDim(uint32_t full_dim, uint32_t req_dim, uint32_t buf_dim,
+                                     bool prefer_h_scale);
+  void AdjustCwbOutputOffset(LayerRect &ds_rect, uint32_t dnsc_width, uint32_t dnsc_height,
+                             uint32_t buf_width, uint32_t buf_height);
 
   DisplayMutex disp_mutex_;
   bool need_async_poweroff_wait_ = false;
@@ -479,6 +497,10 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   DispLayerStack disp_layer_stacks_[kDispStackCount];
   std::atomic<bool> clearstack_;
   uint8_t disp_stack_index_ = 0;
+  // Two-level deferred buffer_map destruction to prevent SMMU faults during
+  // batch commit sequences.  See PostCommit() for details.
+  std::vector<std::shared_ptr<LayerBufferMap>> pending_buffer_maps_;
+  std::vector<std::shared_ptr<LayerBufferMap>> prev_pending_buffer_maps_;
   bool needs_validate_ = true;  // maintains validation state between Prepare/Commit Cycle
   bool vsync_enable_ = false;
   uint32_t max_mixer_stages_ = 0;
@@ -529,6 +551,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool rc_panel_feature_init_ = false;
   bool spr_enable_ = false;
   bool spr_bypassed_ = false;
+  bool demura_enable_ = false;
   bool rc_enable_prop_ = false;
   bool rc_config_enable_ = false;  // Specifies if RC is enabled by RCCore
   RCLayersInfo rc_info_ = {};  // when rc_config_enable_ is true, this holds RC top/bottom info
@@ -582,7 +605,14 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   qrtc::QrtcFeatureFactIntf *qrtc_factory_ = nullptr;
   bool is_ssr_active_ = false;
   bool is_lsr_ssr_active_ = false;
+  bool ssr_end_in_progress_ = false;  // Set during SSR end power restore to defer vsync
   bool lsr_first_commit_ = true;
+  bool lsr_secure_state_ = false;
+  // GPU reproj (seraph/GPU LSR path): cached active flag and init-commit counter.
+  // SDM commits to DPU exactly kReprojSlotCount (2) times to register both
+  // ping-pong output buffers.  After that, DCP drives buffer switching via IPCC.
+  bool gpu_reproj_active_ = false;
+  int gpu_reproj_init_commit_count_ = 0;
   RefreshRateManager *refresh_rate_mgr_ = nullptr;
   bool pending_rgb_histogram_roi_ = false;
 
@@ -652,6 +682,9 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   int32_t mirror_src_display_id_ = -1;
   bool needs_mirror_source_validation_ = false;
   bool wb_downscale_supports_ = false;
+  bool wb_qrtc_supports_ = false;
+  uint32_t wb_dnsc_min_ratio_ = 0;
+  uint32_t wb_dnsc_max_ratio_ = 0;
   bool enable_ai_scaler_ = false;
   uint64_t next_expected_present_ = 0;
   bool cwb_with_lsr_active_ = false;

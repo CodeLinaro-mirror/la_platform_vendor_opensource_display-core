@@ -911,40 +911,43 @@ Error SnapMetadataManager::TimedRenderingHelper(SnapMetadata *metadata, SnapHand
   return Error::BAD_VALUE;
 }
 
+bool IsValidCustomContentMetadata(SnapHandleInternal *handle, size_t expected_size) {
+  return (handle->custom_content_md_region_base() != 0) &&
+         (handle->custom_content_md_reserved_size() == expected_size);
+}
+
 Error SnapMetadataManager::CustomContentMetadataHelper(SnapMetadata *metadata,
                                                        SnapHandleInternal *handle, void *in_set,
                                                        void *out_get, BufferDescriptor *buf_des) {
+  int batch_size = GetBatchSize(static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
+      handle->pixel_format_modifier()));
+  size_t element_size = sizeof(vendor_qti_hardware_display_common_CustomContentMetadata);
+
+  size_t total_size = (batch_size > 1) ? (batch_size * element_size) : element_size;
+
+  if (!IsValidCustomContentMetadata(handle, total_size)) {
+    return Error::UNSUPPORTED;
+  }
+
+  void *custom_content_metadata_ptr =
+      reinterpret_cast<void *>(handle->custom_content_md_region_base());
+
   if (out_get != nullptr) {
-    if (handle->custom_content_md_region_base() == 0 ||
-        handle->custom_content_md_reserved_size() !=
-            sizeof(vendor_qti_hardware_display_common_CustomContentMetadata)) {
-      return Error::UNSUPPORTED;
-    } else {
-      void *custom_content_metadata_ptr =
-          reinterpret_cast<void *>(handle->custom_content_md_region_base());
-      memcpy(out_get, custom_content_metadata_ptr,
-             sizeof(vendor_qti_hardware_display_common_CustomContentMetadata));
-    }
+    memcpy(out_get, custom_content_metadata_ptr, total_size);
     return Error::NONE;
   } else if (in_set != nullptr) {
-    if (handle->custom_content_md_region_base() == 0 ||
-        handle->custom_content_md_reserved_size() !=
-            sizeof(vendor_qti_hardware_display_common_CustomContentMetadata)) {
-      return Error::UNSUPPORTED;
-    } else {
-      void *custom_content_metadata_ptr =
-          reinterpret_cast<void *>(handle->custom_content_md_region_base());
-      vendor_qti_hardware_display_common_CustomContentMetadata *c_md_out =
-          reinterpret_cast<vendor_qti_hardware_display_common_CustomContentMetadata *>(
-              custom_content_metadata_ptr);
-      vendor_qti_hardware_display_common_CustomContentMetadata *c_md_in =
-          reinterpret_cast<vendor_qti_hardware_display_common_CustomContentMetadata *>(in_set);
-      // set metadata for metadata type CUSTOM_CONTENT_METADATA
-      metadata->is_format_SMPTE2094_10 = false;
-      memcpy(c_md_out, c_md_in, sizeof(*c_md_in));
-    }
+    auto *c_md_out = reinterpret_cast<vendor_qti_hardware_display_common_CustomContentMetadata *>(
+        custom_content_metadata_ptr);
+
+    auto *c_md_in =
+        reinterpret_cast<vendor_qti_hardware_display_common_CustomContentMetadata *>(in_set);
+
+    metadata->is_format_SMPTE2094_10 = false;
+
+    memcpy(c_md_out, c_md_in, total_size);
     return Error::NONE;
   }
+
   return Error::BAD_VALUE;
 }
 
@@ -1021,6 +1024,38 @@ Error SnapMetadataManager::SMPTE2094_10Helper(SnapMetadata *metadata, SnapHandle
     // set metadata for metadata type SMPTE2094_10
     metadata->is_format_SMPTE2094_10 = true;
     memcpy(c_md_out, c_md_in, sizeof(*c_md_in));
+    return Error::NONE;
+  }
+  return Error::BAD_VALUE;
+}
+
+Error SnapMetadataManager::SMPTE2094_50Helper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                                              void *in_set, void *out_get,
+                                              BufferDescriptor *buf_des) {
+  if (out_get != nullptr) {
+    vendor_qti_hardware_display_common_SMPTE2094_50Metadata *c_md_out =
+        reinterpret_cast<vendor_qti_hardware_display_common_SMPTE2094_50Metadata *>(out_get);
+    c_md_out->size = metadata->smpte2094_50_metadata.size;
+    if (metadata->smpte2094_50_metadata.size > 0) {
+      memcpy(c_md_out->metadataPayload, metadata->smpte2094_50_metadata.metadataPayload,
+             metadata->smpte2094_50_metadata.size);
+    }
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    vendor_qti_hardware_display_common_SMPTE2094_50Metadata *c_md_in =
+        reinterpret_cast<vendor_qti_hardware_display_common_SMPTE2094_50Metadata *>(in_set);
+    if (c_md_in->size == 0) {
+      // size == 0 means clear/nullopt - reset the metadata
+      metadata->smpte2094_50_metadata.size = 0;
+      metadata->is_format_SMPTE2094_50 = false;
+    } else {
+      constexpr size_t MAX_PAYLOAD_SIZE = sizeof(c_md_in->metadataPayload);
+      size_t copy_size = std::min(static_cast<size_t>(c_md_in->size), MAX_PAYLOAD_SIZE);
+      // Store directly in the fixed-size struct in shared memory (cross-process safe)
+      metadata->smpte2094_50_metadata.size = copy_size;
+      memcpy(metadata->smpte2094_50_metadata.metadataPayload, c_md_in->metadataPayload, copy_size);
+      metadata->is_format_SMPTE2094_50 = true;
+    }
     return Error::NONE;
   }
   return Error::BAD_VALUE;
@@ -1347,11 +1382,16 @@ bool SnapMetadataManager::IsFormatSupportedByGPU(BufferDescriptor desc) {
 
 uint32_t SnapMetadataManager::GetCustomContentMetadataSize(
     vendor_qti_hardware_display_common_PixelFormat format,
-    vendor_qti_hardware_display_common_BufferUsage usage) {
+    vendor_qti_hardware_display_common_BufferUsage usage, uint64_t pixel_format_modifier) {
   if (IsYuv(format) && (usage & vendor_qti_hardware_display_common_BufferUsage::VIDEO_DECODER ||
                         usage & vendor_qti_hardware_display_common_BufferUsage::VIDEO_ENCODER ||
                         usage & vendor_qti_hardware_display_common_BufferUsage::CAMERA_OUTPUT)) {
-    return sizeof(vendor_qti_hardware_display_common_CustomContentMetadata);
+    int batch_size = GetBatchSize(
+        static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(pixel_format_modifier));
+    if (batch_size <= 1) {
+      return sizeof(vendor_qti_hardware_display_common_CustomContentMetadata);
+    }
+    return batch_size * sizeof(vendor_qti_hardware_display_common_CustomContentMetadata);
   }
   return 0;
 }
@@ -1772,6 +1812,10 @@ Error SnapMetadataManager::Set(SnapHandleInternal *hnd,
         break;
       case vendor_qti_hardware_display_common_MetadataType::SMPTE2094_10:
         metadata->is_format_SMPTE2094_10 = false;
+        break;
+      case vendor_qti_hardware_display_common_MetadataType::SMPTE2094_50:
+        metadata->is_format_SMPTE2094_50 = false;
+        metadata->smpte2094_50_metadata.size = 0;
         break;
       case vendor_qti_hardware_display_common_MetadataType::ROI_RECT_METADATA:
         metadata->roiRectMetadata.size = 0;

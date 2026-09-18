@@ -23,8 +23,10 @@ class SnapMemAllocator {
   int ImportBuffer(int fd);  // not in diagram - check if needed
   Error FreeBuffer(void *base, unsigned int size, int fd, std::string buffer_path);
   Error CleanBuffer(void *base, unsigned int size, int op, int fd);
-  Error AllocateMem(AllocData *data, vendor_qti_hardware_display_common_BufferUsage usage,
-                    vendor_qti_hardware_display_common_PixelFormat format);
+  Error AllocateMem(
+      AllocData *data, vendor_qti_hardware_display_common_BufferUsage usage,
+      vendor_qti_hardware_display_common_PixelFormat format,
+      std::vector<vendor_qti_hardware_display_common_KeyValuePair> additional_options = {});
   Error SetBufferPermission(
       int fd, vendor_qti_hardware_display_common_BufferPermission *buffer_perm,
       int64_t *mem_hdl);

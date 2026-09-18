@@ -1,20 +1,22 @@
 // Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
-#include "GraphicsConstraintProvider.h"
-
 #include <dlfcn.h>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <climits>
+#include <unistd.h>
 
+#include "GraphicsConstraintProvider.h"
 #include "SnapUtils.h"
 #include "UBWCPolicy.h"
 
-#include <unistd.h>
-
 namespace snapalloc {
 static constexpr const char *kgsl_path = "/dev/kgsl-3d0";
+
+#define KGSL_NODE_ACCESS_MAX_RETRY_DEFAULT 1
+#define KGSL_NODE_ACCESS_RETRY_INTERVAL_MS_DEFAULT 0
 GraphicsConstraintProvider *GraphicsConstraintProvider::instance_{nullptr};
 std::mutex GraphicsConstraintProvider::graphics_provider_mutex_;
 
@@ -33,9 +35,41 @@ void GraphicsConstraintProvider::Init(
     std::map<vendor_qti_hardware_display_common_PixelFormat, FormatData> format_data_map) {
   // Check if kgsl device node exists before attempting GPU library load
   if (access(kgsl_path, F_OK) != 0) {
-    gfx_ubwc_disable_ = true;
-    DLOGI("kgsl node not present, initializing without GPU support");
-    return;
+    int max_retry_count = KGSL_NODE_ACCESS_MAX_RETRY_DEFAULT;
+    int retry_interval = KGSL_NODE_ACCESS_RETRY_INTERVAL_MS_DEFAULT;
+
+    char prop[PROPERTY_VALUE_MAX];
+
+    if (Debug::GetInstance()->GetProperty(KGSL_MAX_RETRY_COUNT_PROP, prop) == 0) {
+      int val = atoi(prop);
+      if (val > 0) {
+        max_retry_count = val;
+      }
+    }
+
+    if (Debug::GetInstance()->GetProperty(KGSL_RETRY_INTERVAL_MS_PROP, prop) == 0) {
+      int val = atoi(prop);
+      if ((val > 0) && (val <= (INT_MAX / 1000))) {
+        retry_interval = val;
+      }
+    }
+
+    bool kgsl_found = false;
+    for (int retry_count = 0; retry_count < max_retry_count; retry_count++) {
+      if (access(kgsl_path, F_OK) == 0) {
+        kgsl_found = true;
+        break;
+      }
+      DLOGI("kgsl device not ready, retry %d/%d", retry_count + 1, max_retry_count);
+      usleep(static_cast<useconds_t>(retry_interval) * 1000);
+    }
+
+    if (!kgsl_found) {
+      DLOGE("kgsl device %s not available after %d retries", kgsl_path, max_retry_count);
+      gfx_ubwc_disable_ = true;
+      DLOGI("kgsl node not present, initializing without GPU support");
+      return;
+    }
   }
 
   // GPU hardware available - proceed with normal initialization
@@ -90,7 +124,7 @@ static bool AdrenoAlignmentRequired(vendor_qti_hardware_display_common_BufferUsa
       }
     }
 
-    if (format == YCBCR_422_I) {
+    if (format == YCBCR_422_I || format == C_8) {
       return true;
     }
   }
@@ -127,9 +161,11 @@ int GraphicsConstraintProvider::GetInitialMetadata(
   }
 
   if (!ubwc_enabled_gfx) {
-    usage = static_cast<uint64_t>(
-        (static_cast<uint64_t>(usage) &
-         ~static_cast<uint64_t>(vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC)));
+    uint64_t ubwc_mask =
+        static_cast<uint64_t>(vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC) |
+        static_cast<uint64_t>(
+            vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC_L_2_TO_1);
+    usage &= ~ubwc_mask;
   } else {
     usage |= static_cast<uint64_t>(vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC);
   }

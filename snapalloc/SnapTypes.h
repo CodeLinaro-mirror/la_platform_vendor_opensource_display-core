@@ -16,6 +16,7 @@
 #include <ChromaSiting.h>
 #include <Compression.h>
 #include <CustomContentMetadata.h>
+#include <SMPTE2094_50.h>
 #include <Dataspace.h>
 #include <Error.h>
 #include <Fence.h>
@@ -49,6 +50,7 @@
 #include <ROIRectMetadata.h>
 #include <CWBMetadata.h>
 #include <CustomTuningMetadata.h>
+#include <HeapType.h>
 #include <unordered_map>
 
 using vendor::qti::hardware::display::snapalloc::AllocationResult;

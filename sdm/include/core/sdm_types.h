@@ -788,11 +788,32 @@ enum CWBClient {
   kCWBClientComposer,  // Client to SDM i.e. SurfaceFlinger
 };
 
+struct WbMapInfo {
+  int32_t wb_index = -1;    // For dual wb case, wb_idx1 = wb_index and wb_idx2 = wb_index + 1
+  int32_t prim_wb_connector_id = -1;  // HW drm component id for primarily reserved WB connector.
+  int32_t sec_wb_connector_id = -1;   // For dual wb case, it indicates secondary WB connector.
+  uint32_t info_flag = 0;  // it provides usage and support info for all WBs(refer struct WbInfo).
+  bool IsDualWbCase() const { return sec_wb_connector_id > 0; }
+};
+
 // Virtual display type supported by SDM.
 enum SDMVirtualDispType {
   kVirtualTypeDefault = 0,  // Default virtual display type.
   kVirtualTypePQ,           // Virtual display type with PQ processing enabled.
   kVirtualTypeMax,          // Maximum value for virtual display types.
+};
+
+/*! @brief This enum represents the display view mode for XR display.
+
+  @sa DisplayInterface::GetDisplayViewMode
+*/
+enum SDMDisplayViewMode {
+  kViewModeNone = 0,   //!< Mobile device or unknown — single panel, no eye concept.
+                       //!< eye_index is ignored; ROI always covers the full display.
+  kViewModeMonocular,  //!< XR glass with a single eye — full display for any eye setting.
+                       //!< eye_index is ignored; ROI always covers the full display.
+  kViewModeStereo,     //!< XR glass with two eyes — left/right/both eye ROI splitting.
+                       //!< eye_index selects left half, right half, or full display.
 };
 
 }  // namespace sdm

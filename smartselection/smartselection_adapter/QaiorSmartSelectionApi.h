@@ -26,6 +26,7 @@ extern "C" {
  */
 
 #include <stdint.h>
+#include <stddef.h>
 
 /* ---------------------------------------------------------------
  *  Status Codes
@@ -43,10 +44,10 @@ extern "C" {
  * Additional error codes may be added in future versions.
  */
 typedef enum {
-    QAIOR_SS_STATUS_OK = 0,
-    QAIOR_SS_STATUS_ERROR = 1,
-    QAIOR_SS_STATUS_ERROR_INVALID_ARGUMENT = 2,
-    QAIOR_SS_STATUS_ERROR_TIMEOUT = 3
+  QAIOR_SS_STATUS_OK = 0,
+  QAIOR_SS_STATUS_ERROR = 1,
+  QAIOR_SS_STATUS_ERROR_INVALID_ARGUMENT = 2,
+  QAIOR_SS_STATUS_ERROR_TIMEOUT = 3
 } QaiorSS_Status_t;
 
 /* ---------------------------------------------------------------
@@ -85,10 +86,10 @@ typedef struct QaiorSS_Context QaiorSS_Context_t;
  * @brief Frame type enumeration (C ABI-safe).
  */
 typedef enum {
-    QAIOR_SS_FRAME_AHARDWAREBUFFER = 0,  ///< Backed by AHardwareBuffer (NDK)
-    QAIOR_SS_FRAME_GRAPHICBUFFER = 1,    ///< Backed by android::GraphicBuffer (platform)
-    QAIOR_SS_FRAME_PARCELFD = 2,         ///< Backed by a file descriptor
-    QAIOR_SS_FRAME_OTHER = 3             ///< OEM/custom frame type
+  QAIOR_SS_FRAME_AHARDWAREBUFFER = 0,  ///< Backed by AHardwareBuffer (NDK)
+  QAIOR_SS_FRAME_GRAPHICBUFFER = 1,    ///< Backed by android::GraphicBuffer (platform)
+  QAIOR_SS_FRAME_PARCELFD = 2,         ///< Backed by a file descriptor
+  QAIOR_SS_FRAME_OTHER = 3             ///< OEM/custom frame type
 } QaiorSS_FrameType_t;
 
 /**
@@ -109,31 +110,31 @@ typedef enum {
  *       * OEM-defined ownership semantics.
  */
 typedef struct {
-    QaiorSS_FrameType_t type;  ///< Underlying representation type
+  QaiorSS_FrameType_t type;  ///< Underlying representation type
 
-    /**
+  /**
      * @brief Pointer to the underlying buffer.
      *
      * - AHardwareBuffer* when type == QAIOR_SS_FRAME_AHARDWAREBUFFER
      * - android::GraphicBuffer* when type == QAIOR_SS_FRAME_GRAPHICBUFFER
      * - NULL otherwise
      */
-    void* buffer;
+  void *buffer;
 
-    /**
+  /**
      * @brief File descriptor (valid only when type == QAIOR_SS_FRAME_PARCELFD).
      *
      * Caller must close() this FD when frames are returned from
      * QaiorSS_deleteByConfig/QaiorSS_deleteAll.
      */
-    int parcelFd;
+  int parcelFd;
 
-    /**
+  /**
      * @brief OEM-defined handle (valid only when type == QAIOR_SS_FRAME_OTHER).
      */
-    void* otherHandle;
+  void *otherHandle;
 
-    /**
+  /**
      * @brief JSON metadata describing the frame.
      *
      * Includes fields such as:
@@ -145,7 +146,11 @@ typedef struct {
      * The string is owned by the pipeline and must remain valid
      * for the duration of the callback.
      */
-    const char* metadataJson;
+  const char *metadataJson;
+  /**
+     * @brief OEM-defined cookie for the frame.
+     */
+  void *cookie;
 } QaiorSS_FrameHandle_t;
 
 /* ---------------------------------------------------------------
@@ -163,20 +168,20 @@ typedef struct {
  *   - The pipeline frees them after the callback returns.
  */
 typedef struct {
-    QaiorSS_FrameHandle_t* selectedFrames;  ///< Array of selected frames
-    int32_t selectedCount;                  ///< Number of selected frames
+  QaiorSS_FrameHandle_t *selectedFrames;  ///< Array of selected frames
+  int32_t selectedCount;                  ///< Number of selected frames
 
-    QaiorSS_FrameHandle_t* rejectedFrames;  ///< Array of rejected frames
-    int32_t rejectedCount;                  ///< Number of rejected frames
+  QaiorSS_FrameHandle_t *rejectedFrames;  ///< Array of rejected frames
+  int32_t rejectedCount;                  ///< Number of rejected frames
 } QaiorSS_EmitResult_t;
 
 /**
  * @brief Callback invoked when frames are emitted.
  *
  * @param result Pointer to emitted result (valid only during callback).
- * @param cookie Opaque pointer passed through from QaiorSS_init().
+ * @param initCookie Opaque pointer passed through from QaiorSS_init().
  */
-typedef void (*QaiorSS_emitCallback)(const QaiorSS_EmitResult_t* result, void* cookie);
+typedef void (*QaiorSS_emitCallback)(const QaiorSS_EmitResult_t *result, void *initCookie);
 
 /* ---------------------------------------------------------------
  *  Pipeline Lifecycle
@@ -186,14 +191,14 @@ typedef void (*QaiorSS_emitCallback)(const QaiorSS_EmitResult_t* result, void* c
  *
  * @return A non-null pipeline handle on success, NULL on failure.
  */
-QaiorSS_Pipeline_t* QaiorSS_createPipeline(void);
+QaiorSS_Pipeline_t *QaiorSS_createPipeline(void);
 
 /**
  * @brief Destroy a Smart Selection Pipeline instance.
  *
  * @param pipeline The pipeline handle returned by QaiorSS_createPipeline().
  */
-void QaiorSS_destroyPipeline(QaiorSS_Pipeline_t* pipeline);
+void QaiorSS_destroyPipeline(QaiorSS_Pipeline_t *pipeline);
 
 /* ---------------------------------------------------------------
  *  Context Lifecycle
@@ -210,8 +215,8 @@ void QaiorSS_destroyPipeline(QaiorSS_Pipeline_t* pipeline);
  *
  * @return A non-null SS_Context* on success, NULL on failure.
  */
-QaiorSS_Context_t* QaiorSS_init(QaiorSS_Pipeline_t* pipeline, const char* jsonConfig,
-                                QaiorSS_emitCallback callback, void* cookie);
+QaiorSS_Context_t *QaiorSS_init(QaiorSS_Pipeline_t *pipeline, const char *jsonConfig,
+                                QaiorSS_emitCallback callback, void *initCookie);
 
 /**
  * @brief Deinitialize the context and release all resources.
@@ -219,7 +224,7 @@ QaiorSS_Context_t* QaiorSS_init(QaiorSS_Pipeline_t* pipeline, const char* jsonCo
  * @param pipeline   The pipeline handle.
  * @param ctx        The context to destroy.
  */
-void QaiorSS_deinit(QaiorSS_Pipeline_t* pipeline, QaiorSS_Context_t* ctx);
+void QaiorSS_deinit(QaiorSS_Pipeline_t *pipeline, QaiorSS_Context_t *ctx);
 
 /* ---------------------------------------------------------------
  *  Pipeline Operations
@@ -233,8 +238,8 @@ void QaiorSS_deinit(QaiorSS_Pipeline_t* pipeline, QaiorSS_Context_t* ctx);
  *
  * @return QAIOR_SS_STATUS_OK on success, QAIOR_SS_STATUS_ERROR on failure.
  */
-QaiorSS_Status_t QaiorSS_reconfigure(QaiorSS_Pipeline_t* pipeline, QaiorSS_Context_t* ctx,
-                                     const char* jsonConfig);
+QaiorSS_Status_t QaiorSS_reconfigure(QaiorSS_Pipeline_t *pipeline, QaiorSS_Context_t *ctx,
+                                     const char *jsonConfig);
 
 /**
  * @brief Submit a frame for deduplication and potential selection.
@@ -246,8 +251,8 @@ QaiorSS_Status_t QaiorSS_reconfigure(QaiorSS_Pipeline_t* pipeline, QaiorSS_Conte
  *
  * @return QAIOR_SS_STATUS_OK if accepted, QAIOR_SS_STATUS_ERROR otherwise.
  */
-QaiorSS_Status_t QaiorSS_enqueue(QaiorSS_Pipeline_t* pipeline, QaiorSS_Context_t* ctx,
-                                 const QaiorSS_FrameHandle_t* frame, void* cookie);
+QaiorSS_Status_t QaiorSS_enqueue(QaiorSS_Pipeline_t *pipeline, QaiorSS_Context_t *ctx,
+                                 const QaiorSS_FrameHandle_t *frame);
 
 /**
  * @brief Emit all frames matching the given JSON filter.
@@ -258,8 +263,8 @@ QaiorSS_Status_t QaiorSS_enqueue(QaiorSS_Pipeline_t* pipeline, QaiorSS_Context_t
  *
  * @return QAIOR_SS_STATUS_OK on success, QAIOR_SS_STATUS_ERROR on failure.
  */
-QaiorSS_Status_t QaiorSS_flushByConfig(QaiorSS_Pipeline_t* pipeline, QaiorSS_Context_t* ctx,
-                                       const char* flushConfigJson);
+QaiorSS_Status_t QaiorSS_flushByConfig(QaiorSS_Pipeline_t *pipeline, QaiorSS_Context_t *ctx,
+                                       const char *flushConfigJson);
 
 /**
  * @brief Emit all frames across all internal queues.
@@ -269,7 +274,33 @@ QaiorSS_Status_t QaiorSS_flushByConfig(QaiorSS_Pipeline_t* pipeline, QaiorSS_Con
  *
  * @return QAIOR_SS_STATUS_OK on success, QAIOR_SS_STATUS_ERROR on failure.
  */
-QaiorSS_Status_t QaiorSS_flushAll(QaiorSS_Pipeline_t* pipeline, QaiorSS_Context_t* ctx);
+QaiorSS_Status_t QaiorSS_flushAll(QaiorSS_Pipeline_t *pipeline, QaiorSS_Context_t *ctx);
+
+/**
+ * @brief Emit the screenshots already selected for the given app via a single
+ *        aggregated callback.
+ *
+ * Behavior:
+ *   - Drains the selector's internal queue (force-flush) and emits every
+ *     popped screenshot in @c QaiorSS_EmitResult_t::selectedFrames.
+ *   - Frames that were accepted by the selector but later pruned by its
+ *     coverage algorithm are reported in
+ *     @c QaiorSS_EmitResult_t::rejectedFrames in the same callback.
+ *   - Pending tasks that have not yet been processed by the selector are
+ *     untouched.
+ *
+ * @param pipeline   The pipeline handle.
+ * @param ctx        Active context.
+ * @param app_name   Null-terminated UTF-8 app name. Must not be NULL or empty.
+ * @param user_id    Optional null-terminated UTF-8 user-id filter.
+ *                   Pass NULL or empty string to ignore.
+ *
+ * @return QAIOR_SS_STATUS_OK on success,
+ *         QAIOR_SS_STATUS_ERROR_INVALID_ARGUMENT if @p pipeline, @p ctx, or @p app_name is
+ * null/empty, QAIOR_SS_STATUS_ERROR on unknown app or @p user_id mismatch.
+ */
+QaiorSS_Status_t QaiorSS_flushSelected(QaiorSS_Pipeline_t *pipeline, QaiorSS_Context_t *ctx,
+                                       const char *app_name, const char *user_id);
 
 /* ---------------------------------------------------------------
  *  Deletion Operations
@@ -287,9 +318,9 @@ QaiorSS_Status_t QaiorSS_flushAll(QaiorSS_Pipeline_t* pipeline, QaiorSS_Context_
  *
  * @return QAIOR_SS_STATUS_OK on success, QAIOR_SS_STATUS_ERROR on failure.
  */
-QaiorSS_Status_t QaiorSS_deleteByConfig(QaiorSS_Pipeline_t* pipeline, QaiorSS_Context_t* ctx,
-                                        const char* deleteJson, QaiorSS_FrameHandle_t** outFrames,
-                                        int32_t* outCount);
+QaiorSS_Status_t QaiorSS_deleteByConfig(QaiorSS_Pipeline_t *pipeline, QaiorSS_Context_t *ctx,
+                                        const char *deleteJson, QaiorSS_FrameHandle_t **outFrames,
+                                        int32_t *outCount);
 
 /**
  * @brief Delete all frames across all internal queues.
@@ -303,14 +334,26 @@ QaiorSS_Status_t QaiorSS_deleteByConfig(QaiorSS_Pipeline_t* pipeline, QaiorSS_Co
  *
  * @return QAIOR_SS_STATUS_OK on success, QAIOR_SS_STATUS_ERROR on failure.
  */
-QaiorSS_Status_t QaiorSS_deleteAll(QaiorSS_Pipeline_t* pipeline, QaiorSS_Context_t* ctx,
-                                   QaiorSS_FrameHandle_t** outFrames, int32_t* outCount);
+QaiorSS_Status_t QaiorSS_deleteAll(QaiorSS_Pipeline_t *pipeline, QaiorSS_Context_t *ctx,
+                                   QaiorSS_FrameHandle_t **outFrames, int32_t *outCount);
 
 /**
  * @brief Free an array of SS_FrameHandle returned by delete operations.
  *
  */
-void QaiorSS_freeFrames(QaiorSS_FrameHandle_t* frames);
+void QaiorSS_freeFrames(QaiorSS_FrameHandle_t *frames);
+
+/**
+ * @brief Returns the number of screenshots that have already been selected for the
+ *        given app pipeline.  The call does not modify any internal state.
+ *
+ * @param ctx       Opaque handle returned by QaiorSS_init().
+ * @param app_name  Null-terminated UTF-8 string identifying the app pipeline.
+ *
+ * @return int      Number of selected screenshots (>=0), or -1 on error
+ *                  (e.g. invalid arguments, unknown app).
+ */
+int QaiorSS_querySelectorStatus(QaiorSS_Context_t *ctx, const char *app_name);
 
 /**
  * @brief Blocks until the SmartSelection pipeline becomes idle.
@@ -335,8 +378,140 @@ void QaiorSS_freeFrames(QaiorSS_FrameHandle_t* frames);
  *       only for test harnesses and controlled environments that require
  *       deterministic pipeline flushing behavior.
  */
-QaiorSS_Status_t QaiorSS_waitUntilIdle(QaiorSS_Pipeline_t* p, QaiorSS_Context_t* ctx,
+QaiorSS_Status_t QaiorSS_waitUntilIdle(QaiorSS_Pipeline_t *p, QaiorSS_Context_t *ctx,
                                        int32_t timeout_ms);
+
+/* --------------------------------------------------------------- */
+/**
+ * @brief Queue threshold event data
+ */
+typedef struct {
+  const char *app_name;       ///< Application name
+  const char *user_id;        ///< User ID
+  size_t current_queue_size;  ///< Current queue size
+  size_t threshold;           ///< Configured threshold
+  int64_t timestamp_ms;       ///< Timestamp in milliseconds
+  int threshold_crossed;      ///< 1 if crossed above, 0 if back below
+} QaiorSS_QueueThresholdEvent_t;
+
+/**
+ * @brief Queue threshold callback function pointer
+ *
+ * Called when queue size crosses the configured threshold.
+ *
+ * @param event Pointer to threshold event data (valid only during callback)
+ * @param cookie User context pointer passed to QaiorSS_setQueueThresholdCallback
+ *
+ */
+typedef void (*QaiorSS_QueueThresholdCallback)(const QaiorSS_QueueThresholdEvent_t *event,
+                                               void *cookie);
+
+/**
+ * @brief Set queue threshold callback for monitoring queue size
+ *
+ * NEW - Can be called anytime after QaiorSS_init()
+ *
+ * This callback is invoked when the queue size crosses the configured threshold
+ * (either going above or falling back below). It allows applications to monitor queue
+ * health and take corrective actions.
+ *
+ * @param pipeline The pipeline handle
+ * @param ctx Active context from QaiorSS_init()
+ * @param callback Callback function (NULL to disable notifications)
+ * @param cookie User context pointer passed to callback
+ *
+ * @return QAIOR_SS_STATUS_OK on success,
+ *         QAIOR_SS_STATUS_ERROR_INVALID_ARGUMENT if pipeline or ctx is NULL,
+ *         QAIOR_SS_STATUS_ERROR on other failures
+ *
+ * @note Thread-safe: Can be called from any thread
+ * @note The callback is invoked from the worker thread context
+ * @note Setting callback to NULL disables threshold notifications
+ *
+ */
+QaiorSS_Status_t QaiorSS_setQueueThresholdCallback(QaiorSS_Pipeline_t *pipeline,
+                                                   QaiorSS_Context_t *ctx,
+                                                   QaiorSS_QueueThresholdCallback callback,
+                                                   void *cookie);
+
+/**
+ * @brief Configure queue threshold settings
+ *
+ * Updates the threshold value and enables/disables notifications. Can be called
+ * multiple times to adjust settings dynamically.
+ *
+ * @param pipeline The pipeline handle
+ * @param ctx Active context
+ * @param app_name Application name (must match configured pipeline)
+ * @param threshold Queue size threshold for notifications
+ * @param enabled 1 to enable notifications, 0 to disable
+ *
+ * @return QAIOR_SS_STATUS_OK on success,
+ *         QAIOR_SS_STATUS_ERROR_INVALID_ARGUMENT if invalid parameters,
+ *         QAIOR_SS_STATUS_ERROR if app_name not found
+ *
+ * @note If no callback is set via QaiorSS_setQueueThresholdCallback, this function
+ *       still updates the threshold but no notifications occur
+ *
+ */
+QaiorSS_Status_t QaiorSS_configureQueueThreshold(QaiorSS_Pipeline_t *pipeline,
+                                                 QaiorSS_Context_t *ctx, const char *app_name,
+                                                 size_t threshold, int enabled);
+
+/* ---------------------------------------------------------------
+ *  Buffer Release Callback
+ * --------------------------------------------------------------- */
+/**
+ * @brief Callback invoked when the pipeline has finished reading from a frame's
+ *        underlying buffer and the client may release it.
+ *
+ * The client owns the underlying buffer (e.g. AHardwareBuffer). The pipeline
+ * only reads from it during frame->image conversion; once that conversion
+ * completes the buffer is no longer needed by the pipeline. This callback
+ * notifies the client at that earliest-safe point so the buffer can be freed
+ * promptly.
+ *
+ * Guarantees:
+ *   - Invoked exactly once per enqueued buffer-backed frame, on both the
+ *     success path and every early-return/error path (unknown app, selector
+ *     not initialized, conversion failure, etc.).
+ *   - Not invoked for frames that carry no buffer (e.g. ParcelFd / Other with
+ *     a null buffer).
+ *   - After the callback returns the pipeline drops its reference to the
+ *     buffer (the buffer pointer in any subsequently-emitted FrameHandle is
+ *     cleared), so the client is free to release it from within the callback.
+ *
+ * @param buffer The underlying buffer pointer (AHardwareBuffer* /
+ *               android::GraphicBuffer*) that the client may now release.
+ * @param cookie The per-frame cookie supplied at enqueue time, for client-side
+ *               correlation.
+ * @param userData Opaque pointer passed through from
+ *               QaiorSS_setBufferReleaseCallback().
+ */
+typedef void (*QaiorSS_BufferReleaseCallback)(void *buffer, void *cookie, void *userData);
+
+/**
+ * @brief Register a callback that the pipeline invokes when it is done reading
+ *        from a frame's buffer (immediately after frame->image conversion).
+ *
+ * Can be called anytime after QaiorSS_init(). Pass NULL to disable.
+ *
+ * @param pipeline The pipeline handle.
+ * @param ctx      Active context from QaiorSS_init().
+ * @param callback Callback function (NULL to disable notifications).
+ * @param userData Opaque pointer passed back to the callback.
+ *
+ * @return QAIOR_SS_STATUS_OK on success,
+ *         QAIOR_SS_STATUS_ERROR_INVALID_ARGUMENT if pipeline or ctx is NULL,
+ *         QAIOR_SS_STATUS_ERROR on other failures.
+ *
+ * @note Thread-safe: can be called from any thread.
+ * @note The callback is invoked from the worker thread context.
+ */
+QaiorSS_Status_t QaiorSS_setBufferReleaseCallback(QaiorSS_Pipeline_t *pipeline,
+                                                  QaiorSS_Context_t *ctx,
+                                                  QaiorSS_BufferReleaseCallback callback,
+                                                  void *userData);
 
 #ifdef __cplusplus
 }

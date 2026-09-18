@@ -213,6 +213,8 @@ enum LayerBufferFormat {
   kFormatCbYCrY422H2V1Packed,
   kFormatRAW10,
   kFormatNV12Y,
+  kFormatNV12Y10,
+  kFormatNV12A10,
   kFormatInvalid = 0xFFFFFFFF,
 };
 
@@ -284,6 +286,9 @@ struct LayerBufferFlags {
 
       uint32_t custom_tm : 1;       //!< This flag shall be set by client to indicate that the
                                     //!< buffer needs custom tonemap - 3D LUT / DE
+
+      uint32_t client_luts : 1;  //!< This flag shall be set to indicate that the buffer has been
+                                 //!< set with luts by apps / client that must be used
 
       uint32_t qrtc : 1;  //!< This flag shall be set to indicate that the
                           //!< content is qrtc correction data
@@ -508,6 +513,12 @@ enum CwbTapPoint {
   kDemuraTapPoint,  // This is set by client to use Demura output for CWB.
 };
 
+/*! @brief This enum represents the refresh mechanism type. */
+enum RefreshType {
+  kClientRefresh = 0,  //!< Trigger refresh via SurfaceFlinger callback (default).
+  kSelfRefresh = 1,    //!< Use internal self-refresh; no SurfaceFlinger dependency.
+};
+
 /*! @brief This structure defines the configuration variables needed to perform CWB.
 
   @sa LayerStack
@@ -528,6 +539,7 @@ struct CwbConfig {
   uint32_t downscale_y = 1;                          //!< Downscale factor for CWB output height.
   uint32_t num_parallel_buffers = 1;                 //!< number of parallel buffer of cwb ROI
                                                      //!< in output buffer
+  RefreshType refresh_type = kClientRefresh;         //!< Refresh mechanism for CWB capture.
 };
 
 // intermediate struct to hold some color metadata values which will be queried

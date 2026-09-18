@@ -491,6 +491,26 @@ enum ClientCapability {
   kClientCapabilityMax,
 };
 
+/*! @brief This enum represents operations that can be requested on a display's color feature
+  lifecycle.
+
+  @sa DisplayInterface::ProcessColorFeatureOps
+*/
+enum DisplayColorOps {
+  kColorFeatureForceOff,       // Force disable the color feature
+  kColorFeatureQueryLMUpdate,  // Query whether LM count changes for a new width
+  kColorFeatureOpsMax
+};
+
+/*! @brief Payload for kColorFeatureQueryLMUpdate operation.
+  Pass the new target width, return lm_count_changed indicates
+  whether the number of layer mixers differs from the current config.
+*/
+struct LMQueryPayload {
+  uint32_t width;                 // [in]  new target width to evaluate
+  bool lm_count_changed = false;  // [out] true if LM count differs from current config
+};
+
 /*! @brief Display device event handler implemented by the client.
 
   @details This class declares prototype for display device event handler methods which must be
@@ -527,7 +547,7 @@ class DisplayEventHandler {
     @sa DisplayInterface::Prepare
     @sa DisplayInterface::Commit
   */
-  virtual DisplayError Refresh() = 0;
+  virtual DisplayError Refresh(RefreshType type) = 0;
 
   /*! @brief Event handler for CEC messages.
 
@@ -1463,22 +1483,27 @@ class DisplayInterface {
   virtual DisplayError CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config,
                                   const CWBClient &client) = 0;
 
+  /*! @brief Method to check if there is a pending CWB request queued in the CWB manager
+             that has not yet been picked up by a display commit.
+
+    @return true if a CWB request is pending, false otherwise.
+  */
+  virtual bool HasPendingCwbRequest() = 0;
+
   /*! @brief Method to allocate Writeback connector for QRTC.
 
-    @param[out] writeback connector id
+    @param[out] writeback connector map info
 
     @return \link DisplayError \endlink
   */
 
-  virtual DisplayError ReserveWBForDisplay(int32_t *wb_id) = 0;
+  virtual DisplayError ReserveWBForDisplay(WbMapInfo *wb_info) = 0;
 
-  /*! @brief Method to deallocate Writeback connector QRTC in use by QRTC.
-
-    @param[in] writeback connector id
+  /*! @brief Method to deallocate Writeback connector which is in use by QRTC.
 
     @return \link void \endlink
   */
-  virtual void ReleaseWBFromDisplay(int32_t wb_id) = 0;
+  virtual void ReleaseWBFromDisplay() = 0;
 
   /*! @brief Method to handle CWB teardown on the display
 
@@ -1522,6 +1547,14 @@ class DisplayInterface {
    @return \link DisplayError \endlink
   */
   virtual DisplayError SetDemuraConfig(int demura_idx) = 0;
+
+  /*! @brief Method to set config for spr feature.
+
+   @param[in] spr_idx : spr config index
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetSPRState(int state) = 0;
 
   /*! @brief Method to handle CAC configuration.
 
@@ -1799,6 +1832,25 @@ class DisplayInterface {
    @return \link DisplayError \endlink
   */
   virtual DisplayError UpdateRgbHistogramRoi(const void *data) = 0;
+
+  /*! @brief Method to process color feature operations on the display,
+    supporting both set and get semantics.
+
+    @param[in] ops \link DisplayColorOps \endlink
+    @param[in/out] payload : Configuration or operation payload (direction depends on ops)
+
+    @return \link kErrorNotSupported \endlink by default.
+  */
+  virtual DisplayError ProcessColorFeatureOps(DisplayColorOps ops, void *payload) {
+    return kErrorNotSupported;
+  }
+
+  /*! @brief Method to get display view mode for XR systems
+   @param[out] SDMDisplayViewMode : display view mode type
+
+   @return \link DisplayError \endlink
+  */
+  virtual DisplayError GetDisplayViewMode(SDMDisplayViewMode *view_mode) = 0;
 
  protected:
   virtual ~DisplayInterface() { }

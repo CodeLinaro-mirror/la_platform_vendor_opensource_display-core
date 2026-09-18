@@ -775,7 +775,7 @@ bool CompManager::SetDisplayState(Handle display_ctx, DisplayState state,
       reinterpret_cast<DisplayCompositionContext *>(display_ctx);
 
   resource_intf_->Perform(ResourceInterface::kCmdSetDisplayState,
-                          display_comp_ctx->display_resource_ctx, state);
+                          display_comp_ctx->display_resource_ctx, state, &sync_points);
 
   switch (state) {
   case kStateOff:
@@ -1130,23 +1130,23 @@ DisplayError CompManager::CaptureCwb(Handle display_ctx, const LayerBuffer &outp
   return error;
 }
 
-DisplayError CompManager::ReserveWBForDisplay(Handle display_ctx, int32_t *wb_id) {
+DisplayError CompManager::ReserveWBForDisplay(Handle display_ctx, WbMapInfo *wb_info) {
   std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
 
   DisplayCompositionContext *display_comp_ctx =
       reinterpret_cast<DisplayCompositionContext *>(display_ctx);
   DisplayError error = kErrorNone;
-  error = cwb_mgr_intf_->ReserveWBForDisplay(display_comp_ctx->display_id.GetDisplayId(), wb_id);
+  error = cwb_mgr_intf_->ReserveWBForDisplay(display_comp_ctx->display_id.GetDisplayId(), wb_info);
   return error;
 }
 
-void CompManager::ReleaseWBFromDisplay(Handle display_ctx, int32_t wb_id) {
+void CompManager::ReleaseWBFromDisplay(Handle display_ctx) {
   std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
 
   DisplayCompositionContext *display_comp_ctx =
       reinterpret_cast<DisplayCompositionContext *>(display_ctx);
 
-  cwb_mgr_intf_->ReleaseWBFromDisplay(display_comp_ctx->display_id.GetDisplayId(), wb_id);
+  cwb_mgr_intf_->ReleaseWBFromDisplay(display_comp_ctx->display_id.GetDisplayId());
 }
 
 void CompManager::NotifyCwbDone(int32_t display_id, int32_t status, const LayerBuffer &buffer) {
@@ -1155,8 +1155,8 @@ void CompManager::NotifyCwbDone(int32_t display_id, int32_t status, const LayerB
   }
 }
 
-void CompManager::TriggerRefresh(int32_t display_id) {
-  callback_map_[display_id]->Refresh();
+void CompManager::TriggerRefresh(int32_t display_id, RefreshType type) {
+  callback_map_[display_id]->Refresh(type);
 }
 
 void CompManager::TriggerCwbTeardown(int32_t display_id, bool sync_teardown) {

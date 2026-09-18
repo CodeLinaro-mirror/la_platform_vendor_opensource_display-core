@@ -40,10 +40,12 @@
 #define DISP_PROP_PREFIX                     "vendor.display."
 #define GRALLOC_PROP_PREFIX                  "vendor.gralloc."
 #define PERSIST_DISP_PROP_PREFIX             "persist.vendor.display."
+#define GPU_PROP_PREFIX                      "vendor.gpu."
 
 #define DISPLAY_PROP(prop_name)              DISP_PROP_PREFIX prop_name
 #define GRALLOC_PROP(prop_name)              GRALLOC_PROP_PREFIX prop_name
 #define PERSIST_DISPLAY_PROP(prop_name)      PERSIST_DISP_PROP_PREFIX prop_name
+#define GPU_PROP(prop_name)                  GPU_PROP_PREFIX prop_name
 
 // Start of property
 #define COMPOSITION_MASK_PROP                DISPLAY_PROP("comp_mask")
@@ -91,6 +93,8 @@
 #define DISABLE_HW_RECOVERY_DUMP_PROP        DISPLAY_PROP("disable_hw_recovery_dump")
 #define HW_RECOVERY_THRESHOLD                DISPLAY_PROP("hw_recovery_threshold")
 #define DISABLE_SRC_TONEMAP_PROP             DISPLAY_PROP("disable_src_tonemap")
+#define DISABLE_UCSC_TONEMAP_PROP            DISPLAY_PROP("disable_ucsc_tonemap")
+#define RENDER_SYSUI_AS_SRGB                 DISPLAY_PROP("render_sysui_as_srgb")
 #define ENABLE_NULL_DISPLAY_PROP             DISPLAY_PROP("enable_null_display")
 #define DISABLE_EXCL_RECT_PROP               DISPLAY_PROP("disable_excl_rect")
 #define ENABLE_PIPE_PRIORITY_PROP            DISPLAY_PROP("enable_pipe_priority")
@@ -207,6 +211,7 @@
 #define ENABLE_QRTC                          DISPLAY_PROP("enable_qrtc")
 #define DISABLE_QRTC_PRIMARY                 DISPLAY_PROP("disable_qrtc_primary")
 #define DISABLE_QRTC_SECONDARY               DISPLAY_PROP("disable_qrtc_secondary")
+#define QRTC_FORCE_NONSECURE_BUFFER          DISPLAY_PROP("qrtc_force_nonsecure_buffer")
 
 // PERF hint properties
 #define ENABLE_PERF_HINT_LARGE_COMP_CYCLE    DISPLAY_PROP("enable_perf_hint_large_comp_cycle")
@@ -268,6 +273,9 @@
 #define ENABLE_ALLOCATION_DATA_DUMPING       GRALLOC_PROP("enable_allocation_data_dumping")
 #define ALLOW_CAMERA_PREVIEW_WRITE           GRALLOC_PROP("allow_camera_preview_write")
 #define USE_UNCACHED_HEAP                    GRALLOC_PROP("use_uncached_heap")
+// Enable UBWC lossy format for fbt
+#define ENABLE_UBWC_LOSSY_FORMAT_FBT         GRALLOC_PROP("enable_ubwc_lossy_format_fbt")
+#define CAMERA_PREVIEW_USES_USB_HAL_PROP     GRALLOC_PROP("camera_preview_uses_usb_hal")
 
 // Add all vendor.gralloc.properties above
 
@@ -349,8 +357,13 @@
 
 //Max virtual display count supported
 #define MAX_VIRTUAL_DISPLAY_COUNT         DISPLAY_PROP("max_virtual_display_count")
+#define ENABLE_ROTATOR_CONCURRENCY        DISPLAY_PROP("enable_rotator_concurrency")
+#define ALLOW_SECCAM_CONCURRENCY          DISPLAY_PROP("allow_seccam_concurrency")
 
-#define ENABLE_ROTATOR_CONCURRENCY           DISPLAY_PROP("enable_rotator_concurrency")
+// Reusing GPU properties
+// KGSL retry knobs for GPU device probing
+#define KGSL_MAX_RETRY_COUNT_PROP            GPU_PROP("kgsl_max_retry_count")
+#define KGSL_RETRY_INTERVAL_MS_PROP          GPU_PROP("kgsl_retry_interval_ms")
 
 // Add all other.properties above
 // End of property

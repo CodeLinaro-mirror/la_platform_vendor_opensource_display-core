@@ -85,6 +85,7 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   virtual DisplayError SetJitterConfig(uint32_t jitter_type, float value, uint32_t time);
   virtual DisplayError SetDynamicDSIClock(uint64_t bit_clk_rate);
   virtual DisplayError GetDynamicDSIClock(uint64_t *bit_clk_rate);
+  virtual DisplayError SetDynamicSPRMode(bool spr_mode);
   virtual DisplayError SetDisplayAttributes(uint32_t index);
   virtual DisplayError SetDisplayMode(const HWDisplayMode hw_display_mode);
   virtual DisplayError SetOffloadMode(bool enable);
@@ -160,6 +161,10 @@ class HWPeripheralDRM : public HWDeviceDRM, public PanelFeaturePropertyIntf {
   bool set_tui_none_ = false;
   sde_drm::DRMCacheState lsr_cache_state_ = sde_drm::DRMCacheState::DISABLED;
   FieldFd left_field_fds_;
+  DisplayError ConfigureGpuReprojSharedBuffer(std::shared_ptr<LayerBuffer> shared_buffer);
+  void SetGpuReprojBatchCommitParams(HWLayersInfo *hw_layers_info);
+  std::shared_ptr<FrameBufferObject> gpu_reproj_shared_fb_obj_ = nullptr;
+  uint64_t previous_gpu_reproj_shared_handle_ = 0;
   FieldFd right_field_fds_;
   PanelShiftFd left_panel_shifts_;
   PanelShiftFd right_panel_shifts_;

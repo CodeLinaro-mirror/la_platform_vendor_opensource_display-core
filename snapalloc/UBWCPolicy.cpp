@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 
+#include "Debug.h"
 #include "SnapConstraintDefs.h"
 #include "SnapTypes.h"
 #include "SnapUtils.h"
@@ -242,9 +243,13 @@ Error UBWCPolicy::GetUBWCAlloc(BufferDescriptor desc,
   (void)caps;
 
 #ifdef DRM_FORMAT_MOD_QCOM_LOSSY_8_5
+  int enable_ubwc_lossy = 0;
+  Debug::GetInstance()->GetProperty(ENABLE_UBWC_LOSSY_FORMAT_FBT, &enable_ubwc_lossy);
+
   if ((desc.usage & vendor_qti_hardware_display_common_BufferUsage::COMPOSER_CLIENT_TARGET) &&
       ((desc.usage & vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC_L_8_TO_5) ||
-      (desc.usage & vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC_L_2_TO_1))) {
+       ((desc.usage & vendor_qti_hardware_display_common_BufferUsage::QTI_ALLOC_UBWC_L_2_TO_1) &&
+        (!enable_ubwc_lossy)))) {
     DLOGE("Lossy not supported for framebuffer target");
     return Error::UNSUPPORTED;
   }

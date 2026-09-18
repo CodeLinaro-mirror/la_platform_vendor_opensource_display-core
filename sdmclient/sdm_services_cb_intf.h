@@ -52,6 +52,7 @@ public:
   virtual DisplayError WaitForCommitDone(Display display, int client_id) = 0;
   virtual DisplayError SetDemuraConfig(Display display, int32_t demura_idx) = 0;
   virtual DisplayError SetDemuraState(Display display, int32_t state, int demura_idx) = 0;
+  virtual DisplayError SetSPRState(Display display, int32_t state) = 0;
   virtual DisplayError SetVsyncEnabled(Display display, bool enabled) = 0;
   virtual DisplayError SetDimmingEnable(Display display,
                                         int32_t int_enabled) = 0;

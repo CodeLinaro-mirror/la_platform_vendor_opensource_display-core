@@ -77,6 +77,22 @@ void SDMServices::Init(SDMDisplayBuilder *disp,
   int value = 0;
   SDMDebugHandler::Get()->GetProperty(COMPOSER_DRIVEN_HDCP, &value);
   composer_driven_hdcp_ = (value == 1);
+
+  value = 0;
+  SDMDebugHandler::Get()->GetProperty(ENABLE_SPR, &value);
+  spr_enabled_ = (value == 1);
+
+  value = 0;
+  SDMDebugHandler::Get()->GetProperty(ENABLE_DEMURA, &value);
+  demura_enabled_ = (value == 1);
+
+  value = 0;
+  SDMDebugHandler::Get()->GetProperty(ENABLE_ANTI_AGING, &value);
+  demuratn_enabled_ = (value == 1);
+
+  value = 0;
+  SDMDebugHandler::Get()->GetProperty(ENABLE_QRTC, &value);
+  qrtc_enabled_ = (value == 1);
 }
 
 void SDMServices::Deinit() {
@@ -364,21 +380,33 @@ SDMServices::MinHdcpEncryptionLevelChanged(int disp_id,
                                            uint32_t min_enc_level) {
   // SSG team hardcoded disp_id as external because it applies to external only
   // but SSG team sends this level irrespective of external connected or not. So
-  // to honor the call, make disp_id to primary & set level.
-  if (!composer_driven_hdcp_) {
-    disp_id = SDM_DISPLAY_PRIMARY;
-  }
-
+  // to honor the call, add fallback to primary & set level.
   int disp_idx = disp_->GetDisplayIndex(disp_id);
-  if (disp_idx == -1) {
-    DLOGE("Invalid display = %d", disp_id);
-    return kErrorNotSupported;
+  SDMDisplay *sdm_display = nullptr;
+
+  if (disp_idx != -1) {
+    sdm_display = cb_->GetDisplayFromClientId(disp_idx);
   }
 
-  SDMDisplay *sdm_display = cb_->GetDisplayFromClientId(disp_idx);
   if (!sdm_display) {
-    DLOGE("Display = %d is not connected.", disp_idx);
-    return kErrorNotSupported;
+    if (composer_driven_hdcp_) {
+      DLOGE("Invalid display = %d", disp_id);
+      return kErrorNotSupported;
+    }
+
+    DLOGV("Display = %d is not available. Falling back to primary display.", disp_id);
+    disp_id = SDM_DISPLAY_PRIMARY;
+    disp_idx = disp_->GetDisplayIndex(disp_id);
+    if (disp_idx == -1) {
+      DLOGE("Invalid primary display = %d", disp_id);
+      return kErrorNotSupported;
+    }
+
+    sdm_display = cb_->GetDisplayFromClientId(disp_idx);
+    if (!sdm_display) {
+      DLOGE("Primary display = %d is not connected.", disp_idx);
+      return kErrorNotSupported;
+    }
   }
 
   return sdm_display->OnMinHdcpEncryptionLevelChange(min_enc_level);
@@ -1046,6 +1074,89 @@ DisplayError SDMServices::SetDemuraState(SDMParcel *input_parcel,
   return kErrorNone;
 }
 
+DisplayError SDMServices::SetSPRState(SDMParcel *input_parcel, SDMParcel *output_parcel) {
+  DisplayError ret = kErrorNone;
+  int disp_id = input_parcel->readInt32();
+  int state = input_parcel->readInt32();
+  int demura_config_index = 0;  //TBD: customer to update config_idx
+  int qrtc_subsample_mode = 0;  //TBD: customer to update sub sample index
+
+  if (!spr_enabled_) {
+    return kErrorUndefined;
+  }
+
+  if (!state) {
+    if (qrtc_enabled_) {
+      ret = cb_->SetQrtcFeatureConfig(disp_id, kTypeQrtcState, &state);
+      if (ret != kErrorNone) {
+        output_parcel->writeInt32(ret);
+        return ret;
+      }
+    }
+
+    if (demuratn_enabled_) {
+      ret = cb_->SetPanelFeatureConfig(disp_id, kTypeDemuraTnEventsCtrl, &state);
+      if (ret != kErrorNone) {
+        output_parcel->writeInt32(ret);
+        return ret;
+      }
+    }
+
+    if (demura_enabled_) {
+      ret = cb_->SetDemuraState(disp_id, state, demura_config_index);
+      if (ret != kErrorNone) {
+        output_parcel->writeInt32(ret);
+        return ret;
+      }
+    }
+
+    ret = cb_->SetSPRState(disp_id, state);
+    if (ret != kErrorNone) {
+      output_parcel->writeInt32(ret);
+      return ret;
+    }
+  } else {
+    ret = cb_->SetSPRState(disp_id, state);
+    if (ret != kErrorNone) {
+      output_parcel->writeInt32(ret);
+      return ret;
+    }
+
+    if (demura_enabled_) {
+      ret = cb_->SetDemuraState(disp_id, state, demura_config_index);
+      if (ret != kErrorNone) {
+        output_parcel->writeInt32(ret);
+        return ret;
+      }
+    }
+
+    if (demuratn_enabled_) {
+      ret = cb_->SetPanelFeatureConfig(disp_id, kTypeDemuraTnEventsCtrl, &state);
+      if (ret != kErrorNone) {
+        output_parcel->writeInt32(ret);
+        return ret;
+      }
+    }
+
+    if (qrtc_enabled_) {
+      ret = cb_->SetQrtcFeatureConfig(disp_id, kTypeQrtcSubsample, &qrtc_subsample_mode);
+      if (ret != kErrorNone) {
+        output_parcel->writeInt32(ret);
+        return ret;
+      }
+      ret = cb_->SetQrtcFeatureConfig(disp_id, kTypeQrtcState, &state);
+      if (ret != kErrorNone) {
+        output_parcel->writeInt32(ret);
+        return ret;
+      }
+    }
+  }
+
+  output_parcel->writeInt32(kErrorNone);
+
+  return kErrorNone;
+}
+
 DisplayError SDMServices::SetDemuraConfig(SDMParcel *input_parcel,
                                           SDMParcel *output_parcel) {
   int disp_id = input_parcel->readInt32();
@@ -1409,6 +1520,15 @@ DisplayError SDMServices::ConfigureFrameDumpStreaming(int disp_id, CWBPacketData
     return kErrorHardware;
   }
 
+  DLOGI(
+      "disp=%d stop=%d eye=%d field=%d frames=%d refresh_type=%d avoid_refresh=%d, "
+      "num_parallel_buffers=%d "
+      "buffer_depth=%d enable_compression=%d tap_point=%d",
+      disp_id, data.stop_cwb, data.eye_index, data.field_index, data.frame_dump_count,
+      data.cwb_config.refresh_type, data.cwb_config.avoid_refresh,
+      data.cwb_config.num_parallel_buffers, data.buffer_depth, data.enable_compression,
+      data.cwb_config.tap_point);
+
   return sdm_display->ConfigureFCM(data);
 }
 
@@ -1429,6 +1549,9 @@ DisplayError SDMServices::SetFrameDumpStreamingConfig(SDMParcel *input_parcel) {
   if (input_parcel->dataPosition() != input_parcel->dataSize()) {
     data.frame_dump_count = input_parcel->readInt32();
   }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    data.cwb_config.refresh_type = static_cast<RefreshType>(input_parcel->readInt32());
+  }
 
   // Optional CWB configuration similar to SetFrameDumpConfig
   CwbConfig &cwb_config = data.cwb_config;
@@ -1436,7 +1559,13 @@ DisplayError SDMServices::SetFrameDumpStreamingConfig(SDMParcel *input_parcel) {
     cwb_config.num_parallel_buffers = input_parcel->readInt32();
   }
   if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    data.buffer_depth = static_cast<uint32_t>(input_parcel->readInt32());
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
     cwb_config.tap_point = static_cast<CwbTapPoint>(input_parcel->readInt32());
+  }
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    data.enable_compression = static_cast<bool>(input_parcel->readInt32());
   }
   if (input_parcel->dataPosition() != input_parcel->dataSize()) {
     auto cflag = UINT32(input_parcel->readInt32());

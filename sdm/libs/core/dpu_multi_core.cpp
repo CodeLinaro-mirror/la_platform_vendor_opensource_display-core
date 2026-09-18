@@ -933,6 +933,17 @@ DisplayError DPUMultiCore::SetDisplayDppsAdROI(void *payload) {
   return kErrorNone;
 }
 
+DisplayError DPUMultiCore::SetDynamicSPRMode(bool spr_mode) {
+  DisplayError error = kErrorNone;
+  for (auto &hw_intf : hw_intf_) {
+    DisplayError err = hw_intf.second->SetDynamicSPRMode(spr_mode);
+    if (err != kErrorNone) {
+      error = err;
+    }
+  }
+  return error;
+}
+
 DisplayError DPUMultiCore::SetDynamicDSIClock(uint64_t bit_clk_rate) {
   for (auto hw_intf : hw_intf_) {
     DisplayError error = hw_intf.second->SetDynamicDSIClock(bit_clk_rate);

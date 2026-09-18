@@ -97,6 +97,11 @@ SmartSelection Operations
   kSSDeleteByConfig Input: std::string* (JSON)        Discard frames matching a specific app config
   kSSDeinit        Input: (none)                      Destroy pipeline/context (adapter stays loaded)
   kSSWaitUntilIdle Input: SmartSelectionWaitInput*    Block until pipeline is idle (timeout_ms, default 5000)
+  kSSFlushSelected Input: SmartSelectionFlushSelectedInput*  Flush already-selected frames for an app/user
+  kSSQuerySelectorStatus Input: SmartSelectionQuerySelectorInput*  Query selected screenshot count for an app
+  kSSSetBufferReleaseCallback Input: SmartSelectionSetBufferReleaseCallbackInput*  Register early buffer release callback
+  kSSSetQueueThresholdCallback Input: SmartSelectionSetQueueThresholdCallbackInput*  Register queue threshold callback
+  kSSConfigureQueueThreshold Input: SmartSelectionConfigureQueueThresholdInput*  Configure queue threshold independently
 
 
 Usage Example
@@ -351,7 +356,51 @@ ProcessOps Usage -- All Operations
     //       -EINVAL    -- pipeline not initialized or timeout_ms < 0
 
 
-9. kSSDeinit -- Destroy pipeline/context (adapter stays loaded)
+9. New callback / queue control operations
+
+  kSSSetBufferReleaseCallback -- register early buffer release callback
+
+    sdm::GenericPayload release_payload;
+    imagealgo::SmartSelectionSetBufferReleaseCallbackInput* release_input = nullptr;
+    release_payload.CreatePayload(release_input);
+    release_input->callback = OnImageAlgoBufferRelease;
+    release_input->cookie = this;
+
+    int ret = adapter->ProcessOps(imagealgo::kSSSetBufferReleaseCallback, release_payload, nullptr);
+    // ret: 0 on success, -ENOTSUP if current libQaiorSmartSelection.so does not provide the API
+
+  kSSSetQueueThresholdCallback -- register queue threshold callback
+
+    sdm::GenericPayload threshold_cb_payload;
+    imagealgo::SmartSelectionSetQueueThresholdCallbackInput* threshold_cb_input = nullptr;
+    threshold_cb_payload.CreatePayload(threshold_cb_input);
+    threshold_cb_input->callback = OnImageAlgoQueueThreshold;
+    threshold_cb_input->cookie = this;
+
+    int ret = adapter->ProcessOps(imagealgo::kSSSetQueueThresholdCallback, threshold_cb_payload,
+                                  nullptr);
+    // ret: 0 on success, -ENOTSUP if current libQaiorSmartSelection.so does not provide the API
+
+  kSSConfigureQueueThreshold -- configure queue threshold independently
+
+    sdm::GenericPayload threshold_cfg_payload;
+    imagealgo::SmartSelectionConfigureQueueThresholdInput* threshold_cfg_input = nullptr;
+    threshold_cfg_payload.CreatePayload(threshold_cfg_input);
+    threshold_cfg_input->app_name = "com.test.cwb.imagealgo";
+    threshold_cfg_input->threshold = 2;
+    threshold_cfg_input->enabled = true;
+
+    int ret = adapter->ProcessOps(imagealgo::kSSConfigureQueueThreshold, threshold_cfg_payload,
+                                  nullptr);
+    // ret: 0 on success, -ENOTSUP if current libQaiorSmartSelection.so does not provide the API
+
+  Typical E2E-style usage:
+    1) register queue threshold callback via kSSSetQueueThresholdCallback
+    2) configure threshold via kSSConfigureQueueThreshold
+    3) when threshold callback fires, optionally call kSSFlushSelected
+    4) use kSSQuerySelectorStatus to verify queue drain behavior
+
+10. kSSDeinit -- Destroy pipeline/context (adapter stays loaded)
 
   Tears down the pipeline and context. The adapter library remains loaded so
   kSSInit can be called again without reloading the .so.

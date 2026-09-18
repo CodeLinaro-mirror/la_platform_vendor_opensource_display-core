@@ -202,6 +202,7 @@ class HWInterface {
   virtual DisplayError SetJitterConfig(uint32_t jitter_type, float value, uint32_t time) = 0;
   virtual DisplayError SetDynamicDSIClock(uint64_t bit_clk_rate) = 0;
   virtual DisplayError GetDynamicDSIClock(uint64_t *bit_clk_rate) = 0;
+  virtual DisplayError SetDynamicSPRMode(bool spr_mode) = 0;
   virtual DisplayError GetDisplayIdentificationData(uint8_t *out_port, uint32_t *out_data_size,
                                                     uint8_t *out_data) = 0;
   virtual DisplayError SetFrameTrigger(FrameTriggerMode mode) = 0;

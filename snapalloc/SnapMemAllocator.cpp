@@ -1,5 +1,7 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #include "SnapMemAllocator.h"
 #include <iostream>
@@ -20,9 +22,10 @@ SnapMemAllocator *SnapMemAllocator::GetInstance() {
 
 SnapMemAllocator::SnapMemAllocator() : alloc_intf_{ISnapMemAllocBackend::GetInstance()} {};
 
-Error SnapMemAllocator::AllocateMem(AllocData *alloc_data,
-                                    vendor_qti_hardware_display_common_BufferUsage usage,
-                                    vendor_qti_hardware_display_common_PixelFormat format) {
+Error SnapMemAllocator::AllocateMem(
+    AllocData *alloc_data, vendor_qti_hardware_display_common_BufferUsage usage,
+    vendor_qti_hardware_display_common_PixelFormat format,
+    std::vector<vendor_qti_hardware_display_common_KeyValuePair> additional_options) {
   std::lock_guard<std::mutex> lock(mem_allocator_mutex_);
 
   int ret = -1;
@@ -37,8 +40,10 @@ Error SnapMemAllocator::AllocateMem(AllocData *alloc_data,
     return Error::BAD_VALUE;
   }
 
+  auto heap_name_opt = GetHeapNameOptValue(additional_options);
+
   // After this point we should have the right heap set, there is no fallback
-  alloc_intf_->GetHeapInfo(usage, use_system_heap_for_sensors_, alloc_data->uncached,
+  alloc_intf_->GetHeapInfo(usage, heap_name_opt, use_system_heap_for_sensors_, alloc_data->uncached,
                            &alloc_data->heap_name, &alloc_data->vm_names, &alloc_data->alloc_type,
                            &alloc_data->flags, &alloc_data->size);
 
