@@ -4056,6 +4056,8 @@ DisplayError SDMDisplay::SetReadbackBuffer(void *buffer,
     return kErrorNotSupported;
   }
   flag = is_ubwc ? INT32(MetadataType::IS_UBWC) : 0;
+  output_buffer.usage &= ~BufferUsage::QTI_ALLOC_UBWC;
+  output_buffer.usage |= (is_ubwc) ? BufferUsage::QTI_ALLOC_UBWC : 0;
 
   uint64_t pixel_format_modifier = 0;
   snapmapper_->GetMetadata(*hdl, MetadataType::FORMAT_MODIFIER, &pixel_format_modifier);
