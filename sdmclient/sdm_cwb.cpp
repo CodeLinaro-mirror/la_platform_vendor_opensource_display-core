@@ -28,7 +28,7 @@
  */
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <utils/debug.h>
@@ -187,6 +187,11 @@ void SDMConcurrentWriteBack::ProcessCWBStatus(int dpy_index) {
       }
 
       cwb_node = session_map.queue.front();
+      if (cwb_node == nullptr) {
+        DLOGW("cwb_node is null, skipping");
+        session_map.queue.pop_front();
+        continue;
+      }
       if (!cwb_node->request_completed) {
         // Need to continue to recheck until node specific client call
         // completes.

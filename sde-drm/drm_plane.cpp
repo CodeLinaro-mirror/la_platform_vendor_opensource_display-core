@@ -30,7 +30,8 @@
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted (subject to the limitations in the
@@ -863,7 +864,7 @@ void DRMPlane::ParseProperties() {
       PopulateUcscGcMode(info);
     }
 
-    if (prop_enum == DRMProperty::ALPHA) {
+    if ((prop_enum == DRMProperty::ALPHA) && info->values) {
       alpha_range_.first = info->values[0];
       alpha_range_.second = info->values[1];
     }
