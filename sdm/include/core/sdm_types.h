@@ -754,6 +754,7 @@ struct PrivacyRegion {
   float corner_radius;
   SDMRect rect;
   int index;
+  bool isDimming;
 
   bool operator !=(const PrivacyRegion &privacy_region) {
     return ((corner_radius != privacy_region.corner_radius) ||
@@ -761,7 +762,8 @@ struct PrivacyRegion {
             (rect.top != privacy_region.rect.top) ||
             (rect.right != privacy_region.rect.right) ||
             (rect.bottom != privacy_region.rect.bottom) ||
-            (index != privacy_region.index));
+            (index != privacy_region.index) ||
+            (isDimming != privacy_region.isDimming));
   }
   bool operator ==(const PrivacyRegion &privacy_region) {
     return !(operator !=(privacy_region));

@@ -4,6 +4,22 @@ Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 SPDX-License-Identifier: BSD-3-Clause-Clear
 -->
 <Targets>
+  <Target name="art">
+    <MixerResolution width="1440" height="3120">
+      <Offsets corner_radius="2" left="5" top="5" right="15" bottom="15" dimming="1"/>
+      <Offsets corner_radius="4" left="-5" top="-5" right="15" bottom="15" dimming="0"/>
+    </MixerResolution>
+    <MixerResolution width="1080" height="2400">
+      <Offsets corner_radius="2" left="4" top="4" right="10" bottom="10" dimming="1"/>
+      <Offsets corner_radius="3" left="-3" top="-3" right="10" bottom="10" dimming="0"/>
+    </MixerResolution>
+    <MixerResolution width="720" height="1560">
+      <Offsets corner_radius="2" left="1" top="1" right="5" bottom="5" dimming="1"/>
+      <Offsets corner_radius="2" left="-1" top="-1" right="5" bottom="5" dimming="0"/>
+    </MixerResolution>
+    <DimmingWidth>12</DimmingWidth>
+    <NonDimmingWidth>0</NonDimmingWidth>
+  </Target>
   <Target name="canoe">
     <MixerResolution width="1440" height="2560">
       <Offsets corner_radius="5" left="5" top="5" right="-3" bottom="-3"/>
