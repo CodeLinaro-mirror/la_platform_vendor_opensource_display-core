@@ -2064,14 +2064,6 @@ DisplayError DisplayPluggable::SetupDemura() {
     return kErrorUndefined;
   }
 
-  GenericPayload display_event_state_payload;
-  if (demura_->SetParameter(kDemuraFeatureParamDispEventState, display_event_state_payload) != 0) {
-    DLOGE("Unable to disable Demura display events on pluggable Display %d-%d", display_id_,
-          display_type_);
-    return kErrorUndefined;
-  }
-  DLOGI("Disabled Demura display event registration for primary pluggable display");
-
   if (SetupCorrectionLayer() != kErrorNone) {
     DLOGE("Unable to setup Demura layer on Display %d-%d", display_id_, display_type_);
     return kErrorUndefined;
