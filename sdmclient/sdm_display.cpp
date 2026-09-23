@@ -1740,10 +1740,10 @@ DisplayError SDMDisplay::HandleEvent(DisplayEvent event) {
     DLOGI("Set Display Pause state!");
     display_paused_ = true;
     display_pause_pending_ = true;
-    event_handler_->PerformSubsystemRestart(true);
+    event_handler_->PerformSubsystemRestart(true, kSSR);
   } break;
   case kSsrEnd: {
-    event_handler_->PerformSubsystemRestart(false);
+    event_handler_->PerformSubsystemRestart(false, kSSR);
     DLOGI("Reset Display Pause state!");
     display_pause_pending_ = false;
     display_paused_ = false;
@@ -1752,10 +1752,10 @@ DisplayError SDMDisplay::HandleEvent(DisplayEvent event) {
     DLOGI("Set Display Pause state!");
     display_paused_ = true;
     display_pause_pending_ = true;
-    event_handler_->PerformSubsystemRestart(true);
+    event_handler_->PerformSubsystemRestart(true, kSSRLsr);
   } break;
   case kLsr_SsrEnd: {
-    event_handler_->PerformSubsystemRestart(false);
+    event_handler_->PerformSubsystemRestart(false, kSSRLsr);
     DLOGI("Reset Display Pause state!");
     display_pause_pending_ = false;
     display_paused_ = false;

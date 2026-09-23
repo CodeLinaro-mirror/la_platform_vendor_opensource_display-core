@@ -2447,6 +2447,18 @@ DisplayError DisplayBase::SetDrawMethod(DisplayDrawMethod draw_method) {
   return kErrorNone;
 }
 
+DisplayError DisplayBase::SetSSRState(bool active, HWSSRType type) {
+  DLOGI("SSR state set to %d for display %d-%d", active, display_id_, display_type_);
+  if (type == kSSRLsr) {
+    is_lsr_ssr_active_ = active;
+  } else {
+    // default to base ssr tracker for default and any unknown type
+    is_ssr_active_ = active;
+  }
+  dpu_core_mux_->SetSSRState(active, type);
+  return kErrorNone;
+}
+
 DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
                                           shared_ptr<Fence> *release_fence) {
   ClientLock lock(disp_mutex_);
@@ -2458,8 +2470,8 @@ DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
   DisplayError error = kErrorNone;
   bool active = false;
 
-  DLOGI("Set state = %d, display %d-%d, teardown = %d", state, display_id_, display_type_,
-        teardown);
+  DLOGI("Set state = %d, display %d-%d, teardown = %d, ssr active %d", state, display_id_,
+        display_type_, teardown, is_ssr_active_);
 
   if (state == state_) {
     if (pending_power_state_ != kPowerStateNone) {

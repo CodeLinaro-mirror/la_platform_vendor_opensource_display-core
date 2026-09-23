@@ -3995,8 +3995,6 @@ void DisplayBuiltIn::HandleLSR_SSREvent(LSR_SSREventType lsr_ssr_event) {
     lsr_first_commit_ = true;
   }
   DLOGI("Handle %s event", (event == kLsr_SsrStart) ? "LSR SSR Start" : "LSR SSR End");
-  is_lsr_ssr_active_ = (event == kLsr_SsrStart);
-  dpu_core_mux_->SetSSRState(is_lsr_ssr_active_);
 
   if (!event_handler_) {
     DLOGW("Event handler is null");
@@ -4036,8 +4034,6 @@ void DisplayBuiltIn::HandleSSREvent(SSREventType ssr_event) {
     lsr_first_commit_ = true;
   }
   DLOGI("Handle %s event", (event == kSsrStart) ? "SSR Start" : "SSR End");
-  is_ssr_active_ = (event == kSsrStart);
-  dpu_core_mux_->SetSSRState(is_ssr_active_);
 
   // Notify DemuraTn on SSR triggered.
   if (is_ssr_active_ && demuratn_ && demuratn_enabled_) {

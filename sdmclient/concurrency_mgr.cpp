@@ -3063,7 +3063,7 @@ void ConcurrencyMgr::SendFeatenablerCommand(FeatenablerCommand cmd) {
   auto ret = callbacks_.SendFeatenablerCommand(cmd);
 }
 
-void ConcurrencyMgr::PerformSubsystemRestart(bool start) {
+void ConcurrencyMgr::PerformSubsystemRestart(bool start, HWSSRType type) {
   DTRACE_SCOPED();
   DLOGI("Perform Subsystem Restart: %s", start ? "Start" : "End");
   // Wait until all commands are flushed on ALL displays. SSR affects shared
@@ -3084,8 +3084,12 @@ void ConcurrencyMgr::PerformSubsystemRestart(bool start) {
   if (start) {
     // SSR Start
     ssr_active_ = true;
+    // Some targets only raise the SSR event on one display's connector even though the
+    // underlying hardware reset affects every display sharing that hardware. Mark SSR active
+    // on all displays here so they all have synchronized SSR event tracking.
     for (Display display = SDM_DISPLAY_PRIMARY; display < kNumDisplays; display++) {
       if (sdm_display_[display] != NULL) {
+        sdm_display_[display]->SetSSRState(true, type);
         cached_last_power_mode_[display] = sdm_display_[display]->GetCurrentPowerMode();
         DLOGI("Powering off Display %d", INT32(display));
         status =
@@ -3116,6 +3120,12 @@ void ConcurrencyMgr::PerformSubsystemRestart(bool start) {
         if (status != kErrorNone) {
           DLOGE("SetColorMode failed for Display %d with error: %d", INT32(display), status);
         }
+      }
+    }
+    // Only clear the SSR state once every display has been fully restored above.
+    for (Display display = SDM_DISPLAY_PRIMARY; display < kNumDisplays; display++) {
+      if (sdm_display_[display] != NULL) {
+        sdm_display_[display]->SetSSRState(false, type);
       }
     }
 

@@ -362,6 +362,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
     return kErrorNotSupported;
   }
   virtual DisplayError SetDisplayPoseLatchOffset(int64_t time_ns) { return kErrorNotSupported; }
+  virtual DisplayError SetSSRState(bool active, HWSSRType type = kSSR);
 
  protected:
   struct DisplayMutex {
