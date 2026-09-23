@@ -188,7 +188,7 @@ enum SDMDisplayType {
 };
 
 struct SDMDisplayInfo {
-  uint64_t display_id = -1;            // sdm ID of the display
+  uint64_t display_id = static_cast<uint64_t>(-1);  // sdm ID of the display
   SDMDisplayType type = kDisplayMax;   // Display type
   bool connected = false;              // connected/disconnected
   bool is_leader = false;              // Is leader display
