@@ -25,10 +25,12 @@
 #define SECURE_ALIGN SIZE_4K
 #endif
 
-#define PAGE_SIZE 4096
+// Use the actual system page size for size calculations to support both 4 KB and 16 KB page systems
+// correctly.
 #define ROUND_UP_PAGESIZE(x) roundUpToPageSize(x)
 inline int roundUpToPageSize(int x) {
-  return (x + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
+  int page_size = getpagesize();
+  return (x + (page_size - 1)) & ~(page_size - 1);
 }
 
 using SnapPixelFormat = vendor_qti_hardware_display_common_PixelFormat;

@@ -510,6 +510,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError SetDisplayDeviceConfig(Display display,
                                       SDMDisplayDeviceConfig sdm_display_device_config);
   DisplayError GetDisplayViewMode(Display display, SDMDisplayViewMode *view_mode);
+  DisplayError SetDisplayPoseLatchOffset(Display display, int64_t time_ns);
 
   DisplayError SetCameraSmoothInfo(SDMCameraSmoothOp op, int32_t fps) override;
   DisplayError NotifyTUIDone(int ret, int disp_id,
@@ -529,7 +530,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   virtual DisplayError NotifyCwbDone(int dpy_index, int32_t status,
                                      uint64_t handle_id);
   virtual int NotifyIdleStatus(bool idle_status);
-  virtual void PerformSubsystemRestart(bool start);
+  virtual void PerformSubsystemRestart(bool start, HWSSRType type = kSSR);
 
   DisplayError SetVsyncEnabled(uint64_t display, bool enabled);
   DisplayError GetDozeSupport(Display display, int32_t *out_support);

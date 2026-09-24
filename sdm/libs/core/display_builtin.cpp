@@ -3932,20 +3932,21 @@ int DisplayBuiltIn::SetDemuraIntfStatus(bool enable, int current_idx) {
     }
   }
 
-  GenericPayload refresh_pl;
-  int32_t *need_screen_refresh = nullptr;
-  int rc = refresh_pl.CreatePayload<int32_t>(need_screen_refresh);
-  if (rc) {
-    DLOGE("Failed to create payload for need_screen_refresh, error = %d", rc);
-    return rc;
+  if (!abc_prop_){
+    GenericPayload refresh_pl;
+    int32_t *need_screen_refresh = nullptr;
+    int rc = refresh_pl.CreatePayload<int32_t>(need_screen_refresh);
+    if (rc) {
+      DLOGE("Failed to create payload for need_screen_refresh, error = %d", rc);
+      return rc;
+    }
+    rc = demura_->GetParameter(kDemuraFeatureParamNeedScreenRefresh, &refresh_pl);
+    if (rc) {
+      DLOGE("Failed to get need screen refresh, error %d", rc);
+      return rc;
+    }
+    demura_need_screen_refresh_ = (*need_screen_refresh != 0);
   }
-  rc = demura_->GetParameter(kDemuraFeatureParamNeedScreenRefresh, &refresh_pl);
-  if (rc) {
-    DLOGE("Failed to get need screen refresh, error %d", rc);
-    return rc;
-  }
-  demura_need_screen_refresh_ = (*need_screen_refresh != 0);
-
   demura_current_idx_ = current_idx;
   DLOGI("Demura is now %s and current index is %d ", enable ? "Enabled" : "Disabled", current_idx);
   return ret;
@@ -3994,8 +3995,6 @@ void DisplayBuiltIn::HandleLSR_SSREvent(LSR_SSREventType lsr_ssr_event) {
     lsr_first_commit_ = true;
   }
   DLOGI("Handle %s event", (event == kLsr_SsrStart) ? "LSR SSR Start" : "LSR SSR End");
-  is_lsr_ssr_active_ = (event == kLsr_SsrStart);
-  dpu_core_mux_->SetSSRState(is_lsr_ssr_active_);
 
   if (!event_handler_) {
     DLOGW("Event handler is null");
@@ -4035,8 +4034,6 @@ void DisplayBuiltIn::HandleSSREvent(SSREventType ssr_event) {
     lsr_first_commit_ = true;
   }
   DLOGI("Handle %s event", (event == kSsrStart) ? "SSR Start" : "SSR End");
-  is_ssr_active_ = (event == kSsrStart);
-  dpu_core_mux_->SetSSRState(is_ssr_active_);
 
   // Notify DemuraTn on SSR triggered.
   if (is_ssr_active_ && demuratn_ && demuratn_enabled_) {
@@ -7319,9 +7316,13 @@ DisplayError DisplayBuiltIn::GetDisplayViewMode(SDMDisplayViewMode *view_mode) {
   if (client_ctx_.hw_panel_info.is_monocular_display) {
     *view_mode = kViewModeMonocular;
   } else {
-    *view_mode = kViewModeStereo;
+    *view_mode = kViewModeBinocular;
   }
   return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetDisplayPoseLatchOffset(int64_t time_ns) {
+  return hw_intf_->SetDisplayPoseLatchOffset(time_ns);
 }
 
 }  // namespace sdm

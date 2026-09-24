@@ -48,6 +48,7 @@
 #include <bitset>
 #include <string>
 #include <tuple>
+#include <mutex>
 
 #include "layer_buffer.h"
 #include "sdm_types.h"
@@ -450,8 +451,18 @@ struct LayerSolidFill {
 };
 
 struct LayerBufferMap {
+  std::mutex lock;
   std::unordered_map<uint64_t, std::unordered_map<uint32_t,
                                std::vector<std::shared_ptr<LayerBufferObject>>>> buffer_map;
+  size_t GetCoreFbIdCount(int core_id) {
+    size_t count = 0;
+    for (auto &entry : buffer_map) {
+      if (entry.second.count(core_id)) {
+        count++;
+      }
+    }
+    return count;
+  }
 };
 
 /*! @brief This structure defines display layer object which contains layer properties and a drawing

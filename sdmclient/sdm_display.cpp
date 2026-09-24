@@ -1173,16 +1173,6 @@ DisplayError SDMDisplay::SetVsyncEnabled(bool enabled) {
   return kErrorNone;
 }
 
-void SDMDisplay::PostPowerMode() {
-  if (release_fence_ == nullptr || !sdm_layer_stack_) {
-    return;
-  }
-
-  for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
-    sdm_layer->SetReleaseFence(release_fence_);
-  }
-}
-
 DisplayError SDMDisplay::SetPowerMode(SDMPowerMode mode, bool teardown) {
   DLOGI("display = %" PRId64 ", mode = %s", id_, to_string(mode).c_str());
   DisplayState state = kStateOff;
@@ -1243,8 +1233,6 @@ DisplayError SDMDisplay::SetPowerMode(SDMPowerMode mode, bool teardown) {
   // Update release fence.
   release_fence_ = release_fence;
   current_power_mode_ = mode;
-
-  PostPowerMode();
 
   if (scheduled_dynamic_dsi_clk_ &&
       (mode == SDMPowerMode::POWER_MODE_ON || mode == SDMPowerMode::POWER_MODE_DOZE)) {
@@ -1752,10 +1740,10 @@ DisplayError SDMDisplay::HandleEvent(DisplayEvent event) {
     DLOGI("Set Display Pause state!");
     display_paused_ = true;
     display_pause_pending_ = true;
-    event_handler_->PerformSubsystemRestart(true);
+    event_handler_->PerformSubsystemRestart(true, kSSR);
   } break;
   case kSsrEnd: {
-    event_handler_->PerformSubsystemRestart(false);
+    event_handler_->PerformSubsystemRestart(false, kSSR);
     DLOGI("Reset Display Pause state!");
     display_pause_pending_ = false;
     display_paused_ = false;
@@ -1764,10 +1752,10 @@ DisplayError SDMDisplay::HandleEvent(DisplayEvent event) {
     DLOGI("Set Display Pause state!");
     display_paused_ = true;
     display_pause_pending_ = true;
-    event_handler_->PerformSubsystemRestart(true);
+    event_handler_->PerformSubsystemRestart(true, kSSRLsr);
   } break;
   case kLsr_SsrEnd: {
-    event_handler_->PerformSubsystemRestart(false);
+    event_handler_->PerformSubsystemRestart(false, kSSRLsr);
     DLOGI("Reset Display Pause state!");
     display_pause_pending_ = false;
     display_paused_ = false;
@@ -1803,11 +1791,10 @@ void SDMDisplay::ClearLayerBufferMap(const LayerId &layer_id) {
 void SDMDisplay::ClearLayerLuts() {
   // delete copy of luts for destroyed layers
   std::vector<uint64_t> layer_ids;
-  if (!layer_builder_->NeedsLutsDeletion(id_)) {
+  if (!layer_builder_->RetrievePendingLutDeletions(id_, layer_ids)) {
     return;
   }
 
-  layer_builder_->HandleLutsDeletion(id_, layer_ids);
   for (auto &id : layer_ids) {
     if (layer_luts_.find(id) != layer_luts_.end()) {
       SafeDeleteArray(layer_luts_[id].lutEntries);
@@ -1954,11 +1941,12 @@ DisplayError SDMDisplay::AcceptDisplayChanges() {
     return kErrorNeedsValidate;
   }
 
+  auto &layer_map = sdm_layer_stack_->layer_map_;
   for (const auto &change : layer_changes_) {
-    auto sdm_layer = sdm_layer_stack_->layer_map_[change.first];
+    auto layer_iter = layer_map.find(change.first);
     auto composition = change.second;
-    if (sdm_layer != nullptr) {
-      sdm_layer->UpdateClientCompositionType(composition);
+    if (layer_iter != layer_map.end() && layer_iter->second != nullptr) {
+      layer_iter->second->UpdateClientCompositionType(composition);
     } else {
       DLOGW("Invalid layer: %" PRIu64, change.first);
     }
@@ -4774,6 +4762,7 @@ DisplayError SDMDisplay::ClearBuffersMappedToLayer(LayerId layer_id,
         // nothing to erase; just treat as already cleared
         continue;
       }
+      std::lock_guard<std::mutex> lock(layer->buffer_map->lock);
       auto it = layer->buffer_map->buffer_map.find(buffer_id);
       if (it != layer->buffer_map->buffer_map.end()) {
         DLOGV_IF(kTagClient,
@@ -4793,6 +4782,10 @@ bool SDMDisplay::IsEPTSupported() {
 
 DisplayError SDMDisplay::GetDisplayViewMode(SDMDisplayViewMode *view_mode) {
   return display_intf_->GetDisplayViewMode(view_mode);
+}
+
+DisplayError SDMDisplay::SetDisplayPoseLatchOffset(int64_t time_ns) {
+  return display_intf_->SetDisplayPoseLatchOffset(time_ns);
 }
 
 }  // namespace sdm

@@ -754,6 +754,7 @@ struct PrivacyRegion {
   float corner_radius;
   SDMRect rect;
   int index;
+  bool isDimming;
 
   bool operator !=(const PrivacyRegion &privacy_region) {
     return ((corner_radius != privacy_region.corner_radius) ||
@@ -761,7 +762,8 @@ struct PrivacyRegion {
             (rect.top != privacy_region.rect.top) ||
             (rect.right != privacy_region.rect.right) ||
             (rect.bottom != privacy_region.rect.bottom) ||
-            (index != privacy_region.index));
+            (index != privacy_region.index) ||
+            (isDimming != privacy_region.isDimming));
   }
   bool operator ==(const PrivacyRegion &privacy_region) {
     return !(operator !=(privacy_region));
@@ -812,8 +814,14 @@ enum SDMDisplayViewMode {
                        //!< eye_index is ignored; ROI always covers the full display.
   kViewModeMonocular,  //!< XR glass with a single eye — full display for any eye setting.
                        //!< eye_index is ignored; ROI always covers the full display.
-  kViewModeStereo,     //!< XR glass with two eyes — left/right/both eye ROI splitting.
+  kViewModeBinocular,  //!< XR glass with two eyes — left/right/both eye ROI splitting.
                        //!< eye_index selects left half, right half, or full display.
+};
+
+/*! @brief This enum tracks different sub-types of SSR events */
+enum HWSSRType {
+  kSSR,    // Standard full subsystem restart
+  kSSRLsr  // Late Stage Reprojection subsystem restart
 };
 
 }  // namespace sdm
