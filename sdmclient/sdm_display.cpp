@@ -1740,10 +1740,10 @@ DisplayError SDMDisplay::HandleEvent(DisplayEvent event) {
     DLOGI("Set Display Pause state!");
     display_paused_ = true;
     display_pause_pending_ = true;
-    event_handler_->PerformSubsystemRestart(true);
+    event_handler_->PerformSubsystemRestart(true, kSSR);
   } break;
   case kSsrEnd: {
-    event_handler_->PerformSubsystemRestart(false);
+    event_handler_->PerformSubsystemRestart(false, kSSR);
     DLOGI("Reset Display Pause state!");
     display_pause_pending_ = false;
     display_paused_ = false;
@@ -1752,10 +1752,10 @@ DisplayError SDMDisplay::HandleEvent(DisplayEvent event) {
     DLOGI("Set Display Pause state!");
     display_paused_ = true;
     display_pause_pending_ = true;
-    event_handler_->PerformSubsystemRestart(true);
+    event_handler_->PerformSubsystemRestart(true, kSSRLsr);
   } break;
   case kLsr_SsrEnd: {
-    event_handler_->PerformSubsystemRestart(false);
+    event_handler_->PerformSubsystemRestart(false, kSSRLsr);
     DLOGI("Reset Display Pause state!");
     display_pause_pending_ = false;
     display_paused_ = false;
@@ -1941,11 +1941,12 @@ DisplayError SDMDisplay::AcceptDisplayChanges() {
     return kErrorNeedsValidate;
   }
 
+  auto &layer_map = sdm_layer_stack_->layer_map_;
   for (const auto &change : layer_changes_) {
-    auto sdm_layer = sdm_layer_stack_->layer_map_[change.first];
+    auto layer_iter = layer_map.find(change.first);
     auto composition = change.second;
-    if (sdm_layer != nullptr) {
-      sdm_layer->UpdateClientCompositionType(composition);
+    if (layer_iter != layer_map.end() && layer_iter->second != nullptr) {
+      layer_iter->second->UpdateClientCompositionType(composition);
     } else {
       DLOGW("Invalid layer: %" PRIu64, change.first);
     }
@@ -4761,6 +4762,7 @@ DisplayError SDMDisplay::ClearBuffersMappedToLayer(LayerId layer_id,
         // nothing to erase; just treat as already cleared
         continue;
       }
+      std::lock_guard<std::mutex> lock(layer->buffer_map->lock);
       auto it = layer->buffer_map->buffer_map.find(buffer_id);
       if (it != layer->buffer_map->buffer_map.end()) {
         DLOGV_IF(kTagClient,
@@ -4780,6 +4782,10 @@ bool SDMDisplay::IsEPTSupported() {
 
 DisplayError SDMDisplay::GetDisplayViewMode(SDMDisplayViewMode *view_mode) {
   return display_intf_->GetDisplayViewMode(view_mode);
+}
+
+DisplayError SDMDisplay::SetDisplayPoseLatchOffset(int64_t time_ns) {
+  return display_intf_->SetDisplayPoseLatchOffset(time_ns);
 }
 
 }  // namespace sdm

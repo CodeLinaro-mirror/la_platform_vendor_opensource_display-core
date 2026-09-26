@@ -130,6 +130,12 @@ static HWQseedStepVersion GetQseedStepVersion(sde_drm::QSEEDStepVersion drm_vers
     case sde_drm::QSEEDStepVersion::V3LITE_V11:
       sdm_version = kQseed3litev11;
       break;
+    case sde_drm::QSEEDStepVersion::V3LITE_V11_7001:
+      sdm_version = kQseed3litev11_7001;
+      break;
+    case sde_drm::QSEEDStepVersion::V3LITE_V11_7002:
+      sdm_version = kQseed3litev11_7002;
+      break;
     default:
       sdm_version = kQseed3litev11;
       break;

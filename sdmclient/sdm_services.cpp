@@ -2421,6 +2421,11 @@ DisplayError SDMServices::SetPrivacyRegions(SDMParcel *input_parcel) {
       int bottom = input_parcel->readInt32();
       float radius = input_parcel->readFloat();
       int index = input_parcel->readInt32();
+      // dimming is optional for backward compatibility; default to true (enabled).
+      bool is_dimming = true;
+      if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+        is_dimming = input_parcel->readInt32() ? true : false;
+      }
       if ((left < 0) || (top < 0) || (right < 0) || (bottom < 0) || (radius < 0) || (index < 0)) {
         DLOGW("Invalid PrivacyRegion[%d] on Layer[%d]!", j, i);
         return kErrorNotSupported;
@@ -2432,6 +2437,7 @@ DisplayError SDMServices::SetPrivacyRegions(SDMParcel *input_parcel) {
       privacy_region.rect.bottom = bottom;
       privacy_region.corner_radius = radius;
       privacy_region.index = index;
+      privacy_region.isDimming = is_dimming;
       privacy_regions.push_back(privacy_region);
     }
 

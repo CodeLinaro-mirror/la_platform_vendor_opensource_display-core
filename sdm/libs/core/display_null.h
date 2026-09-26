@@ -216,6 +216,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(SetQrtcFeatureConfig(int32_t type, void *data))
   MAKE_NO_OP(UpdateRgbHistogramRoi(const void *));
   MAKE_NO_OP(GetDisplayViewMode(SDMDisplayViewMode *view_mode))
+  MAKE_NO_OP(SetDisplayPoseLatchOffset(int64_t time_ns))
 
  protected:
   DisplayConfigVariableInfo default_variable_config_ = {};

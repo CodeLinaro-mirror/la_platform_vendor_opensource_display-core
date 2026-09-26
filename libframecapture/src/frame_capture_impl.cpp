@@ -575,7 +575,7 @@ int FrameCaptureImpl::UpdateCWBRoi(sdm::LayerRect cwb_roi, int32_t eye_index, in
   DLOGI("view_mode=%d eye_index=%d field_index=%d cwb_roi=[%f %f %f %f]", view_mode, eye_index,
         field_index, cwb_roi.left, cwb_roi.top, cwb_roi.right, cwb_roi.bottom);
 
-  if (view_mode == kViewModeStereo) {
+  if (view_mode == kViewModeBinocular) {
     // Binocular: display is split left/right per eye.
     // For single-eye capture (kLeftEye/kRightEye): client ROI is in per-eye space
     //   {0..half_width, 0..height}. The right-eye offset is applied internally.
