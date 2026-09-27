@@ -122,6 +122,7 @@ enum {
   SDM_SERVICE_SET_QRTC_FEATURE_CONFIG = 71,  // Common function for setting QRTC configuration
   SDM_SERVICE_SET_STC_FEATURE_CONFIG = 72,   // Common function, Set cfg for stc feature
   SDM_SERVICE_SET_SPR_STATE = 73,            // Enable/disable SPR feature
+  SDM_SERVICE_SET_PA_HIST_COLLECTION = 74,   // Enable/disable PA histogram collection
   SDM_SERVICE_COMMAND_LIST_END = 400,
 };
 
@@ -343,6 +344,7 @@ private:
   DisplayError SetStandbyMode(SDMParcel *input_parcel);
   DisplayError SetPrivacyRegions(SDMParcel *input_parcel);
   DisplayError SetRgbHistObserverConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
+  DisplayError SetPaHistCollection(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError SetQrtcFeatureConfig(SDMParcel *input_parcel, SDMParcel *output_parcel);
   DisplayError SetSPRState(SDMParcel *input_parcel, SDMParcel *output_parcel);
 
@@ -417,6 +419,7 @@ private:
       {SDM_SERVICE_GET_PANEL_FEATURE_CONFIG, &SDMServices::GetPanelFeatureConfig},
       {SDM_SERVICE_SET_STC_FEATURE_CONFIG, &SDMServices::SetStcFeatureConfig},
       {SDM_SERVICE_SET_RGB_HISTOGRAM_CONFIG, &SDMServices::SetRgbHistObserverConfig},
+      {SDM_SERVICE_SET_PA_HIST_COLLECTION, &SDMServices::SetPaHistCollection},
       {SDM_SERVICE_SET_QRTC_FEATURE_CONFIG, &SDMServices::SetQrtcFeatureConfig},
       {SDM_SERVICE_SET_SPR_STATE, &SDMServices::SetSPRState},
   };

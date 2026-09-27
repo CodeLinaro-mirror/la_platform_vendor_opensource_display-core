@@ -2542,4 +2542,24 @@ DisplayError SDMServices::SetRgbHistObserverConfig(SDMParcel *input_parcel,
   return ret;
 }
 
+DisplayError SDMServices::SetPaHistCollection(SDMParcel *input_parcel, SDMParcel *output_parcel) {
+  bool enable = false;
+  int disp_id = input_parcel->readInt32();
+
+  // Enable/disable PA histogram collection
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    enable = input_parcel->readInt32() ? true : false;
+  }
+
+  DLOGI("Disp ID: %d PAHist enable: %d", disp_id, enable);
+  auto ret = cb_->SetPaHistCollection(disp_id, enable);
+  if (ret != kErrorNone) {
+    output_parcel->write("FAILED", strlen("FAILED"));
+  } else {
+    output_parcel->writeInt32(ret);
+  }
+
+  return ret;
+}
+
 } // namespace sdm

@@ -3151,6 +3151,10 @@ DisplayError ConcurrencyMgr::SetRgbHistObserverConfig(Display display, bool stat
   return CallDisplayFunction(display, &SDMDisplay::SetRgbHistObserverConfig, state, data);
 }
 
+DisplayError ConcurrencyMgr::SetPaHistCollection(Display display, bool enable) {
+  return CallDisplayFunction(display, &SDMDisplay::SetPaHistCollection, enable);
+}
+
 DisplayError ConcurrencyMgr::GetDisplayViewMode(Display display, SDMDisplayViewMode *view_mode) {
   return CallDisplayFunction(display, &SDMDisplay::GetDisplayViewMode, view_mode);
 }
