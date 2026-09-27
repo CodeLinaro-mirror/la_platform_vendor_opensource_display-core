@@ -1850,6 +1850,14 @@ DisplayError SDMDisplay::PrepareLayerStack(uint32_t *out_num_types, uint32_t *ou
 }
 
 DisplayError SDMDisplay::HandlePrepareError(DisplayError error) {
+  if (null_display_active_) {
+    //For commits received during ambient mark layers for gpu bypass and cache geometry changes
+    DLOGV("Commit received while null display is active.");
+    WaitOnPreviousFence();
+    MarkLayersForGPUBypass();
+    geometry_changes_on_doze_suspend_ |= geometry_changes_;
+  }
+
   if (error == kErrorNone || error == kErrorNeedsCommit) {
     return kErrorNone;
   }
