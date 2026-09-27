@@ -66,6 +66,15 @@ DRMDppsManagerIntf* GetDppsManagerIntf()
 }
 
 DRMDppsManagerImp::~DRMDppsManagerImp() {
+}
+
+void DRMDppsManagerImp::Deinit() {
+  std::lock_guard<std::mutex> guard(api_lock_);
+  if (deinit_done_) {
+    return;
+  }
+  deinit_done_ = true;
+
   /* clean up the ION buffers for LTM */
   DeInitLtmBuffers();
 
@@ -223,6 +232,8 @@ int DRMDppsManagerImp::InitConnProps()
 void DRMDppsManagerImp::Init(int fd, drmModeRes* res) {
   std::lock_guard<std::mutex> guard(api_lock_);
   int ret = 0;
+
+  deinit_done_ = false;
 
   if (fd < 0 || !res) {
     DRM_LOGE("Invalid drm fd %d or res %pK", fd, res);
@@ -458,20 +469,29 @@ void DRMDppsManagerImp::GetDppsFeatureInfo(DRMDppsFeatureInfo *info)
   info->version = dpps_feature_[id].version;
 
   if ((id == kFeatureLtmBufferCtrl) && (dpps_feature_[kFeatureLtm].prop_id != 0)) {
-    /* setup ION buffers for LTM */
-    ret = InitLtmBuffers(info);
-    if (ret) {
-      DRM_LOGE("Failed to init LTM buffers %d", ret);
-      return;
-    } else {
-      prop_info = &dpps_feature_[kFeatureLtmBufferCtrl];
-      prop_info->obj_id = info->obj_id;
-      for (const auto& it : ltm_buffers_ctrl_map_) {
-        if (it.first == info->obj_id)
-          prop_info->value = (uint64_t)&(it.second);
+    struct DRMDppsLtmBuffers *buffers = (struct DRMDppsLtmBuffers *)info->payload;
+    // For virtual display reuse (VirtualPQ): skip re-initialization and only resend
+    // the existing buffer to the driver when buffers are already allocated.
+    bool reconfig_ltm_buffers = info->virtual_disp_with_dspp && buffers && (buffers->status >= 0);
+
+    if (!reconfig_ltm_buffers) {
+      /* setup ION buffers for LTM */
+      ret = InitLtmBuffers(info);
+      if (ret) {
+        DRM_LOGE("Failed to init LTM buffers %d", ret);
+        return;
       }
-      dpps_dirty_prop_.push_back(*prop_info);
+    } else {
+      DRM_LOGI("Reconfig LTM buffers for obj_id 0x%x, status %d", info->obj_id, buffers->status);
     }
+
+    prop_info = &dpps_feature_[kFeatureLtmBufferCtrl];
+    prop_info->obj_id = info->obj_id;
+    for (const auto &it : ltm_buffers_ctrl_map_) {
+      if (it.first == info->obj_id)
+        prop_info->value = (uint64_t) & (it.second);
+    }
+    dpps_dirty_prop_.push_back(*prop_info);
   }
 }
 

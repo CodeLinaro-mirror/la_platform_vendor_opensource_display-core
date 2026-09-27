@@ -803,6 +803,19 @@ enum SDMVirtualDispType {
   kVirtualTypeMax,          // Maximum value for virtual display types.
 };
 
+/*! @brief This enum represents the display view mode for XR display.
+
+  @sa DisplayInterface::GetDisplayViewMode
+*/
+enum SDMDisplayViewMode {
+  kViewModeNone = 0,   //!< Mobile device or unknown — single panel, no eye concept.
+                       //!< eye_index is ignored; ROI always covers the full display.
+  kViewModeMonocular,  //!< XR glass with a single eye — full display for any eye setting.
+                       //!< eye_index is ignored; ROI always covers the full display.
+  kViewModeStereo,     //!< XR glass with two eyes — left/right/both eye ROI splitting.
+                       //!< eye_index selects left half, right half, or full display.
+};
+
 }  // namespace sdm
 
 #endif  // __SDM_TYPES_H__

@@ -7,14 +7,15 @@
 #include "sdm_display_builder.h"
 
 #define __CLASS__ "SDMLayerBuilder"
-#define MAKE_NO_OP_IF_NULL_DISPLAY() \
-  if (IsNullDisplayActive()) { \
-    return kErrorNone; \
+#define MAKE_NO_OP_IF_NULL_DISPLAY(display_id) \
+  if (IsNullPrimaryDisplay(display_id)) {      \
+    return kErrorNone;                         \
   }
 
 namespace sdm {
 
 Locker SDMLayerBuilder::locker_[kNumDisplays];
+Locker SDMLayerBuilder::luts_deletion_lock_;
 
 // final cleanup if any displays were lost
 SDMLayerBuilder::~SDMLayerBuilder() {
@@ -23,8 +24,8 @@ SDMLayerBuilder::~SDMLayerBuilder() {
   }
 }
 
-bool SDMLayerBuilder::IsNullDisplayActive() {
-  return SDMDisplayBuilder::IsNullDisplayActive();
+bool SDMLayerBuilder::IsNullPrimaryDisplay(uint64_t display_id) {
+  return SDMDisplayBuilder::IsNullDisplayActive() && (display_id == SDM_DISPLAY_PRIMARY);
 }
 
 DisplayError SDMLayerBuilder::Init(BufferAllocator *buffer_allocator,
@@ -72,6 +73,11 @@ DisplayError SDMLayerBuilder::DeInit(uint64_t display_id) {
     delete sdm_layer;
   }
   display_layer_stack_.erase(display);
+
+  {
+    SCOPE_LOCK(luts_deletion_lock_);
+    valid_lut_layer_ids_.erase(display_id);
+  }
 
   return kErrorNone;
 }
@@ -122,7 +128,11 @@ DisplayError SDMLayerBuilder::SetCursorPosition(uint64_t disp_id,
 
 DisplayError SDMLayerBuilder::SetLayerAsMask(uint64_t disp_id,
                                              int64_t layer_id) {
-  MAKE_NO_OP_IF_NULL_DISPLAY();
+  MAKE_NO_OP_IF_NULL_DISPLAY(disp_id);
+
+  if (disp_id >= kNumDisplays) {
+    return kErrorParameters;
+  }
 
   if (disable_mask_layer_hint_) {
     DLOGW("Mask layer hint is disabled!");
@@ -220,6 +230,8 @@ DisplayError SDMLayerBuilder::DestroyLayerLocked(uint64_t display_id, int64_t la
   for (auto current = z_range.first; current != z_range.second; ++current) {
     if (*current == layer) {
       current = layer_set.erase(current);
+      // store layer ids to delete copy of luts
+      StoreLutsDeletion(display_id, layer);
       delete layer;
       break;
     }
@@ -227,6 +239,33 @@ DisplayError SDMLayerBuilder::DestroyLayerLocked(uint64_t display_id, int64_t la
 
   layer_stack.geometry_changes_ |= GeometryChanges::kRemoved;
   return kErrorNone;
+}
+
+bool SDMLayerBuilder::RetrievePendingLutDeletions(uint64_t display_id,
+                                                  std::vector<uint64_t> &layer_ids) {
+  SCOPE_LOCK(luts_deletion_lock_);
+
+  auto it = valid_lut_layer_ids_.find(display_id);
+  if (it == valid_lut_layer_ids_.end() || it->second.empty()) {
+    return false;
+  }
+
+  layer_ids.swap(it->second);
+  valid_lut_layer_ids_.erase(it);
+
+  return true;
+}
+
+void SDMLayerBuilder::StoreLutsDeletion(uint64_t display_id, SDMLayer *sdm_layer) {
+  if (!sdm_layer) {
+    return;
+  }
+
+  auto layer = sdm_layer->GetSDMLayer();
+  if (layer != nullptr && layer->lut_3d.lutEntries != nullptr) {
+    SCOPE_LOCK(luts_deletion_lock_);
+    valid_lut_layer_ids_[display_id].push_back(layer->layer_id);
+  }
 }
 
 SDMCompositionType
@@ -244,7 +283,11 @@ DisplayError
 SDMLayerBuilder::SetLayerBuffer(uint64_t display_id, int64_t layer_id,
                                 const SnapHandle *buffer,
                                 const shared_ptr<Fence> &acquire_fence) {
-  MAKE_NO_OP_IF_NULL_DISPLAY();
+  MAKE_NO_OP_IF_NULL_DISPLAY(display_id);
+
+  if (display_id >= kNumDisplays) {
+    return kErrorParameters;
+  }
 
   SCOPE_LOCK(locker_[display_id]);
   auto layer = GetSDMLayer(display_id, layer_id);
@@ -286,7 +329,11 @@ DisplayError SDMLayerBuilder::SetLayerTransform(uint64_t display, int64_t layer,
 
 DisplayError SDMLayerBuilder::SetLayerZOrder(uint64_t display_id,
                                              int64_t layer_id, uint32_t z) {
-  MAKE_NO_OP_IF_NULL_DISPLAY();
+  MAKE_NO_OP_IF_NULL_DISPLAY(display_id);
+
+  if (display_id >= kNumDisplays) {
+    return kErrorParameters;
+  }
 
   SCOPE_LOCK(locker_[display_id]);
   auto stack = display_layer_stack_.find(display_id);
@@ -381,7 +428,7 @@ DisplayError SDMLayerBuilder::SetLayerVisibilityType(uint64_t display, int64_t l
 DisplayError SDMLayerBuilder::SetLayerSurfaceDamage(uint64_t display,
                                                     int64_t layer_id,
                                                     SDMRegion damage) {
-  MAKE_NO_OP_IF_NULL_DISPLAY();
+  MAKE_NO_OP_IF_NULL_DISPLAY(display);
 
   SCOPE_LOCK(locker_[display]);
   if (display >= kNumDisplays) {
@@ -427,7 +474,7 @@ DisplayError SDMLayerBuilder::SetLayerPerFrameMetadata(uint64_t display,
                                                        uint32_t num_elements,
                                                        const int32_t *int_keys,
                                                        const float *metadata) {
-  MAKE_NO_OP_IF_NULL_DISPLAY();
+  MAKE_NO_OP_IF_NULL_DISPLAY(display);
 
   SCOPE_LOCK(locker_[display]);
   if (display >= kNumDisplays) {
@@ -468,7 +515,7 @@ DisplayError SDMLayerBuilder::SetLayerBrightness(uint64_t display,
 
 DisplayError SDMLayerBuilder::SetLayerPrivacyRegions(
     uint64_t display, int64_t layer, const std::vector<PrivacyRegion> &privacy_regions) {
-  MAKE_NO_OP_IF_NULL_DISPLAY();
+  MAKE_NO_OP_IF_NULL_DISPLAY(display);
 
   auto sdm_layer = GetSDMLayer(display, layer);
   if (!sdm_layer) {

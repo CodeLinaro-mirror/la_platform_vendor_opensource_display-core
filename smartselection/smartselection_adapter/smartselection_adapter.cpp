@@ -47,6 +47,15 @@ static constexpr int kHalPixelFormatRGBA1010102 = 0x2B;  // HAL_PIXEL_FORMAT_RGB
     }                                                          \
   } while (0)
 
+#define DLSYM_OPTIONAL(handle, fn_ptr, symbol)                          \
+  do {                                                                  \
+    dlerror();                                                          \
+    *(void **)(&(fn_ptr)) = dlsym((handle), (symbol));                  \
+    if (!(fn_ptr)) {                                                    \
+      DLOGW("optional dlsym failed for '%s': %s", (symbol), dlerror()); \
+    }                                                                   \
+  } while (0)
+
 //=============================================================================
 // Constructor / Destructor
 //=============================================================================
@@ -98,8 +107,11 @@ int SmartSelectionAdapter::LoadLibrary() {
   DLSYM_OR_FAIL(lib_handle_, fn_freeFrames_, "QaiorSS_freeFrames");
   DLSYM_OR_FAIL(lib_handle_, fn_waitUntilIdle_, "QaiorSS_waitUntilIdle");
   DLSYM_OR_FAIL(lib_handle_, fn_querySelectorStatus_, "QaiorSS_querySelectorStatus");
+  DLSYM_OPTIONAL(lib_handle_, fn_setQueueThresholdCallback_, "QaiorSS_setQueueThresholdCallback");
+  DLSYM_OPTIONAL(lib_handle_, fn_configureQueueThreshold_, "QaiorSS_configureQueueThreshold");
+  DLSYM_OPTIONAL(lib_handle_, fn_setBufferReleaseCallback_, "QaiorSS_setBufferReleaseCallback");
 
-  DLOGD("All C API symbols resolved successfully");
+  DLOGD("All required C API symbols resolved successfully");
   return 0;
 }
 
@@ -119,6 +131,9 @@ void SmartSelectionAdapter::UnloadLibrary() {
   fn_freeFrames_ = nullptr;
   fn_waitUntilIdle_ = nullptr;
   fn_querySelectorStatus_ = nullptr;
+  fn_setQueueThresholdCallback_ = nullptr;
+  fn_configureQueueThreshold_ = nullptr;
+  fn_setBufferReleaseCallback_ = nullptr;
 
   if (lib_handle_) {
     dlclose(lib_handle_);
@@ -196,6 +211,7 @@ int SmartSelectionAdapter::Deinit() {
     }
     pending_ahbs_.clear();
     ahb_to_native_handle_map_.clear();
+    released_cookie_to_native_handle_map_.clear();
   }
 
   // Release snapmapper_ (snapalloc lib stays resident — no dlclose needed)
@@ -262,6 +278,12 @@ int SmartSelectionAdapter::ProcessOps(SmartSelectionOp ops, const sdm::GenericPa
       return DoWaitUntilIdle(input, output);
     case kSSQuerySelectorStatus:
       return DoQuerySelectorStatus(input, output);
+    case kSSSetQueueThresholdCallback:
+      return DoSetQueueThresholdCallback(input, output);
+    case kSSSetBufferReleaseCallback:
+      return DoSetBufferReleaseCallback(input, output);
+    case kSSConfigureQueueThreshold:
+      return DoConfigureQueueThreshold(input, output);
     default:
       DLOGW("Unsupported operation: %d", static_cast<int>(ops));
       return -ENOTSUP;
@@ -359,9 +381,35 @@ void SmartSelectionAdapter::OnEmitResult(const QaiorSS_EmitResult_t *result) {
         break;
       case QAIOR_SS_FRAME_AHARDWAREBUFFER: {
         AHardwareBuffer *ahb = static_cast<AHardwareBuffer *>(src.buffer);
+        native_handle_t *released_native_hdl = nullptr;
+        if (!ahb && src.cookie) {
+          std::lock_guard<std::mutex> lock(pending_ahb_mutex_);
+          auto released_it = released_cookie_to_native_handle_map_.find(src.cookie);
+          if (released_it != released_cookie_to_native_handle_map_.end()) {
+            released_native_hdl = released_it->second;
+            released_cookie_to_native_handle_map_.erase(released_it);
+          }
+        }
+
+        if (!ahb && released_native_hdl) {
+          dst.type = kSSFrameNativeHandle;
+          dst.buffer = released_native_hdl;
+          DLOGD("OnEmitResult: using released native_handle %p from cookie %p (%s)",
+                released_native_hdl, src.cookie, tag);
+          break;
+        }
+
+        if (!ahb) {
+          dst.type = kSSFrameAHardwareBuffer;
+          dst.buffer = nullptr;
+          DLOGD("OnEmitResult: buffer already released for %s frame %d; cookie=%p", tag, idx,
+                src.cookie);
+          break;
+        }
+
         auto [found, native_hdl] = lookup_ahb(ahb, tag);
         if (!found)
-          return false;  // concurrent Deinit released it; skip frame
+          return false;  // concurrent Deinit or BufferReleaseCallback released it; skip frame
 
         if (native_hdl) {
           // Frame was originally enqueued as kSSFrameNativeHandle.
@@ -705,7 +753,13 @@ int SmartSelectionAdapter::DoEnqueue(const sdm::GenericPayload &input,
   // QaiorSS_FrameHandle_t::cookie is passed through by the library and returned
   // in QaiorSS_EmitResult_t::selectedFrames[i].cookie / rejectedFrames[i].cookie,
   // allowing callers to correlate emit results back to specific enqueued frames.
+  // For buffer-backed frames, use the original buffer as a fallback cookie so the
+  // v2.2.2 BufferReleaseCallback can correlate early buffer release with a later
+  // emit callback even if the client did not provide an explicit cookie.
   // The initCookie (= this) passed to QaiorSS_init() drives EmitCallbackTrampoline.
+  if (!frame_cookie && input_type != kSSFrameParcelFd) {
+    frame_cookie = buffer;
+  }
   frame.cookie = frame_cookie;
 
   QaiorSS_Status_t status = fn_enqueue(pipeline, context, &frame);
@@ -720,7 +774,104 @@ int SmartSelectionAdapter::DoEnqueue(const sdm::GenericPayload &input,
 }
 
 //=============================================================================
-// Frame Preparation Helpers
+// Queue Threshold / Buffer Release Callback Trampolines
+//=============================================================================
+
+// static
+void SmartSelectionAdapter::QueueThresholdCallbackTrampoline(
+    const QaiorSS_QueueThresholdEvent_t *event, void *cookie) {
+  if (!cookie)
+    return;
+  static_cast<SmartSelectionAdapter *>(cookie)->OnQueueThresholdEvent(event);
+}
+
+void SmartSelectionAdapter::OnQueueThresholdEvent(const QaiorSS_QueueThresholdEvent_t *event) {
+  if (!event)
+    return;
+
+  SmartSelectionQueueThresholdCallbackFn cb = nullptr;
+  void *cb_cookie = nullptr;
+  {
+    std::lock_guard<std::mutex> lock(callback_mutex_);
+    cb = client_queue_threshold_callback_fn_;
+    cb_cookie = client_queue_threshold_callback_cookie_;
+  }
+
+  if (!cb)
+    return;
+
+  SmartSelectionQueueThresholdEvent out;
+  out.app_name = event->app_name ? event->app_name : "";
+  out.user_id = event->user_id ? event->user_id : "";
+  out.current_queue_size = event->current_queue_size;
+  out.threshold = event->threshold;
+  out.timestamp_ms = event->timestamp_ms;
+  out.threshold_crossed = event->threshold_crossed != 0;
+  cb(&out, cb_cookie);
+}
+
+// static
+void SmartSelectionAdapter::BufferReleaseCallbackTrampoline(void *buffer, void *cookie,
+                                                            void *userData) {
+  if (!userData)
+    return;
+  static_cast<SmartSelectionAdapter *>(userData)->OnBufferReleased(buffer, cookie);
+}
+
+void SmartSelectionAdapter::OnBufferReleased(void *buffer, void *cookie) {
+  if (!buffer)
+    return;
+
+  AHardwareBuffer *ahb = static_cast<AHardwareBuffer *>(buffer);
+  native_handle_t *native_hdl = nullptr;
+  bool found = false;
+
+  {
+    std::lock_guard<std::mutex> lock(pending_ahb_mutex_);
+    auto it = pending_ahbs_.find(ahb);
+    if (it != pending_ahbs_.end()) {
+      pending_ahbs_.erase(it);
+      found = true;
+    }
+
+    auto map_it = ahb_to_native_handle_map_.find(ahb);
+    if (map_it != ahb_to_native_handle_map_.end()) {
+      native_hdl = map_it->second;
+      ahb_to_native_handle_map_.erase(map_it);
+      if (cookie) {
+        released_cookie_to_native_handle_map_[cookie] = native_hdl;
+      }
+    }
+  }
+
+  if (!found) {
+    DLOGW("OnBufferReleased: AHB %p not found in pending set (cookie=%p)", ahb, cookie);
+    return;
+  }
+
+  SmartSelectionBufferReleaseCallbackFn cb = nullptr;
+  void *cb_cookie = nullptr;
+  {
+    std::lock_guard<std::mutex> lock(callback_mutex_);
+    cb = client_buffer_release_callback_fn_;
+    cb_cookie = client_buffer_release_callback_cookie_;
+  }
+
+  if (cb) {
+    SmartSelectionBufferReleaseEvent event;
+    event.type = native_hdl ? kSSFrameNativeHandle : kSSFrameAHardwareBuffer;
+    event.buffer = native_hdl ? static_cast<void *>(native_hdl) : static_cast<void *>(ahb);
+    event.cookie = cookie;
+    cb(&event, cb_cookie);
+  }
+
+  DLOGD("OnBufferReleased: releasing internal AHB %p native_handle=%p cookie=%p", ahb, native_hdl,
+        cookie);
+  AHardwareBuffer_release(ahb);
+}
+
+//=============================================================================
+// 9 Operations
 //=============================================================================
 
 // ---------------------------------------------------------------------------
@@ -1422,6 +1573,10 @@ int SmartSelectionAdapter::DoDeinit(const sdm::GenericPayload &input, sdm::Gener
     std::lock_guard<std::mutex> lock(callback_mutex_);
     client_callback_fn_ = nullptr;
     client_callback_cookie_ = nullptr;
+    client_queue_threshold_callback_fn_ = nullptr;
+    client_queue_threshold_callback_cookie_ = nullptr;
+    client_buffer_release_callback_fn_ = nullptr;
+    client_buffer_release_callback_cookie_ = nullptr;
   }
 
   // Release any pending AHardwareBuffers.
@@ -1434,6 +1589,7 @@ int SmartSelectionAdapter::DoDeinit(const sdm::GenericPayload &input, sdm::Gener
     }
     pending_ahbs_.clear();
     ahb_to_native_handle_map_.clear();
+    released_cookie_to_native_handle_map_.clear();
   }
 
   // Note: lib_handle_ and snapmapper_ are intentionally NOT released here.
@@ -1533,6 +1689,168 @@ int SmartSelectionAdapter::DoQuerySelectorStatus(const sdm::GenericPayload &inpu
   }
 
   return (count >= 0) ? 0 : -EINVAL;
+}
+
+int SmartSelectionAdapter::DoSetQueueThresholdCallback(const sdm::GenericPayload &input,
+                                                       sdm::GenericPayload *output) {
+  DLOGD("DoSetQueueThresholdCallback");
+  (void)output;
+
+  QaiorSS_Pipeline_t *pipeline = nullptr;
+  QaiorSS_Context_t *context = nullptr;
+  decltype(fn_setQueueThresholdCallback_) fn_set = nullptr;
+  SmartSelectionQueueThresholdCallbackFn client_cb = nullptr;
+  void *client_cookie = nullptr;
+
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!pipeline_ || !context_) {
+      DLOGE("Pipeline not initialized");
+      return -EINVAL;
+    }
+    if (!fn_setQueueThresholdCallback_) {
+      DLOGE("QueueThresholdCallback API is not available in loaded SmartSelection library");
+      return -ENOTSUP;
+    }
+
+    SmartSelectionSetQueueThresholdCallbackInput *cb_input = nullptr;
+    uint32_t size = 0;
+    if (input.GetPayload(cb_input, &size) != 0 || !cb_input || size != 1) {
+      DLOGE("DoSetQueueThresholdCallback: invalid input payload");
+      return -EINVAL;
+    }
+
+    client_cb = cb_input->callback;
+    client_cookie = cb_input->cookie;
+    pipeline = pipeline_;
+    context = context_;
+    fn_set = fn_setQueueThresholdCallback_;
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(callback_mutex_);
+    client_queue_threshold_callback_fn_ = client_cb;
+    client_queue_threshold_callback_cookie_ = client_cookie;
+  }
+
+  QaiorSS_Status_t status =
+      fn_set(pipeline, context, client_cb ? QueueThresholdCallbackTrampoline : nullptr, this);
+  if (status != QAIOR_SS_STATUS_OK) {
+    DLOGE("DoSetQueueThresholdCallback: QaiorSS_setQueueThresholdCallback failed: %d", status);
+    std::lock_guard<std::mutex> lock(callback_mutex_);
+    client_queue_threshold_callback_fn_ = nullptr;
+    client_queue_threshold_callback_cookie_ = nullptr;
+    return -EINVAL;
+  }
+
+  return 0;
+}
+
+int SmartSelectionAdapter::DoConfigureQueueThreshold(const sdm::GenericPayload &input,
+                                                     sdm::GenericPayload *output) {
+  DLOGD("DoConfigureQueueThreshold");
+  (void)output;
+
+  QaiorSS_Pipeline_t *pipeline = nullptr;
+  QaiorSS_Context_t *context = nullptr;
+  decltype(fn_configureQueueThreshold_) fn_configure = nullptr;
+  std::string app_name;
+  size_t threshold = 0;
+  bool enabled = false;
+
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!pipeline_ || !context_) {
+      DLOGE("Pipeline not initialized");
+      return -EINVAL;
+    }
+    if (!fn_configureQueueThreshold_) {
+      DLOGE("Queue threshold configuration API is not available in loaded SmartSelection library");
+      return -ENOTSUP;
+    }
+
+    SmartSelectionConfigureQueueThresholdInput *cfg_input = nullptr;
+    uint32_t size = 0;
+    if (input.GetPayload(cfg_input, &size) != 0 || !cfg_input || size != 1) {
+      DLOGE("DoConfigureQueueThreshold: invalid input payload");
+      return -EINVAL;
+    }
+    if (cfg_input->app_name.empty()) {
+      DLOGE("DoConfigureQueueThreshold: app_name is required");
+      return -EINVAL;
+    }
+
+    pipeline = pipeline_;
+    context = context_;
+    fn_configure = fn_configureQueueThreshold_;
+    app_name = cfg_input->app_name;
+    threshold = cfg_input->threshold;
+    enabled = cfg_input->enabled;
+  }
+
+  QaiorSS_Status_t status =
+      fn_configure(pipeline, context, app_name.c_str(), threshold, enabled ? 1 : 0);
+  if (status != QAIOR_SS_STATUS_OK) {
+    DLOGE("DoConfigureQueueThreshold: QaiorSS_configureQueueThreshold failed: %d", status);
+    return -EINVAL;
+  }
+
+  return 0;
+}
+
+int SmartSelectionAdapter::DoSetBufferReleaseCallback(const sdm::GenericPayload &input,
+                                                      sdm::GenericPayload *output) {
+  DLOGD("DoSetBufferReleaseCallback");
+  (void)output;
+
+  QaiorSS_Pipeline_t *pipeline = nullptr;
+  QaiorSS_Context_t *context = nullptr;
+  decltype(fn_setBufferReleaseCallback_) fn_set = nullptr;
+  SmartSelectionBufferReleaseCallbackFn client_cb = nullptr;
+  void *client_cookie = nullptr;
+
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!pipeline_ || !context_) {
+      DLOGE("Pipeline not initialized");
+      return -EINVAL;
+    }
+    if (!fn_setBufferReleaseCallback_) {
+      DLOGE("BufferReleaseCallback API is not available in loaded SmartSelection library");
+      return -ENOTSUP;
+    }
+
+    SmartSelectionSetBufferReleaseCallbackInput *cb_input = nullptr;
+    uint32_t size = 0;
+    if (input.GetPayload(cb_input, &size) != 0 || !cb_input || size != 1) {
+      DLOGE("DoSetBufferReleaseCallback: invalid input payload");
+      return -EINVAL;
+    }
+
+    client_cb = cb_input->callback;
+    client_cookie = cb_input->cookie;
+    pipeline = pipeline_;
+    context = context_;
+    fn_set = fn_setBufferReleaseCallback_;
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(callback_mutex_);
+    client_buffer_release_callback_fn_ = client_cb;
+    client_buffer_release_callback_cookie_ = client_cookie;
+  }
+
+  QaiorSS_Status_t status =
+      fn_set(pipeline, context, client_cb ? BufferReleaseCallbackTrampoline : nullptr, this);
+  if (status != QAIOR_SS_STATUS_OK) {
+    DLOGE("DoSetBufferReleaseCallback: QaiorSS_setBufferReleaseCallback failed: %d", status);
+    std::lock_guard<std::mutex> lock(callback_mutex_);
+    client_buffer_release_callback_fn_ = nullptr;
+    client_buffer_release_callback_cookie_ = nullptr;
+    return -EINVAL;
+  }
+
+  return 0;
 }
 
 //=============================================================================

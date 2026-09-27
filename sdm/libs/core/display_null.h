@@ -83,6 +83,7 @@ class DisplayNull : public DisplayInterface {
   virtual void ScreenRefresh() {}
   virtual bool IsWriteBackSupportedFormat(const LayerBufferFormat &format) { return false; }
   virtual bool HandleCwbTeardown() { return false; }
+  virtual bool HasPendingCwbRequest() { return false; }
   virtual void Abort() {}
   virtual void ReleaseWBFromDisplay() {}
   virtual uint32_t GetAvailableMixerCount() { return 0; }
@@ -214,6 +215,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(SetRgbHistObserverConfig(bool, void *))
   MAKE_NO_OP(SetQrtcFeatureConfig(int32_t type, void *data))
   MAKE_NO_OP(UpdateRgbHistogramRoi(const void *));
+  MAKE_NO_OP(GetDisplayViewMode(SDMDisplayViewMode *view_mode))
 
  protected:
   DisplayConfigVariableInfo default_variable_config_ = {};

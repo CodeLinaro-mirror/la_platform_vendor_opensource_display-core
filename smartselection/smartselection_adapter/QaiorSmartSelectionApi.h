@@ -26,6 +26,7 @@ extern "C" {
  */
 
 #include <stdint.h>
+#include <stddef.h>
 
 /* ---------------------------------------------------------------
  *  Status Codes
@@ -276,9 +277,17 @@ QaiorSS_Status_t QaiorSS_flushByConfig(QaiorSS_Pipeline_t *pipeline, QaiorSS_Con
 QaiorSS_Status_t QaiorSS_flushAll(QaiorSS_Pipeline_t *pipeline, QaiorSS_Context_t *ctx);
 
 /**
- * @brief Emit only the screenshots that have already been selected for the
- *        given app.  After emission the selector's internal queue is cleared,
- *        leaving any pending (not-yet-selected) tasks untouched.
+ * @brief Emit the screenshots already selected for the given app via a single
+ *        aggregated callback.
+ *
+ * Behavior:
+ *   - Drains the selector's internal queue (force-flush) and emits every
+ *     popped screenshot in @c QaiorSS_EmitResult_t::selectedFrames.
+ *   - Frames that were accepted by the selector but later pruned by its
+ *     coverage algorithm are reported in
+ *     @c QaiorSS_EmitResult_t::rejectedFrames in the same callback.
+ *   - Pending tasks that have not yet been processed by the selector are
+ *     untouched.
  *
  * @param pipeline   The pipeline handle.
  * @param ctx        Active context.
@@ -371,6 +380,138 @@ int QaiorSS_querySelectorStatus(QaiorSS_Context_t *ctx, const char *app_name);
  */
 QaiorSS_Status_t QaiorSS_waitUntilIdle(QaiorSS_Pipeline_t *p, QaiorSS_Context_t *ctx,
                                        int32_t timeout_ms);
+
+/* --------------------------------------------------------------- */
+/**
+ * @brief Queue threshold event data
+ */
+typedef struct {
+  const char *app_name;       ///< Application name
+  const char *user_id;        ///< User ID
+  size_t current_queue_size;  ///< Current queue size
+  size_t threshold;           ///< Configured threshold
+  int64_t timestamp_ms;       ///< Timestamp in milliseconds
+  int threshold_crossed;      ///< 1 if crossed above, 0 if back below
+} QaiorSS_QueueThresholdEvent_t;
+
+/**
+ * @brief Queue threshold callback function pointer
+ *
+ * Called when queue size crosses the configured threshold.
+ *
+ * @param event Pointer to threshold event data (valid only during callback)
+ * @param cookie User context pointer passed to QaiorSS_setQueueThresholdCallback
+ *
+ */
+typedef void (*QaiorSS_QueueThresholdCallback)(const QaiorSS_QueueThresholdEvent_t *event,
+                                               void *cookie);
+
+/**
+ * @brief Set queue threshold callback for monitoring queue size
+ *
+ * NEW - Can be called anytime after QaiorSS_init()
+ *
+ * This callback is invoked when the queue size crosses the configured threshold
+ * (either going above or falling back below). It allows applications to monitor queue
+ * health and take corrective actions.
+ *
+ * @param pipeline The pipeline handle
+ * @param ctx Active context from QaiorSS_init()
+ * @param callback Callback function (NULL to disable notifications)
+ * @param cookie User context pointer passed to callback
+ *
+ * @return QAIOR_SS_STATUS_OK on success,
+ *         QAIOR_SS_STATUS_ERROR_INVALID_ARGUMENT if pipeline or ctx is NULL,
+ *         QAIOR_SS_STATUS_ERROR on other failures
+ *
+ * @note Thread-safe: Can be called from any thread
+ * @note The callback is invoked from the worker thread context
+ * @note Setting callback to NULL disables threshold notifications
+ *
+ */
+QaiorSS_Status_t QaiorSS_setQueueThresholdCallback(QaiorSS_Pipeline_t *pipeline,
+                                                   QaiorSS_Context_t *ctx,
+                                                   QaiorSS_QueueThresholdCallback callback,
+                                                   void *cookie);
+
+/**
+ * @brief Configure queue threshold settings
+ *
+ * Updates the threshold value and enables/disables notifications. Can be called
+ * multiple times to adjust settings dynamically.
+ *
+ * @param pipeline The pipeline handle
+ * @param ctx Active context
+ * @param app_name Application name (must match configured pipeline)
+ * @param threshold Queue size threshold for notifications
+ * @param enabled 1 to enable notifications, 0 to disable
+ *
+ * @return QAIOR_SS_STATUS_OK on success,
+ *         QAIOR_SS_STATUS_ERROR_INVALID_ARGUMENT if invalid parameters,
+ *         QAIOR_SS_STATUS_ERROR if app_name not found
+ *
+ * @note If no callback is set via QaiorSS_setQueueThresholdCallback, this function
+ *       still updates the threshold but no notifications occur
+ *
+ */
+QaiorSS_Status_t QaiorSS_configureQueueThreshold(QaiorSS_Pipeline_t *pipeline,
+                                                 QaiorSS_Context_t *ctx, const char *app_name,
+                                                 size_t threshold, int enabled);
+
+/* ---------------------------------------------------------------
+ *  Buffer Release Callback
+ * --------------------------------------------------------------- */
+/**
+ * @brief Callback invoked when the pipeline has finished reading from a frame's
+ *        underlying buffer and the client may release it.
+ *
+ * The client owns the underlying buffer (e.g. AHardwareBuffer). The pipeline
+ * only reads from it during frame->image conversion; once that conversion
+ * completes the buffer is no longer needed by the pipeline. This callback
+ * notifies the client at that earliest-safe point so the buffer can be freed
+ * promptly.
+ *
+ * Guarantees:
+ *   - Invoked exactly once per enqueued buffer-backed frame, on both the
+ *     success path and every early-return/error path (unknown app, selector
+ *     not initialized, conversion failure, etc.).
+ *   - Not invoked for frames that carry no buffer (e.g. ParcelFd / Other with
+ *     a null buffer).
+ *   - After the callback returns the pipeline drops its reference to the
+ *     buffer (the buffer pointer in any subsequently-emitted FrameHandle is
+ *     cleared), so the client is free to release it from within the callback.
+ *
+ * @param buffer The underlying buffer pointer (AHardwareBuffer* /
+ *               android::GraphicBuffer*) that the client may now release.
+ * @param cookie The per-frame cookie supplied at enqueue time, for client-side
+ *               correlation.
+ * @param userData Opaque pointer passed through from
+ *               QaiorSS_setBufferReleaseCallback().
+ */
+typedef void (*QaiorSS_BufferReleaseCallback)(void *buffer, void *cookie, void *userData);
+
+/**
+ * @brief Register a callback that the pipeline invokes when it is done reading
+ *        from a frame's buffer (immediately after frame->image conversion).
+ *
+ * Can be called anytime after QaiorSS_init(). Pass NULL to disable.
+ *
+ * @param pipeline The pipeline handle.
+ * @param ctx      Active context from QaiorSS_init().
+ * @param callback Callback function (NULL to disable notifications).
+ * @param userData Opaque pointer passed back to the callback.
+ *
+ * @return QAIOR_SS_STATUS_OK on success,
+ *         QAIOR_SS_STATUS_ERROR_INVALID_ARGUMENT if pipeline or ctx is NULL,
+ *         QAIOR_SS_STATUS_ERROR on other failures.
+ *
+ * @note Thread-safe: can be called from any thread.
+ * @note The callback is invoked from the worker thread context.
+ */
+QaiorSS_Status_t QaiorSS_setBufferReleaseCallback(QaiorSS_Pipeline_t *pipeline,
+                                                  QaiorSS_Context_t *ctx,
+                                                  QaiorSS_BufferReleaseCallback callback,
+                                                  void *userData);
 
 #ifdef __cplusplus
 }

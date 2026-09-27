@@ -67,6 +67,8 @@ enum DemuraTnCoreUvmParams {
   kDemuraTnCoreUvmParamAgingValues,
   /* Setter: None  */
   kDemuraTnCoreUvmParamCompRatio1x1,
+  /* Setter: None */
+  kDemuraTnCoreUvmParamSsrEvent,
   kDemuraTnCoreUvmParamsMax = 2048,
   kDemuraTnCoreUvmPrivParamsStart = 2049,
   kDemuraTnCoreUvmPrivParamsEnd = 4096,

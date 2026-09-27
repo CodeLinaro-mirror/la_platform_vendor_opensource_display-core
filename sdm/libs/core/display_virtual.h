@@ -159,6 +159,7 @@ class DisplayVirtualPQ : public DisplayVirtual, public DppsPropIntf {
   virtual DisplayError GetStcColorModes(snapdragoncolor::ColorModeList *mode_list) override;
   virtual DisplayError SetStcColorMode(const snapdragoncolor::ColorMode &color_mode) override;
   virtual DisplayError PostCommit() override;
+  virtual DisplayError ProcessColorFeatureOps(DisplayColorOps ops, void *payload) override;
 
   // Implement the DppsPropIntf
   virtual DisplayError DppsProcessOps(enum DppsOps op, void *payload, size_t size) override;
@@ -171,6 +172,7 @@ class DisplayVirtualPQ : public DisplayVirtual, public DppsPropIntf {
   // Panel name forwarded to STC manager to locate calibration files.
   std::string panel_name_ = "virtual_display_panel_with_pq";
   DppsInfo dpps_info_ = {};
+  bool request_dpps_reconfig_ = false;
 };
 
 }  // namespace sdm

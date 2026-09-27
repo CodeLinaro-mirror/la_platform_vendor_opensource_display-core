@@ -16,6 +16,7 @@
 #include <ChromaSiting.h>
 #include <Compression.h>
 #include <CustomContentMetadata.h>
+#include <SMPTE2094_50.h>
 #include <Dataspace.h>
 #include <Error.h>
 #include <Fence.h>

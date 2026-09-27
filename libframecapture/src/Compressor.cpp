@@ -31,6 +31,8 @@ int Compressor::Init(const CompressionConfig &config, FILE *fp, CompressorCallba
   write_thread_.swap(write_thread);
 
   comp_config_ = config;
+  buffer_count_ =
+      (config.buffer_count > 0) ? static_cast<int>(config.buffer_count) : kMaxBufferCount;
   fp_ = fp;
   callback_ = callback;
 
@@ -39,7 +41,7 @@ int Compressor::Init(const CompressionConfig &config, FILE *fp, CompressorCallba
 
 int Compressor::GetOutputBufferConfig(int *buffer_depth, int *buffer_size) {
   std::lock_guard<std::mutex> obj(mutex_);
-  *buffer_depth = kMaxBufferCount;
+  *buffer_depth = buffer_count_;
   *buffer_size = LZ4_compressBound(comp_config_.buf_size);
   return 0;
 }

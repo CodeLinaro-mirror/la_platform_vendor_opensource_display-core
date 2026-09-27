@@ -514,6 +514,25 @@ enum struct DRMOps {
    */
   CRTC_SET_LSR_MODE,
   /*
+   * Op: Sets GPU LSR batch size (total number of ping-pong slots).
+   * Used during the two init commits to register all output buffers with DCP.
+   * Args: uint32_t - CRTC ID
+   *       uint32_t - batch_size (2 for double-buffered GPU reproj)
+   */
+  CRTC_SET_BATCH_SIZE,
+  /*
+   * Op: Sets GPU LSR batch index (1-based slot index within the batch).
+   * Commit 1 carries index=1 (slot 0 buffers), commit 2 carries index=2 (slot 1 buffers).
+   * Args: uint32_t - CRTC ID
+   *       uint32_t - batch_index (1 or 2)
+   */
+  CRTC_SET_BATCH_INDEX,
+  /*
+   * Op: Set the batch type for GPU LSR init commits.
+   * Arg: uint32_t - batch_type (0=NONE, 1=LSR)
+   */
+  CRTC_SET_BATCH_TYPE,
+  /*
    * Op: Returns retire fence for this commit. Should be called after Commit()
    * on DRMAtomicReqInterface. Arg: uint32_t - Connector ID int * - Pointer to
    * an integer that will hold the returned fence
@@ -781,6 +800,13 @@ enum struct DRMOps {
    *      drmModeAtomicReq - Atomic request
    */
   CONNECTOR_SET_LSR_OUTPUT_FB_ID,
+  /*
+   * Op: Sets the shared HFI coordination buffer FB ID for GPU LSR (built-in display path).
+   * Sent on the first init commit only (batch_index=1).
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - Framebuffer ID of the DCP<->GPU coordination buffer
+   */
+  CONNECTOR_SET_GMU_DCP_INTF_MEM,
   /*
    * Op: Sets primary display conn id for repro connector
    * Arg: uint32_t - Connector ID
@@ -1076,6 +1102,7 @@ struct DRMCrtcInfo {
   bool has_cesta = false;
   uint32_t ai_scaler_count = 0;
   bool is_udc_supported = true;
+  uint32_t max_lsr_batch_size = 0;  // >0 only when kernel has SDE_FEATURE_BATCH_COMMIT+GMU_REPROJ
 };
 
 enum struct DRMPlaneType {
@@ -1277,6 +1304,7 @@ struct DRMConnectorInfo {
   uint32_t mmHeight;
   uint32_t type;
   uint32_t type_id;
+  uint32_t port_id = 0;
   std::vector<DRMModeInfo> modes;
   std::string panel_name;
   DRMPanelMode panel_mode;
@@ -1458,6 +1486,7 @@ struct DRMDppsFeatureInfo {
   uint32_t version;
   uint32_t payload_size;
   void *payload;
+  bool virtual_disp_with_dspp = false;
 };
 
 enum DRMPanelFeatureID {

@@ -107,6 +107,13 @@ DisplayError SDMDisplayVirtual::CommitOrPrepare(
   return kErrorNone;
 }
 
+DisplayError SDMDisplayVirtual::ProcessColorFeatureOps(DisplayColorOps ops, void *payload) {
+  if (display_intf_) {
+    return display_intf_->ProcessColorFeatureOps(ops, payload);
+  }
+  return kErrorNotSupported;
+}
+
 DisplayError SDMDisplayVirtual::DumpVDSBuffer() {
   if (dump_frame_count_ && !flush_ && dump_output_layer_) {
     if (output_handle_) {

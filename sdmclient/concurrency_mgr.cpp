@@ -122,6 +122,21 @@ ConcurrencyMgr::~ConcurrencyMgr() {
   if (is_composer_up_) {
     Deinit();
   }
+
+  // Join all persistent self-refresh threads.
+  for (uint32_t i = 0; i < kNumDisplays; i++) {
+    if (self_refresh_thread_started_[i]) {
+      {
+        std::lock_guard<std::mutex> lock(self_refresh_mutex_[i]);
+        self_refresh_exit_[i] = true;
+      }
+      self_refresh_cv_[i].notify_one();
+      if (self_refresh_thread_[i].joinable()) {
+        self_refresh_thread_[i].join();
+      }
+      self_refresh_thread_started_[i] = false;
+    }
+  }
 }
 
 int ConcurrencyMgr::GetDisplayIndex(int dpy) {
@@ -215,6 +230,10 @@ DisplayError ConcurrencyMgr::Init(BufferAllocator *buffer_allocator, SocketHandl
   Debug::Get()->GetProperty(ENABLE_SELECTIVE_PANEL_DEAD, &value);
   selective_panel_dead_ = (value == 1);
   DLOGI("selective_panel_dead: %d", selective_panel_dead_);
+
+  value = 0;
+  Debug::Get()->GetProperty(ALLOW_SECCAM_CONCURRENCY, &value);
+  allow_seccam_concurrency_ = (value == 1);
 
   auto err = InitSubModules(debug);
   if (err != kErrorNone) {
@@ -371,7 +390,13 @@ DisplayError ConcurrencyMgr::PostBufferWithOwner(const CwbConfig &cwb_config, vo
   // Register buffer ownership for callback routing if PostBuffer succeeded
   auto err = callbacks_.RegisterCWBBufferOwner(buffer, owner);
   if (err == kErrorNone) {
-    return cwb_->PostBuffer(cwb_config, buffer, disp_->GetDisplayIndex(display_type));
+    auto post_err = cwb_->PostBuffer(cwb_config, buffer, disp_->GetDisplayIndex(display_type));
+    if (post_err != kErrorNone) {
+      // PostBuffer failed; roll back the ownership registration to avoid
+      // stale entries in cwb_buffer_owners_ that would block future requests.
+      callbacks_.UnregisterCWBBufferOwner(buffer);
+    }
+    return post_err;
   }
   return err;
 }
@@ -466,16 +491,30 @@ void ConcurrencyMgr::Dump(uint32_t *out_size, char *out_buffer) {
 }
 
 uint32_t ConcurrencyMgr::GetMaxVirtualDisplayCount() {
-  // Limit max virtual displays reported to SF based on the
-  // MAX_VIRTUAL_DISPLAY_COUNT property. Even though HW may support multiple
-  // virtual displays, by default only one is allowed to be used by SF.
-  // If the property is explicitly set to 0, no virtual displays are reported.
   int value = 1;
   Debug::Get()->GetProperty(MAX_VIRTUAL_DISPLAY_COUNT, &value);
-  if (value == 0) {
-    return 0;
+  if (value <= 1) {
+    DLOGI("Max virtual display count = %d", value);
+    return value;
   }
-  return 1;
+
+  HWDisplaysInfo hw_displays_info = {};
+  DisplayError error = core_intf_->GetDisplaysStatus(&hw_displays_info);
+  if (error != kErrorNone) {
+    DLOGW("Failed to get connected display list. Error = %d", error);
+    return 1;
+  }
+
+  uint32_t max_virtual_disp = 0;
+  for (auto& [disp_id, disp_info] : hw_displays_info) {
+    if (disp_info.display_type == kVirtual)
+      max_virtual_disp++;
+  }
+
+  max_virtual_disp =
+    (!max_virtual_disp) ? 1 : std::min(max_virtual_disp, static_cast<uint32_t>(value));
+  DLOGI("Max virtual display supported = %d", max_virtual_disp);
+  return max_virtual_disp;
 }
 
 DisplayError ConcurrencyMgr::AcceptDisplayChanges(Display display) {
@@ -984,18 +1023,22 @@ DisplayError ConcurrencyMgr::SetClientTarget(uint64_t display, const SnapHandle 
                          1.0f /* hdr_sdr_ratio */);
 }
 
+bool ConcurrencyMgr::IsNullPrimaryDisplay(uint64_t display) {
+  return SDMDisplayBuilder::IsNullDisplayActive() && (display == SDM_DISPLAY_PRIMARY);
+}
+
 DisplayError ConcurrencyMgr::SetClientTarget(uint64_t display, const SnapHandle *target,
                                              shared_ptr<Fence> acquire_fence, int32_t dataspace,
                                              const SDMRegion &damage, uint32_t version,
                                              float hdr_sdr_ratio) {
   DTRACE_SCOPED();
 
-  if (SDMDisplayBuilder::IsNullDisplayActive()) {
-    return kErrorNone;
-  }
-
   if (display >= kNumDisplays) {
     return kErrorParameters;
+  }
+
+  if (IsNullPrimaryDisplay(display)) {
+    return kErrorNone;
   }
 
   SCOPE_LOCK(locker_[display]);
@@ -1077,9 +1120,14 @@ DisplayError ConcurrencyMgr::SetCursorPosition(Display display, LayerId layer,
 
 DisplayError ConcurrencyMgr::SetDisplayElapseTime(Display display,
                                                   uint64_t time) {
-  if (SDMDisplayBuilder::IsNullDisplayActive()) {
+  if (display >= kNumDisplays) {
+    return kErrorParameters;
+  }
+
+  if (IsNullPrimaryDisplay(display)) {
     return kErrorNone;
   }
+
   return CallDisplayFunction(display, &SDMDisplay::SetDisplayElapseTime, time);
 }
 
@@ -1096,9 +1144,14 @@ ConcurrencyMgr::SetOutputBuffer(uint64_t display, const SnapHandle *buffer,
     return kErrorParameters;
   }
 
+  if (display >= kNumDisplays) {
+    return kErrorParameters;
+  }
+
   bool found = false;
   for (auto disp : {qdutilsDisplayType::DISPLAY_VIRTUAL, qdutilsDisplayType::DISPLAY_VIRTUAL_2}) {
-    if (INT32(display) == disp_->GetDisplayIndex(disp)) {
+    int disp_index = disp_->GetDisplayIndex(disp);
+    if ((disp_index >= 0) && UINT64(disp_index) == display) {
       found = true;
       break;
     }
@@ -1458,6 +1511,45 @@ void ConcurrencyMgr::Refresh(uint64_t display) {
   client_pending_refresh_.set(UINT32(display));
 }
 
+void ConcurrencyMgr::SelfRefreshThread(uint32_t idx) {
+  while (true) {
+    {
+      std::unique_lock<std::mutex> sr_lock(self_refresh_mutex_[idx]);
+      self_refresh_cv_[idx].wait(
+          sr_lock, [this, idx] { return self_refresh_count_[idx] > 0 || self_refresh_exit_[idx]; });
+      if (self_refresh_exit_[idx])
+        break;
+      self_refresh_count_[idx]--;
+    }
+
+    SEQUENCE_WAIT_SCOPE_LOCK(locker_[Display(idx)]);
+    auto sdm_display = GetDisplayFromClientId(Display(idx));
+    if (sdm_display) {
+      sdm_display->PerformSelfRefresh();
+    }
+  }
+}
+
+void ConcurrencyMgr::OnSelfRefresh(uint64_t display) {
+  uint32_t idx = UINT32(display);
+  if (idx >= kNumDisplays) {
+    return;
+  }
+
+  // Create the persistent thread lazily on first call.
+  if (!self_refresh_thread_started_[idx]) {
+    self_refresh_exit_[idx] = false;
+    self_refresh_thread_[idx] = std::thread(&ConcurrencyMgr::SelfRefreshThread, this, idx);
+    self_refresh_thread_started_[idx] = true;
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(self_refresh_mutex_[idx]);
+    self_refresh_count_[idx]++;
+  }
+  self_refresh_cv_[idx].notify_one();
+}
+
 void ConcurrencyMgr::CompositorSync(uint64_t display, CompositorSyncType sync_type) {
   if (sync_type == CompositorSyncTypeAcquire) {
     tui_mutex_.lock_shared();  // shared — allows concurrent SF threads
@@ -1586,6 +1678,14 @@ void ConcurrencyMgr::HandleSecureSession() {
     // No secure session active. No secure session transition to handle. Skip
     // remaining steps.
     return;
+  }
+
+  if (allow_seccam_concurrency_) {
+    bool requires_display_poweroff = secure_sessions[kSecureDisplay] || secure_sessions[kSecureTUI];
+    if (!requires_display_poweroff && secure_sessions[kSecureCamera]) {
+      DLOGV("Secure camera session active — skipping display power-off for other displays");
+      return;
+    }
   }
 
   // If it is called during primary prepare/commit, we need to pause any ongoing
@@ -2249,6 +2349,15 @@ DisplayError ConcurrencyMgr::CommitOrPrepare(
   auto status = kErrorNone;
   {
     SEQUENCE_ENTRY_SCOPE_LOCK(locker_[display]);
+    {
+      uint32_t idx = UINT32(display);
+      if (idx < kNumDisplays && self_refresh_thread_started_[idx]) {
+        std::lock_guard<std::mutex> lock(self_refresh_mutex_[idx]);
+        if (self_refresh_count_[idx] > 0) {
+          self_refresh_count_[idx]--;
+        }
+      }
+    }
     sdm_display_[display]->ProcessActiveConfigChange();
     sdm_display_[display]->IsMultiDisplay(disp_->GetActiveDisplayCount() > 1);
     status = sdm_display_[display]->CommitOrPrepare(
@@ -3027,6 +3136,10 @@ void ConcurrencyMgr::PerformSubsystemRestart(bool start) {
 
 DisplayError ConcurrencyMgr::SetRgbHistObserverConfig(Display display, bool state, void *data) {
   return CallDisplayFunction(display, &SDMDisplay::SetRgbHistObserverConfig, state, data);
+}
+
+DisplayError ConcurrencyMgr::GetDisplayViewMode(Display display, SDMDisplayViewMode *view_mode) {
+  return CallDisplayFunction(display, &SDMDisplay::GetDisplayViewMode, view_mode);
 }
 
 }  // namespace sdm

@@ -788,6 +788,8 @@ DisplayError DisplayBase::GetCwbBufferResolution(CwbConfig *cwb_config, uint32_t
 
   CwbTapPoint cwb_tappoint = cwb_config->tap_point;
   bool pu_as_cwb_roi = cwb_config->pu_as_cwb_roi;
+  LayerRect mixer_full_frame = {0.0f, 0.0f, FLOAT(client_ctx_.mixer_attributes.width),
+                                FLOAT(client_ctx_.mixer_attributes.height)};
   if (cwb_tappoint == CwbTapPoint::kDsppTapPoint || cwb_tappoint == CwbTapPoint::kDemuraTapPoint) {
     // To dump post-processed (DSPP) output for CWB, use Panel resolution.
     uint32_t active_index = 0;
@@ -801,9 +803,11 @@ DisplayError DisplayBase::GetCwbBufferResolution(CwbConfig *cwb_config, uint32_t
         if (pu_as_cwb_roi) {
           *x_pixels = display_config.x_pixels;
           *y_pixels = display_config.y_pixels;
-        } else if (IsValidCwbRoi(cwb_roi, cwb_config->cwb_full_rect)) {
-          *x_pixels = cwb_roi.right - cwb_roi.left;
-          *y_pixels = cwb_roi.bottom - cwb_roi.top;
+        } else if (IsValidCwbRoi(cwb_roi, mixer_full_frame)) {
+          LayerRect mapped_cwb_roi = {};
+          MapRect(mixer_full_frame, cwb_config->cwb_full_rect, cwb_roi, &mapped_cwb_roi);
+          *x_pixels = mapped_cwb_roi.right - mapped_cwb_roi.left;
+          *y_pixels = mapped_cwb_roi.bottom - mapped_cwb_roi.top;
         } else {
           *x_pixels = display_config.x_pixels;
           *y_pixels = display_config.y_pixels;
@@ -830,7 +834,7 @@ DisplayError DisplayBase::GetCwbBufferResolution(CwbConfig *cwb_config, uint32_t
       if (pu_as_cwb_roi) {
         *x_pixels = display_config.x_pixels;
         *y_pixels = display_config.y_pixels;
-      } else if (IsValidCwbRoi(cwb_roi, cwb_config->cwb_full_rect)) {
+      } else if (IsValidCwbRoi(cwb_roi, mixer_full_frame)) {
         *x_pixels = cwb_roi.right - cwb_roi.left;
         *y_pixels = cwb_roi.bottom - cwb_roi.top;
       } else {
@@ -1737,9 +1741,28 @@ bool DisplayBase::IsLSRSupported() {
 bool DisplayBase::IsPrimaryCommitNeeded() {
   if (!client_ctx_.hw_panel_info.is_lsr_display) {
     lsr_first_commit_ = true;
+    gpu_reproj_init_commit_count_ = 0;
     return true;
   }
 
+  // GPU reproj (seraph/GPU LSR path): commit exactly twice — once per ping-pong slot —
+  // to register both output buffers with the DPU.  After that, DCP drives the buffer
+  // switching autonomously via IPCC; no further SDM commits are needed.
+  if (gpu_reproj_active_) {
+    if (gpu_reproj_init_commit_count_ < 2) {
+      gpu_reproj_init_commit_count_++;
+      DLOGI("GPU reproj: init commit %d/2 — registering slot buffer with DPU",
+            gpu_reproj_init_commit_count_);
+      return true;
+    }
+    DLOGV_IF(kTagDisplay, "GPU reproj: skipping primary commit — DCP/IPCC drives buffer flip");
+    return false;
+  }
+
+  // GPU reproj not active — reset counter for next activation.
+  gpu_reproj_init_commit_count_ = 0;
+
+  // IWE LSR path (original logic unchanged).
   bool lsr_enabled = (disp_layer_stack_->stack_info.iwe_repro_left_index != -1) ||
                      (disp_layer_stack_->stack_info.iwe_repro_right_index != -1);
   bool is_cwb_commit = (disp_layer_stack_->stack_info.output_buffer != nullptr);
@@ -1758,6 +1781,21 @@ bool DisplayBase::IsPrimaryCommitNeeded() {
   // CWB teardown commit needed as we are not doing commit on primary for LSR.
   if (!is_cwb_commit && cwb_with_lsr_active_) {
     cwb_with_lsr_active_ = is_cwb_commit;
+    return true;
+  }
+
+  bool current_secure = false;
+  for (auto &[core_id, hw_info] : disp_layer_stack_->info) {
+    for (auto &hw_layer : hw_info.hw_layers) {
+      if (hw_layer.composition == kCompositionIWERepro) {
+        current_secure = hw_layer.input_buffer.flags.secure;
+        break;
+      }
+    }
+  }
+  if (current_secure != lsr_secure_state_) {
+    lsr_secure_state_ = current_secure;
+    DLOGV("LSR secure state changed to %d, forcing primary DPU commit", current_secure);
     return true;
   }
 
@@ -1836,7 +1874,7 @@ void DisplayBase::CommitThread() {
         }
       }
 
-      RefreshOnIdleTimeoutForCwb(false);
+      RefreshOnIdleTimeoutForCwb(false, kClientRefresh);
       continue;
     }
 
@@ -2139,6 +2177,14 @@ DisplayError DisplayBase::PostCommit() {
     // TODO: Need to clean up and add generic logic
     if (!client_ctx_.display_attributes.fsc_panel) {
       for (auto &hw_layer : info.second.hw_layers) {
+        // Skip closing FD for CWB output buffer
+        // CWB output buffer is managed by CWB manager and needs to persist
+        // across frames for caching in hw_device_drm.cpp
+        if (info.second.output_buffer != nullptr &&
+            hw_layer.input_buffer.handle_id == info.second.output_buffer->handle_id) {
+          continue;  // Don't close CWB output buffer FD
+        }
+
         CloseFd(&hw_layer.input_buffer.planes[0].fd);
       }
     }
@@ -2148,6 +2194,28 @@ DisplayError DisplayBase::PostCommit() {
 
   if (clearstack_.load()) {
     uint8_t clearindex = (disp_stack_index_ + 1) % kDispStackCount;
+    // Defer ~FrameBufferObject for GPU reproj batch commits to avoid RemoveFbId()
+    // while the DRM driver still holds active SMMU mappings from the previous commit.
+    // Guard on the CURRENT frame's gpu_reproj_batch_size — the old stack's is 0.
+    bool is_gpu_reproj_batch = false;
+    for (auto &[core_id, hw_info] : disp_layer_stack_->info) {
+      if (hw_info.gpu_reproj_batch_size > 0) {
+        is_gpu_reproj_batch = true;
+        break;
+      }
+    }
+    if (is_gpu_reproj_batch) {
+      prev_pending_buffer_maps_.clear();
+      // Rotate: current pending → prev_pending, collect new pending from old stack.
+      prev_pending_buffer_maps_ = std::move(pending_buffer_maps_);
+      for (auto &[core_id, hw_layers_info] : disp_layer_stacks_[clearindex].info) {
+        for (auto &layer : hw_layers_info.hw_layers) {
+          if (layer.buffer_map) {
+            pending_buffer_maps_.push_back(layer.buffer_map);
+          }
+        }
+      }
+    }
     disp_layer_stacks_[clearindex].Clear();
     clearstack_.store(false);
   }
@@ -3220,14 +3288,25 @@ DisplayError DisplayBase::ValidateCwbConfigInfo(CwbConfig *cwb_config,
   }
 
   LayerRect &roi = cwb_config->cwb_roi;
-  // Set cwb full rect as per window rect.
+  // Set cwb full rect as per window rect. cwb_full_rect is in the tap point domain.
   cwb_config->cwb_full_rect.right -= (window_rect_.left + window_rect_.right);
   cwb_config->cwb_full_rect.bottom -= (window_rect_.top + window_rect_.bottom);
   LayerRect &full_frame = cwb_config->cwb_full_rect;
+  LayerRect mixer_full_frame = {0.0f, 0.0f, FLOAT(client_ctx_.mixer_attributes.width),
+                                FLOAT(client_ctx_.mixer_attributes.height)};
+  mixer_full_frame.right -= (window_rect_.left + window_rect_.right);
+  mixer_full_frame.bottom -= (window_rect_.top + window_rect_.bottom);
+
+  // CWB clients provide ROI in mixer coordinates. Validate and align in mixer domain first,
+  // then map to panel domain for post-LM tap points.
+  LayerRect cwb_validation_frame = mixer_full_frame;
   uint32_t cwb_roi_supported = 0;  // Check whether CWB ROI is supported.
   IsSupportedOnDisplay(kCwbCrop, &cwb_roi_supported);
   if (!cwb_roi_supported) {
-    roi = full_frame;
+    roi = cwb_validation_frame;
+    if (tap_point != CwbTapPoint::kLmTapPoint) {
+      MapRect(mixer_full_frame, full_frame, roi, &roi);
+    }
     return kErrorNone;  // below checks are not needed if CWB ROI isn't supported.
   }
 
@@ -3235,11 +3314,11 @@ DisplayError DisplayBase::ValidateCwbConfigInfo(CwbConfig *cwb_config,
     // other color formats, fallback to Full frame ROI.
     DLOGW("CWB ROI is not suopported on color format : %s , thus falling back to Full frame ROI.",
           GetFormatString(format));
-    roi = full_frame;
+    roi = cwb_validation_frame;
   }
 
   bool &pu_as_cwb_roi = cwb_config->pu_as_cwb_roi;
-  bool is_valid_cwb_roi = IsValidCwbRoi(roi, full_frame);
+  bool is_valid_cwb_roi = IsValidCwbRoi(roi, cwb_validation_frame);
   if (is_valid_cwb_roi && !pu_as_cwb_roi) {
     // If client passed valid ROI and PU ROI not to be included in CWB ROI, then
     // make Client ROI's (width * height) as 256B aligned.
@@ -3248,7 +3327,7 @@ DisplayError DisplayBase::ValidateCwbConfigInfo(CwbConfig *cwb_config,
       DLOGE("Output buffer has invalid color format.");
       return kErrorParameters;
     }
-    ApplyCwbRoiRestrictions(roi, full_frame, cwb_alignment_factor, format);
+    ApplyCwbRoiRestrictions(roi, cwb_validation_frame, cwb_alignment_factor, format);
   }
 
   // For cmd mode : Incase CWB Client sets cwb_config.pu_as_cwb_roi as true, then PU ROI would be
@@ -3262,8 +3341,15 @@ DisplayError DisplayBase::ValidateCwbConfigInfo(CwbConfig *cwb_config,
     DLOGI_IF(kTagDisplay, "PU ROI would be included in CWB ROI.");
   } else if (!is_valid_cwb_roi) {
     DLOGI_IF(kTagDisplay, "Client provided invalid ROI. Going for Full frame CWB.");
-    roi = full_frame;
+    roi = cwb_validation_frame;
   }
+
+  if (tap_point != CwbTapPoint::kLmTapPoint) {
+    LayerRect mapped_roi = {};
+    MapRect(mixer_full_frame, full_frame, roi, &mapped_roi);
+    roi = mapped_roi;
+  }
+
   // Reposition CWB ROI as per window rect.
   roi = Reposition(roi, window_rect_.left, window_rect_.top);
   DLOGI_IF(kTagDisplay, "Cwb_config: tap_point %d, CWB ROI Rect(%f %f %f %f), PU_as_CWB_ROI %d",
@@ -3310,6 +3396,13 @@ DisplayError DisplayBase::GetRefreshRateRange(uint32_t *min_refresh_rate,
 
 DisplayError DisplayBase::HandlePendingVSyncEnable(const shared_ptr<Fence> &retire_fence) {
   if (vsync_enable_pending_) {
+    if (is_ssr_active_ || is_lsr_ssr_active_ || ssr_end_in_progress_) {
+      // Defer vsync enable while SSR is active or during SSR end power restore.
+      // is_ssr_active_ covers SSR start; ssr_end_in_progress_ covers the window
+      // between is_ssr_active_ being cleared and PerformSubsystemRestart completing.
+      DLOGI("Deferring vsync enable during SSR for display %d-%d", display_id_, display_type_);
+      return kErrorNone;
+    }
     // Retire fence signalling confirms that CRTC enabled, hence wait for retire fence before
     // we enable vsync
     Fence::Wait(retire_fence_);
@@ -3330,7 +3423,11 @@ DisplayError DisplayBase::SetVSyncState(bool enable) {
 }
 
 DisplayError DisplayBase::SetVSyncStateLocked(bool enable) {
-  if ((state_ == kStateOff || avoid_vsync_enable_ || secure_event_ != kSecureEventMax) && enable) {
+  // Defer vsync enable if: display is off, vsync is explicitly blocked,
+  // a secure/TUI event is active, or SSR (primary/LSR) is in progress or ending.
+  if ((state_ == kStateOff || avoid_vsync_enable_ || secure_event_ != kSecureEventMax ||
+       is_ssr_active_ || is_lsr_ssr_active_ || ssr_end_in_progress_) &&
+      enable) {
     DLOGW("Can't enable vsync when display %d-%d is powered off or SecureDisplay/TUI in progress",
           display_id_, display_type_);
     vsync_enable_pending_ = true;
@@ -3874,9 +3971,15 @@ void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
   }
 
   bool is_lsr_commit = (disp_layer_stack_->stack_info.iwe_repro_left_index != -1);
+
   // Copy the acquire fence from clients layers  to HWLayers
   for (auto& info : disp_layer_stack_->info) {
     info.second.lsr_commit = is_lsr_commit;
+    // GPU reproj init commit batch params — forwarded to hw_peripheral_drm for DRM property set.
+    info.second.gpu_reproj_batch_size = layer_stack->gpu_reproj_batch_size;
+    info.second.gpu_reproj_batch_index = layer_stack->gpu_reproj_batch_index;
+    info.second.gpu_reproj_batch_type = layer_stack->gpu_reproj_batch_type;
+    info.second.gpu_reproj_shared_buffer = layer_stack->gpu_reproj_shared_buffer;
     uint32_t hw_layers_count = UINT32(info.second.hw_layers.size());
 
     for (uint32_t i = 0; i < hw_layers_count; i++) {
@@ -3888,7 +3991,8 @@ void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
         display_type_, info.second.index.at(i), i);
       }
 
-      bool reprojection_buffer = (hw_layer.composition == kCompositionIWERepro);
+      bool reprojection_buffer = (hw_layer.composition == kCompositionIWERepro) ||
+                                  (layer_stack->gpu_reproj_batch_size > 0);
       auto plane_index =
           reprojection_buffer ? i % client_ctx_.display_attributes.num_fsc_fields : 0;
       hw_layer.input_buffer.planes[0].fd =
@@ -4457,7 +4561,7 @@ DisplayError DisplayBase::GetPendingDisplayState(DisplayState *disp_state) {
       if (error != kErrorNone) {
         return error;
       }
-      event_handler_->Refresh();
+      event_handler_->Refresh(kClientRefresh);
       break;
     }
     case kPowerStateDozeSuspend:
@@ -4731,7 +4835,7 @@ void DisplayBase::MMRMEvent(uint32_t clk) {
 
   // Invalidate to retrigger clk calculation
   validated_ = false;
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 }
 
 void DisplayBase::WaitForCompletionAsync(shared_ptr<Fence> retire_fence, SyncPoints sync_points) {
@@ -5073,7 +5177,7 @@ void DisplayBase::ScreenRefresh() {
     /* do not skip validate */
     validated_ = false;
   }
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 }
 
 DisplayError DisplayBase::GetPanelFeatureInfo(PanelFeatureInfo *info) {
@@ -5248,8 +5352,8 @@ void DisplayBase::NotifyCwbDone(int32_t status, const LayerBuffer &buffer) {
   event_handler_->NotifyCwbDone(status, buffer);
 }
 
-void DisplayBase::Refresh() {
-  event_handler_->Refresh();
+void DisplayBase::Refresh(RefreshType type) {
+  event_handler_->Refresh(type);
 }
 
 void DisplayBase::OnCwbTeardown(bool sync_teardown) {
@@ -5615,7 +5719,7 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
     return error;
   }
 
-  RefreshOnIdleTimeoutForCwb(true);
+  RefreshOnIdleTimeoutForCwb(true, config.refresh_type);
 
   cwb_output_buf_.width = output_buffer.width;
   cwb_output_buf_.height = output_buffer.height;
@@ -5623,6 +5727,10 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
   cwb_active_ = true;
 
   return kErrorNone;
+}
+
+bool DisplayBase::HasPendingCwbRequest() {
+  return comp_manager_->HasPendingCwbRequest(display_comp_ctx_);
 }
 
 DisplayError DisplayBase::ReserveWBForDisplay(WbMapInfo *wb_info) {
@@ -5663,7 +5771,7 @@ uint32_t DisplayBase::GetAvailableMixerCount() {
   return max_count - cur_count;
 }
 
-void DisplayBase::RefreshOnIdleTimeoutForCwb(bool is_cwb_requested) {
+void DisplayBase::RefreshOnIdleTimeoutForCwb(bool is_cwb_requested, RefreshType refresh_type) {
   int idle_time_ms = disp_layer_stack_->stack_info.common_info.set_idle_time_ms;
   if (client_ctx_.hw_panel_info.mode == kModeCommand || idle_active_ms_ <= 0) {
     // Idle Timer is configured to notify display idle to AIDL clients
@@ -5676,7 +5784,7 @@ void DisplayBase::RefreshOnIdleTimeoutForCwb(bool is_cwb_requested) {
       (mirror_src_display_id_ == -1 || comp_manager_->IsActiveDisplay(mirror_src_display_id_)) &&
       (handle_idle_timeout_ || idle_hint_set_ || idle_time_ms <= 0) && !qsync_enabled &&
       (is_cwb_requested || comp_manager_->HasPendingCwbRequest(display_comp_ctx_))) {
-    event_handler_->Refresh();
+    event_handler_->Refresh(refresh_type);
   }
 }
 
@@ -5789,7 +5897,7 @@ void DisplayBase::HandleSelfRefresh() {
   // Allow HAL Self-Refresh Commit path on validated stack of single display in ON state.
   bool multi_display = (comp_manager_->GetActiveDisplayCount() > 1);
   if (!enable_hal_self_refresh_ || multi_display || !validated_ || (state_ != kStateOn)) {
-    event_handler_->Refresh();
+    event_handler_->Refresh(kClientRefresh);
     return;
   }
 
@@ -5797,7 +5905,7 @@ void DisplayBase::HandleSelfRefresh() {
   bool unsupported = !avr_step_ || !client_ctx_.display_attributes.fps;
   uint64_t ept = disp_layer_stack_->stack_info.common_info.expected_present_time;
   if (unsupported || !ept || !next_expected_present_) {
-    event_handler_->Refresh();
+    event_handler_->Refresh(kClientRefresh);
     return;
   }
 
@@ -5853,7 +5961,7 @@ DisplayError DisplayBase::SetRGBASplit(int enable) {
   DLOGI("RGBASplit enable: %d on display %d-%d", enable, display_id_, display_type_);
   rgba_split_enable_ = enable;
   validated_ = false;
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 
   return kErrorNone;
 }

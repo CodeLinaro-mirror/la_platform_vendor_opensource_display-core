@@ -22,6 +22,9 @@ PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data
 ifeq ($(TARGET_BOARD_PLATFORM),malabar)
 	PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_vtdr6130_amoled_cmd_mode_dsi_visionox_panel_with_DSC_malabar.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_vtdr6130_amoled_cmd_mode_dsi_visionox_panel_with_DSC.json
 	PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_vtdr6130_amoled_video_mode_dsi_visionox_panel_with_DSC_malabar.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_vtdr6130_amoled_video_mode_dsi_visionox_panel_with_DSC.json
+else ifeq ($(TARGET_BOARD_PLATFORM),art)
+	PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_vtdr6130_amoled_cmd_mode_dsi_visionox_panel_with_DSC_coast.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_vtdr6130_amoled_cmd_mode_dsi_visionox_panel_with_DSC.json
+	PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_vtdr6130_amoled_video_mode_dsi_visionox_panel_with_DSC_coast.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_vtdr6130_amoled_video_mode_dsi_visionox_panel_with_DSC.json
 else
 	PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_vtdr6130_amoled_cmd_mode_dsi_visionox_panel_with_DSC.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_vtdr6130_amoled_cmd_mode_dsi_visionox_panel_with_DSC.json
 	PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_vtdr6130_amoled_video_mode_dsi_visionox_panel_with_DSC.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_vtdr6130_amoled_video_mode_dsi_visionox_panel_with_DSC.json
@@ -29,6 +32,10 @@ endif
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_vtdr6130_amoled_qsync_cmd_mode_dsi_visionox_panel_with_DSC.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_vtdr6130_amoled_qsync_cmd_mode_dsi_visionox_panel_with_DSC.json
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_vtdr6130_amoled_qsync_video_mode_dsi_visionox_panel_with_DSC.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_vtdr6130_amoled_qsync_video_mode_dsi_visionox_panel_with_DSC.json
 PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_vtdr6130_amoled_cmd_mode_dsi_visionox_panel_without_dsc.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_vtdr6130_amoled_cmd_mode_dsi_visionox_panel_without_dsc.json
+PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_vtdr6130_amoled_cmd_mode_dsi_visionox_panel_with_DSC_bourtzi.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_vtdr6130_amoled_cmd_mode_dsi_visionox_panel_with_DSC_bourtzi.json
+PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_vtdr6130_amoled_video_mode_dsi_visionox_panel_with_DSC_bourtzi.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_vtdr6130_amoled_video_mode_dsi_visionox_panel_with_DSC_bourtzi.json
+PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_vtdr6130_amoled_cmd_mode_120hz_dsi_visionox_panel_with_DSC_bourtzi.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_vtdr6130_amoled_cmd_mode_120hz_dsi_visionox_panel_with_DSC_bourtzi.json
+PRODUCT_COPY_FILES += vendor/qcom/opensource/display-core/config/qdcm_calib_data_vtdr6130_amoled_video_mode_120hz_dsi_visionox_panel_with_DSC_bourtzi.json:$(TARGET_COPY_OUT_VENDOR)/etc/display/qdcm_calib_data_vtdr6130_amoled_video_mode_120hz_dsi_visionox_panel_with_DSC_bourtzi.json
 
 #QDCM calibration json file for ft8726 panel
 ifeq ($(TARGET_BOARD_PLATFORM),malabar)
@@ -126,8 +133,3 @@ PRODUCT_COPY_FILES += $(PRIVACY_REGIONS_OFFSETS_XML_PATH)/privacy_regions_offset
 
 #Demura feature config xml file
 PRODUCT_COPY_FILES += $(PRIVACY_REGIONS_OFFSETS_XML_PATH)/duc_dac_config.xml:$(TARGET_COPY_OUT_VENDOR)/etc/display/duc_dac_config.xml
-
-#Demura feature config file
-PRODUCT_COPY_FILES += $(PRIVACY_REGIONS_OFFSETS_XML_PATH)/demura_config_0122e70000000471:$(PRODUCT_OUT)/persist/display/demura_config_0122e70000000471
-PRODUCT_COPY_FILES += $(PRIVACY_REGIONS_OFFSETS_XML_PATH)/demura_publickey_0122e70000000471:$(PRODUCT_OUT)/persist/display/demura_publickey_0122e70000000471
-PRODUCT_COPY_FILES += $(PRIVACY_REGIONS_OFFSETS_XML_PATH)/demura_signature_0122e70000000471:$(PRODUCT_OUT)/persist/display/demura_signature_0122e70000000471

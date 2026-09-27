@@ -59,6 +59,8 @@
 
 namespace sdm {
 
+#define MAX_WB_ALLOWED 4
+
 DisplayBuiltIn::DisplayBuiltIn(DisplayEventHandler *event_handler,
                                sdm::MultiCoreInstance<uint32_t, HWInfoInterface *> hw_info_intf,
                                BufferAllocator *buffer_allocator, CompManager *comp_manager,
@@ -320,6 +322,16 @@ DisplayError DisplayBuiltIn::Init() {
   disable_fbt_for_cwb_fallback_ = (value == 1);
   DLOGI("disable_fbt_for_cwb_fallback_: %d", disable_fbt_for_cwb_fallback_);
 
+  // FBT for CWB fallback and UBWC lossy format FBT are mutually exclusive since
+  // WriteBack cannot write-out lossy format. If lossy format FBT is enabled,
+  // force disable FBT for CWB fallback.
+  value = 0;
+  Debug::Get()->GetProperty(ENABLE_UBWC_LOSSY_FORMAT_FBT, &value);
+  if (value == 1) {
+    disable_fbt_for_cwb_fallback_ = true;
+    DLOGI("Lossy format FBT enabled; disabling FBT for CWB fallback (unsupported with lossy)");
+  }
+
   value = 0;
   Debug::Get()->GetProperty(ENABLE_HFI_PATH, &value);
   hfi_path_supported_ = (value > 0);
@@ -482,24 +494,6 @@ DisplayError DisplayBuiltIn::Init() {
         panel_id_ = *panel_id;
         DLOGI("panel_id 0x%" PRIX64, panel_id_);
         SetupDemuraT0AndTn();
-      }
-    }
-
-    int qrtc_prop = 0, qrtc_enable = 0;
-    Debug::Get()->GetProperty(ENABLE_QRTC, &qrtc_prop);
-    int disable_qrtc_prop = 0;
-    if (IsPrimaryDisplay()) {
-      Debug::Get()->GetProperty(DISABLE_QRTC_PRIMARY, &disable_qrtc_prop);
-    } else {
-      Debug::Get()->GetProperty(DISABLE_QRTC_SECONDARY, &disable_qrtc_prop);
-    }
-    qrtc_enable = qrtc_prop && (!disable_qrtc_prop);
-    if (qrtc_enable) {
-      error = SetupQrtc();
-      if (error != kErrorNone) {
-        DLOGE("Failed to setup Qrtc on display %d-%d, Error %d", display_id_, display_type_, error);
-        comp_manager_->FreeQrtcFetchResources(display_id_);
-        error = kErrorNone;
       }
     }
   } else {
@@ -698,8 +692,11 @@ DisplayError DisplayBuiltIn::Deinit() {
   }
 
   if (qrtc_) {
+    qrtc_->Deinit();
     qrtc_.reset();
     qrtc_ = nullptr;
+    qrtc_setup_completed_ = false;
+    ReleaseWBFromDisplay();
   }
   return DisplayBase::Deinit();
 }
@@ -996,10 +993,9 @@ DisplayError DisplayBuiltIn::colorSamplingOff() {
 }
 
 DisplayError DisplayBuiltIn::SetupSPR() {
-  int spr_prop_value = 0;
   int spr_bypass_prop_value = 0;
   int spr_disable_value = 0;
-  Debug::GetProperty(ENABLE_SPR, &spr_prop_value);
+  Debug::GetProperty(ENABLE_SPR, &spr_prop_value_);
 
   if (IsPrimaryDisplay()) {
     Debug::Get()->GetProperty(DISABLE_SPR_PRIMARY, &spr_disable_value);
@@ -1009,7 +1005,7 @@ DisplayError DisplayBuiltIn::SetupSPR() {
     Debug::GetProperty(ENABLE_SPR_BYPASS_SECONDARY, &spr_bypass_prop_value);
   }
 
-  if (spr_prop_value && !spr_disable_value) {
+  if (spr_prop_value_ && !spr_disable_value) {
     SPRInputConfig spr_cfg;
     spr_cfg.panel_name = std::string(client_ctx_.hw_panel_info.panel_name);
     spr_cfg.spr_bypassed = (spr_bypass_prop_value) ? true : false;
@@ -1339,6 +1335,7 @@ DisplayError DisplayBuiltIn::SetupQrtcLayer() {
         qrtc_suf->buffer_info.alloc_buffer_info.aligned_height);
   qrtc_layer.input_buffer.planes[0].offset = 0;
   qrtc_layer.input_buffer.flags.qrtc = 1;
+  qrtc_layer.input_buffer.flags.secure = qrtc_suf->buffer_info.buffer_config.secure;
   qrtc_layer.composition = kCompositionQrtc;
   qrtc_layer.blending = kBlendingSkip;
   qrtc_layer.flags.is_qrtc = 1;
@@ -1370,7 +1367,7 @@ void DisplayBuiltIn::PreCommit(LayerStack *layer_stack) {
 
     dpu_core_mux_->SetAutoRefresh(enable);
     if (need_refresh) {
-      event_handler_->Refresh();
+      event_handler_->Refresh(kClientRefresh);
     }
   }
 
@@ -1963,7 +1960,7 @@ void DisplayBuiltIn::HandleQsyncPostCommit() {
       needs_avr_update_.reset();
     } else if (needs_avr_update_.any()) {
       validated_ = false;
-      event_handler_->Refresh();
+      event_handler_->Refresh(kClientRefresh);
     }
   } else if (qsync_mode_ == kQSyncModeNone) {
     needs_avr_update_.reset();
@@ -2015,7 +2012,7 @@ void DisplayBuiltIn::PollLedDriver() {
       break;
     }
     if (i == max_iteration) {
-      DLOGE("Exceeding Max Iteration. Not able to program the calibration node");
+      DLOGW("Exceeding Max Iteration. Not able to program the calibration node");
       return;
     }
     usleep(10 * 1000);
@@ -2120,7 +2117,7 @@ DisplayError DisplayBuiltIn::SetDisplayState(DisplayState state, bool teardown,
   }
 
   if (pending_power_state_ != kPowerStateNone) {
-    event_handler_->Refresh();
+    event_handler_->Refresh(kClientRefresh);
   }
 
   // Must only happen after NullCommit and get applied in next frame
@@ -2211,7 +2208,7 @@ DisplayError DisplayBuiltIn::SetDisplayMode(uint32_t mode) {
 
   // Request for a new draw cycle. New display mode will get applied on next draw cycle.
   // New idle time will get configured as part of this.
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 
   return error;
 }
@@ -2434,7 +2431,7 @@ bool DisplayBuiltIn::IdleTimeout() {
   }
 
   validated_ = false;
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
   return true;
 }
 
@@ -2486,7 +2483,7 @@ void DisplayBuiltIn::PanelDead() {
     validated_ = false;
   }
   event_handler_->HandleEvent(kPanelDeadEvent);
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 }
 
 // HWEventHandler overload, not DisplayBase
@@ -2665,7 +2662,7 @@ DisplayError DisplayBuiltIn::DppsProcessOps(enum DppsOps op, void *payload, size
       enable = *(reinterpret_cast<bool *>(payload));
       dpps_info_.disable_pu_ = !enable;
       ControlPartialUpdate(enable, kPuDppsClient);
-      event_handler_->Refresh();
+      event_handler_->Refresh(kClientRefresh);
       {
         ClientLock lock(disp_mutex_);
         validated_ = false;
@@ -3105,7 +3102,7 @@ DisplayError DisplayBuiltIn::SetQSyncMode(QSyncMode qsync_mode) {
   qsync_mode_ = qsync_mode;
   needs_avr_update_.set(kUpdateAVRModeFlag);
   validated_ = false;
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
   return kErrorNone;
 }
 
@@ -3423,7 +3420,7 @@ DisplayError DisplayBuiltIn::UpdateTransferTime(uint32_t transfer_time) {
     DisplayBase::ReconfigureDisplay();
   }
 
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 
   return error;
 }
@@ -3934,6 +3931,22 @@ int DisplayBuiltIn::SetDemuraIntfStatus(bool enable, int current_idx) {
       return ret;
     }
   }
+
+  if (!abc_prop_){
+    GenericPayload refresh_pl;
+    int32_t *need_screen_refresh = nullptr;
+    int rc = refresh_pl.CreatePayload<int32_t>(need_screen_refresh);
+    if (rc) {
+      DLOGE("Failed to create payload for need_screen_refresh, error = %d", rc);
+      return rc;
+    }
+    rc = demura_->GetParameter(kDemuraFeatureParamNeedScreenRefresh, &refresh_pl);
+    if (rc) {
+      DLOGE("Failed to get need screen refresh, error %d", rc);
+      return rc;
+    }
+    demura_need_screen_refresh_ = (*need_screen_refresh != 0);
+  }
   demura_current_idx_ = current_idx;
   DLOGI("Demura is now %s and current index is %d ", enable ? "Enabled" : "Disabled", current_idx);
   return ret;
@@ -3990,7 +4003,19 @@ void DisplayBuiltIn::HandleLSR_SSREvent(LSR_SSREventType lsr_ssr_event) {
     return;
   }
 
+  // During LSR-SSR end, set ssr_end_in_progress_ before PerformSubsystemRestart so that
+  // HandlePendingVSyncEnable defers vsync re-enable. The CRTC is not yet active enough
+  // for drmWaitVBlank immediately after NullCommit. ConcurrencyMgr will explicitly
+  // re-enable vsync after PerformSubsystemRestart completes.
+  if (event == kLsr_SsrEnd) {
+    ssr_end_in_progress_ = true;
+  }
+
   event_handler_->HandleEvent(event);
+
+  if (event == kLsr_SsrEnd) {
+    ssr_end_in_progress_ = false;
+  }
 
   {
     ClientLock lock(disp_mutex_);
@@ -3999,7 +4024,7 @@ void DisplayBuiltIn::HandleLSR_SSREvent(LSR_SSREventType lsr_ssr_event) {
   }
 
   if (event == kLsr_SsrEnd) {
-    event_handler_->Refresh();
+    event_handler_->Refresh(kClientRefresh);
   }
 }
 
@@ -4014,12 +4039,33 @@ void DisplayBuiltIn::HandleSSREvent(SSREventType ssr_event) {
   is_ssr_active_ = (event == kSsrStart);
   dpu_core_mux_->SetSSRState(is_ssr_active_);
 
+  // Notify DemuraTn on SSR triggered.
+  if (is_ssr_active_ && demuratn_ && demuratn_enabled_) {
+    GenericPayload payload;
+    int ret = demuratn_->SetParameter(kDemuraTnCoreUvmParamSsrEvent, payload);
+    if (ret) {
+      DLOGW("Failed to notify DemuraTn of SSR event, ret %d", ret);
+    }
+  }
+
   if (!event_handler_) {
     DLOGW("Event handler is null");
     return;
   }
 
+  // During SSR end, set ssr_end_in_progress_ before PerformSubsystemRestart so that
+  // HandlePendingVSyncEnable defers vsync re-enable. The CRTC is not yet active enough
+  // for drmWaitVBlank immediately after NullCommit. ConcurrencyMgr will explicitly
+  // re-enable vsync after PerformSubsystemRestart completes.
+  if (event == kSsrEnd) {
+    ssr_end_in_progress_ = true;
+  }
+
   event_handler_->HandleEvent(event);
+
+  if (event == kSsrEnd) {
+    ssr_end_in_progress_ = false;
+  }
 
   {
     ClientLock lock(disp_mutex_);
@@ -4028,7 +4074,7 @@ void DisplayBuiltIn::HandleSSREvent(SSREventType ssr_event) {
   }
 
   if (event == kSsrEnd) {
-    event_handler_->Refresh();
+    event_handler_->Refresh(kClientRefresh);
   }
 }
 
@@ -4109,7 +4155,7 @@ DisplayError DisplayBuiltIn::PostHandleSecureEvent(SecureEvent secure_event) {
   }
   if (secure_event == kTUITransitionEnd) {
     comp_manager_->PostHandleSecureEvent(display_comp_ctx_, secure_event);
-    event_handler_->Refresh();
+    event_handler_->Refresh(kClientRefresh);
   }
   return kErrorNone;
 }
@@ -4341,7 +4387,10 @@ void DisplayBuiltIn::InitCWBBuffer() {
 
 void DisplayBuiltIn::DeinitCWBBuffer() {
   if (!disable_fbt_for_cwb_fallback_) {
-    CloseFd(&cwb_layer_.input_buffer.planes[0].fd);
+    // Don't close cwb_layer_ buffer FD here, as it's managed externally (by the caller
+    // who provided the buffer).
+    // Premature closure causes CreateFbId failures when the cache is cleared and the
+    // closed FD is reused in MapOutputBufferToFbId.
     cwb_layer_ = {};
     return;
   }
@@ -4874,7 +4923,7 @@ DisplayError DisplayBuiltIn::PerformCacConfig(CacConfig config, bool enable) {
   enable_cac_ = enable;
   cac_config_ = config;
   validated_ = false;
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 
   return kErrorNone;
 }
@@ -4941,7 +4990,7 @@ DisplayError DisplayBuiltIn::EnableCopr(bool en) {
   if (ret) {
     DLOGW("Failed to enable COPR ret %d", ret);
   } else {
-    event_handler_->Refresh();
+    event_handler_->Refresh(kClientRefresh);
     copr_enabled_ = en;
   }
 
@@ -5268,7 +5317,7 @@ DisplayError DisplayBuiltIn::SetAvrStepFpsState(uint32_t index, bool enable) {
 
   needs_avr_update_.set(kUpdateAVRStepFpsFlag);
   validated_ = false;
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 
   return kErrorNone;
 }
@@ -5291,7 +5340,7 @@ DisplayError DisplayBuiltIn::SetAVRStepState(bool enable) {
   avr_step_enabled_ = enable;
   needs_avr_update_.set(kUpdateAVRStepFlag);
   validated_ = false;
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
   DLOGI("AVR Step state set to %d successfully", avr_step_enabled_);
 
   return kErrorNone;
@@ -5867,22 +5916,8 @@ DisplayError DisplayBuiltIn::HandleDemuraScreenRefresh() {
       return kErrorParameters;
     }
 
-    GenericPayload pl;
-    int32_t *need_screen_refresh = nullptr;
-    int rc = 0;
-    if ((rc = pl.CreatePayload<int32_t>(need_screen_refresh))) {
-      DLOGE("Failed to create payload for need_screen_refresh, error = %d", rc);
-      return kErrorParameters;
-    }
-
-    rc = demura_->GetParameter(kDemuraFeatureParamNeedScreenRefresh, &pl);
-    if (rc) {
-      DLOGE("Failed to get need screen refresh, error %d", rc);
-      return kErrorParameters;
-    }
-
-    if (*need_screen_refresh) {
-      event_handler_->Refresh();
+    if (demura_need_screen_refresh_) {
+      event_handler_->Refresh(kClientRefresh);
     }
   }
 
@@ -6061,7 +6096,7 @@ DisplayError DisplayBuiltIn::TriggerDemuraOemPlugIn(void *data) {
   }
 
   // Trigger refresh, new config take effect
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 
   DLOGI("Trigger demura oem plugin success");
   return kErrorNone;
@@ -6609,6 +6644,26 @@ DisplayError DisplayBuiltIn::SetQrtcFeatureConfig(int32_t type, void *data) {
   DisplayError ret = kErrorNone;
   int val = 0;
 
+  if (!qrtc_setup_completed_) {
+    int qrtc_prop = 0, qrtc_enable = 0;
+    Debug::Get()->GetProperty(ENABLE_QRTC, &qrtc_prop);
+    int disable_qrtc_prop = 0;
+    if (IsPrimaryDisplay()) {
+      Debug::Get()->GetProperty(DISABLE_QRTC_PRIMARY, &disable_qrtc_prop);
+    } else {
+      Debug::Get()->GetProperty(DISABLE_QRTC_SECONDARY, &disable_qrtc_prop);
+    }
+    qrtc_enable = qrtc_prop && (!disable_qrtc_prop);
+    if (qrtc_enable) {
+      DisplayError error = SetupQrtc();
+      if (error != kErrorNone) {
+        DLOGE("Failed to setup Qrtc on display %d-%d, Error %d", display_id_, display_type_, error);
+        comp_manager_->FreeQrtcFetchResources(display_id_);
+      }
+    }
+    qrtc_setup_completed_ = true;
+  }
+
   if (!data || !qrtc_) {
     DLOGE("data %pK qrtc_ %pK", data, qrtc_.get());
     return kErrorUndefined;
@@ -6795,8 +6850,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
       *it = '_';
     }
   }
-  std::string observer = "qrtc";
-  ControlPartialUpdateLocked(false, observer);
+
   error = CreateDisplayEventProxyIntf(client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
   if (error != kErrorNone) {
     DLOGW("Failed to initialize event proxy info");
@@ -6825,6 +6879,28 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
     return kErrorUndefined;
   }
 
+  WbMapInfo wb_info;
+  error = ReserveWBForDisplay(&wb_info);
+  if (error != kErrorNone) {
+    DLOGE("Failed to reserve wb for qrtc");
+    return error;
+  }
+
+  int max_wb_index = 0;
+  for (int i = MAX_WB_ALLOWED - 1; i >= 0; i--) {
+    if ((wb_info.info_flag & 0xF) & (1 << i)) {
+      max_wb_index = i;
+      break;
+    }
+  }
+
+  if (wb_info.wb_index < 0 || wb_info.wb_index > max_wb_index) {
+    DLOGE("Invalid wb index on Display %d-%d", display_id_, display_type_);
+    ReleaseWBFromDisplay();
+    return kErrorNotSupported;
+  }
+  DLOGI("Wb index: %d reserved for qrtc", wb_info.wb_index);
+
   int32_t qrtc_pipe_idx = -1;
   int32_t is_virtual = 0;
   qrtc::QrtcFetchPipes fetch_pipe = qrtc::QRTC_FETCH_MAX;
@@ -6851,6 +6927,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
     fetch_pipe = qrtc::QRTC_FETCH_DMA1;
   } else {
     DLOGE("Invalid qrtc pipe index on Display %d-%d", display_id_, display_type_);
+    ReleaseWBFromDisplay();
     return kErrorNotSupported;
   }
 
@@ -6860,19 +6937,22 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
   qrtc_config_.fetch_pipe = fetch_pipe;
   qrtc_config_.rect_fetch_pipe = rect_fetch_pipe;
   qrtc_config_.cwb_blk = qrtc::QRTC_CWB_BLK0;
-  /* TODO: query the wb_id from SDM API and replace hard code value */
-  qrtc_config_.wb_blk = static_cast<qrtc::QrtcWbBlk>(5);
+  qrtc_config_.wb_blk = static_cast<qrtc::QrtcWbBlk>(wb_info.wb_index);
   qrtc_config_.rect_wb_blk = qrtc::QRTC_MULTI_RECT_1;
   qrtc_config_.subsample = qrtc::QRTC_SubSample_2X2;
   qrtc_config_.max_subsample = qrtc::QRTC_SubSample_2X2;
   qrtc_config_.panel_name = "sample";
   qrtc_config_.panel_width = client_ctx_.display_attributes.x_pixels;
   qrtc_config_.panel_height = client_ctx_.display_attributes.y_pixels;
+  qrtc_config_.is_buffer_secure = true;
 
-  int spr_prop_value = 0;
+  int qrtc_force_nonsecure_buffer = 0;
+  Debug::Get()->GetProperty(QRTC_FORCE_NONSECURE_BUFFER, &qrtc_force_nonsecure_buffer);
+  if (qrtc_force_nonsecure_buffer)
+    qrtc_config_.is_buffer_secure = false;
+
   int spr_bypass_prop_value = 0;
   int spr_disable_value = 0;
-  Debug::GetProperty(ENABLE_SPR, &spr_prop_value);
 
   if (IsPrimaryDisplay()) {
     Debug::Get()->GetProperty(DISABLE_SPR_PRIMARY, &spr_disable_value);
@@ -6882,7 +6962,7 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
     Debug::GetProperty(ENABLE_SPR_BYPASS_SECONDARY, &spr_bypass_prop_value);
   }
 
-  if (spr_prop_value && !spr_disable_value && !spr_bypass_prop_value) {
+  if (spr_prop_value_ && !spr_disable_value && !spr_bypass_prop_value) {
     qrtc_config_.is_pentile_format = true;
   }
 
@@ -6892,20 +6972,25 @@ DisplayError DisplayBuiltIn::SetupQrtc() {
   if (error != kErrorNone || !qrtc_support.supported) {
     DLOGE("Unable to support QRTC on display %d with subsampling %dx%d", display_id_,
           qrtc_support.subsample_h, qrtc_support.subsample_v);
+    ReleaseWBFromDisplay();
     return error;
   }
 
   if (SetupQrtcConfig(qrtc_config_) != kErrorNone) {
     DLOGE("Unable to setup Qrtc config on Display %d-%d", display_id_, display_type_);
+    qrtc_->Deinit();
     qrtc_.reset();
     qrtc_ = nullptr;
+    ReleaseWBFromDisplay();
     return kErrorUndefined;
   }
 
   if (SetupQrtcLayer() != kErrorNone) {
     DLOGE("Unable to setup Qrtc layer on Display %d-%d", display_id_, display_type_);
+    qrtc_->Deinit();
     qrtc_.reset();
     qrtc_ = nullptr;
+    ReleaseWBFromDisplay();
     return kErrorUndefined;
   }
 
@@ -6945,7 +7030,7 @@ DisplayError DisplayBuiltIn::SetQrtcState(int state) {
     return kErrorUndefined;
   }
 
-  if (state && !isSPREnabled()) {
+  if (state && spr_prop_value_ && !isSPREnabled()) {
     DLOGE("SPR is not Enabled!!!!!!");
     return kErrorUndefined;
   }
@@ -7047,10 +7132,20 @@ DisplayError DisplayBuiltIn::SetRgbHistObserverConfig(bool state, void *data) {
     return kErrorUndefined;
   }
 
-  // Set display dimensions on ObserverConfig
+  // Set dimensions on ObserverConfig
   auto *obs_config = reinterpret_cast<rgb_histogram::ObserverConfig *>(data);
-  obs_config->disp_width = client_ctx_.display_attributes.x_pixels;
-  obs_config->disp_height = client_ctx_.display_attributes.y_pixels;
+  if (obs_config->tap_point == rgb_histogram::kPreDspp) {
+    // Mixer dimensions
+    obs_config->disp_width = client_ctx_.mixer_attributes.width;
+    obs_config->disp_height = client_ctx_.mixer_attributes.height;
+  } else if (obs_config->tap_point == rgb_histogram::kPostDspp) {
+    // Display dimensions
+    obs_config->disp_width = client_ctx_.display_attributes.x_pixels;
+    obs_config->disp_height = client_ctx_.display_attributes.y_pixels;
+  } else {
+    DLOGE("Invalid tap_point %d", obs_config->tap_point);
+    return kErrorUndefined;
+  }
 
   // Fill in observer configuration
   wrapper->enable = state;
@@ -7084,8 +7179,13 @@ DisplayError DisplayBuiltIn::UpdateRgbHistogramRoi(const void *data) {
     return kErrorParameters;
   }
 
+  HWDisplayAttributes display_attributes = client_ctx_.display_attributes;
   HWMixerAttributes mixer_attributes = client_ctx_.mixer_attributes;
   LayerRect full_frame = {0, 0, FLOAT(mixer_attributes.width), FLOAT(mixer_attributes.height)};
+  LayerRect panel_res = {0.0f, 0.0f, FLOAT(display_attributes.x_pixels),
+                         FLOAT(display_attributes.y_pixels)};
+  bool remap_roi = (config->tap_point == rgb_histogram::kPostDspp);
+
   pending_rgb_histogram_roi_ = true;
 
   // When disabled, config is zero-initialized so roi will be {0,0,0,0}
@@ -7094,6 +7194,17 @@ DisplayError DisplayBuiltIn::UpdateRgbHistogramRoi(const void *data) {
   roi.top = FLOAT(config->y);
   roi.right = FLOAT(config->x + config->width);
   roi.bottom = FLOAT(config->y + config->height);
+
+  if (remap_roi) {
+    LayerRect post_dspp_roi = roi;
+    // RGB Hist ROI is mapped to panel resolution, re-map it to mixer resolution
+    MapRect(panel_res, full_frame, post_dspp_roi, &roi);
+    DLOGV_IF(
+        kTagDisplay,
+        "RGB histogram roi [%.2f %.2f %.2f %.2f] mapped to mixer resolution [%.2f %.2f %.2f %.2f]",
+        post_dspp_roi.left, post_dspp_roi.top, post_dspp_roi.right, post_dspp_roi.bottom, roi.left,
+        roi.top, roi.right, roi.bottom);
+  }
 
   if (IsZeroRoi(roi)) {
     DLOGV_IF(kTagDisplay, "RGB histogram roi [%.2f %.2f %.2f %.2f] is reset", roi.left, roi.top,
@@ -7155,7 +7266,7 @@ DisplayError DisplayBuiltIn::SetSPRState(int state) {
   }
 
   spr_enable_ = (bool)state;
-  DLOGI("SPR status %d\n", spr_enable_);
+  DLOGI("Set SPR state to %d\n", spr_enable_);
 
   DisablePartialUpdateOneFrameInternal();
 
@@ -7168,7 +7279,7 @@ DisplayError DisplayBuiltIn::SetSPRState(int state) {
   }
 
   avoid_qsync_mode_change_ = true;
-  event_handler_->Refresh();
+  event_handler_->Refresh(kClientRefresh);
 
   return kErrorNone;
 }
@@ -7179,9 +7290,7 @@ bool DisplayBuiltIn::isSPREnabled() {
     return kErrorUndefined;
   }
 
-  int value = 0;
-  Debug::Get()->GetProperty(ENABLE_SPR, &value);
-  if (value == 0) {
+  if (spr_prop_value_ == 0) {
     return false;
   }
 
@@ -7200,6 +7309,20 @@ bool DisplayBuiltIn::isSPREnabled() {
   }
 
   return enable ? true : false;
+}
+
+DisplayError DisplayBuiltIn::GetDisplayViewMode(SDMDisplayViewMode *view_mode) {
+  if (!client_ctx_.hw_panel_info.is_lsr_display && !IsGpuLsrVariant()) {
+    *view_mode = kViewModeNone;
+    return kErrorNone;
+  }
+
+  if (client_ctx_.hw_panel_info.is_monocular_display) {
+    *view_mode = kViewModeMonocular;
+  } else {
+    *view_mode = kViewModeStereo;
+  }
+  return kErrorNone;
 }
 
 }  // namespace sdm

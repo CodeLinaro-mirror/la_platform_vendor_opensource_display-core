@@ -64,6 +64,8 @@ enum DppsNotifyOps {
   kDppsColorSpaceEvent,
   kDppsUpdateFpsEvent,
   kDppsHdrPresentEvent,
+  kDppsLtmForceOffEvent,
+  kDppsReconfigEvent,
   kDppsNotifyMax,
 };
 
@@ -138,6 +140,12 @@ class DppsDummyImpl : public DppsInterface {
     (void)size;
     return 0;
   }
+};
+
+struct DppsReconfigInfo {
+  DppsPropIntf *prop_intf = nullptr;
+  DisplayInterface *display_intf = nullptr;
+  PanelFeaturePropertyIntf *panel_prop_intf = nullptr;
 };
 
 }  // namespace sdm

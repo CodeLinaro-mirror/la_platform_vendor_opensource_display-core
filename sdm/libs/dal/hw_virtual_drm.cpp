@@ -570,6 +570,23 @@ DisplayError HWVirtualDRM::SetHdrCapabilities(const std::vector<Hdr> &hdr_types,
 }
 
 DisplayError HWVirtualDRM::Deinit() {
+  if (HasColorFeatureSupport()) {
+    // Reset ltm buffers
+    DppsFeaturePayload ltm_buffer_ctrl_clear = {};
+    ltm_buffer_ctrl_clear.object_type = DRM_MODE_OBJECT_CRTC;
+    ltm_buffer_ctrl_clear.feature_id = sde_drm::kFeatureLtmBufferCtrl;
+    ltm_buffer_ctrl_clear.value = 0;
+    SetDppsFeature(&ltm_buffer_ctrl_clear, sizeof(ltm_buffer_ctrl_clear));
+    drm_atomic_intf_->Perform(DRMOps::DPPS_COMMIT_FEATURE, -1, 0 /* validate_only */);
+
+    // Reset dest scaler
+    ResetDestScalarData();
+    int ret = NullCommit(true /* synchronous */, false /* retain_planes */);
+    if (ret) {
+      DLOGW("Failed to reset dest scaler state during Deinit, ret=%d", ret);
+    }
+  }
+
 #ifdef FEATURE_DNSC_BLUR
   sde_drm::DRMFrameTriggerMode trigger_mode = sde_drm::DRMFrameTriggerMode::FRAME_DONE_WAIT_DEFAULT;
   sde_drm::DRMWBUsageType usage_mode = sde_drm::DRMWBUsageType::WB_USAGE_WFD;
@@ -913,6 +930,7 @@ DisplayError HWVirtualDRM::GetDppsFeatureInfo(void *payload, size_t size) {
 
   feature_info = reinterpret_cast<DRMDppsFeatureInfo *>(payload);
   feature_info->obj_id = token_.crtc_id;
+  feature_info->virtual_disp_with_dspp = true;
   drm_mgr_intf_->GetDppsFeatureInfo(feature_info);
   return kErrorNone;
 }

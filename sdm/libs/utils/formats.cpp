@@ -196,6 +196,8 @@ const char *GetFormatString(const LayerBufferFormat &format) {
   case kFormatYCbCr422P210:             return "Y_CBCR_422_P210";
   case kFormatYCbCr422P210Ubwc:         return "Y_CBCR_422_P210_UBWC";
   case kFormatNV12Y:                    return "NV12_Y";
+  case kFormatNV12Y10:                  return "NV12_Y10";
+  case kFormatNV12A10:                  return "NV12_A10";
   default:                              return "UNKNOWN";
   }
 }
@@ -263,6 +265,8 @@ float GetBufferFormatBpp(LayerBufferFormat format) {
     case kFormatYCbCr420TP10Tile:
     case kFormatYCbCr422H1V2SemiPlanar:
     case kFormatYCrCb422H1V2SemiPlanar:
+    case kFormatNV12Y10:
+    case kFormatNV12A10:
       return 2.0f;
     case kFormatYCbCr420Planar:
     case kFormatYCrCb420Planar:

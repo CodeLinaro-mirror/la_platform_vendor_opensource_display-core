@@ -55,6 +55,7 @@ bool CpuCanAccess(SnapUsage usage) {
     {{SnapPixelFormat::RAW10}, {false, false, false, false, false, false, false, false, false}},
     {{SnapPixelFormat::RAW12}, {false, false, false, false, false, false, false, false, false}},
     {{SnapPixelFormat::RAW14}, {false, false, false, false, false, false, false, false, false}},
+    {{SnapPixelFormat::RAW14_1}, {false, false, false, false, false, false, false, false, false}},
     {{SnapPixelFormat::RAW16}, {false, false, false, false, false, false, false, false, false}},
     {{SnapPixelFormat::DEPTH_16}, {false, false, true, true, false, true, false, false, false}},
     {{SnapPixelFormat::DEPTH_24}, {false, false, true, true, false, true, false, false, false}},
@@ -146,6 +147,21 @@ bool CpuCanAccess(SnapUsage usage) {
      {false, true, false, false, false, true, false, false, true}},
     {{SnapPixelFormat::GBR16_UBWC}, {false, true, false, false, false, true, false, false, true}},
     {{SnapPixelFormat::GBRTP10_UBWC}, {false, true, false, false, false, true, false, false, true}},
+    {{SnapPixelFormat::NV12_LINEAR_FLEX}, {false, true, false, false, false, false, false, false}},
+    {{SnapPixelFormat::NV12_UBWC_FLEX}, {false, true, false, false, false, true, false, false}},
+    {{SnapPixelFormat::NV12_UBWC_FLEX_2_BATCH},
+     {false, true, false, false, false, true, false, false}},
+    {{SnapPixelFormat::NV12_UBWC_FLEX_4_BATCH},
+     {false, true, false, false, false, true, false, false}},
+    {{SnapPixelFormat::NV12_UBWC_FLEX_8_BATCH},
+     {false, true, false, false, false, true, false, false}},
+    {{SnapPixelFormat::TP10_UBWC_FLEX}, {false, true, false, false, false, true, false, false}},
+    {{SnapPixelFormat::TP10_UBWC_FLEX_2_BATCH},
+     {false, true, false, false, false, true, false, false}},
+    {{SnapPixelFormat::TP10_UBWC_FLEX_4_BATCH},
+     {false, true, false, false, false, true, false, false}},
+    {{SnapPixelFormat::TP10_UBWC_FLEX_8_BATCH},
+     {false, true, false, false, false, true, false, false}},
 };
 
 bool IsUbwcSupported(SnapPixelFormat format) {
@@ -276,17 +292,23 @@ bool IsCameraCustomFormat(SnapPixelFormat format, SnapPixelFormatModifier modifi
 int GetBatchSize(vendor_qti_hardware_display_common_PixelFormatModifier modifier) {
   int batchsize = 1;
   switch (modifier) {
-    case PIXEL_FORMAT_MODIFIER_UBWC_FLEX:
-      batchsize = 16;
+    case PIXEL_FORMAT_MODIFIER_LINEAR_FLEX:
+      batchsize = 1;
       break;
+    case PIXEL_FORMAT_MODIFIER_FLEX_2_BATCH:
     case PIXEL_FORMAT_MODIFIER_UBWC_FLEX_2_BATCH:
       batchsize = 2;
       break;
+    case PIXEL_FORMAT_MODIFIER_FLEX_4_BATCH:
     case PIXEL_FORMAT_MODIFIER_UBWC_FLEX_4_BATCH:
       batchsize = 4;
       break;
+    case PIXEL_FORMAT_MODIFIER_FLEX_8_BATCH:
     case PIXEL_FORMAT_MODIFIER_UBWC_FLEX_8_BATCH:
       batchsize = 8;
+      break;
+    case PIXEL_FORMAT_MODIFIER_UBWC_FLEX:
+      batchsize = 16;
       break;
     default:
       break;

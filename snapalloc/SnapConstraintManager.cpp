@@ -73,6 +73,18 @@ bool SnapConstraintManager::CanAllocateZSLForSecureCamera() {
   return can_allocate;
 }
 
+bool SnapConstraintManager::IsCameraPreviewUsingUsbHal() {
+  static bool inited = false;
+  static bool is_usb_hal = false;
+  if (inited) {
+    return is_usb_hal;
+  }
+  is_usb_hal = debug_->IsCameraPreviewUsingUsbHal();
+  inited = true;
+  DLOGI("IsCameraPreviewUsingUsbHal: %d", is_usb_hal);
+  return is_usb_hal;
+}
+
 void SnapConstraintManager::GetImplDefinedFormat(
     vendor_qti_hardware_display_common_PixelFormat format,
     vendor_qti_hardware_display_common_BufferUsage usage,
@@ -130,7 +142,10 @@ void SnapConstraintManager::GetImplDefinedFormat(
       }
     } else if (usage & vendor_qti_hardware_display_common_BufferUsage::CAMERA_OUTPUT) {
       if (format == vendor_qti_hardware_display_common_PixelFormat::YCBCR_420_888) {
-        if ((usage & vendor_qti_hardware_display_common_BufferUsage::PROTECTED) &&
+        if (IsCameraPreviewUsingUsbHal()) {
+          *out_format = vendor_qti_hardware_display_common_PixelFormat::YCbCr_420_SP;
+          *out_modifier = PIXEL_FORMAT_MODIFIER_VENUS;
+        } else if ((usage & vendor_qti_hardware_display_common_BufferUsage::PROTECTED) &&
             (!CanAllocateZSLForSecureCamera())) {
           *out_format = vendor_qti_hardware_display_common_PixelFormat::YCrCb_420_SP;
           *out_modifier = PIXEL_FORMAT_MODIFIER_VENUS;
@@ -481,6 +496,11 @@ Error SnapConstraintManager::ConstraintsToBufferLayout(
   }
   layout->size_in_bytes = ALIGN(layout->size_in_bytes, constraints->size_align_bytes);
 
+  vendor_qti_hardware_display_common_PixelFormatModifier pixel_format_modifier =
+      static_cast<vendor_qti_hardware_display_common_PixelFormatModifier>(
+          GetPixelFormatModifier(desc));
+  layout->size_in_bytes *= GetBatchSize(pixel_format_modifier);
+
   return Error::NONE;
 }
 
@@ -711,8 +731,46 @@ Error SnapConstraintManager::FetchAndMergeConstraints(
     }
   }
 
+
+  if (desc.usage & vendor_qti_hardware_display_common_BufferUsage::GPU_MIPMAP_COMPLETE) {
+    GraphicsConstraintProvider *graphics_provider = nullptr;
+    for (auto const &[provider, cap] : providers) {
+      if (provider->GetProviderType() == kGraphics) {
+        graphics_provider = static_cast<GraphicsConstraintProvider *>(provider);
+        break;
+      }
+    }
+
+    if (graphics_provider != NULL) {
+      DLOGD_IF(enable_logs, "getting size and metadata from graphics for MIPMAP usage");
+      vendor_qti_hardware_display_common_GraphicsMetadata graphics_metadata = {};
+      int ret = graphics_provider->GetInitialMetadata(desc, &graphics_metadata, false);
+      if (!ret) {
+        auto size = graphics_provider->AdrenoGetAlignedGpuBufferSize(graphics_metadata.data);
+        if (size > 0) {
+          DLOGI("Using adreno metadata size %u instead of constraint-based size %llu",
+                 size, out_layout->size_in_bytes);
+          out_layout->size_in_bytes = size;
+        }
+      }
+      // Also get stride from Adreno metadata for mipmapped textures. The constraint-based
+      // stride disagrees with the GPU layout pitch when the mipmap path skips performance
+      // padding; a CPU producer would otherwise write mip rows at the wrong pitch (4x
+      // horizontal replication). The accessor validates the metadata blob internally and
+      // returns 0 when unavailable, so this is a no-op for non-mipmap / older drivers.
+      DLOGD_IF(enable_logs, "getting aligned width from graphics");
+      uint32_t adreno_pitch = graphics_provider->AdrenoGetAlignedGpuPitch(graphics_metadata.data);
+      if (adreno_pitch > 0 && adreno_pitch != out_layout->aligned_width_in_bytes) {
+        out_layout->aligned_width_in_bytes = adreno_pitch;
+      }
+    }
+  }
+
   DLOGD_IF(enable_logs, "out_layout->size_in_bytes %d at line %d", out_layout->size_in_bytes,
            __LINE__);
+
+  DLOGD_IF(enable_logs, "out_layout->aligned_width_in_bytes %d at line %d",
+           out_layout->aligned_width_in_bytes,  __LINE__);
 
   return Error::NONE;
 }
@@ -722,7 +780,7 @@ uint32_t SnapConstraintManager::GetDataAlignment(
     vendor_qti_hardware_display_common_PixelFormat format,
     vendor_qti_hardware_display_common_BufferUsage usage,
     vendor_qti_hardware_display_common_PixelFormatModifier modifier) {
-  uint32_t align = PAGE_SIZE;
+  uint32_t align = getpagesize();
 
   if (format == vendor_qti_hardware_display_common_PixelFormat::YCbCr_420_SP &&
       modifier == PIXEL_FORMAT_MODIFIER_TILED) {
@@ -775,6 +833,11 @@ bool SnapConstraintManager::UseUncached(vendor_qti_hardware_display_common_Pixel
 uint64_t SnapConstraintManager::GetUBWCLossyUsage(BufferDescriptor out_desc) {
   if (!enable_ubwc_lossy_fbt_ || !ubwc_policy_->IsUBWCAlloc(out_desc)) {
     DLOGD_IF(enable_logs, "%s: Lossy UBWC usage not set", __func__);
+    return 0;
+  }
+
+  // WriteBack cannot write-out as UBWC Lossy_2_1 format
+  if (out_desc.usage & vendor_qti_hardware_display_common_BufferUsage::QTI_PRIVATE_WFD) {
     return 0;
   }
 

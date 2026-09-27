@@ -721,6 +721,8 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
   const string emsync_switch_enabled = "emsync_switch_enabled=";
   const string privacy_layer_support = "privacy layer support=";
   const string ext_bridge = "ext bridge hpd support=";
+  const string port_id = "port id=";
+
   while (std::getline(stream, line)) {
     if (line.find(pixel_formats) != string::npos) {
       vector<pair<uint32_t, uint64_t>> formats_supported;
@@ -802,6 +804,8 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
       info->is_privacy_layers_supported = (string(line, privacy_layer_support.length()) == "true");
     } else if (line.find(ext_bridge) != string::npos) {
       info->is_dsi_to_hdmi_bridge = (string(line, ext_bridge.length()) == "true");
+    } else if (line.find(port_id) != string::npos) {
+      info->port_id = std::stoul(string(line, port_id.length()));
     }
   }
 
@@ -1993,6 +1997,16 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::REPROJ_POSE_FB),
                                fb_id);
       DRM_LOGD("Connector %d: Setting  reprojection pose fb id %d", obj_id, fb_id);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_GMU_DCP_INTF_MEM: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::GMU_DCP_INTF_MEM)) {
+        return;
+      }
+      uint32_t shared_fb_id = va_arg(args, uint32_t);
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::GMU_DCP_INTF_MEM),
+                               shared_fb_id);
+      DRM_LOGD("Connector %d: Setting gmu_dcp_intf_mem %d", obj_id, shared_fb_id);
     } break;
 
     case DRMOps::CONNECTOR_SET_REPROJ_MODE: {
