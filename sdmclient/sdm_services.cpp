@@ -2378,6 +2378,7 @@ DisplayError SDMServices::GetPanelResolution(SDMParcel *input_parcel, SDMParcel 
 }
 
 DisplayError SDMServices::SetStandbyMode(SDMParcel *input_parcel) {
+  SEQUENCE_WAIT_SCOPE_LOCK(locker_[SDM_DISPLAY_PRIMARY]);
   SDMDisplay *display = cb_->GetDisplayFromClientId(SDM_DISPLAY_PRIMARY);
   if (!display) {
     DLOGW("Display = %d is not connected.", SDM_DISPLAY_PRIMARY);

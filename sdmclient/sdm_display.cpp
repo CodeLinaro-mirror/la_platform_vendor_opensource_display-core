@@ -4676,6 +4676,8 @@ DisplayError SDMDisplay::SetStandbyMode(bool enable, bool is_twm) {
 
       stored_display_intf_ = display_intf_;
       display_intf_ = display_null_intf_;
+      null_display_active_ = true;
+      DLOGD("Null display is connected successfully");
       shared_ptr<Fence> release_fence = nullptr;
 
       if (is_twm && current_power_mode_ == SDMPowerMode::POWER_MODE_ON) {
@@ -4695,8 +4697,6 @@ DisplayError SDMDisplay::SetStandbyMode(bool enable, bool is_twm) {
         }
       }
 
-      null_display_active_ = true;
-      DLOGD("Null display is connected successfully");
     } else {
       DLOGD("Null display is already connected.");
     }
