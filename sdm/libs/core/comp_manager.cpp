@@ -402,6 +402,10 @@ DisplayError CompManager::PrePrepare(Handle display_ctx, DispLayerStack *disp_la
     display_comp_ctx->constraints.idle_timeout = true;
   }
 
+  if (resource_intf_ ==  NULL) {
+    return kErrorUndefined;
+  }
+
   display_comp_ctx->constraints.tonemapping_query_mandatory =
         resource_intf_->ToneMapQueryRequested(display_comp_ctx->display_resource_ctx);
 
