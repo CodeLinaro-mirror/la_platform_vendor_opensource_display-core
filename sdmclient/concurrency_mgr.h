@@ -548,6 +548,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   }
 
   void SetPrimaryConnected(bool state) { primary_connected_ = state; }
+  bool IsPluggablePrimary() const override;
 
   static const int locker_count_ = pluggable_lock_index_ + 1;
   static Locker locker_[locker_count_];
@@ -624,6 +625,7 @@ private:
   bool IsPluggableDisplayConnected();
   bool IsVirtualDisplayConnected();
   void HandlePendingRefresh();
+  bool IsNullPrimaryDisplay(uint64_t display);
   void NotifyClientStatus(bool connected);
   DisplayError TUITransitionPrepare(int disp_id);
   DisplayError TUITransitionStart(int disp_id);

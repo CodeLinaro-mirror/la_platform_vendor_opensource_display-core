@@ -340,6 +340,10 @@ DisplayError ConcurrencyMgr::InitSubModules(DebugCallbackIntf *debug) {
   return kErrorNone;
 }
 
+bool ConcurrencyMgr::IsPluggablePrimary() const {
+  return disp_->IsPluggablePrimary();
+}
+
 bool ConcurrencyMgr::IsHDRDisplay(uint64_t display) {
   return disp_->IsHDRDisplay(display);
 }
@@ -849,6 +853,10 @@ DisplayError ConcurrencyMgr::SetActiveConfig(Display display, int32_t config) {
                              static_cast<Config>(config));
 }
 
+bool ConcurrencyMgr::IsNullPrimaryDisplay(uint64_t display) {
+  return SDMDisplayBuilder::IsNullDisplayActive() && (display == SDM_DISPLAY_PRIMARY);
+}
+
 DisplayError ConcurrencyMgr::SetClientTarget(
     uint64_t display, const SnapHandle *target, shared_ptr<Fence> acquire_fence,
     int32_t dataspace, const SDMRegion &damage, uint32_t version) {
@@ -856,6 +864,10 @@ DisplayError ConcurrencyMgr::SetClientTarget(
 
   if (display >= kNumDisplays) {
     return kErrorParameters;
+  }
+
+  if (IsNullPrimaryDisplay(display)) {
+    return kErrorNone;
   }
 
   SCOPE_LOCK(locker_[display]);
@@ -937,6 +949,14 @@ DisplayError ConcurrencyMgr::SetCursorPosition(Display display, LayerId layer,
 
 DisplayError ConcurrencyMgr::SetDisplayElapseTime(Display display,
                                                   uint64_t time) {
+  if (display >= kNumDisplays) {
+    return kErrorParameters;
+  }
+
+  if (IsNullPrimaryDisplay(display)) {
+    return kErrorNone;
+  }
+
   return CallDisplayFunction(display, &SDMDisplay::SetDisplayElapseTime, time);
 }
 

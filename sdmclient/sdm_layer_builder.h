@@ -80,11 +80,16 @@ public:
 
 private:
   SDMLayer *GetSDMLayer(uint64_t display_id, int64_t layer_id);
+  static bool IsNullPrimaryDisplay(uint64_t display_id);
 
   template <typename... Args>
   DisplayError CallLayerFunction(uint64_t display, int64_t layer_id,
                                  DisplayError (SDMLayer::*member)(Args...),
                                  Args... args) {
+    if (IsNullPrimaryDisplay(display)) {
+      return kErrorNone;
+    }
+
     if (display >= kNumDisplays) {
       return kErrorParameters;
     }
