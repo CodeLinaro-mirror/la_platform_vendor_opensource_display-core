@@ -560,13 +560,10 @@ SDMDisplay::SDMDisplay(CoreInterface *core_intf, BufferAllocator *buffer_allocat
 }
 
 SDMDisplay::~SDMDisplay() {
-  for (auto &it : buffer_luts_) {
-    if (it.second.lutEntries != nullptr) {
-      delete[] it.second.lutEntries;
-      it.second.lutEntries = nullptr;
-    }
+  for (auto &it : layer_luts_) {
+    SafeDeleteArray(it.second.lutEntries);
+    SafeDeleteArray(it.second.gridEntries);
   }
-  buffer_luts_.clear();
 }
 
 DisplayError SDMDisplay::Init() {
@@ -590,7 +587,7 @@ DisplayError SDMDisplay::Init() {
     return kErrorNotSupported;
   }
 
-  if (display_intf_->IsLSRSupported()) {
+  if (display_intf_->IsLSRSupported() || IsGpuLsrVariant()) {
     FrameCaptureIntf::Create(display_intf_, buffer_allocator_, &fcm_);
     if (fcm_ == nullptr) {
       DLOGW("Failed to create framecapture");
@@ -602,9 +599,13 @@ DisplayError SDMDisplay::Init() {
     DLOGI("HDR Handling disabled");
   }
 
-  int composer_driven_hdcp;
-  SDMDebugHandler::Get()->GetProperty(COMPOSER_DRIVEN_HDCP, &composer_driven_hdcp);
-  composer_driven_hdcp_ = (composer_driven_hdcp == 1);
+  int value;
+  SDMDebugHandler::Get()->GetProperty(COMPOSER_DRIVEN_HDCP, &value);
+  composer_driven_hdcp_ = (value == 1);
+
+  value = 0;
+  SDMDebugHandler::Get()->GetProperty(ALLOW_SECCAM_CONCURRENCY, &value);
+  allow_seccam_concurrency_ = (value == 1);
 
   int property_swap_interval = 1;
   SDMDebugHandler::Get()->GetProperty(ZERO_SWAP_INTERVAL,
@@ -658,6 +659,10 @@ DisplayError SDMDisplay::Init() {
 
   SDMDebugHandler::Get()->GetProperty(RGBA_SPLIT_SUPPORT, &rgba_split_support_);
   game_supported_ = display_intf_->GameEnhanceSupported();
+
+  value = 0;
+  SDMDebugHandler::Get()->GetProperty(DISABLE_LUTS_OVERLAY_SUPPORT, &value);
+  disable_luts_overlay_support_ = (value == 1);
 
   if (!sdm_layer_stack_) {
     DLOGE("sdm layer stack not present");
@@ -760,6 +765,12 @@ void SDMDisplay::UpdateConfigs() {
   // SF doesnt care about dynamic bit clk support.
   // Exposing all configs will result in getting/setting of redundant configs.
 
+  // TODO: Remove once external display mode switch is cleanly supported.
+  bool external_display = (type_ == kPluggable);
+  if (external_display) {
+    num_configs_ = 1;
+  }
+
   // For each config store the corresponding index which client understands.
   sdm_config_map_.resize(num_configs_);
 
@@ -782,7 +793,7 @@ void SDMDisplay::UpdateConfigs() {
     }
   }
 
-  if (NeedsSDMExtendedResolution()) {
+  if (!external_display && NeedsSDMExtendedResolution()) {
     PopulateSDMExtendedDisplayResolution();
   }
 
@@ -821,8 +832,10 @@ DisplayError SDMDisplay::Deinit(bool deinit_layer_builder) {
   }
 
   if (deinit_layer_builder) {
-    layer_builder_->DeInit(id_);
-    layer_builder_ = nullptr;
+    if (layer_builder_) {
+      layer_builder_->DeInit(id_);
+      layer_builder_ = nullptr;
+    }
   }
 
   if (fcm_) {
@@ -885,9 +898,7 @@ void SDMDisplay::BuildLayerStack() {
                sdm_layer->GetId(), id_, type_);
     }
 
-    if (sdm_layer->IsLutsSet()) {
-      layer->flags.has_luts = true;
-      // TODO(user): Remove skip once using luts sent by client is supported
+    if (sdm_layer->IsLutsSet() && disable_luts_overlay_support_) {
       layer->flags.skip = true;
       DLOGV_IF(kTagClient,
                "Layer [%" PRIu64
@@ -953,6 +964,8 @@ void SDMDisplay::BuildLayerStack() {
       layer->flags.single_buffer = true;
       layer_stack_.flags.single_buffered_layer_present = true;
     }
+
+    layer->input_buffer.flags.client_luts = sdm_layer->IsLutsSet();
 
     // hdr flag is reset since same layer can switch b/w hdr & non-hdr content
     // eg: switching b/w hdr & sdr videos in pip
@@ -1161,7 +1174,7 @@ DisplayError SDMDisplay::SetVsyncEnabled(bool enabled) {
 }
 
 void SDMDisplay::PostPowerMode() {
-  if (release_fence_ == nullptr) {
+  if (release_fence_ == nullptr || !sdm_layer_stack_) {
     return;
   }
 
@@ -1639,8 +1652,49 @@ DisplayError SDMDisplay::VSync(const DisplayEventVSync &vsync) {
   return kErrorNone;
 }
 
-DisplayError SDMDisplay::Refresh() {
+DisplayError SDMDisplay::Refresh(RefreshType type) {
+  if (type == kSelfRefresh) {
+    event_handler_->OnSelfRefresh(id_);
+    return kErrorNone;
+  }
+
   callbacks_->OnRefresh(id_);
+  return kErrorNone;
+}
+
+DisplayError SDMDisplay::PerformSelfRefresh() {
+  DTRACE_SCOPED();
+  if (shutdown_pending_ || layer_stack_.layers.empty()) {
+    DLOGW("SelfRefresh skipped: shutdown=%d layers=%zu", shutdown_pending_,
+          layer_stack_.layers.size());
+    return kErrorNone;
+  }
+
+  if (current_power_mode_ != SDMPowerMode::POWER_MODE_ON) {
+    DLOGW("SelfRefresh skipped: display not in ON state (mode=%d)", current_power_mode_);
+    return kErrorNone;
+  }
+
+  shared_ptr<Fence> retire_fence;
+  uint32_t num_types = 0, num_requests = 0;
+  bool needs_commit = false;
+  DisplayError error = CommitOrPrepare(/*validate_only=*/false, &retire_fence, &num_types,
+                                       &num_requests, &needs_commit);
+  if (error != kErrorNone && error != kErrorNeedsCommit) {
+    DLOGW("SelfRefresh: CommitOrPrepare failed. Error = %d", error);
+    return error;
+  }
+
+  if (needs_commit) {
+    DLOGW("Composition decision might be changed for GPU composition");
+    error = CommitLayerStack();
+    if (error != kErrorNone) {
+      DLOGW("SelfRefresh: CommitLayerStack fallback failed. Error = %d", error);
+      return error;
+    }
+    PostCommitLayerStack(&retire_fence);
+  }
+
   return kErrorNone;
 }
 
@@ -1736,6 +1790,53 @@ void SDMDisplay::ClearRequestMaps() {
   display_luts_.clear();
 }
 
+void SDMDisplay::ClearLayerBufferMap(const LayerId &layer_id) {
+  for (auto it = layer_buffer_map_.begin(); it != layer_buffer_map_.end();) {
+    if (it->second == layer_id) {
+      it = layer_buffer_map_.erase(it);
+    } else {
+      it++;
+    }
+  }
+}
+
+void SDMDisplay::ClearLayerLuts() {
+  // delete copy of luts for destroyed layers
+  std::vector<uint64_t> layer_ids;
+  if (!layer_builder_->NeedsLutsDeletion(id_)) {
+    return;
+  }
+
+  layer_builder_->HandleLutsDeletion(id_, layer_ids);
+  for (auto &id : layer_ids) {
+    if (layer_luts_.find(id) != layer_luts_.end()) {
+      SafeDeleteArray(layer_luts_[id].lutEntries);
+      SafeDeleteArray(layer_luts_[id].gridEntries);
+      layer_luts_.erase(id);
+      ClearLayerBufferMap(id);
+    }
+  }
+}
+
+void SDMDisplay::PopulateLayerLuts(Layer *layer) {
+  // map handle ids to luts so client can retrieve it through getLuts call
+  // used in screenshot layer during rotation, suspend resume, etc.
+  uint64_t &layer_id = layer->layer_id;
+  uint64_t &handle_id = layer->input_buffer.handle_id;
+  if (layer->lut_3d.lutEntries != nullptr) {
+    // since we're storing a copy of luts, we only need to copy again when there is an update
+    if (IsLutUpdate(layer->lut_3d, layer_luts_[layer_id])) {
+      CopyLut3D(layer->lut_3d, &layer_luts_[layer_id]);
+    }
+    layer_buffer_map_[handle_id] = layer_id;
+  } else if (layer_luts_.find(layer_id) != layer_luts_.end()) {
+    SafeDeleteArray(layer_luts_[layer_id].lutEntries);
+    SafeDeleteArray(layer_luts_[layer_id].gridEntries);
+    layer_luts_.erase(layer_id);
+    ClearLayerBufferMap(layer_id);
+  }
+}
+
 DisplayError SDMDisplay::PrepareLayerStack(uint32_t *out_num_types, uint32_t *out_num_requests) {
   ClearRequestMaps();
   has_client_composition_ = false;
@@ -1791,6 +1892,8 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
   geometry_changes_on_doze_suspend_ = GeometryChanges::kNone;
 
   ClearRequestMaps();
+  ClearLayerLuts();
+
   has_client_composition_ = false;
   for (auto sdm_layer : sdm_layer_stack_->layer_set_) {
     Layer *layer = sdm_layer->GetSDMLayer();
@@ -1812,22 +1915,13 @@ DisplayError SDMDisplay::PostPrepareLayerStack(uint32_t *out_num_types,
     if (device_composition == SDMCompositionType::COMP_CLIENT) {
       has_client_composition_ = true;
 
-      if (layer->lut_3d.validLutEntries) {
+      // Do not send display luts if layer already has luts set by client
+      if (layer->lut_3d.validLutEntries && !layer->input_buffer.flags.client_luts) {
         display_luts_[sdm_layer->GetId()] = &layer->lut_3d;
       }
     }
 
-    // map handle ids to luts so client can retrieve it through getLuts call
-    // used in screenshot layer during rotation, suspend resume, etc.
-    if (layer->lut_3d.lutEntries != nullptr) {
-      CopyLut3D(layer->lut_3d, &buffer_luts_[layer->input_buffer.handle_id]);
-    } else if (buffer_luts_.find(layer->input_buffer.handle_id) != buffer_luts_.end()) {
-      if (buffer_luts_[layer->input_buffer.handle_id].lutEntries != nullptr) {
-        delete[] buffer_luts_[layer->input_buffer.handle_id].lutEntries;
-        buffer_luts_[layer->input_buffer.handle_id].lutEntries = nullptr;
-      }
-      buffer_luts_.erase(layer->input_buffer.handle_id);
-    }
+    PopulateLayerLuts(layer);
 
     // Update the changes list only if the requested composition is different
     // from SDM comp type
@@ -1997,9 +2091,9 @@ DisplayError SDMDisplay::GetBufferLuts(const std::vector<SnapHandle *> &buffers,
   for (uint32_t i = 0; i < num_elements; i++) {
     uint64_t handle_id = 0;
     GetMetadata(buffers.at(i), MetadataType::BUFFER_ID, &handle_id, snapmapper_);
-    auto it = buffer_luts_.find(handle_id);
-    if (it != buffer_luts_.end()) {
-      out_luts->push_back(&it->second);
+    auto it = layer_buffer_map_.find(handle_id);
+    if (it != layer_buffer_map_.end() && layer_luts_.find(it->second) != layer_luts_.end()) {
+      out_luts->push_back(&layer_luts_[it->second]);
     } else {
       out_luts->push_back(nullptr);
     }
@@ -2394,14 +2488,14 @@ void SDMDisplay::DumpInputBuffers() {
 
     Fence::Wait(layer->input_buffer.acquire_fence);
     //To-Do: Handle Fence wait for CSC and Repro Layers properly
-    if (layer->composition != kCompositionIWERepro) {
-      SnapHandle *handle = (SnapHandle *)layer->input_buffer.buffer_id;
-      DumpToFile(handle, std::string(dir_path), i);
-    } else {
+    if (layer->composition == kCompositionIWERepro || layer_stack_.gpu_reproj_batch_size > 0) {
       for (int plane = 0; plane < 3; plane++) {
         SnapHandle *handle = (SnapHandle *)layer->input_buffer.planes[plane].buffer_id;
         DumpToFile(handle, std::string(dir_path), i, plane);
       }
+    } else {
+      SnapHandle *handle = (SnapHandle *)layer->input_buffer.buffer_id;
+      DumpToFile(handle, std::string(dir_path), i);
     }
   }
   dump_input_frame_count_--;
@@ -2822,6 +2916,16 @@ SDMDisplay::HandleSecureSession(const std::bitset<kSecureMax> &secure_sessions,
                                 bool is_active_secure_display) {
   if (!power_on_pending) {
     return kErrorNotSupported;
+  }
+
+  if (allow_seccam_concurrency_) {
+    bool only_secure_camera_active = secure_sessions[kSecureCamera] &&
+                                     !secure_sessions[kSecureDisplay] &&
+                                     !secure_sessions[kSecureTUI];
+    if (only_secure_camera_active) {
+      *power_on_pending = false;
+      return kErrorNone;
+    }
   }
 
   if (active_secure_sessions_[kSecureDisplay] !=
@@ -3706,6 +3810,13 @@ DisplayError SDMDisplay::HandleSecureEvent(SecureEvent secure_event,
     }
   } else if (secure_event == kTUITransitionPrepare ||
              secure_event == kTUITransitionStart) {
+    // Save power mode only if secondary is actively ON — not if already OFF
+    if (!pending_power_mode_valid_ && current_power_mode_ != SDMPowerMode::POWER_MODE_OFF) {
+      pending_power_mode_ = current_power_mode_;
+      pending_power_mode_valid_ = true;
+      DLOGI("Saved pending power mode %d for display %d-%d", (int)pending_power_mode_, sdm_id_,
+            type_);
+    }
     if (*needs_refresh) {
       display_pause_pending_ = true;
     } else {
@@ -4678,6 +4789,10 @@ DisplayError SDMDisplay::ClearBuffersMappedToLayer(LayerId layer_id,
 
 bool SDMDisplay::IsEPTSupported() {
   return display_intf_->IsEPTSupported();
+}
+
+DisplayError SDMDisplay::GetDisplayViewMode(SDMDisplayViewMode *view_mode) {
+  return display_intf_->GetDisplayViewMode(view_mode);
 }
 
 }  // namespace sdm

@@ -107,9 +107,9 @@ DisplayError SDMDisplayVirtual::CommitOrPrepare(
   return kErrorNone;
 }
 
-DisplayError SDMDisplayVirtual::TurnOffColorFeature() {
+DisplayError SDMDisplayVirtual::ProcessColorFeatureOps(DisplayColorOps ops, void *payload) {
   if (display_intf_) {
-    return display_intf_->TurnOffColorFeature();
+    return display_intf_->ProcessColorFeatureOps(ops, payload);
   }
   return kErrorNotSupported;
 }

@@ -37,6 +37,9 @@
 #define kArtSocId 707
 #define kPebbleSocId1 735
 #define kPebbleSocId2 741
+#define kPebbleSocId3 793
+#define kPebbleSocId4 794
+#define kCoastSocId 761
 #define kArtSocName "art"
 #define kShikraSocId1 759
 #define kShikraSocId2 758

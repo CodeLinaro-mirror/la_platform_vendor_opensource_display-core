@@ -100,12 +100,41 @@ bool IsBT2020(const QtiColorPrimaries &color_primary) {
   }
 }
 
+bool IsLutUpdate(const Lut3d &curr_lut, const Lut3d &prev_lut) {
+  if (curr_lut.lutEntries == nullptr) {
+    return prev_lut.lutEntries != nullptr;
+  }
+
+  if (prev_lut.lutEntries == nullptr) {
+    return curr_lut.lutEntries != nullptr;
+  }
+
+  uint32_t size = curr_lut.dim * curr_lut.dim * curr_lut.dim;
+  if (curr_lut.dim != prev_lut.dim) {
+    return true;
+  }
+
+  return !SameConfig(curr_lut.lutEntries, prev_lut.lutEntries, size * sizeof(Color10Bit));
+}
+
 void CopyLut3D(const Lut3d &in, Lut3d *out) {
-  uint32_t size = in.dim * in.dim * in.dim;
-  out->dim = in.dim;
   out->validLutEntries = in.validLutEntries;
-  out->lutEntries = new Color10Bit[size];
-  std::memcpy(out->lutEntries, in.lutEntries, size * sizeof(Color10Bit));
+  out->validGridEntries = in.validGridEntries;
+
+  if (out->validLutEntries) {
+    uint32_t size = in.dim * in.dim * in.dim;
+    out->dim = in.dim;
+    SafeDeleteArray(out->lutEntries);
+    out->lutEntries = new Color10Bit[size];
+    std::memcpy(out->lutEntries, in.lutEntries, size * sizeof(Color10Bit));
+  }
+
+  if (out->validGridEntries) {
+    out->gridSize = in.gridSize;
+    SafeDeleteArray(out->gridEntries);
+    out->gridEntries = new Color10Bit[in.gridSize];
+    std::memcpy(out->gridEntries, in.gridEntries, in.gridSize * sizeof(Color10Bit));
+  }
 }
 
 static bool IsSdrDimmingDisabled() {
@@ -160,16 +189,8 @@ SDMLayer::~SDMLayer() {
       ::close(buffer_fd_);
     }
 
-    // Delete luts if they are still valid
-    if (layer_->lut_3d.lutEntries != nullptr) {
-      delete[] layer_->lut_3d.lutEntries;
-      layer_->lut_3d.lutEntries = nullptr;
-    }
-    if (layer_->lut_3d.gridEntries != nullptr) {
-      delete[] layer_->lut_3d.gridEntries;
-      layer_->lut_3d.gridEntries = nullptr;
-    }
-
+    SafeDeleteArray(layer_->lut_3d.lutEntries);
+    SafeDeleteArray(layer_->lut_3d.gridEntries);
     delete layer_;
   }
   id_mgr_.EraseId(id_);
@@ -1283,9 +1304,24 @@ bool SDMLayer::HasPrivacyRegions() {
 }
 
 DisplayError SDMLayer::SetLayerLuts(Lut3d *luts) {
-  // TODO(user): Populate layer_->lut_3d once supported, we need to clear previous luts first
-  // and ensure client luts don't get overriden by hwc luts and is used correctly by planes
-  luts_set_ = luts->validLutEntries;
+  if (!luts->validLutEntries) {
+    // delete valid luts previously set by client
+    if (luts_set_) {
+      SafeDeleteArray(layer_->lut_3d.lutEntries);
+      SafeDeleteArray(layer_->lut_3d.gridEntries);
+      // set update mask for luts removal
+      layer_->update_mask.set(kContentMetadata);
+    }
+    luts_set_ = false;
+    return kErrorNone;
+  }
+
+  luts_set_ = true;
+
+  if (IsLutUpdate(*luts, layer_->lut_3d)) {
+    layer_->update_mask.set(kContentMetadata);
+    CopyLut3D(*luts, &layer_->lut_3d);
+  }
 
   return kErrorNone;
 }

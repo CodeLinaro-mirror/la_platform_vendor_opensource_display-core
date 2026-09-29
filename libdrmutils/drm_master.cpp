@@ -166,11 +166,10 @@ int DRMMaster::CreateFbId(const DRMBuffer &drm_buffer, uint32_t *fb_id) {
   gem_close.handle = gem_handle;
   int ret1 = drmIoctl(dev_fd_, DRM_IOCTL_GEM_CLOSE, &gem_close);
   if (ret1) {
-    DRM_LOGE("drmIoctl::DRM_IOCTL_GEM_CLOSE failed with error %d", ret1);
-    return ret1;
+    DRM_LOGE("drmIoctl::DRM_IOCTL_GEM_CLOSE failed with error %d during cleanup", ret1);
   }
 
-  return ret;
+  return (ret) ? ret : ret1;  // prefer to return primary failure
 }
 
 int DRMMaster::RemoveFbId(uint32_t fb_id) {
@@ -192,6 +191,42 @@ bool DRMMaster::IsRmFbRefCounted() {
   return true;
 #endif
   return false;
+}
+
+void DRMMaster::DeferRemoveFbId(uint32_t fb_id) {
+  lock_guard<mutex> obj(s_lock);
+  deferred_remove_fb_ids_.push_back(fb_id);
+  DRM_LOGW("Deferring removal of fb_id %u (still in use by concurrent commit)", fb_id);
+}
+
+void DRMMaster::FlushDeferredRemovals() {
+  lock_guard<mutex> obj(s_lock);
+  if (deferred_remove_fb_ids_.empty()) {
+    return;
+  }
+
+  auto it = deferred_remove_fb_ids_.begin();
+  while (it != deferred_remove_fb_ids_.end()) {
+    uint32_t fb_id = *it;
+#ifdef DRM_IOCTL_MSM_RMFB2
+    int ret = drmIoctl(dev_fd_, DRM_IOCTL_MSM_RMFB2, &fb_id);
+#else
+    int ret = -1;
+#endif
+    if (ret == 0) {
+      DRM_LOGI("Successfully removed deferred fb_id %u", fb_id);
+      it = deferred_remove_fb_ids_.erase(it);
+    } else if (errno != EBUSY) {
+      // If error is not EBUSY, log and remove from list (avoid infinite retry)
+      DRM_LOGE("Failed to remove deferred fb_id %u with error %d, removing from retry list", fb_id,
+               errno);
+      it = deferred_remove_fb_ids_.erase(it);
+    } else {
+      // Still busy, keep in list for next flush
+      DRM_LOGV("Deferred fb_id %u still in use, will retry later", fb_id);
+      ++it;
+    }
+  }
 }
 
 void DRMMaster::CreateEventHandle(int *fd) {

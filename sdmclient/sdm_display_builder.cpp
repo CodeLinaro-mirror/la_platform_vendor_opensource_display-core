@@ -338,7 +338,7 @@ DisplayError SDMDisplayBuilder::DestroyVirtualDisplay(Display display) {
       DLOGI("Retaining virtual display id:%" PRIu64 " for reuse", display);
       auto sdm_display = cb_->GetDisplayFromClientId(display);
       if (sdm_display) {
-        auto status = sdm_display->TurnOffColorFeature();
+        auto status = sdm_display->ProcessColorFeatureOps(kColorFeatureForceOff, nullptr);
         if (status != kErrorNone) {
           DLOGW("Failed to turn off color feature, display:%" PRIu64 " status=%d", display, status);
         }
@@ -372,6 +372,7 @@ DisplayError SDMDisplayBuilder::DestroyVirtualDisplay(Display display) {
 DisplayError SDMDisplayBuilder::CreateVirtualDisplayObj(
     uint32_t width, uint32_t height, int32_t *format, Display *out_display_id) {
   SDMVirtualDispType requested_virtual_disp_type = kVirtualTypeDefault;
+  Display lm_change_id = kNumDisplays;
 
   // Query requested virtual display type
   auto err = core_intf_->GetVirtualDispType(&requested_virtual_disp_type);
@@ -382,28 +383,79 @@ DisplayError SDMDisplayBuilder::CreateVirtualDisplayObj(
 
   // Get virtual display from cache if already created
   for (auto &vds_map : virtual_id_map_) {
-    if (vds_map.second.width == width && vds_map.second.height == height &&
-        vds_map.second.format == *format && vds_map.second.type == requested_virtual_disp_type &&
-        !vds_map.second.in_use) {
-      auto sdm_display = cb_->GetDisplayFromClientId(vds_map.first);
-      if (!sdm_display) {
-        DLOGE("Cached virtual display id:%" PRIu64 " missing SDM display", vds_map.first);
-        return kErrorResources;
-      }
-
-      auto status = sdm_display->RestoreRetainedDisplay();
-      if (status != kErrorNone) {
-        DLOGE("Failed to restore cached virtual display id:%" PRIu64 " status=%d",
-              vds_map.first, status);
-        return status;
-      }
-
-      vds_map.second.in_use = true;
-      *out_display_id = vds_map.first;
-      DLOGI("Reusing cached virtual display id:%" PRIu64 " %dx%d format: %d type: %d",
-            *out_display_id, width, height, *format, requested_virtual_disp_type);
-      return kErrorNone;
+    // Skip entries that don't match format, type, or are already in use.
+    if (vds_map.second.format != *format || vds_map.second.type != requested_virtual_disp_type ||
+        vds_map.second.in_use) {
+      continue;
     }
+
+    bool resolution_changed = (vds_map.second.width != width || vds_map.second.height != height);
+
+    // Resolution reconfiguration is only supported for PQ virtual displays.
+    // Non-PQ displays (e.g. WFD/kVirtualTypeDefault) are never retained,
+    // so this guard is a safety net against future type additions.
+    if (resolution_changed && requested_virtual_disp_type != kVirtualTypePQ) {
+      continue;
+    }
+
+    auto sdm_display = cb_->GetDisplayFromClientId(vds_map.first);
+    if (!sdm_display) {
+      DLOGE("Cached virtual display id:%" PRIu64 " missing SDM display", vds_map.first);
+      return kErrorResources;
+    }
+
+    // kVirtualTypePQ only: reconfigure retained intf with new resolution.
+    if (resolution_changed) {
+      // Query whether the LM topology (1LM <-> 2LM) changes for the new width.
+      // Recreate the display intf when LM count changes to avoid hardware
+      // configuration mismatches.
+      LMQueryPayload lm_payload;
+      lm_payload.width = width;
+      auto lm_status = sdm_display->ProcessColorFeatureOps(kColorFeatureQueryLMUpdate, &lm_payload);
+      if (lm_status == kErrorNone && lm_payload.lm_count_changed) {
+        DLOGI("PQ virtual display id:%" PRIu64
+              " LM topology changed for new width %u (current_w=%u), recreating intf",
+              vds_map.first, width, vds_map.second.width);
+        lm_change_id = vds_map.first;
+        break;  // Break out of loop, will destroy and recreate below
+      }
+      DLOGI("PQ virtual display id:%" PRIu64
+            " resolution changed from %dx%d to %dx%d,"
+            " reconfiguring retained intf",
+            vds_map.first, vds_map.second.width, vds_map.second.height, width, height);
+      auto reconfig_status = sdm_display->SetFrameBufferResolution(width, height);
+      if (reconfig_status != kErrorNone) {
+        DLOGE("Failed to reconfigure PQ virtual display id:%" PRIu64 " status=%d", vds_map.first,
+              reconfig_status);
+        return reconfig_status;
+      }
+      vds_map.second.width = width;
+      vds_map.second.height = height;
+    }
+
+    auto status = sdm_display->RestoreRetainedDisplay();
+    if (status != kErrorNone) {
+      DLOGE("Failed to restore cached virtual display id:%" PRIu64 " status=%d", vds_map.first,
+            status);
+      return status;
+    }
+
+    vds_map.second.in_use = true;
+    *out_display_id = vds_map.first;
+    DLOGI("Reusing cached virtual display id:%" PRIu64 " %dx%d format: %d type: %d",
+          *out_display_id, width, height, *format, requested_virtual_disp_type);
+    return kErrorNone;
+  }
+
+  // LM count changed: destroy cached intf and recreate below.
+  if (lm_change_id != kNumDisplays) {
+    for (auto &map_info : map_info_virtual_) {
+      if (map_info.client_id == lm_change_id) {
+        DestroyDisplay(&map_info);
+        break;
+      }
+    }
+    virtual_id_map_.erase(lm_change_id);
   }
 
   Display active_builtin_disp_id = GetActiveBuiltinDisplay();
@@ -1046,7 +1098,8 @@ int SDMDisplayBuilder::HandleConnectedDisplays(HWDisplaysInfo *displays_info,
 
   // Active builtin display needs revalidation
   Display active_builtin_disp_id = GetActiveBuiltinDisplay();
-  if (active_builtin_disp_id < kNumDisplays) {
+  if (active_builtin_disp_id < kNumDisplays &&
+      (cb_->GetDisplayFromClientId(active_builtin_disp_id) != null_display_)) {
     auto ret =
         cb_->WaitForResources(delay_hotplug, active_builtin_disp_id, client_id);
     if (ret != kErrorNone) {

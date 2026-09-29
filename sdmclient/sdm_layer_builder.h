@@ -105,10 +105,14 @@ class SDMLayerBuilder : public SDMDisplayLayerBuilderIntf {
 
   DisplayError SetLayerLuts(uint64_t display, int64_t layer, Lut3d *luts) override;
 
+  bool NeedsLutsDeletion(uint64_t display_id) { return !valid_lut_layer_ids_[display_id].empty(); }
+  void HandleLutsDeletion(uint64_t display_id, std::vector<uint64_t> &layer_ids);
+
  private:
   SDMLayer *GetSDMLayer(uint64_t display_id, int64_t layer_id);
   DisplayError DestroyLayerLocked(uint64_t display_id, int64_t layer_id);
   static bool IsNullPrimaryDisplay(uint64_t display_id);
+  void StoreLutsDeletion(uint64_t display_id, SDMLayer *sdm_layer);
 
   template <typename... Args>
   DisplayError CallLayerFunction(uint64_t display, int64_t layer_id,
@@ -142,6 +146,7 @@ class SDMLayerBuilder : public SDMDisplayLayerBuilderIntf {
   static uint32_t ref_count_;
   static std::mutex lock_;
   static Locker locker_[kNumDisplays];
+  std::map<uint64_t, std::vector<uint64_t>> valid_lut_layer_ids_;
 };
 
 }  // namespace sdm

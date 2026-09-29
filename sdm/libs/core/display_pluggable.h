@@ -23,11 +23,10 @@
 */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
-* SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #ifndef __DISPLAY_PLUGGABLE_H__
 #define __DISPLAY_PLUGGABLE_H__
@@ -89,6 +88,7 @@ class DisplayPluggable : public DisplayBase, HWEventHandler {
   DisplayError GetPanelBrightnessBasePath(std::string *base_path) override;
   void HandleSSREvent(SSREventType ssr_event) override;
   void HandleLSR_SSREvent(LSR_SSREventType lsr_ssr_event) override;
+  DisplayError SetActiveConfig(uint32_t index) override;
 
   void InitializeColorModesFromColorspace();
 

@@ -635,7 +635,11 @@ void HWPeripheralDRM::SetAIScalerData(const AIScalerInfoMap ai_scale_info_map) {
     }
 
     ai_scaler_current_mode_id_ = ai_scale_info->ai_scale_data.mode_id;
-    if ((ai_scaler_cache_[i].scaler_data.config != sde_ai_scaler_cfg_.config) ||
+    if ((ai_scaler_cache_[i].scaler_data.src_w != sde_ai_scaler_cfg_.src_w) ||
+        (ai_scaler_cache_[i].scaler_data.src_h != sde_ai_scaler_cfg_.src_h) ||
+        (ai_scaler_cache_[i].scaler_data.dst_w != sde_ai_scaler_cfg_.dst_w) ||
+        (ai_scaler_cache_[i].scaler_data.dst_h != sde_ai_scaler_cfg_.dst_h) ||
+        (ai_scaler_cache_[i].scaler_data.config != sde_ai_scaler_cfg_.config) ||
         (ai_scaler_cache_[i].mode_id != ai_scaler_current_mode_id_)) {
       needs_ai_scaler_update_ = true;
     }

@@ -423,6 +423,8 @@ public:
   virtual void ClearPendingPowerMode() {
     pending_power_mode_ = current_power_mode_;
   }
+  virtual bool GetPendingPowerModeValid() { return pending_power_mode_valid_; }
+  virtual void SetPendingPowerModeValid(bool valid) { pending_power_mode_valid_ = valid; }
   virtual void NotifyClientStatus(bool connected) {
     client_connected_ = connected;
   }
@@ -551,7 +553,11 @@ public:
   virtual DisplayError SetRgbHistObserverConfig(bool state, void *data) {
     return kErrorNotSupported;
   }
-  virtual DisplayError TurnOffColorFeature() { return kErrorNotSupported; }
+  virtual DisplayError ProcessColorFeatureOps(DisplayColorOps ops, void *payload) {
+    return kErrorNotSupported;
+  }
+  DisplayError GetDisplayViewMode(SDMDisplayViewMode *view_mode);
+  virtual DisplayError PerformSelfRefresh();
 
  protected:
   static uint32_t throttling_refresh_rate_;
@@ -564,7 +570,7 @@ public:
 
   // DisplayEventHandler methods
   virtual DisplayError VSync(const DisplayEventVSync &vsync);
-  virtual DisplayError Refresh();
+  virtual DisplayError Refresh(RefreshType type);
   virtual DisplayError CECMessage(char *message);
   virtual DisplayError HistogramEvent(int source_fd, uint32_t blob_id);
   virtual DisplayError HandleEvent(DisplayEvent event);
@@ -654,7 +660,8 @@ public:
   std::map<LayerId, SDMLayerRequest> layer_requests_;
   // mapping 3d luts to layer id and handle id to retrieve info and pass to client
   std::map<LayerId, Lut3d *> display_luts_;
-  std::map<uint64_t, Lut3d> buffer_luts_;
+  std::map<LayerId, Lut3d> layer_luts_;
+  std::map<uint64_t, LayerId> layer_buffer_map_;
   bool flush_on_error_ = false;
   bool flush_ = false;
   SDMPowerMode current_power_mode_ = SDMPowerMode::POWER_MODE_OFF;
@@ -743,6 +750,8 @@ public:
   uint64_t scheduled_dynamic_dsi_clk_ = 0;
   int32_t rgba_split_support_ = 0;
   bool valid_commit_ = false;
+  bool IsFcmCwbActive() const { return fcm_ && fcm_->IsCwbActive(); }
+  bool pending_power_mode_valid_ = false;
 
  private:
   bool CanSkipSdmPrepare(uint32_t *num_types, uint32_t *num_requests);
@@ -756,6 +765,9 @@ public:
   DisplayError GetParentConfig(Config *config);
   bool NotifyIdleNow();
   bool NeedsSDMExtendedResolution();
+  void PopulateLayerLuts(Layer *layer);
+  void ClearLayerLuts();
+  void ClearLayerBufferMap(const LayerId &layer_id);
 
   DisplayClass display_class_;
   uint32_t geometry_changes_on_doze_suspend_ = GeometryChanges::kNone;
@@ -777,6 +789,8 @@ public:
   bool pending_privregions_update_ = false;
   FrameCaptureIntf *fcm_ = nullptr;
   bool composer_driven_hdcp_ = false;
+  bool disable_luts_overlay_support_ = false;
+  bool allow_seccam_concurrency_ = false;
 };
 
 inline DisplayError SDMDisplay::Perform(uint32_t operation, ...) {

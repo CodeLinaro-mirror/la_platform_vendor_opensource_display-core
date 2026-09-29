@@ -415,6 +415,28 @@ DisplayError SDMTrustedUI::TUITransitionUnPrepare(int disp_id) {
     cb_->Refresh(target_display);
   }
 
+  for (auto &info : map_info_builtin) {
+    if (info.client_id == target_display)
+      continue;
+
+    SEQUENCE_WAIT_SCOPE_LOCK(locker_[info.client_id]);
+    SDMDisplay *display = cb_->GetDisplayFromClientId(info.client_id);
+    if (!display)
+      continue;
+
+    if (display->GetPendingPowerModeValid()) {
+      SDMPowerMode pending_mode = display->GetPendingPowerMode();
+      display->SetPendingPowerMode(SDMPowerMode::POWER_MODE_OFF);
+      display->SetPendingPowerModeValid(false);
+
+      if (pending_mode != SDMPowerMode::POWER_MODE_OFF) {
+        DLOGI("TUITransitionUnPrepare: Re-enabling vsync for secondary display %d", info.client_id);
+        display->SetVsyncEnabled(true);
+        cb_->Refresh(target_display);
+      }
+    }
+  }
+
   // Reset tui session state variable.
   tui_start_success_ = false;
   tui_end_success_ = true;
