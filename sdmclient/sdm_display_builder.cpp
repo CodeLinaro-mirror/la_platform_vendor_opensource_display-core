@@ -27,10 +27,18 @@ int SDMDisplayBuilder::GetDisplayIndex(int dpy) {
       map_info = &map_info_primary_[0];
       break;
     case qdutilsDisplayType::DISPLAY_EXTERNAL:
-      map_info = map_info_pluggable_.size() ? &map_info_pluggable_[0] : nullptr;
+      if (pluggable_is_primary_) {
+        map_info = &map_info_primary_[0];
+      } else {
+        map_info = map_info_pluggable_.size() ? &map_info_pluggable_[0] : nullptr;
+      }
       break;
     case qdutilsDisplayType::DISPLAY_EXTERNAL_2:
-      map_info = (map_info_pluggable_.size() > 1) ? &map_info_pluggable_[1] : nullptr;
+      if (pluggable_is_primary_) {
+        map_info = map_info_pluggable_.size() ? &map_info_pluggable_[0] : nullptr;
+      } else {
+        map_info = (map_info_pluggable_.size() > 1) ? &map_info_pluggable_[1] : nullptr;
+      }
       break;
     case qdutilsDisplayType::DISPLAY_VIRTUAL:
       map_info = map_info_virtual_.size() ? &map_info_virtual_[0] : nullptr;
@@ -477,9 +485,10 @@ int SDMDisplayBuilder::CreatePrimaryDisplay() {
 
     SDMDisplay *sdm_display = nullptr;
     Display client_id = map_info_primary_[0].client_id;
+    pluggable_is_primary_ = (info.display_type == kPluggable);
 
     // Create Null display if Primary is not connected
-    if (info.display_type == kBuiltIn && !info.is_connected) {
+    if (!info.is_connected) {
       DLOGI("Creating SDMDisplayNull");
       // primary display is not connected, create a dummy display
       status = SDMDisplayNull::Create(core_intf_, buffer_allocator_, callbacks_, evt_handler_,
@@ -519,6 +528,7 @@ int SDMDisplayBuilder::CreatePrimaryDisplay() {
       map_info_primary_[0].sdm_id = info.display_id;
 
       cb_->SetDisplayByClientId(client_id, sdm_display);
+      cb_->SetPrimaryConnected(true);
     } else {
       DLOGE("Primary display creation has failed! status = %d", status);
       return status;
@@ -673,7 +683,7 @@ int SDMDisplayBuilder::HandlePluggableDisplays(bool delay_hotplug) {
 
       if (active_builtin_disp_id < kNumDisplays) {
         if (delay_hotplug) {
-          cb_->WaitForCommitDone(active_builtin_disp_id, kClientTrustedUI);
+          cb_->WaitForCommitDoneAsync(active_builtin_disp_id, kClientTrustedUI);
         } else {
           callbacks_->OnRefresh(active_builtin_disp_id);
         }
@@ -695,7 +705,7 @@ int SDMDisplayBuilder::HandlePluggableDisplays(bool delay_hotplug) {
 
   pending_hotplug_event_ = kHotPlugNone;
   if (active_builtin_disp_id < kNumDisplays && delay_hotplug) {
-    cb_->WaitForCommitDone(active_builtin_disp_id, kClientTrustedUI);
+    cb_->WaitForCommitDoneAsync(active_builtin_disp_id, kClientTrustedUI);
   }
 
   DLOGI("Handling hotplug... Done.");
@@ -725,7 +735,7 @@ DisplayError SDMDisplayBuilder::HandleConnectedPrimaryDisplays(const HWDisplayIn
       // Primary is already connected, Do not recreate Primary Display
       return kErrorNone;
     }
-    DLOGI("Built-in display connected while Null is active");
+    DLOGI("Primary display connected while Null is active");
     SDMDisplay *sdm_display = nullptr;
     {
       SEQUENCE_WAIT_SCOPE_LOCK(locker_[display_idx]);
@@ -737,21 +747,27 @@ DisplayError SDMDisplayBuilder::HandleConnectedPrimaryDisplays(const HWDisplayIn
       null_display_ = nullptr;
       null_display_active_ = false;
 
-      DLOGI("Creating Built-in display");
-      error =
-          SDMDisplayBuiltIn::Create(core_intf_, buffer_allocator_, callbacks_, evt_handler_,
-                                    client_id, info.display_id, &sdm_display);
+      DLOGI("Creating Primary display");
+      pluggable_is_primary_ = (info.display_type == kPluggable);
+      if (info.display_type == kBuiltIn) {
+        error = SDMDisplayBuiltIn::Create(core_intf_, buffer_allocator_, callbacks_, evt_handler_,
+                                          client_id, info.display_id, &sdm_display);
+      } else {
+        error = SDMDisplayPluggable::Create(core_intf_, buffer_allocator_, callbacks_, evt_handler_,
+                                            client_id, info.display_id, 0, 0, false, &sdm_display);
+      }
       if (error) {
-        DLOGE("Built-in display creation has failed! error = %d", error);
+        DLOGE("Primary display creation has failed! error = %d", error);
         return error;
       }
-      DLOGI("Created Built-in display. type = %d, sdm id = %d, client id = %d",
-            info.display_type, info.display_id, UINT32(client_id));
+      DLOGI("Created Primary display. type = %d, sdm id = %d, client id = %d", info.display_type,
+            info.display_id, UINT32(client_id));
       {
         SCOPE_LOCK(hdr_locker_[client_id]);
         is_hdr_display_[UINT32(client_id)] = HasHDRSupport(sdm_display);
       }
       cb_->SetDisplayByClientId(client_id, sdm_display);
+      cb_->SetPrimaryConnected(true);
       callbacks_->OnHotplug(client_id, true);
     }
   } else {
@@ -759,16 +775,18 @@ DisplayError SDMDisplayBuilder::HandleConnectedPrimaryDisplays(const HWDisplayIn
       // Null Display is already active, Do not recreate Null Display
       return kErrorNone;
     }
-    DLOGI("Built-in display disconnected");
+    DLOGI("Primary display disconnected");
     {
       SEQUENCE_WAIT_SCOPE_LOCK(locker_[display_idx]);
       map_info_primary_[0].disp_type = info.display_type;
       map_info_primary_[0].sdm_id = info.display_id;
       auto primary_sdm_display = cb_->GetDisplayFromClientId(client_id);
-
-      DLOGI("Destroying Built-in display");
-      SDMDisplayBuiltIn::Destroy(primary_sdm_display, false /* deinit_layer_builder */);
-
+      DLOGI("Destroying Primary display");
+      if (info.display_type == kBuiltIn) {
+        SDMDisplayBuiltIn::Destroy(primary_sdm_display, false /* deinit_layer_builder */);
+      } else {
+        SDMDisplayPluggable::Destroy(primary_sdm_display);
+      }
       DLOGI("Creating SDMDisplayNull");
       SDMDisplay *null_display = nullptr;
       Display client_id = map_info_primary_[0].client_id;
@@ -783,6 +801,7 @@ DisplayError SDMDisplayBuilder::HandleConnectedPrimaryDisplays(const HWDisplayIn
       null_display_ = null_display;
       null_display_active_ = true;
       cb_->SetDisplayByClientId(client_id, null_display);
+      cb_->SetPrimaryConnected(false);
       callbacks_->OnHotplug(client_id, true);
     }
   }
@@ -1193,7 +1212,7 @@ DisplayError SDMDisplayBuilder::GetDisplayHwId(uint64_t disp_id,
   // Supported for Built-In displays only.
   auto &map_info = GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_PRIMARY)[0];
   if ((map_info.client_id == disp_id) &&
-      (map_info.disp_type == sdm::kBuiltIn)) {
+      ((map_info.disp_type == sdm::kBuiltIn) || pluggable_is_primary_)) {
     if (map_info.sdm_id >= 0) {
       uint32_t base_core_id = DisplayId::GetBaseCoreId(map_info.sdm_id);
       uint32_t conn_id = DisplayId::GetConnId(map_info.sdm_id, base_core_id);
