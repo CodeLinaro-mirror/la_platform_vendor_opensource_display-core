@@ -12,6 +12,7 @@
 #include "SnapTestAllocator.h"
 #include "SnapTypes.h"
 
+#include <atomic>
 #include <map>
 #include <vector>
 
