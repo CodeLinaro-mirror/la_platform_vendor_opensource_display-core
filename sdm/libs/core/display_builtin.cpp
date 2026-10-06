@@ -7304,6 +7304,11 @@ DisplayError DisplayBuiltIn::SetDynamicSPRMode(int state) {
 
 DisplayError DisplayBuiltIn::SetSPRState(int state) {
   ClientLock lock(disp_mutex_);
+  if (!active_) {
+    DLOGW("Invalid display state = %d on display %d-%d. Panel must be on.", state_, display_id_,
+          display_type_);
+    return kErrorNone;
+  }
 
   if (spr_ == nullptr) {
     DLOGE("invalid SPR interface");
