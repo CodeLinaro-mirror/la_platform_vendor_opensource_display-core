@@ -384,6 +384,8 @@ enum PanelFeatureVendorServiceType {
   kTypeDemuraTnAodHandlerCtrl = 10,
   /* Setter: None */
   kTypeDemuraTnAgingSurfTransfer = 11,
+  /* Setter: None */
+  kTypeSetDemuraTnCompRatio1x1 = 14,
   PanelFeatureVendorServiceTypeMax,
 };
 
