@@ -52,7 +52,7 @@ public:
   virtual DisplayError WaitForCommitDone(Display display, int client_id) = 0;
   virtual DisplayError SetDemuraConfig(Display display, int32_t demura_idx) = 0;
   virtual DisplayError SetDemuraState(Display display, int32_t state, int demura_idx) = 0;
-  virtual DisplayError SetSPRState(Display display, int32_t state) = 0;
+  virtual DisplayError SetDynamicSPRMode(Display display, int32_t state) = 0;
   virtual DisplayError SetVsyncEnabled(Display display, bool enabled) = 0;
   virtual DisplayError SetDimmingEnable(Display display,
                                         int32_t int_enabled) = 0;
@@ -66,6 +66,7 @@ public:
                                              uint32_t data_size) = 0;
   virtual DisplayError SetStcFeatureConfig(Display display, void *data) = 0;
   virtual DisplayError SetRgbHistObserverConfig(Display display, bool state, void *data) = 0;
+  virtual DisplayError SetPaHistCollection(Display display, bool enable) = 0;
   virtual DisplayError SetQrtcFeatureConfig(Display display, int32_t type, void *data) = 0;
 };
 

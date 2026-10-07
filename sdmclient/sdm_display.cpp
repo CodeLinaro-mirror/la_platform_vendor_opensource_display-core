@@ -1850,6 +1850,14 @@ DisplayError SDMDisplay::PrepareLayerStack(uint32_t *out_num_types, uint32_t *ou
 }
 
 DisplayError SDMDisplay::HandlePrepareError(DisplayError error) {
+  if (null_display_active_) {
+    //For commits received during ambient mark layers for gpu bypass and cache geometry changes
+    DLOGV("Commit received while null display is active.");
+    WaitOnPreviousFence();
+    MarkLayersForGPUBypass();
+    geometry_changes_on_doze_suspend_ |= geometry_changes_;
+  }
+
   if (error == kErrorNone || error == kErrorNeedsCommit) {
     return kErrorNone;
   }
@@ -4057,6 +4065,8 @@ DisplayError SDMDisplay::SetReadbackBuffer(void *buffer,
     return kErrorNotSupported;
   }
   flag = is_ubwc ? INT32(MetadataType::IS_UBWC) : 0;
+  output_buffer.usage &= ~BufferUsage::QTI_ALLOC_UBWC;
+  output_buffer.usage |= (is_ubwc) ? BufferUsage::QTI_ALLOC_UBWC : 0;
 
   uint64_t pixel_format_modifier = 0;
   snapmapper_->GetMetadata(*hdl, MetadataType::FORMAT_MODIFIER, &pixel_format_modifier);
@@ -4668,6 +4678,8 @@ DisplayError SDMDisplay::SetStandbyMode(bool enable, bool is_twm) {
 
       stored_display_intf_ = display_intf_;
       display_intf_ = display_null_intf_;
+      null_display_active_ = true;
+      DLOGD("Null display is connected successfully");
       shared_ptr<Fence> release_fence = nullptr;
 
       if (is_twm && current_power_mode_ == SDMPowerMode::POWER_MODE_ON) {
@@ -4687,8 +4699,6 @@ DisplayError SDMDisplay::SetStandbyMode(bool enable, bool is_twm) {
         }
       }
 
-      null_display_active_ = true;
-      DLOGD("Null display is connected successfully");
     } else {
       DLOGD("Null display is already connected.");
     }

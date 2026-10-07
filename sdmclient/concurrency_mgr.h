@@ -492,7 +492,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   GetClientTargetProperty(Display display,
                           SDMClientTargetProperty *outClientTargetProperty);
   DisplayError SetDemuraState(Display display, int32_t state, int32_t demura_idx);
-  DisplayError SetSPRState(Display display, int32_t state);
+  DisplayError SetDynamicSPRMode(Display display, int32_t state);
   DisplayError SetDemuraConfig(Display display, int32_t demura_idx);
 
   DisplayError SetDisplayedContentSamplingEnabled(Display display, bool enabled,
@@ -559,7 +559,10 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
                                       SDMParcel *output_parcel);
 
   bool IsClientConnected() { return client_connected_; }
-  Display GetVsyncSource() override { return vsync_source_; }
+  Display GetVsyncSource() override {
+    std::lock_guard<std::mutex> lock(vsync_source_lock_);
+    return vsync_source_;
+  }
   bool VsyncCallbackRegistered() override { return client_connected_; }
   DisplayError SetupVRRConfig(uint64_t display_id);
   DisplayError NotifyExpectedPresent(Display display, uint64_t expected_present_time,
@@ -581,6 +584,7 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   DisplayError ClearBuffersMappedToLayer(uint64_t display, LayerId layer_id,
                                          const SnapHandle *layerBuffer);
   DisplayError SetRgbHistObserverConfig(Display display, bool state, void *data);
+  DisplayError SetPaHistCollection(Display display, bool enable);
   DisplayError SetQrtcFeatureConfig(Display display, int32_t type, void *data);
 
   void SetPrimaryConnected(bool state) { primary_connected_ = state; }
@@ -690,6 +694,8 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
   bool IsEPTSupported();
   void SendFeatenablerCommand(FeatenablerCommand cmd);
 
+  Display SelectVsyncSource();  // Returns best usable VSync source; kNumDisplays if none.
+
   CoreInterface *core_intf_ = nullptr;
   SDMCompositorCallbacks callbacks_{};
   BufferAllocator *buffer_allocator_ = nullptr;
@@ -768,6 +774,9 @@ class ConcurrencyMgr : public SDMDisplaySideBandIntf,
 
   bool ssr_active_ = false;
   bool allow_seccam_concurrency_ = false;
+
+  std::mutex vsync_source_lock_;  // Serializes vsync_source_ access.
+  std::mutex vsync_lock_;         // Serialize SetVsyncEnabled() call for multiple displays.
 };
 } // namespace sdm
 

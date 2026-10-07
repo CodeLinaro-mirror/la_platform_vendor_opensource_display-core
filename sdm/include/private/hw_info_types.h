@@ -415,6 +415,12 @@ enum DDRVersion {
   kDDRVersion6,
 };
 
+enum DisplayCommitOp {
+  kDisplayCommitOpNone,
+  kDisplayCommitOpHWIO,
+  kDisplayCommitOpHFI,
+};
+
 struct InlineRotationInfo {
   InlineRotationVersion inrot_version = kInlineRotationNone;
   std::vector<LayerBufferFormat> inrot_fmts_supported;
@@ -509,6 +515,7 @@ struct HWResourceInfo {
   uint32_t core_id = 0;
   CacVersion cac_version = kCacVersionNone;
   DDRVersion ddr_version = kDDRVersionNone;
+  DisplayCommitOp disp_commit_op = kDisplayCommitOpNone;
   std::vector<LayerBufferFormat> cac_supported_formats;
   bool has_cesta = false;
   uint32_t hw_ai_scaler_count = 0;

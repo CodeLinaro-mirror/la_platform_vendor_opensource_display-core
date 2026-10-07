@@ -54,6 +54,7 @@
 #define __CLASS__ "ConcurrencyMgr"
 
 #define SDM_UEVENT_SWITCH_HDMI "change@/devices/virtual/switch/hdmi"
+#define DEFAULT_VSYNC_PERIOD UINT32(1000000000ul / 60)
 
 #ifdef PROFILE_COVERAGE_DATA
 extern "C" {
@@ -1332,75 +1333,91 @@ DisplayError ConcurrencyMgr::SetPowerMode(uint64_t display, int32_t int_mode) {
   return kErrorNone;
 }
 
+// Returns the best usable VSync source: primary first, then secondary built-ins,
+// then externals; smallest period wins; built-ins beat externals on equal periods.
+Display ConcurrencyMgr::SelectVsyncSource() {
+  // Brief locker_[id] for power check; released before GetVsyncPeriod (avoids nested lock).
+  auto is_on = [this](Display id) {
+    Locker::ScopeLock lock(locker_[id]);
+    auto *d = sdm_display_[id];
+    return d && d->GetCurrentPowerMode() == SDMPowerMode::POWER_MODE_ON;
+  };
+
+  uint32_t primary_period = DEFAULT_VSYNC_PERIOD;
+  GetVsyncPeriod(SDM_DISPLAY_PRIMARY, &primary_period);
+  if (primary_connected_ && is_on(SDM_DISPLAY_PRIMARY)) {
+    return SDM_DISPLAY_PRIMARY;
+  }
+
+  // Built-ins scanned first (win ties); external replaces best only on strictly smaller period.
+  Display best = kNumDisplays;
+  uint32_t best_period = UINT32_MAX;
+  for (auto tier : {qdutilsDisplayType::DISPLAY_BUILTIN_2, qdutilsDisplayType::DISPLAY_EXTERNAL}) {
+    for (auto &mi : disp_->GetDisplayMapInfo(tier)) {
+      Display id = mi.client_id;
+      if (id >= kNumDisplays || !is_on(id)) {
+        continue;
+      }
+      uint32_t period = DEFAULT_VSYNC_PERIOD;
+      GetVsyncPeriod(id, &period);
+      if (period == primary_period) {
+        return id;
+      }
+      if (period < best_period) {
+        best = id;
+        best_period = period;
+      }
+    }
+  }
+  return best;
+}
+
 DisplayError ConcurrencyMgr::SetVsyncEnabled(uint64_t display, bool enabled) {
-  DLOGV("Enable vsync : display = %d, enable = %d", (int)(display), enabled);
-  if (enabled) {
-    /* To avoid the race conditions for hotplugs of all displays, 
-    before enabling vsyncs on any displays, disable vsyncs on all connected displays.
-    */
-    std::vector<DisplayMapInfo> map_info_pluggable = disp_->GetDisplayMapInfo(DISPLAY_EXTERNAL);
-    for (auto &map_info : map_info_pluggable) {
-      if (sdm_display_[map_info.client_id]) {
-        CallDisplayFunction(map_info.client_id, &SDMDisplay::SetVsyncEnabled, false);
-      }
-    }
-    if (primary_connected_) {
-      // When primary display is not connected, no need to disable its vsync.
-      CallDisplayFunction(SDM_DISPLAY_PRIMARY, &SDMDisplay::SetVsyncEnabled, false);
-    }
-    if (primary_connected_ || display != SDM_DISPLAY_PRIMARY) {
-      // Do as SurfaceFlinger says us to do.
-      vsync_source_ = display;
-      DLOGV("Updating vsync source to display %d", (int)display);
-      return CallDisplayFunction(display, &SDMDisplay::SetVsyncEnabled, true);
-    }
-    /* Primary display not connected, but SurfaceFlinger does not know it.
-       We should search for secondary displays which have fps equal to primary display 
-       and use that display's HW Vsync to drive SurfaceFlinger
-    */
-    uint32_t primary_vsync_period = 0;
-    GetVsyncPeriod(SDM_DISPLAY_PRIMARY, &primary_vsync_period);
-    DLOGV("Primary display vsync = %d", primary_vsync_period);
-    int min_vsync_period = INT_MAX;
-    uint64_t min_vsync_period_client_id = kNumDisplays;
-    for (auto &map_info : map_info_pluggable) {
-      if (sdm_display_[map_info.client_id]) {
-        uint32_t vsync_period = 0;
-        GetVsyncPeriod(map_info.client_id, &vsync_period);
-        DLOGV("vsync_period of display %d = %d", (int)map_info.client_id, vsync_period);
-        if (vsync_period == primary_vsync_period) {
-          min_vsync_period_client_id = map_info.client_id;
-          min_vsync_period = vsync_period;
-          break;
-        } else if (vsync_period < min_vsync_period) {
-          min_vsync_period_client_id = map_info.client_id;
-          min_vsync_period = vsync_period;
-          DLOGV("min_vsync_period = %d, display = %d", min_vsync_period,
-                (int)min_vsync_period_client_id);
-        }
-      }
-    }
-    if (min_vsync_period == INT_MAX) {
-      // there is no display connected.
+  if (display >= kNumDisplays) {
+    return kErrorParameters;
+  }
+
+  auto err = kErrorNone;
+  Display new_source = SelectVsyncSource();
+  bool needs_renable = false;
+  if (!primary_connected_) {
+    Display vsync_source = GetVsyncSource();
+    if (display == SDM_DISPLAY_PRIMARY && !enabled && new_source != vsync_source) {
+      DLOGW("SetVsyncEnabled:%d skipped for not connected display %d", enabled, (int)display);
+      // Skip disabling of vsync, if no vsync sourced as per primary display.
       return kErrorNone;
     }
 
-    vsync_source_ = min_vsync_period_client_id;
-    DLOGV("Updating vsync source to display %d", (int)min_vsync_period_client_id);
-    DLOGV("Min vsync period = %d", min_vsync_period);
-    CallDisplayFunction(min_vsync_period_client_id, &SDMDisplay::SetVsyncEnabled, true);
-
-  } else {
-    std::vector<DisplayMapInfo> map_info_pluggable = disp_->GetDisplayMapInfo(DISPLAY_EXTERNAL);
-    for (auto &map_info : map_info_pluggable) {
-      if (sdm_display_[map_info.client_id]) {
-        CallDisplayFunction(map_info.client_id, &SDMDisplay::SetVsyncEnabled, false);
-      }
-    }
-    if (primary_connected_) {
-      CallDisplayFunction(SDM_DISPLAY_PRIMARY, &SDMDisplay::SetVsyncEnabled, false);
+    if (display == SDM_DISPLAY_PRIMARY) {
+      // Primary display not connected, but SurfaceFlinger does not know it.
+      // Need to use secondary display which have fps equal to primary display
+      // and use that display's HW Vsync to drive SurfaceFlinger.
+      display = new_source;
+    } else if (!enabled && display == vsync_source && vsync_source == new_source) {
+      // Avoid disabling HW vsync for vsync sourced display, if that is not a primary, because
+      // that is deriving SurfaceFlinger. So, better to just renable instead of disable.
+      needs_renable = true;
     }
   }
+
+  {
+    // Serialize Vsync enable/disable call
+    std::lock_guard<std::mutex> lock(vsync_lock_);
+    err = CallDisplayFunction(display, &SDMDisplay::SetVsyncEnabled, enabled);
+    if (err == kErrorNone && !enabled && needs_renable) {
+      err = CallDisplayFunction(display, &SDMDisplay::SetVsyncEnabled, true);
+    }
+  }
+  if (err != kErrorNone) {
+    DLOGE("SetVsyncEnabled:%d failed for display %d", enabled, (int)display);
+    return err;
+  }
+
+  if (enabled && new_source == display) {
+    std::lock_guard<std::mutex> lock(vsync_source_lock_);
+    vsync_source_ = new_source;
+  }
+
   return kErrorNone;
 }
 
@@ -1418,8 +1435,8 @@ DisplayError ConcurrencyMgr::SetDemuraState(Display display, int32_t state, int 
   return CallDisplayFunction(display, &SDMDisplay::SetDemuraState, state, demura_idx);
 }
 
-DisplayError ConcurrencyMgr::SetSPRState(Display display, int32_t state) {
-  return CallDisplayFunction(display, &SDMDisplay::SetSPRState, state);
+DisplayError ConcurrencyMgr::SetDynamicSPRMode(Display display, int32_t state) {
+  return CallDisplayFunction(display, &SDMDisplay::SetDynamicSPRMode, state);
 }
 
 DisplayError ConcurrencyMgr::SetDemuraConfig(Display display,
@@ -1563,6 +1580,9 @@ void ConcurrencyMgr::CompositorSync(uint64_t display, CompositorSyncType sync_ty
 void ConcurrencyMgr::PerformDisplayPowerReset(int32_t recovery_display) {
   disp_->RemoveDisconnectedPluggableDisplays();
 
+  // Snapshot before display locks to preserve lock order (vsync_source_lock_ before locker_[]).
+  Display vsync_source = GetVsyncSource();
+
   // Wait until all commands are flushed on ALL displays. Power reset affects
   // shared MDSS hardware, so we must wait for every display to finish its
   // current command before proceeding.
@@ -1572,6 +1592,8 @@ void ConcurrencyMgr::PerformDisplayPowerReset(int32_t recovery_display) {
     hw_locks.emplace_back(display_command_mutex_[d]);
   }
 
+  // Acquire lock to serialize SetVsyncEnabled
+  std::lock_guard<std::mutex> lock(vsync_lock_);
   // Acquire lock on all displays.
   for (Display display = SDM_DISPLAY_PRIMARY; display < kNumDisplays;
        display++) {
@@ -1623,7 +1645,6 @@ void ConcurrencyMgr::PerformDisplayPowerReset(int32_t recovery_display) {
     }
   }
 
-  Display vsync_source = vsync_source_;
   // adb shell stop sets vsync source as max display
   if (vsync_source != kNumDisplays && sdm_display_[vsync_source]) {
     status = sdm_display_[vsync_source]->SetVsyncEnabled(true);
@@ -2075,6 +2096,8 @@ DisplayError ConcurrencyMgr::SetDisplayBrightness(Display display, float brightn
 
 void ConcurrencyMgr::NotifyClientStatus(bool connected) {
   for (uint32_t i = 0; i < kNumDisplays; i++) {
+    // Acquire lock to serialize SetVsyncEnabled
+    std::lock_guard<std::mutex> vsync_guard(vsync_lock_);
     SCOPE_LOCK(locker_[i]);
     if (!sdm_display_[i]) {
       continue;
@@ -2083,6 +2106,7 @@ void ConcurrencyMgr::NotifyClientStatus(bool connected) {
     sdm_display_[i]->SetVsyncEnabled(false);
   }
 
+  std::lock_guard<std::mutex> lock(vsync_source_lock_);
   vsync_source_ = kNumDisplays;
 }
 
@@ -3027,7 +3051,7 @@ DisplayError ConcurrencyMgr::SetAIScalerMode(uint64_t display_id, uint32_t mode_
     return kErrorResources;
   }
 
-  SCOPE_LOCK(locker_[disp_idx]);
+  SEQUENCE_WAIT_SCOPE_LOCK(locker_[disp_idx]);
   if (!sdm_display_[disp_idx]) {
     DLOGW("Display %" PRIu64 " is not connected.", display_id);
     return kErrorResources;
@@ -3075,6 +3099,11 @@ void ConcurrencyMgr::PerformSubsystemRestart(bool start, HWSSRType type) {
     hw_locks.emplace_back(display_command_mutex_[d]);
   }
 
+  // Snapshot before display locks to preserve lock order (vsync_source_lock_ before locker_[]).
+  Display vsync_source = (start) ? kNumDisplays : GetVsyncSource();
+
+  // Acquire lock to serialize SetVsyncEnabled
+  std::lock_guard<std::mutex> lock(vsync_lock_);
   // Acquire lock on all displays.
   for (Display display = SDM_DISPLAY_PRIMARY; display < kNumDisplays; display++) {
     locker_[display].Lock();
@@ -3129,7 +3158,6 @@ void ConcurrencyMgr::PerformSubsystemRestart(bool start, HWSSRType type) {
       }
     }
 
-    Display vsync_source = vsync_source_;
     // adb shell stop sets vsync source as max display
     if (vsync_source != kNumDisplays && sdm_display_[vsync_source]) {
       status = sdm_display_[vsync_source]->SetVsyncEnabled(true);
@@ -3149,6 +3177,10 @@ void ConcurrencyMgr::PerformSubsystemRestart(bool start, HWSSRType type) {
 
 DisplayError ConcurrencyMgr::SetRgbHistObserverConfig(Display display, bool state, void *data) {
   return CallDisplayFunction(display, &SDMDisplay::SetRgbHistObserverConfig, state, data);
+}
+
+DisplayError ConcurrencyMgr::SetPaHistCollection(Display display, bool enable) {
+  return CallDisplayFunction(display, &SDMDisplay::SetPaHistCollection, enable);
 }
 
 DisplayError ConcurrencyMgr::GetDisplayViewMode(Display display, SDMDisplayViewMode *view_mode) {

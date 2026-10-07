@@ -478,7 +478,7 @@ public:
   }
   virtual DisplayError RetrieveDemuraTnFiles() { return kErrorNotSupported; }
   virtual DisplayError SetDemuraState(int state, int demura_idx) { return kErrorNotSupported; }
-  virtual DisplayError SetSPRState(int state) { return kErrorNotSupported; }
+  virtual DisplayError SetDynamicSPRMode(int state) { return kErrorNotSupported; }
   virtual DisplayError SetDemuraConfig(int demura_idx) {
     return kErrorNotSupported;
   }
@@ -552,6 +552,7 @@ public:
   virtual DisplayError SetRgbHistObserverConfig(bool state, void *data) {
     return kErrorNotSupported;
   }
+  virtual DisplayError SetPaHistCollection(bool enable) { return kErrorNotSupported; }
   virtual DisplayError ProcessColorFeatureOps(DisplayColorOps ops, void *payload) {
     return kErrorNotSupported;
   }

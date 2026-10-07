@@ -1555,7 +1555,7 @@ class DisplayInterface {
 
    @return \link DisplayError \endlink
   */
-  virtual DisplayError SetSPRState(int state) = 0;
+  virtual DisplayError SetDynamicSPRMode(int state) = 0;
 
   /*! @brief Method to handle CAC configuration.
 

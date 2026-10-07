@@ -428,6 +428,12 @@ void HWInfoDRM::GetSystemInfo(HWResourceInfo *hw_resource) {
     hw_resource->ddr_version = kDDRVersionNone;
   }
 
+  if (info.disp_commit_op == sde_drm::DisplayCommitOp::kHWIO) {
+    hw_resource->disp_commit_op = kDisplayCommitOpHWIO;
+  } else if (info.disp_commit_op == sde_drm::DisplayCommitOp::kHFI) {
+    hw_resource->disp_commit_op = kDisplayCommitOpHFI;
+  }
+
   for (int index = 0; index < kBwModeMax; index++) {
     if (index == kBwVFEOn) {
       hw_resource->dyn_bw_info.total_bw_limit[index] = info.max_bandwidth_low / kKiloUnit;
