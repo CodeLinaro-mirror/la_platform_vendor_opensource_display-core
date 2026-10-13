@@ -304,13 +304,14 @@ DisplayError DisplayBuiltIn::Init() {
   value = 0;
   Debug::Get()->GetProperty(DEFER_FPS_FRAME_COUNT, &value);
   deferred_config_.frame_count = (value > 0) ? UINT32(value) : 0;
-
-  error = event_proxy_info_.Init(client_ctx_.hw_panel_info.panel_name, this, extension_lib_,
+  if (prop_intf_) {
+    error = event_proxy_info_.Init(client_ctx_.hw_panel_info.panel_name, this, extension_lib_,
                                  prop_intf_);
-  if (error != kErrorNone) {
-    DLOGW("Failed to initialize event proxy info");
-    event_proxy_info_.Deinit();
-  }
+    if (error != kErrorNone) {
+      DLOGW("Failed to initialize event proxy info");
+      event_proxy_info_.Deinit();
+    }
+ }
 
   if (pf_factory_ && prop_intf_) {
     // Get status of RC enablement property. Default RC is disabled.
