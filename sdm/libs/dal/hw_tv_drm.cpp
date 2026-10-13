@@ -306,6 +306,12 @@ DisplayError HWTVDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
     return kErrorDeferred;
   }
 
+  DisplayError color_err = PrepareColorShutdown();
+  if (color_err != kErrorNone) {
+    DLOGW("HWTVDRM: PrepareColorShutdown failed with error %d, continuing power-off",
+          color_err);
+  }
+
   if (teardown) {
     // LP connecter prop N/A for External
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_ACTIVE, token_.crtc_id, 0);

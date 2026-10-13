@@ -307,7 +307,7 @@ DisplayError ConcurrencyMgr::InitSubModules(DebugCallbackIntf *debug) {
   std::bitset<8> core_ids(core_id_mask);
 
   DisplayError error = CoreInterface::CreateCore(
-      buffer_allocator_, nullptr, socket_handler_, ipc_intf_, &core_intf_);
+      buffer_allocator_, nullptr, socket_handler_, ipc_intf_, &core_intf_, core_ids);
 
   if (error != kErrorNone) {
     DLOGE("Failed to create CoreInterface");
@@ -1228,6 +1228,7 @@ void ConcurrencyMgr::HpdEventHandler() {
   // connects, at RegisterCallback(). Since HandlePluggableDisplays() reads the
   // latest connection states of all displays, no uevent is lost.
   if (!client_connected_) {
+    DLOGW("Dropping hotplug event. Client is not connected.");
     return;
   }
 

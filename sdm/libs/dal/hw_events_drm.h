@@ -119,6 +119,7 @@ class HWEventsDRM : public HWEventsInterface {
   uint32_t vsync_index_ = UINT32_MAX;
   uint32_t histogram_index_ = UINT32_MAX;
   bool vsync_enabled_ = false;
+  bool vsync_owns_fd_ = false;
   uint32_t vsync_handler_count_ = 0;
   std::mutex vsync_mutex_;  // To protect vsync_enabled_
   sde_drm::DRMDisplayToken token_ = {};

@@ -428,7 +428,7 @@ void HWDeviceDRM::Registry::GetBufInfoForTunnelPipe(HWCacColorComponent color,
                                                     BufferInfo *loopback_cac_info,
                                                     AllocatedBufferInfo *buf_info,
                                                     DRMBuffer *layout) {
-  if ((cac_version_ != kCacVersionLoopback) || (color == kCacNone)) {
+  if ((cac_version_ != kCacVersionLoopback) || (color == kCacNone) || (loopback_cac_info == nullptr)) {
     return;
   }
   // Using the plane buffer fd and faking the buffer as full screen for CAC loopback
@@ -567,6 +567,8 @@ int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buff
       layer->buffer_map->buffer_map[handle_id] = dpu_buffer_map;
     }
     *fb_modified = true;
+  } else {
+    return -1;
   }
   return 0;
 }
@@ -1438,6 +1440,11 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
     return kErrorDeferred;
   }
 
+  DisplayError error = PrepareColorShutdown();
+  if (error != kErrorNone) {
+    DLOGE("PrepareColorShutdown failed with error %d", error);
+  }
+
   ResetROI();
   ClearSolidfillStages();
   int64_t retire_fence_fd = -1;
@@ -1498,6 +1505,61 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
 
   last_power_mode_ = DRMPowerMode::OFF;
 
+  return kErrorNone;
+}
+
+DisplayError HWDeviceDRM::PrepareColorShutdown() {
+  static const DRMPPFeatureID kCrtcBlobFeatures[] = {
+      sde_drm::kFeaturePcc,
+      sde_drm::kFeatureIgc,
+      sde_drm::kFeaturePgc,
+      sde_drm::kFeatureGamut,
+      sde_drm::kFeatureDither,
+      sde_drm::kFeatureSprDither,
+      sde_drm::kFeaturePADither,
+      sde_drm::kFeaturePAHsic,
+      sde_drm::kFeaturePASixZone,
+      sde_drm::kFeaturePAMemColSkin,
+      sde_drm::kFeaturePAMemColSky,
+      sde_drm::kFeaturePAMemColFoliage,
+      sde_drm::kFeaturePAMemColProt,
+  };
+  bool needs_commit = false;
+
+  if (!drm_atomic_intf_ || !token_.crtc_id) {
+    return kErrorNone;
+  }
+
+  for (DRMPPFeatureID id : kCrtcBlobFeatures) {
+    DRMPPFeatureInfo feature = {};
+
+    feature.id = id;
+    drm_mgr_intf_->GetCrtcPPInfo(token_.crtc_id, &feature);
+    if (feature.version == std::numeric_limits<uint32_t>::max()) {
+      continue;
+    }
+
+    feature.id = id;
+    feature.type = sde_drm::kPropBlob;
+    feature.object_type = DRM_MODE_OBJECT_CRTC;
+    feature.payload = nullptr;
+    feature.payload_size = 0;
+    feature.is_event = false;
+    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_POST_PROC, token_.crtc_id, &feature);
+    needs_commit = true;
+  }
+
+  if (!needs_commit) {
+    return kErrorNone;
+  }
+
+  int ret = NullCommit(true /* synchronous */, true /* retain_planes */);
+  if (ret) {
+    DLOGE("Color shutdown commit failed with error %d, crtc=%u", ret, token_.crtc_id);
+    return kErrorHardware;
+  }
+
+  DLOGI("Color shutdown commit done crtc=%u", token_.crtc_id);
   return kErrorNone;
 }
 

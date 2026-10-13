@@ -207,6 +207,9 @@ class SnapMetadataManager {
   Error DynamicMetadataHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
                               void *in_set = nullptr, void *out_get = nullptr,
                               BufferDescriptor *buf_des = nullptr);
+  Error SMPTE2094_50Helper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                           void *in_set = nullptr, void *out_get = nullptr,
+                           BufferDescriptor *buf_des = nullptr);
   Error MatrixCoefficientsHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
                                  void *in_set = nullptr, void *out_get = nullptr,
                                  BufferDescriptor *buf_des = nullptr);
@@ -238,6 +241,8 @@ class SnapMetadataManager {
                        void *out_get = nullptr, BufferDescriptor *buf_des = nullptr);
   Error MultiViewHelper(SnapMetadata *metadata, SnapHandleInternal *handle, void *in_set = nullptr,
                         void *out_get = nullptr, BufferDescriptor *buf_des = nullptr);
+  Error ROIRectMetadataHelper(SnapMetadata *metadata, SnapHandleInternal *handle, void *in_set,
+                              void *out_get, BufferDescriptor *buf_des);
 
   struct DRMFormatDescriptor {
     uint32_t drm_format;
@@ -452,6 +457,7 @@ class SnapMetadataManager {
           {MASTERING_DISPLAY, &SnapMetadataManager::MasteringDisplayHelper},
           {CONTENT_LIGHT_LEVEL, &SnapMetadataManager::ContentLightLevelHelper},
           {DYNAMIC_METADATA, &SnapMetadataManager::DynamicMetadataHelper},
+          {QTI_SMPTE2094_50_METADATA_TYPE, &SnapMetadataManager::SMPTE2094_50Helper},
           {MATRIX_COEFFICIENTS, &SnapMetadataManager::MatrixCoefficientsHelper},
           {COLOR_REMAPPING_INFO, &SnapMetadataManager::ColorRemappingInfoHelper},
           {BASE_ADDRESS, &SnapMetadataManager::BaseAddressHelper},
@@ -464,6 +470,7 @@ class SnapMetadataManager {
           {ANAMORPHIC_COMPRESSION_METADATA, &SnapMetadataManager::AnamorphicCompressionHelper},
           {BASE_VIEW, &SnapMetadataManager::BaseViewHelper},
           {MULTI_VIEW_INFO, &SnapMetadataManager::MultiViewHelper},
+          {ROI_RECT_METADATA, &SnapMetadataManager::ROIRectMetadataHelper},
   };
   struct metadata_traits {
     bool is_settable;
@@ -521,6 +528,7 @@ class SnapMetadataManager {
           {MASTERING_DISPLAY, {true}},
           {CONTENT_LIGHT_LEVEL, {true}},
           {DYNAMIC_METADATA, {true}},
+          {QTI_SMPTE2094_50_METADATA_TYPE, {true}},
           {MATRIX_COEFFICIENTS, {true}},
           {COLOR_REMAPPING_INFO, {true}},
           {BASE_ADDRESS, {false}},
@@ -533,6 +541,7 @@ class SnapMetadataManager {
           {ANAMORPHIC_COMPRESSION_METADATA, {true}},
           {BASE_VIEW, {false}},
           {MULTI_VIEW_INFO, {false}},
+          {ROI_RECT_METADATA, {true}},
       };
 };
 }  // namespace snapalloc

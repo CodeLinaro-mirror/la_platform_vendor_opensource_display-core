@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include <unistd.h>
@@ -252,13 +252,12 @@ Error SnapAllocCore::Release(SnapHandle *hnd) {
   std::lock_guard<std::mutex> lock(buffer_lock_);
   SnapHandleInternal *snap_hnd_cast = static_cast<SnapHandleInternal *>(hnd);
   auto buf = GetBufferFromHandleLocked(hnd);
-  DLOGD_IF(enable_logs, "line %d snap_hnd_cast id %lu ref count %d vs buf ref count %d", __LINE__,
-           snap_hnd_cast->id(), snap_hnd_cast->GetRefCount(), buf->GetRefCount());
-
   if (buf == nullptr) {
     DLOGE("Could not find handle: %p", hnd);
     return Error::BAD_BUFFER;
   }
+  DLOGD_IF(enable_logs, "line %d snap_hnd_cast id %lu ref count %d vs buf ref count %d", __LINE__,
+           snap_hnd_cast->id(), snap_hnd_cast->GetRefCount(), buf->GetRefCount());
 
   if (buf->DecRef()) {
     DLOGD_IF(enable_logs, "line %d snap_hnd_cast id %lu ref count %d vs buf ref count %d", __LINE__,
@@ -467,7 +466,8 @@ Error SnapAllocCore::ImportHandleLocked(SnapHandle *hnd) {
 
   if (SnapHandleInternal::validate(hnd) != 0) {
     DLOGE("ImportHandleLocked: Invalid handle: %p", hnd);
-    FreeBuffer(static_cast<SnapHandleInternal *>(hnd));
+    static_cast<SnapHandleInternal *>(hnd)->closeFds();
+    free(hnd);
     return Error::BAD_BUFFER;
   }
 
@@ -484,14 +484,16 @@ Error SnapAllocCore::ImportHandleLocked(SnapHandle *hnd) {
   if (mem_alloc_intf_->ImportBuffer(snap_hnd->fd()) < 0) {
     DLOGE("Failed to import buffer: hnd: %p, fd:%d, id:%lu", snap_hnd, snap_hnd->fd(),
           snap_hnd->id());
-    FreeBuffer(snap_hnd);
+    snap_hnd->closeFds();
+    free(snap_hnd);
     return Error::BAD_BUFFER;
   }
 
   if (mem_alloc_intf_->ImportBuffer(snap_hnd->fd_metadata()) < 0) {
     DLOGE("Failed to import metadata buffer: hnd: %p, fd:%d, id:%lu", snap_hnd,
           snap_hnd->fd_metadata(), snap_hnd->id());
-    FreeBuffer(snap_hnd);
+    snap_hnd->closeFds();
+    free(snap_hnd);
     return Error::BAD_BUFFER;
   }
   // Initialize members that aren't transported

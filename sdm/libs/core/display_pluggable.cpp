@@ -207,12 +207,15 @@ DisplayError DisplayPluggable::Init() {
 }
 
 DisplayError DisplayPluggable::Deinit() {
-  ClientLock lock(disp_mutex_);
+  {
+    ClientLock lock(disp_mutex_);
 
-  for (auto &res_info : hw_resource_info_)
-    hw_rc_blocks_in_use_[res_info.core_id] -= rc_blocks_reserved_;
+    for (auto &res_info : hw_resource_info_)
+      hw_rc_blocks_in_use_[res_info.core_id] -= rc_blocks_reserved_;
 
-  event_proxy_info_.Deinit();
+    event_proxy_info_.Deinit();
+  }
+
   return DisplayBase::Deinit();
 }
 
@@ -2324,7 +2327,8 @@ DisplayError DisplayPluggable::PostCommit() {
     dpps_info_.DppsNotifyOps(kDppsCommitEvent, &display_type_, sizeof(display_type_));
   }
 
-  dpps_info_.Init(this, client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
+  if (prop_intf_)
+    dpps_info_.Init(this, client_ctx_.hw_panel_info.panel_name, this, prop_intf_);
 
   return kErrorNone;
 }

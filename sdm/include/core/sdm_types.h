@@ -188,7 +188,7 @@ enum SDMDisplayType {
 };
 
 struct SDMDisplayInfo {
-  uint64_t display_id = -1;            // sdm ID of the display
+  uint64_t display_id = static_cast<uint64_t>(-1);  // sdm ID of the display
   SDMDisplayType type = kDisplayMax;   // Display type
   bool connected = false;              // connected/disconnected
   bool is_leader = false;              // Is leader display
@@ -644,6 +644,13 @@ struct CornerRadius {
   bool operator ==(const CornerRadius &corner_radius) {
     return (operator !=(corner_radius));
   }
+};
+
+// Virtual display type supported by SDM.
+enum SDMVirtualDispType {
+  kVirtualTypeDefault = 0,  // Default virtual display type.
+  kVirtualTypePQ,           // Virtual display type with PQ processing enabled.
+  kVirtualTypeMax,          // Maximum value for virtual display types.
 };
 
 }  // namespace sdm

@@ -44,6 +44,7 @@
 
 #define __CLASS__ "SDMHotPlug"
 #define SDM_UEVENT_DRM_EXT_HOTPLUG "mdss_mdp/drm/card"
+#define SDM_UEVENT_DRM_MSM_HYP_EXT_HOTPLUG "sde_kms_hyp@ae00000/drm/card0"
 
 namespace sdm {
 
@@ -102,7 +103,8 @@ void SDMHotPlug::ParseEvent(char *data, int length) {
     return;
   }
 
-  if (!strcasestr(data, SDM_UEVENT_DRM_EXT_HOTPLUG)) {
+  if (!strcasestr(data, SDM_UEVENT_DRM_EXT_HOTPLUG) &&
+      !strcasestr(data, SDM_UEVENT_DRM_MSM_HYP_EXT_HOTPLUG)) {
     return;
   }
 
@@ -123,8 +125,8 @@ void SDMHotPlug::ParseEvent(char *data, int length) {
 
   cb_->SetHpdData(hpd_bpp, hpd_pattern, hpd_connected);
 
-  event_counter_++;
   std::unique_lock<std::mutex> evt_lock(hpd_mutex_);
+  event_counter_++;
   if (event_counter_.load() > uevent_max_count) {
     event_counter_.store(uevent_max_count);
   }
@@ -165,18 +167,19 @@ void SDMHotPlug::ProcessEvent() {
 
   std::unique_lock<std::mutex> evt_lock(hpd_mutex_);
   while (1) {
-    hpd_cv_.wait(evt_lock);
+    hpd_cv_.wait(evt_lock, [this] {
+      return hpd_thread_should_terminate_ || (event_counter_.load() > 0);
+    });
 
     if (hpd_thread_should_terminate_) {
       break;
     }
 
     while (event_counter_.load() > 0) {
+      event_counter_--;
       evt_lock.unlock();
       cb_->HpdEventHandler();
       evt_lock.lock();
-
-      event_counter_--;
     }
   }
   DLOGI("Ending!");

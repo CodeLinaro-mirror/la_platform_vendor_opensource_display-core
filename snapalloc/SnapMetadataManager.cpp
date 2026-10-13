@@ -290,11 +290,11 @@ Error SnapMetadataManager::CompressionHelper(SnapMetadata *metadata, SnapHandleI
     return Error::NONE;
   } else if (out_get != nullptr) {
     BufferDescriptor out_desc;
-    BufferDescriptor desc = {.format = handle->format(),
-                             .usage = handle->usage(),
-                             .width = handle->aligned_width_in_pixels(),
+    BufferDescriptor desc = {.width = handle->aligned_width_in_pixels(),
                              .height = handle->aligned_height(),
                              .layerCount = static_cast<int32_t>(handle->layer_count()),
+                             .format = handle->format(),
+                             .usage = handle->usage(),
                              .reservedSize = static_cast<long>(handle->reserved_size())};
     UBWCPolicy *ubwc_policy = UBWCPolicy::GetInstance();
     bool ubwc_enable = ubwc_policy->IsUBWCAlloc(desc);
@@ -365,11 +365,11 @@ Error SnapMetadataManager::PlaneLayoutsHelper(SnapMetadata *metadata, SnapHandle
       // Recalculate plane layouts for interlaced
       AllocData ad;
       vendor_qti_hardware_display_common_BufferLayout layout;
-      BufferDescriptor desc = {.format = handle->format(),
-                               .usage = handle->usage(),
-                               .width = handle->unaligned_width(),
+      BufferDescriptor desc = {.width = handle->unaligned_width(),
                                .height = handle->unaligned_height(),
                                .layerCount = static_cast<int32_t>(handle->layer_count()),
+                               .format = handle->format(),
+                               .usage = handle->usage(),
                                .reservedSize = static_cast<long>(handle->reserved_size())};
       static vendor_qti_hardware_display_common_KeyValuePair modifier = {
           .key = "interlaced", .value = static_cast<uint64_t>(1)};
@@ -858,6 +858,38 @@ Error SnapMetadataManager::CustomContentMetadataHelper(SnapMetadata *metadata,
   return Error::BAD_VALUE;
 }
 
+Error SnapMetadataManager::SMPTE2094_50Helper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                                              void *in_set, void *out_get,
+                                              BufferDescriptor *buf_des) {
+  if (out_get != nullptr) {
+    vendor_qti_hardware_display_common_SMPTE2094_50Metadata *c_md_out =
+        reinterpret_cast<vendor_qti_hardware_display_common_SMPTE2094_50Metadata *>(out_get);
+    c_md_out->size = metadata->smpte2094_50_metadata.size;
+    if (metadata->smpte2094_50_metadata.size > 0) {
+      memcpy(c_md_out->metadataPayload, metadata->smpte2094_50_metadata.metadataPayload,
+             metadata->smpte2094_50_metadata.size);
+    }
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    vendor_qti_hardware_display_common_SMPTE2094_50Metadata *c_md_in =
+        reinterpret_cast<vendor_qti_hardware_display_common_SMPTE2094_50Metadata *>(in_set);
+    if (c_md_in->size == 0) {
+      // size == 0 means clear/nullopt - reset the metadata
+      metadata->smpte2094_50_metadata.size = 0;
+      metadata->is_format_SMPTE2094_50 = false;
+    } else {
+      constexpr size_t MAX_PAYLOAD_SIZE = sizeof(c_md_in->metadataPayload);
+      size_t copy_size = std::min(static_cast<size_t>(c_md_in->size), MAX_PAYLOAD_SIZE);
+      // Store directly in the fixed-size struct in shared memory (cross-process safe)
+      metadata->smpte2094_50_metadata.size = copy_size;
+      memcpy(metadata->smpte2094_50_metadata.metadataPayload, c_md_in->metadataPayload, copy_size);
+      metadata->is_format_SMPTE2094_50 = true;
+    }
+    return Error::NONE;
+  }
+  return Error::BAD_VALUE;
+}
+
 Error SnapMetadataManager::VideoTranscodeStatsHelper(SnapMetadata *metadata,
                                                      SnapHandleInternal *handle, void *in_set,
                                                      void *out_get, BufferDescriptor *buf_des) {
@@ -1102,6 +1134,21 @@ Error SnapMetadataManager::HeapNameHelper(SnapMetadata *metadata, SnapHandleInte
   return Error::BAD_VALUE;
 }
 
+Error SnapMetadataManager::ROIRectMetadataHelper(SnapMetadata *metadata, SnapHandleInternal *handle,
+                                                 void *in_set, void *out_get,
+                                                 BufferDescriptor *buf_des) {
+  if (out_get != nullptr) {
+    *static_cast<vendor_qti_hardware_display_common_ROIRectMetadata *>(out_get) =
+        metadata->roiRectMetadata;
+    return Error::NONE;
+  } else if (in_set != nullptr) {
+    metadata->roiRectMetadata =
+        *static_cast<vendor_qti_hardware_display_common_ROIRectMetadata *>(in_set);
+    return Error::NONE;
+  }
+  return Error::BAD_VALUE;
+}
+
 uint64_t SnapMetadataManager::GetMetaDataSize(uint64_t reserved_region_size,
                                               uint64_t custom_content_md_region_size) {
   return static_cast<uint64_t>(ROUND_UP_PAGESIZE(sizeof(SnapMetadata) + reserved_region_size +
@@ -1256,11 +1303,11 @@ Error SnapMetadataManager::GetCustomDimensions(SnapHandleInternal *hnd, SnapMeta
       BufferDescriptor out_desc;
       int out_priv_flags = 0;
       // TODO (user) : Add desc modifier support
-      BufferDescriptor desc = {.format = hnd->format(),
-                               .usage = hnd->usage(),
-                               .width = hnd->aligned_width_in_pixels(),
+      BufferDescriptor desc = {.width = hnd->aligned_width_in_pixels(),
                                .height = hnd->aligned_height(),
                                .layerCount = static_cast<int32_t>(hnd->layer_count()),
+                               .format = hnd->format(),
+                               .usage = hnd->usage(),
                                .reservedSize = static_cast<long>(hnd->reserved_size())};
       static vendor_qti_hardware_display_common_KeyValuePair modifier = {
           .key = "interlaced", .value = static_cast<uint64_t>(1)};
@@ -1396,6 +1443,13 @@ Error SnapMetadataManager::Set(SnapHandleInternal *hnd,
         break;
       case vendor_qti_hardware_display_common_MetadataType::VIDEO_TRANSCODE_STATS:
         metadata->video_transcode_stats.stat_len = 0;
+        break;
+      case QTI_SMPTE2094_50_METADATA_TYPE:
+        metadata->is_format_SMPTE2094_50 = false;
+        metadata->smpte2094_50_metadata.size = 0;
+        break;
+      case vendor_qti_hardware_display_common_MetadataType::ROI_RECT_METADATA:
+        metadata->roiRectMetadata.size = 0;
         break;
       default:
         DLOGE("Input is null when setting metadata type %d", type);
