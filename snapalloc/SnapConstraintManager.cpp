@@ -678,8 +678,46 @@ Error SnapConstraintManager::FetchAndMergeConstraints(
     }
   }
 
+
+  if (desc.usage & vendor_qti_hardware_display_common_BufferUsage::GPU_MIPMAP_COMPLETE) {
+    GraphicsConstraintProvider *graphics_provider = nullptr;
+    for (auto const &[provider, cap] : providers) {
+      if (provider->GetProviderType() == kGraphics) {
+        graphics_provider = static_cast<GraphicsConstraintProvider *>(provider);
+        break;
+      }
+    }
+
+    if (graphics_provider != NULL) {
+      DLOGD_IF(enable_logs, "getting size and metadata from graphics for MIPMAP usage");
+      vendor_qti_hardware_display_common_GraphicsMetadata graphics_metadata = {};
+      int ret = graphics_provider->GetInitialMetadata(desc, &graphics_metadata, false);
+      if (!ret) {
+        auto size = graphics_provider->AdrenoGetAlignedGpuBufferSize(graphics_metadata.data);
+        if (size > 0) {
+          DLOGI("Using adreno metadata size %u instead of constraint-based size %llu",
+                 size, out_layout->size_in_bytes);
+          out_layout->size_in_bytes = size;
+        }
+      }
+      // Also get stride from Adreno metadata for mipmapped textures. The constraint-based
+      // stride disagrees with the GPU layout pitch when the mipmap path skips performance
+      // padding; a CPU producer would otherwise write mip rows at the wrong pitch (4x
+      // horizontal replication). The accessor validates the metadata blob internally and
+      // returns 0 when unavailable, so this is a no-op for non-mipmap / older drivers.
+      DLOGD_IF(enable_logs, "getting aligned width from graphics");
+      uint32_t adreno_pitch = graphics_provider->AdrenoGetAlignedGpuPitch(graphics_metadata.data);
+      if (adreno_pitch > 0 && adreno_pitch != out_layout->aligned_width_in_bytes) {
+        out_layout->aligned_width_in_bytes = adreno_pitch;
+      }
+    }
+  }
+
   DLOGD_IF(enable_logs, "out_layout->size_in_bytes %d at line %d", out_layout->size_in_bytes,
            __LINE__);
+
+  DLOGD_IF(enable_logs, "out_layout->aligned_width_in_bytes %d at line %d",
+           out_layout->aligned_width_in_bytes,  __LINE__);
 
   return Error::NONE;
 }
