@@ -373,6 +373,7 @@ DisplayError SDMDisplayBuilder::CreateVirtualDisplayObj(
     uint32_t width, uint32_t height, int32_t *format, Display *out_display_id) {
   SDMVirtualDispType requested_virtual_disp_type = kVirtualTypeDefault;
   Display lm_change_id = kNumDisplays;
+  bool reconfig_dpps_pending = false;
 
   // Query requested virtual display type
   auto err = core_intf_->GetVirtualDispType(&requested_virtual_disp_type);
@@ -417,6 +418,7 @@ DisplayError SDMDisplayBuilder::CreateVirtualDisplayObj(
               " LM topology changed for new width %u (current_w=%u), recreating intf",
               vds_map.first, width, vds_map.second.width);
         lm_change_id = vds_map.first;
+        reconfig_dpps_pending = true;
         break;  // Break out of loop, will destroy and recreate below
       }
       DLOGI("PQ virtual display id:%" PRIu64
@@ -533,6 +535,15 @@ DisplayError SDMDisplayBuilder::CreateVirtualDisplayObj(
       DLOGI("Created virtual display client id:%" PRIu64
             ", display_id: %d with res: %dx%d type: %d",
             client_id, display_id, width, height, requested_virtual_disp_type);
+
+      // kVirtualTypePQ only
+      if (reconfig_dpps_pending) {
+        auto status = sdm_display->ProcessColorFeatureOps(kColorFeatureDppsReconfig, nullptr);
+        if (status != kErrorNone && status != kErrorNotSupported) {
+          DLOGW("Failed to set Dpps reconfig on client id:%" PRIu64 " status=%d", client_id,
+                status);
+        }
+      }
 
       *out_display_id = client_id;
       map_info.disp_type = kVirtual;

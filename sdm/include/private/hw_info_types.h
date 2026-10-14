@@ -367,6 +367,8 @@ enum HWQseedStepVersion {
   kQseed3litev9,   // qseed 6
   kQseed3litev10,  // qseed 6
   kQseed3litev11,  // qseed 7
+  kQseed3litev11_7001,  // qseed 7, mid-tier
+  kQseed3litev11_7002,  // qseed 7, low-tier
 };
 
 struct HWDestScalarInfo {

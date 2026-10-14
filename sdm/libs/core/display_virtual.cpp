@@ -587,7 +587,18 @@ DisplayError DisplayVirtualPQ::PostCommit() {
     return error;
   }
 
-  dpps_info_.Init(this, panel_name_, this, prop_intf_);
+  if (!request_dpps_reconfig_) {
+    // First-time initialization: allocate LTM buffers and set up DPPS pipeline.
+    dpps_info_.Init(this, panel_name_, this, prop_intf_);
+  } else {
+    // LTM buffers are already allocated. Trigger a reconfig event to reuse the existing LTM.
+    DppsReconfigInfo reconfig_info = {};
+    reconfig_info.prop_intf = this;
+    reconfig_info.display_intf = this;
+    reconfig_info.panel_prop_intf = prop_intf_;
+    dpps_info_.DppsNotifyOps(kDppsReconfigEvent, &reconfig_info, sizeof(reconfig_info));
+    request_dpps_reconfig_ = false;
+  }
   return kErrorNone;
 }
 
@@ -623,6 +634,12 @@ DisplayError DisplayVirtualPQ::ProcessColorFeatureOps(DisplayColorOps ops, void 
                "current_lm_count=%u new_lm_count=%u lm_count_changed=%d",
                display_id_, display_type_, max_mixer_w, current_w, lm_payload->width,
                current_lm_count, new_lm_count, lm_payload->lm_count_changed);
+      break;
+    }
+    case kColorFeatureDppsReconfig: {
+      // Mark this display to reconfigure the previously running DPPS/LTM.
+      request_dpps_reconfig_ = true;
+      DLOGV_IF(kTagDisplay, "Dpps reconfig %d", request_dpps_reconfig_);
       break;
     }
     default:

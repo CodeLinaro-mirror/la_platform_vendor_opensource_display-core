@@ -788,6 +788,8 @@ DisplayError DisplayBase::GetCwbBufferResolution(CwbConfig *cwb_config, uint32_t
 
   CwbTapPoint cwb_tappoint = cwb_config->tap_point;
   bool pu_as_cwb_roi = cwb_config->pu_as_cwb_roi;
+  LayerRect mixer_full_frame = {0.0f, 0.0f, FLOAT(client_ctx_.mixer_attributes.width),
+                                FLOAT(client_ctx_.mixer_attributes.height)};
   if (cwb_tappoint == CwbTapPoint::kDsppTapPoint || cwb_tappoint == CwbTapPoint::kDemuraTapPoint) {
     // To dump post-processed (DSPP) output for CWB, use Panel resolution.
     uint32_t active_index = 0;
@@ -801,9 +803,11 @@ DisplayError DisplayBase::GetCwbBufferResolution(CwbConfig *cwb_config, uint32_t
         if (pu_as_cwb_roi) {
           *x_pixels = display_config.x_pixels;
           *y_pixels = display_config.y_pixels;
-        } else if (IsValidCwbRoi(cwb_roi, cwb_config->cwb_full_rect)) {
-          *x_pixels = cwb_roi.right - cwb_roi.left;
-          *y_pixels = cwb_roi.bottom - cwb_roi.top;
+        } else if (IsValidCwbRoi(cwb_roi, mixer_full_frame)) {
+          LayerRect mapped_cwb_roi = {};
+          MapRect(mixer_full_frame, cwb_config->cwb_full_rect, cwb_roi, &mapped_cwb_roi);
+          *x_pixels = mapped_cwb_roi.right - mapped_cwb_roi.left;
+          *y_pixels = mapped_cwb_roi.bottom - mapped_cwb_roi.top;
         } else {
           *x_pixels = display_config.x_pixels;
           *y_pixels = display_config.y_pixels;
@@ -830,7 +834,7 @@ DisplayError DisplayBase::GetCwbBufferResolution(CwbConfig *cwb_config, uint32_t
       if (pu_as_cwb_roi) {
         *x_pixels = display_config.x_pixels;
         *y_pixels = display_config.y_pixels;
-      } else if (IsValidCwbRoi(cwb_roi, cwb_config->cwb_full_rect)) {
+      } else if (IsValidCwbRoi(cwb_roi, mixer_full_frame)) {
         *x_pixels = cwb_roi.right - cwb_roi.left;
         *y_pixels = cwb_roi.bottom - cwb_roi.top;
       } else {
@@ -2162,7 +2166,7 @@ DisplayError DisplayBase::PostCommit() {
   // Handle pending vsync enable if any after the commit
   error = HandlePendingVSyncEnable(retire_fence_);
   if (error != kErrorNone) {
-    return error;
+    DLOGW("HandlePendingVSyncEnable failed, ignore it");
   }
 
   comp_manager_->SetSafeMode(false);
@@ -2443,6 +2447,18 @@ DisplayError DisplayBase::SetDrawMethod(DisplayDrawMethod draw_method) {
   return kErrorNone;
 }
 
+DisplayError DisplayBase::SetSSRState(bool active, HWSSRType type) {
+  DLOGI("SSR state set to %d for display %d-%d", active, display_id_, display_type_);
+  if (type == kSSRLsr) {
+    is_lsr_ssr_active_ = active;
+  } else {
+    // default to base ssr tracker for default and any unknown type
+    is_ssr_active_ = active;
+  }
+  dpu_core_mux_->SetSSRState(active, type);
+  return kErrorNone;
+}
+
 DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
                                           shared_ptr<Fence> *release_fence) {
   ClientLock lock(disp_mutex_);
@@ -2454,8 +2470,8 @@ DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
   DisplayError error = kErrorNone;
   bool active = false;
 
-  DLOGI("Set state = %d, display %d-%d, teardown = %d", state, display_id_, display_type_,
-        teardown);
+  DLOGI("Set state = %d, display %d-%d, teardown = %d, ssr active %d", state, display_id_,
+        display_type_, teardown, is_ssr_active_);
 
   if (state == state_) {
     if (pending_power_state_ != kPowerStateNone) {
@@ -3284,14 +3300,25 @@ DisplayError DisplayBase::ValidateCwbConfigInfo(CwbConfig *cwb_config,
   }
 
   LayerRect &roi = cwb_config->cwb_roi;
-  // Set cwb full rect as per window rect.
+  // Set cwb full rect as per window rect. cwb_full_rect is in the tap point domain.
   cwb_config->cwb_full_rect.right -= (window_rect_.left + window_rect_.right);
   cwb_config->cwb_full_rect.bottom -= (window_rect_.top + window_rect_.bottom);
   LayerRect &full_frame = cwb_config->cwb_full_rect;
+  LayerRect mixer_full_frame = {0.0f, 0.0f, FLOAT(client_ctx_.mixer_attributes.width),
+                                FLOAT(client_ctx_.mixer_attributes.height)};
+  mixer_full_frame.right -= (window_rect_.left + window_rect_.right);
+  mixer_full_frame.bottom -= (window_rect_.top + window_rect_.bottom);
+
+  // CWB clients provide ROI in mixer coordinates. Validate and align in mixer domain first,
+  // then map to panel domain for post-LM tap points.
+  LayerRect cwb_validation_frame = mixer_full_frame;
   uint32_t cwb_roi_supported = 0;  // Check whether CWB ROI is supported.
   IsSupportedOnDisplay(kCwbCrop, &cwb_roi_supported);
   if (!cwb_roi_supported) {
-    roi = full_frame;
+    roi = cwb_validation_frame;
+    if (tap_point != CwbTapPoint::kLmTapPoint) {
+      MapRect(mixer_full_frame, full_frame, roi, &roi);
+    }
     return kErrorNone;  // below checks are not needed if CWB ROI isn't supported.
   }
 
@@ -3299,11 +3326,11 @@ DisplayError DisplayBase::ValidateCwbConfigInfo(CwbConfig *cwb_config,
     // other color formats, fallback to Full frame ROI.
     DLOGW("CWB ROI is not suopported on color format : %s , thus falling back to Full frame ROI.",
           GetFormatString(format));
-    roi = full_frame;
+    roi = cwb_validation_frame;
   }
 
   bool &pu_as_cwb_roi = cwb_config->pu_as_cwb_roi;
-  bool is_valid_cwb_roi = IsValidCwbRoi(roi, full_frame);
+  bool is_valid_cwb_roi = IsValidCwbRoi(roi, cwb_validation_frame);
   if (is_valid_cwb_roi && !pu_as_cwb_roi) {
     // If client passed valid ROI and PU ROI not to be included in CWB ROI, then
     // make Client ROI's (width * height) as 256B aligned.
@@ -3312,7 +3339,7 @@ DisplayError DisplayBase::ValidateCwbConfigInfo(CwbConfig *cwb_config,
       DLOGE("Output buffer has invalid color format.");
       return kErrorParameters;
     }
-    ApplyCwbRoiRestrictions(roi, full_frame, cwb_alignment_factor, format);
+    ApplyCwbRoiRestrictions(roi, cwb_validation_frame, cwb_alignment_factor, format);
   }
 
   // For cmd mode : Incase CWB Client sets cwb_config.pu_as_cwb_roi as true, then PU ROI would be
@@ -3326,8 +3353,15 @@ DisplayError DisplayBase::ValidateCwbConfigInfo(CwbConfig *cwb_config,
     DLOGI_IF(kTagDisplay, "PU ROI would be included in CWB ROI.");
   } else if (!is_valid_cwb_roi) {
     DLOGI_IF(kTagDisplay, "Client provided invalid ROI. Going for Full frame CWB.");
-    roi = full_frame;
+    roi = cwb_validation_frame;
   }
+
+  if (tap_point != CwbTapPoint::kLmTapPoint) {
+    LayerRect mapped_roi = {};
+    MapRect(mixer_full_frame, full_frame, roi, &mapped_roi);
+    roi = mapped_roi;
+  }
+
   // Reposition CWB ROI as per window rect.
   roi = Reposition(roi, window_rect_.left, window_rect_.top);
   DLOGI_IF(kTagDisplay, "Cwb_config: tap_point %d, CWB ROI Rect(%f %f %f %f), PU_as_CWB_ROI %d",
@@ -4481,6 +4515,7 @@ DisplayError DisplayBase::ResetPendingPowerState(const shared_ptr<Fence> &retire
     sync_points.retire_fence = retire_fence;
     WaitForCompletion(&sync_points);
 
+    sync_points.retire_fence = nullptr;
     DisplayState pending_state;
     GetPendingDisplayState(&pending_state);
     if (IsPrimaryDisplayLocked() && (pending_power_state_ != kPowerStateOff)) {

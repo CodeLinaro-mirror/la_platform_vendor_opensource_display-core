@@ -1144,9 +1144,14 @@ ConcurrencyMgr::SetOutputBuffer(uint64_t display, const SnapHandle *buffer,
     return kErrorParameters;
   }
 
+  if (display >= kNumDisplays) {
+    return kErrorParameters;
+  }
+
   bool found = false;
   for (auto disp : {qdutilsDisplayType::DISPLAY_VIRTUAL, qdutilsDisplayType::DISPLAY_VIRTUAL_2}) {
-    if (INT32(display) == disp_->GetDisplayIndex(disp)) {
+    int disp_index = disp_->GetDisplayIndex(disp);
+    if ((disp_index >= 0) && UINT64(disp_index) == display) {
       found = true;
       break;
     }
@@ -2041,12 +2046,13 @@ DisplayError ConcurrencyMgr::GetDisplayBrightnessSupport(Display display,
     return kErrorParameters;
   }
 
-  if (!sdm_display_[display]) {
+  SCOPE_LOCK(locker_[display]);
+  auto sdm_display = sdm_display_[display];
+  if (!sdm_display) {
     DLOGE("Expected valid sdm_display");
     return kErrorParameters;
   }
-  *outSupport =
-      (sdm_display_[display]->GetDisplayClass() == DISPLAY_CLASS_BUILTIN);
+  *outSupport = (sdm_display->GetDisplayClass() == DISPLAY_CLASS_BUILTIN);
   return kErrorNone;
 }
 
@@ -2056,11 +2062,13 @@ DisplayError ConcurrencyMgr::SetDisplayBrightness(Display display, float brightn
     return kErrorParameters;
   }
 
-  if (!sdm_display_[display]) {
+  SCOPE_LOCK(locker_[display]);
+  auto sdm_display = sdm_display_[display];
+  if (!sdm_display) {
     return kErrorParameters;
   }
 
-  return (INT32(sdm_display_[display]->SetPanelBrightness(brightness, !performing_commit)))
+  return (INT32(sdm_display->SetPanelBrightness(brightness, !performing_commit)))
              ? kErrorNotSupported
              : kErrorNone;
 }
@@ -3055,7 +3063,7 @@ void ConcurrencyMgr::SendFeatenablerCommand(FeatenablerCommand cmd) {
   auto ret = callbacks_.SendFeatenablerCommand(cmd);
 }
 
-void ConcurrencyMgr::PerformSubsystemRestart(bool start) {
+void ConcurrencyMgr::PerformSubsystemRestart(bool start, HWSSRType type) {
   DTRACE_SCOPED();
   DLOGI("Perform Subsystem Restart: %s", start ? "Start" : "End");
   // Wait until all commands are flushed on ALL displays. SSR affects shared
@@ -3076,8 +3084,12 @@ void ConcurrencyMgr::PerformSubsystemRestart(bool start) {
   if (start) {
     // SSR Start
     ssr_active_ = true;
+    // Some targets only raise the SSR event on one display's connector even though the
+    // underlying hardware reset affects every display sharing that hardware. Mark SSR active
+    // on all displays here so they all have synchronized SSR event tracking.
     for (Display display = SDM_DISPLAY_PRIMARY; display < kNumDisplays; display++) {
       if (sdm_display_[display] != NULL) {
+        sdm_display_[display]->SetSSRState(true, type);
         cached_last_power_mode_[display] = sdm_display_[display]->GetCurrentPowerMode();
         DLOGI("Powering off Display %d", INT32(display));
         status =
@@ -3110,6 +3122,12 @@ void ConcurrencyMgr::PerformSubsystemRestart(bool start) {
         }
       }
     }
+    // Only clear the SSR state once every display has been fully restored above.
+    for (Display display = SDM_DISPLAY_PRIMARY; display < kNumDisplays; display++) {
+      if (sdm_display_[display] != NULL) {
+        sdm_display_[display]->SetSSRState(false, type);
+      }
+    }
 
     Display vsync_source = vsync_source_;
     // adb shell stop sets vsync source as max display
@@ -3135,6 +3153,10 @@ DisplayError ConcurrencyMgr::SetRgbHistObserverConfig(Display display, bool stat
 
 DisplayError ConcurrencyMgr::GetDisplayViewMode(Display display, SDMDisplayViewMode *view_mode) {
   return CallDisplayFunction(display, &SDMDisplay::GetDisplayViewMode, view_mode);
+}
+
+DisplayError ConcurrencyMgr::SetDisplayPoseLatchOffset(Display display, int64_t time_ns) {
+  return CallDisplayFunction(display, &SDMDisplay::SetDisplayPoseLatchOffset, time_ns);
 }
 
 }  // namespace sdm

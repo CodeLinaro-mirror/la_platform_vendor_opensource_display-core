@@ -65,6 +65,7 @@ DisplayError PrivacyRegionManager::LoadPrivacyRegionsOffsetsFromFile() {
   while (target != nullptr) {
     const char *target_name = target->Attribute("name");
     if (target_name == nullptr) {
+      target = target->NextSiblingElement("Target");
       continue;
     }
 
@@ -74,22 +75,26 @@ DisplayError PrivacyRegionManager::LoadPrivacyRegionsOffsetsFromFile() {
         const char *str_width = panel_resolution_node->Attribute("width");
         const char *str_height = panel_resolution_node->Attribute("height");
         if (str_width == nullptr || str_height == nullptr) {
+          panel_resolution_node = panel_resolution_node->NextSiblingElement("MixerResolution");
           continue;
         }
 
         const uint32_t width = std::atoi(str_width);
         const uint32_t height = std::atoi(str_height);
+        Resolution res = {width, height};
 
         XMLElement *offsets_node = panel_resolution_node->FirstChildElement("Offsets");
-        if (offsets_node != nullptr) {
+        while (offsets_node != nullptr) {
           const char *str_corner_radius = offsets_node->Attribute("corner_radius");
           const char *str_left = offsets_node->Attribute("left");
           const char *str_top = offsets_node->Attribute("top");
           const char *str_right = offsets_node->Attribute("right");
           const char *str_bottom = offsets_node->Attribute("bottom");
+          const char *str_dimming = offsets_node->Attribute("dimming");
 
           if (str_corner_radius == nullptr || str_left == nullptr || str_top == nullptr ||
               str_right == nullptr || str_bottom == nullptr) {
+            offsets_node = offsets_node->NextSiblingElement("Offsets");
             continue;
           }
 
@@ -98,14 +103,20 @@ DisplayError PrivacyRegionManager::LoadPrivacyRegionsOffsetsFromFile() {
           const int top = std::atoi(str_top);
           const int right = std::atoi(str_right);
           const int bottom = std::atoi(str_bottom);
+          // Default to dimming (true) if the attribute is missing.
+          const bool dimming = (str_dimming == nullptr) || (std::atoi(str_dimming) != 0);
 
-          DLOGI_IF(kTagDisplay, "Mixer Resolution:%dx%d Offsets:%f %d %d %d %d", width, height,
-                   corner_radius, left, top, right, bottom);
+          DLOGI_IF(kTagDisplay, "Mixer Resolution:%dx%d Offsets:%f %d %d %d %d dimming:%d", width,
+                   height, corner_radius, left, top, right, bottom, dimming);
 
-          Resolution res = {width, height};
           SDMRect rect_offsets = {left, top, right, bottom};
-          PrivacyRegion region_offsets = {corner_radius, rect_offsets};
+          PrivacyRegion region_offsets = {};
+          region_offsets.corner_radius = corner_radius;
+          region_offsets.rect = rect_offsets;
+          region_offsets.isDimming = dimming;
           privacy_regions_offsets_.emplace(res, region_offsets);
+
+          offsets_node = offsets_node->NextSiblingElement("Offsets");
         }
         panel_resolution_node = panel_resolution_node->NextSiblingElement("MixerResolution");
       }
@@ -115,9 +126,27 @@ DisplayError PrivacyRegionManager::LoadPrivacyRegionsOffsetsFromFile() {
           spatial_dimming_node->QueryIntText(&spatial_dimming_width_) == XML_SUCCESS) {
         DLOGI_IF(kTagDisplay, "Spatial dimming:%d", spatial_dimming_width_);
       }
+
+      XMLElement *non_dimming_node = target->FirstChildElement("NonDimmingWidth");
+      if (non_dimming_node != nullptr &&
+          non_dimming_node->QueryIntText(&non_dimming_width_) == XML_SUCCESS) {
+        DLOGI_IF(kTagDisplay, "Non-dimming width:%d", non_dimming_width_);
+      }
     }
     target = target->NextSiblingElement("Target");
   }
+
+  DLOGI_IF(kTagDisplay,
+           "Stored %zu privacy region offset entries (spatial_dimming_width:%d "
+           "non_dimming_width:%d)",
+           privacy_regions_offsets_.size(), spatial_dimming_width_, non_dimming_width_);
+  for (const auto &[res, region] : privacy_regions_offsets_) {
+    DLOGI_IF(kTagDisplay,
+             "Stored offsets -> MixerResolution:%dx%d dimming:%d [radius:%.2f rect:%d %d %d %d]",
+             res.x_pixels, res.y_pixels, region.isDimming, region.corner_radius, region.rect.left,
+             region.rect.top, region.rect.right, region.rect.bottom);
+  }
+
   return error;
 }
 
@@ -206,14 +235,15 @@ void PrivacyRegionManager::ApplyScaling(std::vector<PrivacyRegion> &consolidated
           region.corner_radius * (FLOAT(panel_res.x_pixels) / FLOAT(mixer_res.x_pixels));
       MapRect(src_domain, dst_domain, privacy_rect, &privacy_dst_rect);
 
-      DLOGI_IF(kTagDisplay, "PrivacyRegions with scaling [radius:%.2f rect:%f %f %f %f]",
-               corner_radius, privacy_dst_rect.left, privacy_dst_rect.top, privacy_dst_rect.right,
-               privacy_dst_rect.bottom);
+      DLOGI_IF(kTagDisplay, "PrivacyRegions with scaling [index:%d radius:%.2f rect:%f %f %f %f]",
+               region.index, corner_radius, privacy_dst_rect.left, privacy_dst_rect.top,
+               privacy_dst_rect.right, privacy_dst_rect.bottom);
 
       SDMRect rect = {INT(privacy_dst_rect.left), INT(privacy_dst_rect.top),
                       INT(privacy_dst_rect.right), INT(privacy_dst_rect.bottom)};
 
-      consolidated_regions.at(i) = PrivacyRegion{corner_radius, rect, region.index};
+      consolidated_regions.at(i) =
+          PrivacyRegion{corner_radius, rect, region.index, region.isDimming};
     }
   }
 }
@@ -236,11 +266,13 @@ void PrivacyRegionManager::LayerModeCollapsing(const DispLayerStack *disp_layer_
     // If a layer's privacy regions exceeds max allowed, use layer's destination rectangle as roi
     if (layer->privacy_regions.size() > max_privacy_regions_) {
       float radius = std::min(layer->corner_radius.x, layer->corner_radius.y);
+      bool is_dimming = layer->privacy_regions.front().isDimming;
       consolidated_regions.push_back(PrivacyRegion{
           radius,
           SDMRect{static_cast<int>(layer->dst_rect.left), static_cast<int>(layer->dst_rect.top),
                   static_cast<int>(layer->dst_rect.right),
-                  static_cast<int>(layer->dst_rect.bottom)}});
+                  static_cast<int>(layer->dst_rect.bottom)},
+          0, is_dimming});
 
       DLOGI_IF(kTagDisplay,
                "Layer's %" PRIu64
@@ -260,9 +292,13 @@ void PrivacyRegionManager::LayerModeCollapsing(const DispLayerStack *disp_layer_
 
   // If total privacy regions exceeds the max allowed, use full frame as roi
   if (consolidated_regions.size() > max_privacy_regions_) {
+    bool is_dimming = true;
+    for (const auto &region : consolidated_regions) {
+      is_dimming |= region.isDimming;
+    }
     consolidated_regions.clear();
-    consolidated_regions.push_back(
-        PrivacyRegion{0.0f, SDMRect{0, 0, INT(mixer_res.x_pixels), INT(mixer_res.y_pixels)}});
+    consolidated_regions.push_back(PrivacyRegion{
+        0.0f, SDMRect{0, 0, INT(mixer_res.x_pixels), INT(mixer_res.y_pixels)}, 0, is_dimming});
 
     DLOGI_IF(kTagDisplay, "Frame's privacy regions %d exceeds limit [radius:%.2f rect:%d %d %d %d]",
              consolidated_regions.size(), 0.0f, 0, 0, INT(mixer_res.x_pixels),
@@ -274,7 +310,8 @@ void PrivacyRegionManager::AreaModeCollapsing(const DispLayerStack *disp_layer_s
                                               std::vector<PrivacyRegion> &consolidated_regions,
                                               Resolution &mixer_res) {
   DTRACE_SCOPED();
-  int region_to_reset = 3;
+  // Track which indices (1..MAX_AREA_MODE_LAYERS) are present
+  bool index_present[MAX_AREA_MODE_LAYERS] = {false};
   std::map<int, std::vector<PrivacyRegion>> regions_by_index = {};
   // Group the privacy regions based on index
   for (auto layer : disp_layer_stack->stack->layers) {
@@ -291,13 +328,17 @@ void PrivacyRegionManager::AreaModeCollapsing(const DispLayerStack *disp_layer_s
     if (!list_of_regions.empty()) {
       float final_corner_radius = list_of_regions.at(0).corner_radius;
       SDMRect final_consolidated_rect = list_of_regions.at(0).rect;
+      bool final_is_dimming = list_of_regions.at(0).isDimming;
       for (int j = 1; j < list_of_regions.size(); j++) {
         final_corner_radius = std::min(final_corner_radius, list_of_regions[j].corner_radius);
         final_consolidated_rect = unionRect(final_consolidated_rect, list_of_regions[j].rect);
+        final_is_dimming |= list_of_regions[j].isDimming;
       }
       consolidated_regions.push_back(
-          PrivacyRegion{final_corner_radius, final_consolidated_rect, index});
-      region_to_reset -= index;
+          PrivacyRegion{final_corner_radius, final_consolidated_rect, index, final_is_dimming});
+      if (index > 0 && index <= MAX_AREA_MODE_LAYERS) {
+        index_present[index - 1] = true;
+      }
       DLOGI_IF(kTagDisplay, "Collapsed PrivacyRegions [index:%d radius:%.2f rect:%d %d %d %d]",
                index, final_corner_radius, final_consolidated_rect.left,
                final_consolidated_rect.top, final_consolidated_rect.right,
@@ -306,18 +347,35 @@ void PrivacyRegionManager::AreaModeCollapsing(const DispLayerStack *disp_layer_s
   }
 
   // Clear privacy regions for index that was active in previous round, but is now inactive
-  if (region_to_reset < 3 && region_to_reset > 0 && prev_region_state_[region_to_reset - 1]) {
-    PrivacyRegion region = PrivacyRegion();
-    region.index = region_to_reset;
-    consolidated_regions.push_back(region);
-    DLOGI_IF(kTagDisplay, "Reset region index %d", region.index);
+  for (int index = 1; index <= MAX_AREA_MODE_LAYERS; index++) {
+    if (!index_present[index - 1] && prev_region_state_[index - 1]) {
+      PrivacyRegion region = PrivacyRegion();
+      region.index = index;
+      consolidated_regions.push_back(region);
+      DLOGI_IF(kTagDisplay, "Reset region index %d", region.index);
+    }
   }
 }
 
 void PrivacyRegionManager::LayerModeBounds(std::vector<PrivacyRegion> &consolidated_regions,
                                            Resolution &panel_res, Resolution &mixer_res) {
-  if (privacy_regions_offsets_.find(mixer_res) != privacy_regions_offsets_.end()) {
-    PrivacyRegion offsets = privacy_regions_offsets_.at(mixer_res);
+  // For layer mode, use dimming offsets by default
+  auto offsets_range = privacy_regions_offsets_.equal_range(mixer_res);
+  const PrivacyRegion *offsets_ptr = nullptr;
+  for (auto it = offsets_range.first; it != offsets_range.second; ++it) {
+    if (offsets_ptr == nullptr) {
+      offsets_ptr = &it->second;
+    }
+    if (it->second.isDimming) {
+      offsets_ptr = &it->second;
+      break;
+    }
+  }
+
+  if (offsets_ptr != nullptr) {
+    PrivacyRegion offsets = *offsets_ptr;
+    DLOGI_IF(kTagDisplay, "Layer mode offsets for dimming:%d [%d %d %d %d]", offsets.isDimming,
+             offsets.rect.left, offsets.rect.top, offsets.rect.right, offsets.rect.bottom);
     for (size_t i = 0; i < consolidated_regions.size(); i++) {
       PrivacyRegion region = consolidated_regions.at(i);
 
@@ -361,53 +419,68 @@ void PrivacyRegionManager::LayerModeBounds(std::vector<PrivacyRegion> &consolida
       DLOGI_IF(kTagDisplay, "PrivacyRegions with offsets [radius:%.2f rect:%d %d %d %d]",
                region.corner_radius, rect.left, rect.top, rect.right, rect.bottom);
 
-      consolidated_regions.at(i) = PrivacyRegion{region.corner_radius, rect, region.index};
+      consolidated_regions.at(i) =
+          PrivacyRegion{region.corner_radius, rect, region.index, region.isDimming};
     }
   }
 }
 
 void PrivacyRegionManager::AreaModeBounds(std::vector<PrivacyRegion> &consolidated_regions,
                                           Resolution &panel_res, Resolution &mixer_res) {
-  PrivacyRegion *offsets = nullptr;
-  if (privacy_regions_offsets_.find(mixer_res) != privacy_regions_offsets_.end()) {
-    offsets = &privacy_regions_offsets_.at(mixer_res);
-    DLOGI_IF(kTagDisplay, "Offsets %d %d %d %d", offsets->rect.left, offsets->rect.top,
-             offsets->rect.right, offsets->rect.bottom);
-  }
+  // Find all offset entries for the mixer resolution - dimming and non-dimming offsets
+  auto offsets_range = privacy_regions_offsets_.equal_range(mixer_res);
 
-  int region_to_remove = 0;  // Track layers previously sent with an empty roi
+  // Track which indices should be removed (regions previously sent as empty roi)
+  bool remove_index[MAX_AREA_MODE_LAYERS] = {false};
   for (size_t i = 0; i < consolidated_regions.size(); i++) {
     PrivacyRegion region = consolidated_regions.at(i);
+
+    PrivacyRegion *offsets = nullptr;
+    for (auto it = offsets_range.first; it != offsets_range.second; ++it) {
+      if (it->second.isDimming == region.isDimming) {
+        offsets = &it->second;
+        break;
+      }
+    }
+
     if (offsets != nullptr) {
+      DLOGI_IF(kTagDisplay, "Offsets for dimming:%d [%d %d %d %d]", region.isDimming,
+               offsets->rect.left, offsets->rect.top, offsets->rect.right, offsets->rect.bottom);
       region.corner_radius = (region.corner_radius + offsets->corner_radius);
       region.rect.left += offsets->rect.left;
       region.rect.top += offsets->rect.top;
       region.rect.right += offsets->rect.right;
       region.rect.bottom += offsets->rect.bottom;
+    } else {
+      DLOGI_IF(kTagDisplay, "No matching offsets for mixer:%dx%d dimming:%d", mixer_res.x_pixels,
+               mixer_res.y_pixels, region.isDimming);
     }
 
     if (static_cast<int>(region.corner_radius) % 2 != 0) {
       region.corner_radius = region.corner_radius - 1.0f;
     }
 
-    // Validate roi with spatial dimming, reset if out of bounds
-    if ((region.rect.left - spatial_dimming_width_ < 1 ||
-         region.rect.top - spatial_dimming_width_ < 1 ||
-         region.rect.right + spatial_dimming_width_ > panel_res.x_pixels ||
-         region.rect.bottom + spatial_dimming_width_ > panel_res.y_pixels)) {
+    int boundary_width = region.isDimming ? spatial_dimming_width_ : non_dimming_width_;
+
+    // Validate roi with boundary width, reset if out of bounds
+    if ((region.rect.left - boundary_width < 1 || region.rect.top - boundary_width < 1 ||
+         region.rect.right + boundary_width > panel_res.x_pixels ||
+         region.rect.bottom + boundary_width > panel_res.y_pixels)) {
       DLOGI_IF(kTagDisplay,
-               "PrivacyRegions outside of panel bounds: index:%d rect:%d %d %d %d panel:%dx%d",
-               region.index, region.rect.left, region.rect.top, region.rect.right,
-               region.rect.bottom, panel_res.x_pixels, panel_res.y_pixels);
+               "PrivacyRegions outside of panel bounds: index:%d dimming:%d width:%d rect:%d %d %d "
+               "%d panel:%dx%d",
+               region.index, region.isDimming, boundary_width, region.rect.left, region.rect.top,
+               region.rect.right, region.rect.bottom, panel_res.x_pixels, panel_res.y_pixels);
       region.corner_radius = 0.0f;
       region.rect.left = 0;
       region.rect.top = 0;
       region.rect.right = 0;
       region.rect.bottom = 0;
       // Remove privacy regions that were previously sent as empty
-      if (region.index > 0 && region.index < 3 && !prev_region_state_[region.index - 1]) {
-        region_to_remove += region.index;
-        DLOGI_IF(kTagDisplay, "Remove region %d", region_to_remove);
+      if (region.index > 0 && region.index <= MAX_AREA_MODE_LAYERS &&
+          !prev_region_state_[region.index - 1]) {
+        remove_index[region.index - 1] = true;
+        DLOGI_IF(kTagDisplay, "Remove region %d", region.index);
       }
     }
 
@@ -420,13 +493,21 @@ void PrivacyRegionManager::AreaModeBounds(std::vector<PrivacyRegion> &consolidat
     consolidated_regions.at(i) = region;
   }
 
-  // Remove the privacy regions from the list
-  if (region_to_remove >= 3) {
+  // Remove the flagged privacy regions from the list
+  bool remove_all = true;
+  bool remove_any = false;
+  for (int index = 0; index < MAX_AREA_MODE_LAYERS; index++) {
+    remove_all &= remove_index[index];
+    remove_any |= remove_index[index];
+  }
+
+  if (remove_all) {
     consolidated_regions.clear();
-  } else if (region_to_remove > 0 && region_to_remove < 3) {
+  } else if (remove_any) {
     for (auto it = consolidated_regions.begin(); it != consolidated_regions.end();) {
       PrivacyRegion region = *it;
-      if (region.index == region_to_remove) {
+      if (region.index > 0 && region.index <= MAX_AREA_MODE_LAYERS &&
+          remove_index[region.index - 1]) {
         it = consolidated_regions.erase(it);
       } else {
         ++it;
