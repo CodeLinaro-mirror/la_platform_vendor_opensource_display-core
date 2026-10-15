@@ -15,6 +15,7 @@
 #include "QtiMatrixCoEfficients.h"
 #include "QtiAnamorphicMetadata.h"
 #include "SnapTypes.h"
+#include "ThreeDimensionalRefInfo.h"
 
 namespace snapalloc {
 
