@@ -428,7 +428,7 @@ void HWDeviceDRM::Registry::GetBufInfoForTunnelPipe(HWCacColorComponent color,
                                                     BufferInfo *loopback_cac_info,
                                                     AllocatedBufferInfo *buf_info,
                                                     DRMBuffer *layout) {
-  if ((cac_version_ != kCacVersionLoopback) || (color == kCacNone)) {
+  if ((cac_version_ != kCacVersionLoopback) || (color == kCacNone) || (loopback_cac_info == nullptr)) {
     return;
   }
   // Using the plane buffer fd and faking the buffer as full screen for CAC loopback
