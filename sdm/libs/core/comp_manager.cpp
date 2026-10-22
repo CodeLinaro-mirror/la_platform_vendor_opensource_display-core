@@ -23,9 +23,9 @@
 */
 
 /*
-* ​Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+* ​​​​​Changes from Qualcomm Technologies, Inc. are provided under the following license:
 *
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -402,14 +402,16 @@ DisplayError CompManager::PrePrepare(Handle display_ctx, DispLayerStack *disp_la
     display_comp_ctx->constraints.idle_timeout = true;
   }
 
+  if (resource_intf_ ==  NULL) {
+    return kErrorUndefined;
+  }
+
   display_comp_ctx->constraints.tonemapping_query_mandatory =
         resource_intf_->ToneMapQueryRequested(display_comp_ctx->display_resource_ctx);
 
   StrategyConstraints *constraints = &display_comp_ctx->constraints;
   Handle &display_resource_ctx = display_comp_ctx->display_resource_ctx;
-  if (resource_intf_) {
-    resource_intf_->UpdateWBstatus(display_resource_ctx, &constraints->feedback);
-  }
+  resource_intf_->UpdateWBstatus(display_resource_ctx, &constraints->feedback);
 
   DisplayError error = display_comp_ctx->strategy->Start(disp_layer_stack,
                                                          &display_comp_ctx->max_strategies,

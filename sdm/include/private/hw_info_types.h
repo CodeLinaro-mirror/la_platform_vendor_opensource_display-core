@@ -1265,18 +1265,18 @@ class DisplayId {
  public:
   DisplayId() { }
 
-  DisplayId(uint32_t core_id, uint32_t conn_id) : conn_id_data_(conn_id) {
+  DisplayId(uint32_t core_id, uint32_t conn_id) : conn_id_data_(static_cast<int32_t>(conn_id)) {
     core_id_bitset_ = std::bitset<8>((1 << core_id));
     // Currently supported only for core 0 and 1.
     /* bits 1-8 --> core_id bitset
             9-20 --> connector 1
             21-32 --> connector 0 */
-    display_id_ = ((core_id_bitset_.to_ulong()) << CONN_ID_SIZE) |
-                  ((conn_id_data_ << ((core_id == 1) ? 12 : 0) & CONN_BIT_MASK));
+    display_id_ = static_cast<int32_t>((core_id_bitset_.to_ulong() << CONN_ID_SIZE) |
+                  static_cast<unsigned long>(conn_id_data_ << ((core_id == 1) ? 12 : 0) & CONN_BIT_MASK));
   }
 
-  explicit DisplayId(uint32_t display_id) : display_id_(display_id) {
-    uint32_t core_id = (display_id_) < 0 ? 0 : ((display_id_) >> CONN_ID_SIZE);
+  explicit DisplayId(uint32_t display_id) : display_id_(static_cast<int32_t>(display_id)) {
+    uint32_t core_id = static_cast<uint32_t>((display_id_) < 0 ? 0 : ((display_id_) >> CONN_ID_SIZE));
     core_id_bitset_ = std::bitset<8>(core_id);
     conn_id_data_ = (display_id_) < 0 ? 0 : ((display_id_) & CONN_BIT_MASK);
   }
@@ -1284,18 +1284,18 @@ class DisplayId {
   explicit DisplayId(uint8_t core_id, std::map<uint8_t, uint32_t> conn_id_map) {
     core_id_bitset_ = std::bitset<8>((1 << core_id));
     if (conn_id_map.size() == 2) {
-      display_id_ = (((core_id_bitset_.to_ulong()) << CONN_ID_SIZE) |
-                                (conn_id_map[1] << CONN_1_SHIFT_BITS) | (conn_id_map[0]));
+      display_id_ = static_cast<int32_t>((core_id_bitset_.to_ulong() << CONN_ID_SIZE) |
+                                (static_cast<unsigned long>(conn_id_map[1]) << CONN_1_SHIFT_BITS) | conn_id_map[0]);
     }
   }
 
 
   inline uint32_t GetDisplayId() {
-    return display_id_;
+    return static_cast<uint32_t>(display_id_);
   }
 
   inline uint32_t GetCoreIdMap() {
-    return core_id_bitset_.to_ulong();
+    return static_cast<uint32_t>(core_id_bitset_.to_ulong());
   }
 
   static uint32_t GetCoreIdMap(uint32_t display_id) {
@@ -1304,21 +1304,21 @@ class DisplayId {
 
   inline uint32_t GetConnId(uint32_t core_id) {
     if (conn_id_data_ == -1) {
-      return conn_id_data_;
+      return static_cast<uint32_t>(conn_id_data_);
     }
-    uint32_t conn_id_mask = (0xFFF << (core_id * 12));
-    return ((conn_id_data_ & conn_id_mask) >> (core_id * 12));
+    uint32_t conn_id_mask = (0xFFFU << (core_id * 12));
+    return ((static_cast<uint32_t>(conn_id_data_) & conn_id_mask) >> (core_id * 12));
   }
 
   static uint32_t GetConnId(uint32_t display_id, uint32_t core_id) {
     uint32_t conn_id_data = (display_id) < 0 ? 0 : ((display_id) & CONN_BIT_MASK);
-    uint32_t conn_id_mask = (0xFFF << (core_id * 12));
+    uint32_t conn_id_mask = (0xFFFU << (core_id * 12));
     return ((conn_id_data & conn_id_mask)>> (core_id * 12));
   }
 
   inline uint32_t GetBaseCoreId() {
     uint32_t pos = 0;
-    uint32_t coreid_map = core_id_bitset_.to_ulong();
+    uint32_t coreid_map = static_cast<uint32_t>(core_id_bitset_.to_ulong());
     while (coreid_map && !(coreid_map & 1)) {
       coreid_map = coreid_map >> 1;
       pos++;
@@ -1338,7 +1338,7 @@ class DisplayId {
 
   std::map<uint8_t, uint32_t> GetConnIdMap() {
     std::map<uint8_t, uint32_t> conn_id_map;
-    uint8_t core_id = core_id_bitset_.to_ulong();
+    uint8_t core_id = static_cast<uint8_t>(core_id_bitset_.to_ulong());
 
     for (uint8_t i = 0; core_id >> i; i++) {
       conn_id_map.insert({i, GetConnId(i)});
