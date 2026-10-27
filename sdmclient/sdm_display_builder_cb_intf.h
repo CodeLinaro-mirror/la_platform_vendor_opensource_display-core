@@ -25,6 +25,7 @@ public:
   virtual void GetHpdData(int *hpd_bpp, int *hpd_pattern,
                           int *hpd_connected) = 0;
   virtual bool IsClientConnected() = 0;
+  virtual void ClearPaHistClient(int dpy) = 0;
 
   std::mutex command_seq_mutex_;
 };

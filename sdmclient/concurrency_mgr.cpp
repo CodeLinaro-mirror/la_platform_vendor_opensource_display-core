@@ -2707,4 +2707,11 @@ DisplayError ConcurrencyMgr::ClearBuffersMappedToLayer(uint64_t display, LayerId
                                                        const SnapHandle *layerBuffer) {
   return kErrorNone;
 }
+
+void ConcurrencyMgr::ClearPaHistClient(int dpy) {
+  if (services_) {
+    services_->ClearPaHistClient(dpy);
+  }
+}
+
 }  // namespace sdm

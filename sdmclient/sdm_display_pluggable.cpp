@@ -585,4 +585,13 @@ DisplayError SDMDisplayPluggable::SetQSyncMode(QSyncMode qsync_mode) {
   return kErrorNone;
 }
 
+DisplayError SDMDisplayPluggable::SetPaHistCollection(const std::string &client_name, bool enable,
+    SdmDisplayCbInterface<PaHistCollectionPayload> *cb) {
+  return display_intf_->SetPaHistCollection(client_name, enable, cb);
+}
+
+DisplayError SDMDisplayPluggable::GetPaHistBins(std::array<uint32_t, HIST_BIN_SIZE> *buf) {
+  return display_intf_->GetPaHistBins(buf);
+}
+
 } // namespace sdm

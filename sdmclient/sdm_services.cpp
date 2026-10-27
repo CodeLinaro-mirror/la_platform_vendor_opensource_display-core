@@ -34,6 +34,7 @@
 #include <utils/constants.h>
 
 #include <algorithm>
+#include <chrono>
 #include <vector>
 
 #include "libsync.h"
@@ -72,6 +73,8 @@ void SDMServices::Init(SDMDisplayBuilder *disp,
 
 void SDMServices::Deinit() {
   bw_mode_release_fd_ = -1;
+
+  pa_hist_clients_.clear();
 
   if (color_mgr_) {
     color_mgr_->DestroyColorManager();
@@ -2009,4 +2012,131 @@ DisplayError SDMServices::SetPanelFeatureConfig(SDMParcel *input_parcel, SDMParc
   }
   return ret;
 }
+
+DisplayError SDMServices::SetPaHistCollection(SDMParcel *input_parcel) {
+  int dpy = input_parcel->readInt32();
+  int enable = input_parcel->readInt32();
+
+  if (dpy < 0 || dpy >= kNumDisplays) {
+    DLOGE("Invalid display %d (kNumDisplays=%d)", dpy, kNumDisplays);
+    return kErrorParameters;
+  }
+
+  SEQUENCE_WAIT_SCOPE_LOCK(locker_[dpy]);
+  auto sdm_display = cb_->GetDisplayFromClientId(dpy);
+  if (!sdm_display) {
+    DLOGW("Display %d not active", dpy);
+    return kErrorResources;
+  }
+
+  std::string name = "svc_pahist_" + std::to_string(dpy);
+  if (enable) {
+    if (pa_hist_clients_.count(dpy)) {
+      DLOGW("PA hist already collecting on display %d", dpy);
+      return kErrorNone;
+    }
+    auto client = std::make_shared<PaHistClient>();
+    DisplayError err = sdm_display->SetPaHistCollection(name, true, client.get());
+    if (err != kErrorNone) {
+      DLOGE("SetPaHistCollection failed on display %d: %d", dpy, err);
+      // The event proxy stores the raw callback pointer before it registers with the PA
+      // histogram subject, and keeps it if registration fails. Remove it before |client|
+      // is freed, otherwise the next histogram event notifies a dangling pointer.
+      sdm_display->SetPaHistCollection(name, false, nullptr);
+      return err;
+    }
+    pa_hist_clients_[dpy] = client;
+    return kErrorNone;
+  } else {
+    auto it = pa_hist_clients_.find(dpy);
+    if (it == pa_hist_clients_.end()) {
+      DLOGW("PA hist not active on display %d", dpy);
+      return kErrorNone;
+    }
+    DisplayError err = sdm_display->SetPaHistCollection(name, false, nullptr);
+    // Always erase regardless of error: the lower layer (DisplayEventProxyIntfImpl)
+    // removes the raw PaHistClient* from pa_hist_cb_ before calling DeRegister(),
+    // so the pointer is never held past this call. An error here means the DRM
+    // ioctl to disable the hardware block failed (e.g. display powered off during
+    // hotplug), not that the callback is still live. Keeping the entry would
+    // permanently block future start/stop calls for this display slot.
+    pa_hist_clients_.erase(it);
+    if (err != kErrorNone) {
+      DLOGE("SetPaHistCollection(disable) failed on display %d: %d", dpy, err);
+      return err;
+    }
+    return kErrorNone;
+  }
+}
+
+DisplayError SDMServices::GetPaHistBins(SDMParcel *input_parcel, SDMParcel *output_parcel) {
+  int dpy = input_parcel->readInt32();
+
+  if (dpy < 0 || dpy >= kNumDisplays) {
+    DLOGE("Invalid display %d", dpy);
+    return kErrorParameters;
+  }
+
+  const int kPaHistReadyTimeoutMs = 1000;
+  std::shared_ptr<PaHistClient> client;
+  {
+    SEQUENCE_WAIT_SCOPE_LOCK(locker_[dpy]);
+    if (!cb_->GetDisplayFromClientId(dpy)) {
+      DLOGW("Display %d not active", dpy);
+      return kErrorResources;
+    }
+
+    auto it = pa_hist_clients_.find(dpy);
+    if (it == pa_hist_clients_.end()) {
+      DLOGE("PA hist not started on display %d, call SET_PA_HIST_COLLECTION first", dpy);
+      return kErrorNotSupported;
+    }
+    client = it->second;
+  }
+
+  // Wait for the histogram without holding locker_[dpy]; it is shared with Present and
+  // display destroy, which must not stall for the duration of the wait.
+  if (!client->WaitReady(kPaHistReadyTimeoutMs)) {
+    DLOGE("Timeout waiting for PA histogram data on display %d after %dms", dpy,
+          kPaHistReadyTimeoutMs);
+    return kErrorTimeOut;
+  }
+
+  SEQUENCE_WAIT_SCOPE_LOCK(locker_[dpy]);
+  // The display may have been destroyed, or collection stopped/restarted, during the wait.
+  auto sdm_display = cb_->GetDisplayFromClientId(dpy);
+  if (!sdm_display) {
+    DLOGW("Display %d not active", dpy);
+    return kErrorResources;
+  }
+  auto it = pa_hist_clients_.find(dpy);
+  if (it == pa_hist_clients_.end() || it->second != client) {
+    DLOGW("PA hist collection on display %d was stopped while waiting", dpy);
+    return kErrorNotSupported;
+  }
+
+  // Clear before reading so a notification arriving during the read is not lost.
+  client->ready.store(false, std::memory_order_release);
+  DisplayError err = sdm_display->GetPaHistBins(&client->bins);
+  if (err != kErrorNone) {
+    DLOGE("GetPaHistBins failed on display %d: %d", dpy, err);
+    return err;
+  }
+
+  if (!output_parcel) {
+    DLOGE("Invalid output parcel on display %d", dpy);
+    return kErrorParameters;
+  }
+
+  output_parcel->write(client->bins.data(), HIST_BIN_SIZE * sizeof(uint32_t));
+  return kErrorNone;
+}
+
+void SDMServices::ClearPaHistClient(int dpy) {
+  auto it = pa_hist_clients_.find(dpy);
+  if (it != pa_hist_clients_.end()) {
+    pa_hist_clients_.erase(it);
+  }
+}
+
 } // namespace sdm
