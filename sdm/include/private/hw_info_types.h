@@ -1114,6 +1114,9 @@ struct HWLayersInfo {
   DestScaleInfoMap dest_scale_info_map = {};
   AIScalerInfoMap ai_scale_info_map = {};
   HWLayerConfig config[kMaxSDELayers] {};
+  // Temporary configs used only while UTM calculates LUTs for GPU layers.
+  // Hardware submission must continue to use the fixed-size config[] array.
+  std::vector<HWLayerConfig> tonemap_config = {};
   HWHDRLayerInfo hdr_layer_info = {};
   float output_compression = 1.0f;
   HWQosData qos_data = {};
