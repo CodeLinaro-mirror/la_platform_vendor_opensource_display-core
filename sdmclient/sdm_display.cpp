@@ -1740,10 +1740,10 @@ DisplayError SDMDisplay::HandleEvent(DisplayEvent event) {
     DLOGI("Set Display Pause state!");
     display_paused_ = true;
     display_pause_pending_ = true;
-    event_handler_->PerformSubsystemRestart(true);
+    event_handler_->PerformSubsystemRestart(true, kSSR);
   } break;
   case kSsrEnd: {
-    event_handler_->PerformSubsystemRestart(false);
+    event_handler_->PerformSubsystemRestart(false, kSSR);
     DLOGI("Reset Display Pause state!");
     display_pause_pending_ = false;
     display_paused_ = false;
@@ -1752,10 +1752,10 @@ DisplayError SDMDisplay::HandleEvent(DisplayEvent event) {
     DLOGI("Set Display Pause state!");
     display_paused_ = true;
     display_pause_pending_ = true;
-    event_handler_->PerformSubsystemRestart(true);
+    event_handler_->PerformSubsystemRestart(true, kSSRLsr);
   } break;
   case kLsr_SsrEnd: {
-    event_handler_->PerformSubsystemRestart(false);
+    event_handler_->PerformSubsystemRestart(false, kSSRLsr);
     DLOGI("Reset Display Pause state!");
     display_pause_pending_ = false;
     display_paused_ = false;
@@ -1850,6 +1850,14 @@ DisplayError SDMDisplay::PrepareLayerStack(uint32_t *out_num_types, uint32_t *ou
 }
 
 DisplayError SDMDisplay::HandlePrepareError(DisplayError error) {
+  if (null_display_active_) {
+    //For commits received during ambient mark layers for gpu bypass and cache geometry changes
+    DLOGV("Commit received while null display is active.");
+    WaitOnPreviousFence();
+    MarkLayersForGPUBypass();
+    geometry_changes_on_doze_suspend_ |= geometry_changes_;
+  }
+
   if (error == kErrorNone || error == kErrorNeedsCommit) {
     return kErrorNone;
   }
@@ -1941,11 +1949,12 @@ DisplayError SDMDisplay::AcceptDisplayChanges() {
     return kErrorNeedsValidate;
   }
 
+  auto &layer_map = sdm_layer_stack_->layer_map_;
   for (const auto &change : layer_changes_) {
-    auto sdm_layer = sdm_layer_stack_->layer_map_[change.first];
+    auto layer_iter = layer_map.find(change.first);
     auto composition = change.second;
-    if (sdm_layer != nullptr) {
-      sdm_layer->UpdateClientCompositionType(composition);
+    if (layer_iter != layer_map.end() && layer_iter->second != nullptr) {
+      layer_iter->second->UpdateClientCompositionType(composition);
     } else {
       DLOGW("Invalid layer: %" PRIu64, change.first);
     }
@@ -4056,6 +4065,8 @@ DisplayError SDMDisplay::SetReadbackBuffer(void *buffer,
     return kErrorNotSupported;
   }
   flag = is_ubwc ? INT32(MetadataType::IS_UBWC) : 0;
+  output_buffer.usage &= ~BufferUsage::QTI_ALLOC_UBWC;
+  output_buffer.usage |= (is_ubwc) ? BufferUsage::QTI_ALLOC_UBWC : 0;
 
   uint64_t pixel_format_modifier = 0;
   snapmapper_->GetMetadata(*hdl, MetadataType::FORMAT_MODIFIER, &pixel_format_modifier);
@@ -4667,6 +4678,8 @@ DisplayError SDMDisplay::SetStandbyMode(bool enable, bool is_twm) {
 
       stored_display_intf_ = display_intf_;
       display_intf_ = display_null_intf_;
+      null_display_active_ = true;
+      DLOGD("Null display is connected successfully");
       shared_ptr<Fence> release_fence = nullptr;
 
       if (is_twm && current_power_mode_ == SDMPowerMode::POWER_MODE_ON) {
@@ -4686,8 +4699,6 @@ DisplayError SDMDisplay::SetStandbyMode(bool enable, bool is_twm) {
         }
       }
 
-      null_display_active_ = true;
-      DLOGD("Null display is connected successfully");
     } else {
       DLOGD("Null display is already connected.");
     }
@@ -4761,6 +4772,7 @@ DisplayError SDMDisplay::ClearBuffersMappedToLayer(LayerId layer_id,
         // nothing to erase; just treat as already cleared
         continue;
       }
+      std::lock_guard<std::mutex> lock(layer->buffer_map->lock);
       auto it = layer->buffer_map->buffer_map.find(buffer_id);
       if (it != layer->buffer_map->buffer_map.end()) {
         DLOGV_IF(kTagClient,
@@ -4780,6 +4792,10 @@ bool SDMDisplay::IsEPTSupported() {
 
 DisplayError SDMDisplay::GetDisplayViewMode(SDMDisplayViewMode *view_mode) {
   return display_intf_->GetDisplayViewMode(view_mode);
+}
+
+DisplayError SDMDisplay::SetDisplayPoseLatchOffset(int64_t time_ns) {
+  return display_intf_->SetDisplayPoseLatchOffset(time_ns);
 }
 
 }  // namespace sdm

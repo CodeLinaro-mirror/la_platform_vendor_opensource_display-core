@@ -1555,7 +1555,7 @@ class DisplayInterface {
 
    @return \link DisplayError \endlink
   */
-  virtual DisplayError SetSPRState(int state) = 0;
+  virtual DisplayError SetDynamicSPRMode(int state) = 0;
 
   /*! @brief Method to handle CAC configuration.
 
@@ -1852,6 +1852,28 @@ class DisplayInterface {
    @return \link DisplayError \endlink
   */
   virtual DisplayError GetDisplayViewMode(SDMDisplayViewMode *view_mode) = 0;
+
+  /*! @brief Method to set display pose latch offset for XR systems
+   @param[in] time_ns : offset in nano seconds
+
+   @return \link DisplayError \endlink
+  */
+
+  virtual DisplayError SetDisplayPoseLatchOffset(int64_t time_ns) = 0;
+  /*! @brief Method to notify this display that a subsystem restart (SSR) affecting shared
+    display hardware is in progress, even if this display's own connector did not directly
+    receive the SSR event.
+
+    @param[in] active : true when SSR is in progress (from SSR start until SSR end handling on
+                        all displays completes), false once SSR handling has fully completed.
+    @param[out] type : Differentiates between a regular SSR event (by default) and an LSR
+                        SSR event
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetSSRState(bool active, HWSSRType type = kSSR) {
+    return kErrorNotSupported;
+  }
 
  protected:
   virtual ~DisplayInterface() { }

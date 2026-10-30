@@ -3995,8 +3995,6 @@ void DisplayBuiltIn::HandleLSR_SSREvent(LSR_SSREventType lsr_ssr_event) {
     lsr_first_commit_ = true;
   }
   DLOGI("Handle %s event", (event == kLsr_SsrStart) ? "LSR SSR Start" : "LSR SSR End");
-  is_lsr_ssr_active_ = (event == kLsr_SsrStart);
-  dpu_core_mux_->SetSSRState(is_lsr_ssr_active_);
 
   if (!event_handler_) {
     DLOGW("Event handler is null");
@@ -4036,8 +4034,6 @@ void DisplayBuiltIn::HandleSSREvent(SSREventType ssr_event) {
     lsr_first_commit_ = true;
   }
   DLOGI("Handle %s event", (event == kSsrStart) ? "SSR Start" : "SSR End");
-  is_ssr_active_ = (event == kSsrStart);
-  dpu_core_mux_->SetSSRState(is_ssr_active_);
 
   // Notify DemuraTn on SSR triggered.
   if (is_ssr_active_ && demuratn_ && demuratn_enabled_) {
@@ -4387,10 +4383,7 @@ void DisplayBuiltIn::InitCWBBuffer() {
 
 void DisplayBuiltIn::DeinitCWBBuffer() {
   if (!disable_fbt_for_cwb_fallback_) {
-    // Don't close cwb_layer_ buffer FD here, as it's managed externally (by the caller
-    // who provided the buffer).
-    // Premature closure causes CreateFbId failures when the cache is cleared and the
-    // closed FD is reused in MapOutputBufferToFbId.
+    CloseFd(&cwb_layer_.input_buffer.planes[0].fd);
     cwb_layer_ = {};
     return;
   }
@@ -7237,8 +7230,85 @@ DisplayError DisplayBuiltIn::UpdateRgbHistogramRoi(const void *data) {
   return kErrorNone;
 }
 
+DisplayError DisplayBuiltIn::SetDynamicSPRMode(int state) {
+  DisplayError ret = kErrorNone;
+  int demura_config_index = 0;  //TBD: customer to update config_idx
+
+  if (!spr_prop_value_) {
+    return kErrorUndefined;
+  }
+
+  if (!state) {
+    if (qrtc_enabled_) {
+      ret = SetQrtcFeatureConfig(kTypeQrtcState, &state);
+      if (ret != kErrorNone) {
+        return ret;
+      }
+      dyn_spr_state_.qrtc_enabled = true;
+    }
+
+    if (demuratn_enabled_) {
+      ret = SetPanelFeatureConfig(kTypeDemuraTnEventsCtrl, &state);
+      if (ret != kErrorNone) {
+        return ret;
+      }
+      dyn_spr_state_.demuratn_enabled = true;
+    }
+
+    if (demura_intended_ && demura_dynamic_enabled_) {
+      ret = SetDemuraState(state, demura_config_index);
+      if (ret != kErrorNone) {
+        return ret;
+      }
+      dyn_spr_state_.demura_enabled = true;
+    }
+
+    ret = SetSPRState(state);
+    if (ret != kErrorNone) {
+      return ret;
+    }
+  } else {
+    ret = SetSPRState(state);
+    if (ret != kErrorNone) {
+      return ret;
+    }
+
+    if (dyn_spr_state_.demura_enabled) {
+      ret = SetDemuraState(state, demura_config_index);
+      if (ret != kErrorNone) {
+        return ret;
+      }
+      dyn_spr_state_.demura_enabled = false;
+    }
+
+    if (dyn_spr_state_.demuratn_enabled) {
+      ret = SetPanelFeatureConfig(kTypeDemuraTnEventsCtrl, &state);
+      if (ret != kErrorNone) {
+        return ret;
+      }
+      dyn_spr_state_.demuratn_enabled = false;
+    }
+
+    if (dyn_spr_state_.qrtc_enabled) {
+      ret = SetQrtcFeatureConfig(kTypeQrtcState, &state);
+      if (ret != kErrorNone) {
+        return ret;
+      }
+      dyn_spr_state_.qrtc_enabled = false;
+    }
+  }
+
+  return kErrorNone;
+}
+
+
 DisplayError DisplayBuiltIn::SetSPRState(int state) {
   ClientLock lock(disp_mutex_);
+  if (!active_) {
+    DLOGW("Invalid display state = %d on display %d-%d. Panel must be on.", state_, display_id_,
+          display_type_);
+    return kErrorNone;
+  }
 
   if (spr_ == nullptr) {
     DLOGE("invalid SPR interface");
@@ -7320,9 +7390,13 @@ DisplayError DisplayBuiltIn::GetDisplayViewMode(SDMDisplayViewMode *view_mode) {
   if (client_ctx_.hw_panel_info.is_monocular_display) {
     *view_mode = kViewModeMonocular;
   } else {
-    *view_mode = kViewModeStereo;
+    *view_mode = kViewModeBinocular;
   }
   return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetDisplayPoseLatchOffset(int64_t time_ns) {
+  return hw_intf_->SetDisplayPoseLatchOffset(time_ns);
 }
 
 }  // namespace sdm

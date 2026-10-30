@@ -1007,6 +1007,8 @@ enum struct QSEEDStepVersion {
   V3LITE_V9,
   V3LITE_V10,
   V3LITE_V11,
+  V3LITE_V11_7001,
+  V3LITE_V11_7002,
 };
 
 enum struct SmartDMARevision {
@@ -1037,6 +1039,13 @@ enum struct DDRVersion {
   kDDRVersion5,
   kDDRVersion5x,
   kDDRVersion6,
+};
+
+/* Display commit operating mode */
+enum struct DisplayCommitOp {
+  kDisplayCommitOpNone,
+  kHWIO,
+  kHFI,
 };
 
 /* Type for panel feature resource reservation info */
@@ -1099,6 +1108,7 @@ struct DRMCrtcInfo {
   uint32_t dsc_block_count = 0;
   CacVersion cac_version = CacVersion::NONE;
   DDRVersion ddr_version = DDRVersion::kDDRVersionNone;
+  DisplayCommitOp disp_commit_op = DisplayCommitOp::kDisplayCommitOpNone;
   bool has_cesta = false;
   uint32_t ai_scaler_count = 0;
   bool is_udc_supported = true;

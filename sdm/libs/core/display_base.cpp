@@ -2166,7 +2166,7 @@ DisplayError DisplayBase::PostCommit() {
   // Handle pending vsync enable if any after the commit
   error = HandlePendingVSyncEnable(retire_fence_);
   if (error != kErrorNone) {
-    return error;
+    DLOGW("HandlePendingVSyncEnable failed, ignore it");
   }
 
   comp_manager_->SetSafeMode(false);
@@ -2177,14 +2177,6 @@ DisplayError DisplayBase::PostCommit() {
     // TODO: Need to clean up and add generic logic
     if (!client_ctx_.display_attributes.fsc_panel) {
       for (auto &hw_layer : info.second.hw_layers) {
-        // Skip closing FD for CWB output buffer
-        // CWB output buffer is managed by CWB manager and needs to persist
-        // across frames for caching in hw_device_drm.cpp
-        if (info.second.output_buffer != nullptr &&
-            hw_layer.input_buffer.handle_id == info.second.output_buffer->handle_id) {
-          continue;  // Don't close CWB output buffer FD
-        }
-
         CloseFd(&hw_layer.input_buffer.planes[0].fd);
       }
     }
@@ -2447,6 +2439,18 @@ DisplayError DisplayBase::SetDrawMethod(DisplayDrawMethod draw_method) {
   return kErrorNone;
 }
 
+DisplayError DisplayBase::SetSSRState(bool active, HWSSRType type) {
+  DLOGI("SSR state set to %d for display %d-%d", active, display_id_, display_type_);
+  if (type == kSSRLsr) {
+    is_lsr_ssr_active_ = active;
+  } else {
+    // default to base ssr tracker for default and any unknown type
+    is_ssr_active_ = active;
+  }
+  dpu_core_mux_->SetSSRState(active, type);
+  return kErrorNone;
+}
+
 DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
                                           shared_ptr<Fence> *release_fence) {
   ClientLock lock(disp_mutex_);
@@ -2458,8 +2462,8 @@ DisplayError DisplayBase::SetDisplayState(DisplayState state, bool teardown,
   DisplayError error = kErrorNone;
   bool active = false;
 
-  DLOGI("Set state = %d, display %d-%d, teardown = %d", state, display_id_, display_type_,
-        teardown);
+  DLOGI("Set state = %d, display %d-%d, teardown = %d, ssr active %d", state, display_id_,
+        display_type_, teardown, is_ssr_active_);
 
   if (state == state_) {
     if (pending_power_state_ != kPowerStateNone) {
@@ -4503,6 +4507,7 @@ DisplayError DisplayBase::ResetPendingPowerState(const shared_ptr<Fence> &retire
     sync_points.retire_fence = retire_fence;
     WaitForCompletion(&sync_points);
 
+    sync_points.retire_fence = nullptr;
     DisplayState pending_state;
     GetPendingDisplayState(&pending_state);
     if (IsPrimaryDisplayLocked() && (pending_power_state_ != kPowerStateOff)) {

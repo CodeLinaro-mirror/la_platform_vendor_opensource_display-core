@@ -180,6 +180,12 @@ class QrtcScreenRefreshImp : public qrtc::QrtcScreenRefreshIntf {
   std::mutex lock_;
 };
 
+struct FeatureStateInfo {
+  bool demura_enabled = false;
+  bool demuratn_enabled = false;
+  bool qrtc_enabled = false;
+};
+
 class DisplayBuiltIn : public DisplayBase,
                        HWEventHandler,
                        DppsPropIntf,
@@ -254,7 +260,7 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError UpdateTransferTime(uint32_t transfer_time) override;
   DisplayError RetrieveDemuraTnFiles() override;
   DisplayError SetDemuraState(int state, int demura_idx) override;
-  DisplayError SetSPRState(int state) override;
+  DisplayError SetDynamicSPRMode(int state) override;
   DisplayError SetDemuraConfig(int demura_idx) override;
   DisplayError PerformCacConfig(CacConfig config, bool enable) override;
   DisplayError SetDynamicCacConfig(DynamicCacV2Config config, bool enable) override;
@@ -429,6 +435,8 @@ class DisplayBuiltIn : public DisplayBase,
   DisplayError UpdateRgbHistogramRoi(const void *data) override;
   bool isSPREnabled();
   DisplayError GetDisplayViewMode(SDMDisplayViewMode *view_mode) override;
+  DisplayError SetDisplayPoseLatchOffset(int64_t time_ns) override;
+  DisplayError SetSPRState(int state);
 
   const uint32_t kPuTimeOutMs = 1000;
   std::map<uint32_t, std::vector<HWEvent>> event_list_;
@@ -560,6 +568,7 @@ class DisplayBuiltIn : public DisplayBase,
   std::shared_ptr<rgb_histogram::RgbHistManagerIntf> rgb_hist_manager_intf_ = nullptr;
   LayerRect rgb_hist_roi_ = {};
   std::string kRgbHistogramClient_ = "rgb_histogram_client";
+  struct FeatureStateInfo dyn_spr_state_ = {};
 };
 
 }  // namespace sdm

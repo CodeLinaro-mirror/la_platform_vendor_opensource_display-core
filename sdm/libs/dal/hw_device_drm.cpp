@@ -550,7 +550,7 @@ int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buff
   uint64_t handle_id = buffer.handle_id;
   bool secure_present =
       (buffer.flags.secure || buffer.flags.secure_display || buffer.flags.secure_camera);
-
+  std::lock_guard<std::mutex> lock(layer->buffer_map->lock);
   if (!handle_id || disable_fbid_cache_) {
     // In legacy path, clear fb_id map in each frame.
     layer->buffer_map->buffer_map.clear();
@@ -592,15 +592,25 @@ int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buff
           // Found fb_id for given handle_id key
           return 0;
         } else {
-          // Erase from fb_id map if format or size have been modified
-          layer->buffer_map->buffer_map.erase(it);
+          // Erase fb_id map for this core, if format or size have been modified
+          it->second.erase(core_id_);
+          if (it->second.empty()) {
+            // Erase empty handle_id map from buffer_map
+            layer->buffer_map->buffer_map.erase(it);
+          }
         }
       }
     }
 
-    if (layer->buffer_map->buffer_map.size() >= fbid_cache_limit_) {
-      // Clear fb_id map, if the size reaches cache limit.
-      layer->buffer_map->buffer_map.clear();
+    size_t core_fbid_count = layer->buffer_map->GetCoreFbIdCount(core_id_);
+    if (core_fbid_count >= fbid_cache_limit_) {
+      auto &buf_map = layer->buffer_map->buffer_map;
+      for (auto it = buf_map.begin(); it != buf_map.end();) {
+        // Erase fb_id map for this core
+        it->second.erase(core_id_);
+        // Erase empty handle_id map from buffer_map
+        it = it->second.empty() ? buf_map.erase(it) : std::next(it);
+      }
     }
   }
 
@@ -707,6 +717,7 @@ void HWDeviceDRM::Registry::Clear() {
 
 void HWDeviceDRM::Registry::GetFbId(Layer *layer, uint64_t handle_id,
                                     std::vector<uint32_t> *fb_id_vec) {
+  std::lock_guard<std::mutex> lock(layer->buffer_map->lock);
   auto it = layer->buffer_map->buffer_map.find(handle_id);
   if (it != layer->buffer_map->buffer_map.end()) {
     auto itr = it->second.find(core_id_);
@@ -1807,8 +1818,10 @@ DisplayError HWDeviceDRM::PowerOn(const HWQosData &qos_data, SyncPoints *sync_po
   // Set panel mode if panel is in active state
   if (last_power_mode_ != DRMPowerMode::OFF &&
       (panel_mode_changed_ & DRM_MODE_FLAG_VID_MODE_PANEL)) {
-    // Switch to video mode, corresponding change the fence_offset
-    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_OUTPUT_FENCE_OFFSET, token_.crtc_id, 1);
+    if (hw_resource_.disp_commit_op != kDisplayCommitOpHFI) {
+      // Switch to video mode, corresponding change the fence_offset
+      drm_atomic_intf_->Perform(DRMOps::CRTC_SET_OUTPUT_FENCE_OFFSET, token_.crtc_id, 1);
+    }
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_PANEL_MODE, token_.conn_id,
                               panel_mode_changed_);
     is_synchronous = true;
@@ -2574,7 +2587,9 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
     if (!validate) {
       // Switch to video mode, corresponding change the fence_offset
       DLOGI("set property: switch to video mode");
-      drm_atomic_intf_->Perform(DRMOps::CRTC_SET_OUTPUT_FENCE_OFFSET, token_.crtc_id, 1);
+      if (hw_resource_.disp_commit_op != kDisplayCommitOpHFI) {
+        drm_atomic_intf_->Perform(DRMOps::CRTC_SET_OUTPUT_FENCE_OFFSET, token_.crtc_id, 1);
+      }
       drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_PANEL_MODE, token_.conn_id,
                                 panel_mode_changed_);
     }

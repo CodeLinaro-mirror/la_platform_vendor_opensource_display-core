@@ -130,6 +130,12 @@ static HWQseedStepVersion GetQseedStepVersion(sde_drm::QSEEDStepVersion drm_vers
     case sde_drm::QSEEDStepVersion::V3LITE_V11:
       sdm_version = kQseed3litev11;
       break;
+    case sde_drm::QSEEDStepVersion::V3LITE_V11_7001:
+      sdm_version = kQseed3litev11_7001;
+      break;
+    case sde_drm::QSEEDStepVersion::V3LITE_V11_7002:
+      sdm_version = kQseed3litev11_7002;
+      break;
     default:
       sdm_version = kQseed3litev11;
       break;
@@ -420,6 +426,12 @@ void HWInfoDRM::GetSystemInfo(HWResourceInfo *hw_resource) {
     hw_resource->ddr_version = kDDRVersion6;
   } else {
     hw_resource->ddr_version = kDDRVersionNone;
+  }
+
+  if (info.disp_commit_op == sde_drm::DisplayCommitOp::kHWIO) {
+    hw_resource->disp_commit_op = kDisplayCommitOpHWIO;
+  } else if (info.disp_commit_op == sde_drm::DisplayCommitOp::kHFI) {
+    hw_resource->disp_commit_op = kDisplayCommitOpHFI;
   }
 
   for (int index = 0; index < kBwModeMax; index++) {

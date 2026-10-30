@@ -496,6 +496,7 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
   string is_udc_supported = "is_udc_supported=";
   string qrtc_count = "qrtc_count=";
   string max_lsr_batch_size = "max_lsr_batch_size=";
+  string disp_commit_op = "disp_commit_op=";
 
   while (std::getline(stream, line)) {
     if (line.find(max_blendstages) != string::npos) {
@@ -661,6 +662,12 @@ void DRMCrtc::ParseCapabilities(uint64_t blob_id) {
       crtc_info_.is_udc_supported = std::stoi(string(line, is_udc_supported.length()));
     } else if (line.find(max_lsr_batch_size) != string::npos) {
       crtc_info_.max_lsr_batch_size = std::stoi(string(line, max_lsr_batch_size.length()));
+    } else if (line.find(disp_commit_op) != string::npos) {
+      if (string(line, disp_commit_op.length()) == "disp_commit_hfi") {
+        crtc_info_.disp_commit_op = DisplayCommitOp::kHFI;
+      } else if (string(line, disp_commit_op.length()) == "disp_commit_hwio") {
+        crtc_info_.disp_commit_op = DisplayCommitOp::kHWIO;
+      }
     }
   }
   drmModeFreePropertyBlob(blob);

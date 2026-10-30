@@ -284,7 +284,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual bool HandleCwbTeardown();
   virtual uint32_t GetAvailableMixerCount();
   virtual DisplayError SetDemuraState(int state, int demura_idx) { return kErrorNotSupported; }
-  virtual DisplayError SetSPRState(int state) { return kErrorNotSupported; }
+  virtual DisplayError SetDynamicSPRMode(int state) { return kErrorNotSupported; }
   virtual DisplayError SetDemuraConfig(int demura_idx) { return kErrorNotSupported; }
   virtual DisplayError SetABCState(bool state) { return kErrorNotSupported; }
   virtual DisplayError SetABCReconfig() { return kErrorNotSupported; }
@@ -361,6 +361,8 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError GetDisplayViewMode(SDMDisplayViewMode *view_mode) {
     return kErrorNotSupported;
   }
+  virtual DisplayError SetDisplayPoseLatchOffset(int64_t time_ns) { return kErrorNotSupported; }
+  virtual DisplayError SetSSRState(bool active, HWSSRType type = kSSR);
 
  protected:
   struct DisplayMutex {

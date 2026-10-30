@@ -286,6 +286,12 @@ DisplayError HWTVDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
 
   sync_points->retire_fence = Fence::Create(INT(retire_fence_fd), "retire_power_off");
 
+  if (is_ssr_active_ || is_lsr_ssr_active_) {
+    DLOGI("SSR Active, close Power-Off Retire fence %" PRId64, retire_fence_fd);
+    close(retire_fence_fd);
+    retire_fence_fd = -1;
+  }
+
   return kErrorNone;
 }
 

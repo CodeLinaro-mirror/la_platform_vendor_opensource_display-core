@@ -81,18 +81,6 @@ void SDMServices::Init(SDMDisplayBuilder *disp,
   value = 0;
   SDMDebugHandler::Get()->GetProperty(ENABLE_SPR, &value);
   spr_enabled_ = (value == 1);
-
-  value = 0;
-  SDMDebugHandler::Get()->GetProperty(ENABLE_DEMURA, &value);
-  demura_enabled_ = (value == 1);
-
-  value = 0;
-  SDMDebugHandler::Get()->GetProperty(ENABLE_ANTI_AGING, &value);
-  demuratn_enabled_ = (value == 1);
-
-  value = 0;
-  SDMDebugHandler::Get()->GetProperty(ENABLE_QRTC, &value);
-  qrtc_enabled_ = (value == 1);
 }
 
 void SDMServices::Deinit() {
@@ -1074,82 +1062,19 @@ DisplayError SDMServices::SetDemuraState(SDMParcel *input_parcel,
   return kErrorNone;
 }
 
-DisplayError SDMServices::SetSPRState(SDMParcel *input_parcel, SDMParcel *output_parcel) {
+DisplayError SDMServices::SetDynamicSPRMode(SDMParcel *input_parcel, SDMParcel *output_parcel) {
   DisplayError ret = kErrorNone;
   int disp_id = input_parcel->readInt32();
   int state = input_parcel->readInt32();
-  int demura_config_index = 0;  //TBD: customer to update config_idx
-  int qrtc_subsample_mode = 0;  //TBD: customer to update sub sample index
 
   if (!spr_enabled_) {
     return kErrorUndefined;
   }
 
-  if (!state) {
-    if (qrtc_enabled_) {
-      ret = cb_->SetQrtcFeatureConfig(disp_id, kTypeQrtcState, &state);
-      if (ret != kErrorNone) {
-        output_parcel->writeInt32(ret);
-        return ret;
-      }
-    }
-
-    if (demuratn_enabled_) {
-      ret = cb_->SetPanelFeatureConfig(disp_id, kTypeDemuraTnEventsCtrl, &state);
-      if (ret != kErrorNone) {
-        output_parcel->writeInt32(ret);
-        return ret;
-      }
-    }
-
-    if (demura_enabled_) {
-      ret = cb_->SetDemuraState(disp_id, state, demura_config_index);
-      if (ret != kErrorNone) {
-        output_parcel->writeInt32(ret);
-        return ret;
-      }
-    }
-
-    ret = cb_->SetSPRState(disp_id, state);
-    if (ret != kErrorNone) {
-      output_parcel->writeInt32(ret);
-      return ret;
-    }
-  } else {
-    ret = cb_->SetSPRState(disp_id, state);
-    if (ret != kErrorNone) {
-      output_parcel->writeInt32(ret);
-      return ret;
-    }
-
-    if (demura_enabled_) {
-      ret = cb_->SetDemuraState(disp_id, state, demura_config_index);
-      if (ret != kErrorNone) {
-        output_parcel->writeInt32(ret);
-        return ret;
-      }
-    }
-
-    if (demuratn_enabled_) {
-      ret = cb_->SetPanelFeatureConfig(disp_id, kTypeDemuraTnEventsCtrl, &state);
-      if (ret != kErrorNone) {
-        output_parcel->writeInt32(ret);
-        return ret;
-      }
-    }
-
-    if (qrtc_enabled_) {
-      ret = cb_->SetQrtcFeatureConfig(disp_id, kTypeQrtcSubsample, &qrtc_subsample_mode);
-      if (ret != kErrorNone) {
-        output_parcel->writeInt32(ret);
-        return ret;
-      }
-      ret = cb_->SetQrtcFeatureConfig(disp_id, kTypeQrtcState, &state);
-      if (ret != kErrorNone) {
-        output_parcel->writeInt32(ret);
-        return ret;
-      }
-    }
+  ret = cb_->SetDynamicSPRMode(disp_id, state);
+  if (ret != kErrorNone) {
+    output_parcel->writeInt32(ret);
+    return ret;
   }
 
   output_parcel->writeInt32(kErrorNone);
@@ -2378,6 +2303,7 @@ DisplayError SDMServices::GetPanelResolution(SDMParcel *input_parcel, SDMParcel 
 }
 
 DisplayError SDMServices::SetStandbyMode(SDMParcel *input_parcel) {
+  SEQUENCE_WAIT_SCOPE_LOCK(locker_[SDM_DISPLAY_PRIMARY]);
   SDMDisplay *display = cb_->GetDisplayFromClientId(SDM_DISPLAY_PRIMARY);
   if (!display) {
     DLOGW("Display = %d is not connected.", SDM_DISPLAY_PRIMARY);
@@ -2421,6 +2347,11 @@ DisplayError SDMServices::SetPrivacyRegions(SDMParcel *input_parcel) {
       int bottom = input_parcel->readInt32();
       float radius = input_parcel->readFloat();
       int index = input_parcel->readInt32();
+      // dimming is optional for backward compatibility; default to true (enabled).
+      bool is_dimming = true;
+      if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+        is_dimming = input_parcel->readInt32() ? true : false;
+      }
       if ((left < 0) || (top < 0) || (right < 0) || (bottom < 0) || (radius < 0) || (index < 0)) {
         DLOGW("Invalid PrivacyRegion[%d] on Layer[%d]!", j, i);
         return kErrorNotSupported;
@@ -2432,6 +2363,7 @@ DisplayError SDMServices::SetPrivacyRegions(SDMParcel *input_parcel) {
       privacy_region.rect.bottom = bottom;
       privacy_region.corner_radius = radius;
       privacy_region.index = index;
+      privacy_region.isDimming = is_dimming;
       privacy_regions.push_back(privacy_region);
     }
 
@@ -2526,6 +2458,26 @@ DisplayError SDMServices::SetRgbHistObserverConfig(SDMParcel *input_parcel,
   DLOGI("%s", msg.c_str());
 
   auto ret = cb_->SetRgbHistObserverConfig(disp_id, state, &config);
+  if (ret != kErrorNone) {
+    output_parcel->write("FAILED", strlen("FAILED"));
+  } else {
+    output_parcel->writeInt32(ret);
+  }
+
+  return ret;
+}
+
+DisplayError SDMServices::SetPaHistCollection(SDMParcel *input_parcel, SDMParcel *output_parcel) {
+  bool enable = false;
+  int disp_id = input_parcel->readInt32();
+
+  // Enable/disable PA histogram collection
+  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+    enable = input_parcel->readInt32() ? true : false;
+  }
+
+  DLOGI("Disp ID: %d PAHist enable: %d", disp_id, enable);
+  auto ret = cb_->SetPaHistCollection(disp_id, enable);
   if (ret != kErrorNone) {
     output_parcel->write("FAILED", strlen("FAILED"));
   } else {

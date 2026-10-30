@@ -51,11 +51,6 @@ enum HWScanSupport {
   kScanBoth,
 };
 
-enum HWSSRType {
-  kSSR,    // Standard full subsystem restart
-  kSSRLsr  // Late Stage Reprojection subsystem restart
-};
-
 struct HWScanInfo {
   HWScanSupport pt_scan_support;    // Scan support for preferred timing
   HWScanSupport it_scan_support;    // Scan support for digital monitor or industry timings
@@ -239,6 +234,7 @@ class HWInterface {
   virtual DisplayError IsLedDriverUp(bool *is_led_driver_up) = 0;
   virtual DisplayError SetHdrCapabilities(const std::vector<Hdr> &hdr_types,
                                           float max_avg_luminance, float min_luminance) = 0;
+  virtual DisplayError SetDisplayPoseLatchOffset(int64_t time_ns) = 0;
 
  protected:
   virtual ~HWInterface() { }

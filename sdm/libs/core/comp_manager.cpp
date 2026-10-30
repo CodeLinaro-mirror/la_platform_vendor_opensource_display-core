@@ -1227,6 +1227,7 @@ DisplayError CompManager::SetSprIntf(Handle display_ctx, std::shared_ptr<SPRIntf
 
 bool CompManager::IsMirroredOfAnyDisplay(int32_t display_id, const LayerStack *layer_stack,
                                          int32_t *out_src_display) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
   if (resource_intf_ && resource_intf_->Perform(ResourceInterface::kCmdGetMirrorSource, display_id,
                                                 layer_stack, out_src_display) == kErrorNone) {
     return true;
@@ -1236,6 +1237,7 @@ bool CompManager::IsMirroredOfAnyDisplay(int32_t display_id, const LayerStack *l
 }
 
 void CompManager::LoadCwbHwDnscConfig(int32_t core_id, HWLayersInfo *info) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
   if (resource_intf_) {
     resource_intf_->Perform(ResourceInterface::kCmdGetCwbHwDnscConfig, core_id, info);
   }

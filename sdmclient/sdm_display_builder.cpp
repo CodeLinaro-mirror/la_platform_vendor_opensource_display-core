@@ -1388,7 +1388,9 @@ DisplayError SDMDisplayBuilder::GetDisplayHwId(uint64_t disp_id,
   for (auto &info : GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_BUILTIN_2)) {
     if (disp_id == info.client_id) {
       if (info.sdm_id >= 0) {
-        *disp_hw_id = static_cast<uint32_t>(info.sdm_id);
+        uint32_t base_core_id = DisplayId::GetBaseCoreId(info.sdm_id);
+        uint32_t conn_id = DisplayId::GetConnId(info.sdm_id, base_core_id);
+        *disp_hw_id = conn_id;
         return kErrorNone;
       }
     }
@@ -1398,7 +1400,9 @@ DisplayError SDMDisplayBuilder::GetDisplayHwId(uint64_t disp_id,
   for (auto &info : GetDisplayMapInfo(qdutilsDisplayType::DISPLAY_EXTERNAL)) {
     if (disp_id == info.client_id) {
       if (info.sdm_id >= 0) {
-        *disp_hw_id = static_cast<uint32_t>(info.sdm_id);
+        uint32_t base_core_id = DisplayId::GetBaseCoreId(info.sdm_id);
+        uint32_t conn_id = DisplayId::GetConnId(info.sdm_id, base_core_id);
+        *disp_hw_id = conn_id;
         return kErrorNone;
       }
     }

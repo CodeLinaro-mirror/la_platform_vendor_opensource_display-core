@@ -367,6 +367,8 @@ enum HWQseedStepVersion {
   kQseed3litev9,   // qseed 6
   kQseed3litev10,  // qseed 6
   kQseed3litev11,  // qseed 7
+  kQseed3litev11_7001,  // qseed 7, mid-tier
+  kQseed3litev11_7002,  // qseed 7, low-tier
 };
 
 struct HWDestScalarInfo {
@@ -411,6 +413,12 @@ enum DDRVersion {
   kDDRVersion5,
   kDDRVersion5x,
   kDDRVersion6,
+};
+
+enum DisplayCommitOp {
+  kDisplayCommitOpNone,
+  kDisplayCommitOpHWIO,
+  kDisplayCommitOpHFI,
 };
 
 struct InlineRotationInfo {
@@ -507,6 +515,7 @@ struct HWResourceInfo {
   uint32_t core_id = 0;
   CacVersion cac_version = kCacVersionNone;
   DDRVersion ddr_version = kDDRVersionNone;
+  DisplayCommitOp disp_commit_op = kDisplayCommitOpNone;
   std::vector<LayerBufferFormat> cac_supported_formats;
   bool has_cesta = false;
   uint32_t hw_ai_scaler_count = 0;

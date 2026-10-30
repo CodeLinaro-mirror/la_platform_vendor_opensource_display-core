@@ -165,7 +165,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(SetDimmingMinBl(int min_bl))
   MAKE_NO_OP(RetrieveDemuraTnFiles())
   MAKE_NO_OP(SetDemuraState(int state, int demura_idx))
-  MAKE_NO_OP(SetSPRState(int state))
+  MAKE_NO_OP(SetDynamicSPRMode(int state))
   MAKE_NO_OP(SetDemuraConfig(int demura_idx))
   MAKE_NO_OP(SetABCState(bool state))
   MAKE_NO_OP(SetABCReconfig())
@@ -216,6 +216,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(SetQrtcFeatureConfig(int32_t type, void *data))
   MAKE_NO_OP(UpdateRgbHistogramRoi(const void *));
   MAKE_NO_OP(GetDisplayViewMode(SDMDisplayViewMode *view_mode))
+  MAKE_NO_OP(SetDisplayPoseLatchOffset(int64_t time_ns))
 
  protected:
   DisplayConfigVariableInfo default_variable_config_ = {};
