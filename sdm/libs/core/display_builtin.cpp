@@ -215,7 +215,7 @@ DisplayError DisplayBuiltIn::Init() {
 
   error = DisplayBase::Init();
   if (error != kErrorNone) {
-    dpu_core_mux_->Destroy();
+    DestroyDPUCoreMux();
     return error;
   }
 
@@ -274,7 +274,7 @@ DisplayError DisplayBuiltIn::Init() {
                                     &hw_events_intf_);
   if (error != kErrorNone) {
     DisplayBase::Deinit();
-    dpu_core_mux_->Destroy();
+    DestroyDPUCoreMux();
     DLOGE("Failed to create hardware events interface on. Error = %d", error);
   }
 
@@ -327,7 +327,7 @@ DisplayError DisplayBuiltIn::Init() {
     if ((error = SetupSPR()) != kErrorNone) {
       DLOGE("SPR Failed to initialize. Error = %d", error);
       DisplayBase::Deinit();
-      dpu_core_mux_->Destroy();
+      DestroyDPUCoreMux();
       HWEventsInterface::Destroy(&hw_events_intf_);
       master_hw_events_intf_ = nullptr;
       return error;

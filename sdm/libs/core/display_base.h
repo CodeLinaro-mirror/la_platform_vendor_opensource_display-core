@@ -499,6 +499,15 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   SDMDisplayType display_type_;
   DisplayEventHandler *event_handler_ = NULL;
   HWDeviceType hw_device_type_;
+  // Destroys the HW interfaces owned by the mux and frees the mux object
+  // created by DPUCoreFactory::Create(). Safe to call more than once.
+  void DestroyDPUCoreMux() {
+    if (dpu_core_mux_) {
+      dpu_core_mux_->Destroy();
+      delete dpu_core_mux_;
+      dpu_core_mux_ = NULL;
+    }
+  }
   DPUCoreMux *dpu_core_mux_ = NULL;
   HWInterface *hw_intf_ = NULL;
   std::vector<HWResourceInfo> hw_resource_info_;

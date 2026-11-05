@@ -365,6 +365,8 @@ DRMManager::~DRMManager() {
   }
   if (panel_feature_mgr_intf_) {
     panel_feature_mgr_intf_->Deinit();
+    delete panel_feature_mgr_intf_;
+    panel_feature_mgr_intf_ = nullptr;
   }
   DestroyDppsManagerIntf(fd_);
   dpps_mgr_intf_ = nullptr;

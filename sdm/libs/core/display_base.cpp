@@ -504,7 +504,7 @@ DisplayError DisplayBase::Deinit() {
   }
   HWEventsInterface::Destroy(&hw_events_intf_);
   master_hw_events_intf_ = nullptr;
-  dpu_core_mux_->Destroy();
+  DestroyDPUCoreMux();
 
   {  // Scope for lock
     ClientLock lock(disp_mutex_);

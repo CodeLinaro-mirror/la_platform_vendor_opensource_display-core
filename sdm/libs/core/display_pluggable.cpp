@@ -90,7 +90,7 @@ DisplayError DisplayPluggable::Init() {
   uint32_t active_mode_index = 0;
   error = dpu_core_mux_->GetActiveConfig(&active_mode_index);
   if (error != kErrorNone) {
-    dpu_core_mux_->Destroy();
+    DestroyDPUCoreMux();
     return error;
   }
 
@@ -118,7 +118,7 @@ DisplayError DisplayPluggable::Init() {
     }
   }
   if (error != kErrorNone) {
-    dpu_core_mux_->Destroy();
+    DestroyDPUCoreMux();
     return error;
   }
 
@@ -142,7 +142,7 @@ DisplayError DisplayPluggable::Init() {
                                     &hw_events_intf_);
   if (error != kErrorNone) {
     DisplayBase::Deinit();
-    dpu_core_mux_->Destroy();
+    DestroyDPUCoreMux();
     DLOGE("Failed to create hardware events interface. Error = %d for display %d-%d", error,
           display_id_, display_type_);
   }
